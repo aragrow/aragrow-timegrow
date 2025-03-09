@@ -1,0 +1,88 @@
+.available-projects .project-item {
+    background-color: #f0f8ff; /* Light Alice Blue */
+    color: #000; /* Dark gray text */
+    padding: 8px 12px;
+    margin-bottom: 5px;
+    border-radius: 4px;
+    cursor: pointer;
+    width: 95%;
+}
+
+.assigned-projects .project-item.assigned {
+    background-color: #5dbcfb; /* Light Blue */
+    color: #000; /* Blue text */
+    padding: 8px 12px;
+    margin-bottom: 5px;
+    border-radius: 4px;
+    cursor: pointer;
+    width: 95%;
+}
+
+.project-item:hover, .project-item.assigned:hover {
+    background-color: #ccc; /* Slightly darker on hover */
+}
+
+.columns-2 {
+    display: flex;
+    gap: 20px;
+}
+.postbox-container {
+    flex: 1;
+}
+.postbox {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    box-shadow: 0 1px 1px rgba(0,0,0,.04);
+    margin-bottom: 20px;
+}
+.postbox .hndle {
+    border-bottom: 1px solid #ccd0d4;
+    font-size: 14px;
+    padding: 8px 12px;
+    margin: 0;
+    line-height: 1.4;
+}
+.postbox .inside {
+    padding: 0 12px 12px;
+}
+.project-lists-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.project-list {
+    border: 1px solid #ddd;
+    max-height: 200px;
+    overflow-y: auto;
+    padding: 5px;
+}
+.project-item {
+    cursor: pointer;
+    padding: 5px;
+}
+.project-item:hover {
+    background-color: #f0f0f0;
+}
+
+
+/* Add a separator for location details */
+table.form-table tr:nth-child(11) th {
+    background-color: #f0f0f0;
+    padding: 10px;
+    text-align: center;
+    border: 1px solid #ddd;
+}
+
+/* Make the location details section more visually distinct */
+table.form-table tr:nth-child(n+12):nth-child(-n+15) {
+    border-top: 1px solid #ddd;
+}
+
+/* Add some padding to improve readability */
+table.form-table tr td {
+    padding: 10px;
+}
+
+table.form-table tr th {
+    padding: 10px;
+}
