@@ -15,8 +15,6 @@ class Timeflies_TimeEntries_Admin {
 
     public function __construct() {
         add_action('wp_ajax_save_time_entry', array($this, 'save_ajax'));
-        add_action('wp_ajax_clock_id', array($this, 'clock_in'));
-        add_action('wp_ajax_clock_out', array($this, 'clock_out'));
         add_action('wp_ajax_save_manual_entry', array($this, 'save_manual_entry'));
         add_action('wp_ajax_get_projects_by_client', array($this, 'get_projects_by_client'));
         add_action('wp_ajax_delete_team_member', array($this, 'delete_ajax'));
@@ -25,6 +23,12 @@ class Timeflies_TimeEntries_Admin {
 
     public function enqueue_scripts_styles() {
        
+                    // Get current user's timezone
+        $user_timezone = 'UTC';
+        if (is_user_logged_in()) {
+            $stored_tz = get_user_meta(get_current_user_id(), 'timeflies_timezone', true);
+            $user_timezone = !empty($stored_tz) ? $stored_tz : 'UTC';
+        }
         wp_enqueue_style('timeflies-time-entries-style', ARAGROW_TIMEFLIES_BASE_URI . 'assets/css/time_entry.css');
         wp_enqueue_script('timeflies-time-entries-script', ARAGROW_TIMEFLIES_BASE_URI. 'assets/js/time_entry.js', array('jquery'), '1.0', true);
         wp_localize_script(
@@ -32,12 +36,10 @@ class Timeflies_TimeEntries_Admin {
             'timeflies_time_entry_list',
             [
                 'list_url' => admin_url('admin.php?page=' . TIMEFLIES_PARENT_MENU . '-time-entries-list'),
-                'nonce' => wp_create_nonce('timeflies_time_entry_nonce')
+                'nonce' => wp_create_nonce('timeflies_time_entry_nonce'),
+                'user_timezone' => $user_timezone
             ]
-        );
-        wp_enqueue_script('jquery-ui-datepicker');
-        wp_enqueue_script('jquery-ui-slider');
-        wp_enqueue_style('jquery-ui-style', 'https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css');
+        );  
     }
 
     public function save_ajax() {
@@ -89,81 +91,25 @@ class Timeflies_TimeEntries_Admin {
     }
 
     public function get_projects_by_client() {
-      
-        if (WP_DEBUG) error_log('Exec: Timeflies_TimeEntries_Admin.get_projects_by_client()');
-        check_ajax_referer('timeflies_time_entry_nonce', 'timeflies_time_entry_nonce_field');
-        if (WP_DEBUG)error_log('Exec: Timeflies_TimeEntries_Admin.get_projects_by_client()->Validation Passed.');
-
-        $client_id = intval($_POST['client_id']);
-        $user_id = get_current_user_id();
-
-        global $wpdb;
-        $prefix = $wpdb->prefix;
-        $projects = $wpdb->get_results($wpdb->prepare("
-            SELECT p.ID, p.name 
-            FROM {$prefix}timeflies_projects p
-            INNER JOIN {$prefix}timeflies_team_member_projects tmp ON p.ID = tmp.project_id
-            WHERE p.client_id = %d AND tmp.team_member_id = %d
-        ", $client_id, $user_id), ARRAY_A);
-        //error_log($wpdb->last_query);
-
-        wp_send_json_success($projects);
-    }
-
-    public function clock_in() {
         try {
-            check_ajax_referer('timeflies_check_in', 'nonce');
-            // Get the current datetime object in the WordPress timezone
-            $current_datetime = current_datetime();
+            if (WP_DEBUG) error_log('Exec: Timeflies_TimeEntries_Admin.get_projects_by_client()');
+            check_ajax_referer('timeflies_time_entry_nonce', 'timeflies_time_entry_nonce_field');
+            if (WP_DEBUG)error_log('Exec: Timeflies_TimeEntries_Admin.get_projects_by_client()->Validation Passed.');
 
-            // Format the datetime using WordPress settings
-            $formatted_datetime = $current_datetime->format(get_option('date_format') . ' ' . get_option('time_format'));
-
+            $client_id = intval($_POST['client_id']);
             $user_id = get_current_user_id();
-            $data = [
-                'member_id' => $user_id,
-                'project_id' => intval($_POST['project_id']),
-                'clock_in_date' => $formatted_datetime,
-                'description' => 'Clock In',
-                'entry_type' => 'clock_in'
-            ];
 
             global $wpdb;
             $prefix = $wpdb->prefix;
-            $wpdb->insert("{$prefix}timeflies_time_entries", $data);
-            
-            wp_send_json_success(['message' => 'Clocked In']);
+            $projects = $wpdb->get_results($wpdb->prepare("
+                SELECT p.ID, p.name 
+                FROM {$prefix}timeflies_projects p
+                INNER JOIN {$prefix}timeflies_team_member_projects tmp ON p.ID = tmp.project_id
+                WHERE p.client_id = %d AND tmp.team_member_id = %d
+            ", $client_id, $user_id), ARRAY_A);
+            //error_log($wpdb->last_query);
 
-        } catch (Exception $e) {
-            wp_send_json_error(['message' => $e->getMessage()]);
-        }
-    }
-
-    public function clock_out() {
-        try {
-            check_ajax_referer('timeflies_check_out', 'nonce');
-
-            // Get the current datetime object in the WordPress timezone
-            $current_datetime = current_datetime();
-
-            // Format the datetime using WordPress settings
-            $formatted_datetime = $current_datetime->format(get_option('date_format') . ' ' . get_option('time_format'));
-
-            $user_id = get_current_user_id();
-            $data = [
-                'member_id' => $user_id,
-                'project_id' => intval($_POST['project_id']),
-                'clock_out_date' => $formatted_datetime,
-                'description' => 'Clock In',
-                'entry_type' => 'clock_in'
-            ];
-
-            global $wpdb;
-            $prefix = $wpdb->prefix;
-            $wpdb->insert("{$prefix}timeflies_time_entries{", $data);
-            
-            wp_send_json_success(['message' => 'Clocked Out']);
-
+            wp_send_json_success($projects);
         } catch (Exception $e) {
             wp_send_json_error(['message' => $e->getMessage()]);
         }

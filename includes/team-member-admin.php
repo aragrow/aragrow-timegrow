@@ -99,11 +99,6 @@ class Timeflies_Team_Members_Admin {
                 ));
             }
 
-            if(WP_DEBUG) {
-                error_log('Team Member Project Data');
-                error_log(print_r($project_ids,true));
-            }
-
             // Update project assignments
             $this->update_team_member_projects($team_member_id, $project_ids);
 
@@ -129,23 +124,49 @@ class Timeflies_Team_Members_Admin {
     private function update_team_member_projects($team_member_id, $project_ids) {
         if (WP_DEBUG) error_log('Exc: Timeflies_Team_Members_Admin.update_team_member_projects()');
 
+        if(WP_DEBUG) {
+            error_log('Team Member Project Data');
+            error_log(print_r($project_ids,true));
+        }
+        
         global $wpdb;
-
+        $prefix = $wpdb->prefix;
         // Decode the URL-encoded string
         $project_ids = explode(',', $project_ids[0]);
 
-        // Remove existing assignments
-        $wpdb->delete('timeflies_team_member_projects', array('team_member_id' => $team_member_id), array('%d'));
+        $wpdb->query('START TRANSACTION');
 
-        // Add new assignments
-        if (!empty($project_ids)) {
-            foreach ($project_ids as $project_id) {
-                $wpdb->insert('timeflies_team_member_projects', array(
-                    'team_member_id' => $team_member_id,
-                    'project_id' => $project_id,
-                ), array('%d', '%d'));
+        try {
+            // Remove existing assignments
+            $wpdb->delete("{$prefix}timeflies_team_member_projects", array('team_member_id' => $team_member_id), array('%d'));
+
+            // Add new assignments
+            if (!empty($project_ids)) {
+                foreach ($project_ids as $project_id) {
+                    $wpdb->insert("{$prefix}timeflies_team_member_projects", array(
+                        'team_member_id' => $team_member_id,
+                        'project_id' => $project_id,
+                    ), array('%d', '%d'));
+                }
             }
+           // If we've made it this far without exceptions, commit the transaction
+            $wpdb->query('COMMIT');
+            
+            // Optionally, return a success message or status
+            return true;
+
+        } catch (Exception $e) {
+            // An error occurred, rollback the transaction
+            $wpdb->query('ROLLBACK');
+            
+            // Log the error or handle it as needed
+            error_log("Transaction failed: " . $e->getMessage());
+            
+            // Optionally, return false or throw the exception again
+            return false;
+            // or: throw $e;
         }
+       
     }
 
     public function delete_ajax() {

@@ -57,6 +57,12 @@ $clients = $wpdb->get_results("SELECT ID, name FROM {$prefix}timeflies_clients",
                                     <div id="estimate_hours_slider" style="margin-top: 10px;"></div>
                                 </td>
                             </tr>
+                            <tr>
+                                <th scope="row"><label for="default_flat_fee">Flat Fee</th>
+                                <td>
+                                    <input type="text" id="default_flat_fee" name="default_flat_fee" class="regular-text" readonly value="">
+                                </td>
+                            </tr>
                         </table>
                     </div>
                 </div>

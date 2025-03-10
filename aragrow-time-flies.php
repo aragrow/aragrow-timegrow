@@ -32,3 +32,4 @@ require_once ARAGROW_TIMEFLIES_INCLUDES_DIR . 'client-admin.php';
 require_once ARAGROW_TIMEFLIES_INCLUDES_DIR . 'project-admin.php';
 require_once ARAGROW_TIMEFLIES_INCLUDES_DIR . 'team-member-admin.php';
 require_once ARAGROW_TIMEFLIES_INCLUDES_DIR . 'time-entry-admin.php';
+require_once ARAGROW_TIMEFLIES_INCLUDES_DIR . 'team-member-clock-in-out.php';

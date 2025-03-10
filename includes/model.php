@@ -105,6 +105,7 @@ class Aragrow_TimeFlies_Model {
             hours decimal(5,2),
             billable tinyint(1),
             description text,
+            entry_type varchar(10),
             created_at timestamp,
             updated_at timestamp,
             PRIMARY KEY  (ID),

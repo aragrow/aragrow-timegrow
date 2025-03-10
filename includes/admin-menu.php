@@ -165,17 +165,6 @@ class TimeFlies_Admin_Menu {
             array($this, 'time_entry_edit_page')
         );
 
-        add_menu_page(
-            'Enter My Time',
-            'Enter My Time',
-            TIMEFLIES_TEAM_MEMBER_CAP,
-            TIMEFLIES_TEAM_MEMBER_MENU.'-add-time',
-            array($this, 'time_member_add_time_page'),
-            'dashicons-clock',
-            25
-        );
-
-
         // ... other submenus
     }
 
@@ -241,10 +230,6 @@ class TimeFlies_Admin_Menu {
 
     public function time_entry_edit_page() {
         require_once ARAGROW_TIMEFLIES_SCREENS_DIR . 'time-entry-edit.php';
-    }
-
-    public function time_member_add_time_page() {
-        require_once ARAGROW_TIMEFLIES_SCREENS_DIR . 'team-member-add-time.php';
     }
 
     // ... other page callbacks
