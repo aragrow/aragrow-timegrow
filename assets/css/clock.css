@@ -102,3 +102,12 @@
     color: white;
     border-color: #135e96;
 }
+
+.recent-entry  {
+    display: inline-block;
+    width: 20%;
+    max-width:200px;
+}
+.recent-entry.header {
+    font-weight: bold;
+}

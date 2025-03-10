@@ -29,6 +29,17 @@ class Timeflies_Clock_In_Out {
         );
         $projects = $wpdb->get_results($sql, ARRAY_A);
 
+        // Fetch the projects for the current user
+        $sql = $wpdb->prepare(
+            "SELECT project_id, entry_type, clock_in_date, clock_out_date
+            FROM {$prefix}timeflies_time_entries
+            WHERE member_id = %d
+            ORDER BY ID desc",
+            $current_user->ID
+        );
+        $entries = $wpdb->get_results($sql, ARRAY_A);
+        var_dump($wpdb->last_query);
+
         // User timezone
         $user_timezone = 'UTC';
         if (is_user_logged_in()) {
@@ -74,20 +85,43 @@ class Timeflies_Clock_In_Out {
                         </div>
                         
                         <div class="time-controls">
+                            <?php if($entries[0]['entry_type'] == 'OUT') { ?>
                             <button class="clock-btn clock-in" id="IN">Clock In</button>
+                            <?php } else { ?>
                             <button class="clock-btn clock-out" id="OUT">Clock Out</button>
+                            <?php } ?>
                             <input type="hidden" id="entry_type" name="entry_type" value="" readonly   />
                         </div>
-                        
                         <div class="timeflies-status"></div>
                     </div>
                 </div>
             </form>
             <div class="recent-entries">
-                <h3>Recent Entries</h3>
-                <div id="recent-entries-list">
-                    <!-- AJAX content will be loaded here -->
-                </div>
+                <h2>Recent Entries</h2>
+                <label class="recent-entry header">Project</label>
+                <label class="recent-entry header">Type</label> 
+                <label class="recent-entry header">GMT</label>
+                <label class="recent-entry header">Local</label>  
+                <?php foreach ($entries as $entry) : 
+                    $date = ($entry['entry_type'] == 'IN') ? $entry['clock_in_date'] : $entry['clock_out_date'];
+                    
+                    // Create a DateTime object with the GMT/UTC timezone
+                    $gmtDateTime = new DateTime($$date, new DateTimeZone('UTC'));
+
+                    // Set the local timezone (e.g., America/New_York)
+                    $localDateTime = clone $gmtDateTime; // Clone to avoid modifying the original object
+                    $localDateTime->setTimezone(new DateTimeZone($user_timezone));
+
+                    // Format and print the local time
+                    $local =  $localDateTime->format('Y-m-d H:i:s');
+                    ?>
+                    <div class="recent-entries-list">
+                    <label class="recent-entry entry"><?php echo $entry['project_id'];?></label>
+                    <label class="recent-entry entry"><?php echo $entry['entry_type'];?></label> 
+                    <label class="recent-entry entry"><?php echo ($entry['entry_type'] == 'IN') ? $entry['clock_in_date'] : $entry['clock_out_date'];?></label> 
+                    <label class="recent-entry entry"><?php echo $local;?></label> 
+                    </div>
+                <?php endforeach; ?>
             </div>
         </div>
         <?php
@@ -145,27 +179,17 @@ function timeflies_handle_clock_action() {
         $entry_type = sanitize_text_field($_POST['entry_type']);
         $gmt_clock = sanitize_text_field($_POST['gmt_clock_field']);
 
-        if ($entry_type == 'IN') {
-            $params = [
-                'member_id' => $member_id,
-                'project_id' => $project_id,
-                'entry_type' => $entry_type,
-                'clock_in_date' => $gmt_clock,
-                'created_at' => $current_date,
-                'updated_at' => $current_date
-            ];
-            $result = $wpdb->insert($table, $params, ['%d', '%s', '%s', '%s', '%s', '%s']);
-        } else { 
-            $params = [
-                'member_id' => $member_id,
-                'project_id' => $project_id,
-                'entry_type' => $entry_type,
-                'clock_out_date' => $gmt_clock,
-                'updated_at' => $current_date
-            ];
-            $result = $wpdb->update($table, $params, ['%d', '%s', '%s', '%s', '%s']);
-        }
-
+        $params = [
+            'member_id' => $member_id,
+            'project_id' => $project_id,
+            'entry_type' => $entry_type,
+            'created_at' => $current_date,
+            'updated_at' => $current_date
+        ];
+        if ($entry_type == 'IN') $param['clock_in_date'] = $gmt_clock;
+        else $params['clock_out_date'] = $gmt_clock;
+        
+        $result = $wpdb->insert($table, $params, ['%d', '%d', '%s', '%s', '%s', '%s']);
         if ($result) {
             wp_send_json_success("Clocked $entry_type successfully!");
         } else {
