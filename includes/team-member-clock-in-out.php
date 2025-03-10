@@ -38,7 +38,6 @@ class Timeflies_Clock_In_Out {
             $current_user->ID
         );
         $entries = $wpdb->get_results($sql, ARRAY_A);
-        var_dump($wpdb->last_query);
 
         // User timezone
         $user_timezone = 'UTC';
@@ -60,9 +59,10 @@ class Timeflies_Clock_In_Out {
                     <h4>1st. Select the Project to Assign Time</h4>    
                     <div class="project-buttons">
                         <?php foreach ($projects as $project) : ?>
+                            <?php if($entries[0]['entry_type'] == 'IN' && $project['ID'] != $entries[0]['project_id']) continue; ?>
                             <div class="project-item">
                                 <label class="project-button" >
-                                    <input type="radio" name="project_id" value="<?php echo esc_attr($project['ID']); ?>"> 
+                                    <input type="radio" name="project_id" value="<?php echo esc_attr($project['ID']); ?>" <?php echo ($entries[0]['project_id'] == $project['ID'])? 'checked':'';?> > 
                                     <?php echo esc_html($project['client_name'] . ' - ' . $project['name']); ?>
                                 </label>
                             </div>
@@ -186,7 +186,7 @@ function timeflies_handle_clock_action() {
             'created_at' => $current_date,
             'updated_at' => $current_date
         ];
-        if ($entry_type == 'IN') $param['clock_in_date'] = $gmt_clock;
+        if ($entry_type == 'IN') $params['clock_in_date'] = $gmt_clock;
         else $params['clock_out_date'] = $gmt_clock;
         
         $result = $wpdb->insert($table, $params, ['%d', '%d', '%s', '%s', '%s', '%s']);
