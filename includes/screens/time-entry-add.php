@@ -62,7 +62,7 @@ $entry_type = 'manual';
                             <tr>
                                 <th scope="row"><label for="start_time">Start Time </label></th>
                                 <td>
-                                    <input type="datetime-local" id="start_time" name="start_time" value=""  class="regular-text">
+                                    <input type="date" id="start_time" name="start_time" value=""  class="regular-text">
                                 </td>
                             </tr>
                             <tr>

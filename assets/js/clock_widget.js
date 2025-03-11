@@ -75,7 +75,7 @@ jQuery(document).ready(function($) {
             success: function(response) {
                 console.log(timeflies_ajax.ajaxurl);
                 console.log(response);
-                window.location.href = 'admin.php?page=timeflies-clock-in-on&crt=1';
+                location.reload(); // Reload the current page
             },
             error: function() {
                 console.log(3);

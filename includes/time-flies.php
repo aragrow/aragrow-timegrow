@@ -24,6 +24,10 @@ class Aragrow_TimeFlies {
         add_action('edit_user_profile', array($this, 'user_timezone_field'));
         add_action('personal_options_update', array($this, 'save_user_timezone'));
         add_action('edit_user_profile_update', array($this, 'save_user_timezone'));
+        add_action('show_user_profile', array($this, 'user_timecard_field'));
+        add_action('edit_user_profile', array($this, 'user_timecard_field'));
+        add_action('personal_options_update', array($this, 'save_user_timecard'));
+        add_action('edit_user_profile_update', array($this, 'save_user_timecard'));
 
     }
 
@@ -31,6 +35,13 @@ class Aragrow_TimeFlies {
         wp_enqueue_style('timeflies-style', ARAGROW_TIMEFLIES_BASE_URI . 'assets/css/admin_styles.css', '', '1.0'); // Create this CSS file
         wp_enqueue_script('timeflies-script', ARAGROW_TIMEFLIES_BASE_URI . 'assets/js/admin_script.js', array('jquery'), '1.0', true); // Create this JS file
         wp_localize_script('timeflies-script', 'timeflies_ajax', array('ajax_url' => admin_url('admin-ajax.php')));
+
+        if (!wp_script_is('font-awesome-kit', 'enqueued')) {
+            wp_enqueue_script( 'font-awesome-kit', 'https://kit.fontawesome.com/3d560e6a09.js', array(), null, false );
+            wp_script_add_data( 'font-awesome-kit', 'crossorigin', 'anonymous' );
+        }
+
+    
     }
 
 
@@ -53,7 +64,7 @@ class Aragrow_TimeFlies {
         wp_send_json_success(['message' => 'Invoice generated.']);
     }
 
-    // 5. Add timezone to user profile
+    // Add timezone to user profile
     function user_timezone_field($user) {
         $current = get_user_meta($user->ID, 'timeflies_timezone', true);
         if (empty($current)) {
@@ -77,13 +88,38 @@ class Aragrow_TimeFlies {
         <?php
     }
     
-
+    // Add timezone to user profile
+    function user_timecard_field($user) {
+        $current = get_user_meta($user->ID, 'timeflies_timecard', true);
+        ?>
+        <table class="form-table">
+            <tr>
+                <th><label for="timezone">Timecard Type</label></th>
+                <td>
+                    <?php echo $this->timecard_dropdown([
+                        'selected' => $current,
+                        'name' => 'timeflies_timecard',
+                        'class' => 'regular-text'
+                    ]); ?>
+                    <p class="description">Select the type of time keeping.</p>
+                </td>
+            </tr>
+        </table>
+        <?php
+    }
 
 
     public function save_user_timezone($user_id) {
         if (current_user_can('edit_user', $user_id)) {
             update_user_meta($user_id, 'timeflies_timezone', 
                 sanitize_text_field($_POST['timeflies_timezone']));
+        }
+    }
+
+    public function save_user_timecard($user_id) {
+        if (current_user_can('edit_user', $user_id)) {
+            update_user_meta($user_id, 'timeflies_timecard', 
+                sanitize_text_field($_POST['timeflies_timecard']));
         }
     }
 
@@ -161,7 +197,26 @@ class Aragrow_TimeFlies {
         return $structure;
     }
 
+ // Add this to your plugin's main file
+ public function timecard_dropdown($args = []) {
+    $defaults = [
+        'selected' => 'punch',
+        'name' => 'timeflies_timecard',
+        'class' => ''
+    ];
+    
+    $args = wp_parse_args($args, $defaults);
 
+    $output = '<select name="' . esc_attr($args['name']) . '" class="' . esc_attr($args['class']) . '">';
+        
+    $selected = selected($args['selected'], 'manual', false);
+    $output .= "<option value='punch' selected > Punch In/Out</option>";
+    $output .= "<option value='manual' {$selected} > Manual</option>";
+
+    $output .= '</select>';
+    
+    return $output;
+}
 }
 
 // Instantiate the plugin class.

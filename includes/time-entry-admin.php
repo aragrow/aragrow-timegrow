@@ -19,6 +19,8 @@ class Timeflies_TimeEntries_Admin {
         add_action('wp_ajax_get_projects_by_client', array($this, 'get_projects_by_client'));
         add_action('wp_ajax_delete_team_member', array($this, 'delete_ajax'));
         add_action('admin_enqueue_scripts', array($this, 'enqueue_scripts_styles'));
+        // Remove all of the widgets from the dashboard when team member.
+        add_action('wp_loaded', [ $this, 'modify_dashboard_for_team_member' ]);
     }
 
     public function enqueue_scripts_styles() {
@@ -142,6 +144,22 @@ class Timeflies_TimeEntries_Admin {
         } catch (Exception $e) {
             wp_send_json_error(['message' => $e->getMessage()]);
         }
+    }
+    
+    public function modify_dashboard_for_team_member() {
+        $user = wp_get_current_user();
+        
+        // Check if the user has the 'team_member' class
+        if (in_array('team_member', $user->roles)) {
+            // Remove all existing dashboard widgets
+            add_action('wp_dashboard_setup', [ $this, 'remove_all_dashboard_widgets' ], 998);
+            
+        }
+    }
+    
+    public function remove_all_dashboard_widgets() {
+        global $wp_meta_boxes;
+        $wp_meta_boxes['dashboard'] = array();
     }
     
 }
