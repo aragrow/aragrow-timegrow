@@ -5,11 +5,24 @@
     global $wpdb;
     $prefix = $wpdb->prefix;
 
-    $projects = $wpdb->get_results("
+
+    $integrations = get_option('timeflies_integration_settings');
+    if ($integrations['wc_clients'] && class_exists('WooCommerce')) {
+        $integration = new Timeflies_Integration();
+        $projects = $integration->get_projects_wc_customers('all', ['ID', 'name'], ['name']);
+       
+    } else {
+
+        $projects = $wpdb->get_results("
         SELECT p.*, c.name AS client_name 
         FROM {$prefix}timeflies_projects p
         INNER JOIN {$prefix}timeflies_clients c ON p.client_id = c.ID
-    ", ARRAY_A);
+        ORDER BY p.name
+        ", ARRAY_A);
+    }
+
+    // $projects now contains client names along with other project details
+
     ?>
 
     <div class="tablenav top">
@@ -31,14 +44,14 @@
             </tr>
         </thead>
         <tbody>
-            <?php if ($projects) : ?>
-                <?php foreach ($projects as $project) : ?>
+            <?php if ($projects) :?>
+                <?php foreach ($projects as &$project) :?>
                     <tr>
                         <td class="column-name column-primary" data-colname="Project Name">
-                            <strong><?php echo esc_html($project['name']); ?></strong>
+                            <strong><?php echo esc_html($project['name']); echo $project['ID'];?></strong>
                             <button type="button" class="toggle-row"><span class="screen-reader-text">Show more details</span></button>
                         </td>
-                        <td class="column-client" data-colname="Client"><?php echo esc_html($project['client_name']); ?></td>
+                        <td class="column-client" data-colname="Client"><?php echo esc_html($project['client_name']); echo $project['client_id']; ?></td>
                         <td class="column-start-date" data-colname="Start Date"><?php echo esc_html($project['start_date']); ?></td>
                         <td class="column-end-date" data-colname="End Date"><?php echo esc_html($project['end_date']); ?></td>
                         <td class="column-status" data-colname="Status"><?php echo esc_html($project['status']); ?></td>

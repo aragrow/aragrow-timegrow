@@ -7,7 +7,13 @@ global $wpdb;
 $prefix = $wpdb->prefix;
 
 $project_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
-$clients = $wpdb->get_results("SELECT ID, name FROM {$prefix}timeflies_clients", ARRAY_A);
+$integrations = get_option('timeflies_integration_settings');
+if ($integrations['wc_clients'] && class_exists('WooCommerce')) {
+    $integration = new Timeflies_Integration();
+    $clients = $integration->get_wc_customers('all', ['ID','name'], ['name']);
+} else {    
+    $clients = $wpdb->get_results("SELECT ID, name FROM {$prefix}timeflies_clients order by name", ARRAY_A);
+}
 
 if ($project_id > 0) {
     $project = $wpdb->get_row(

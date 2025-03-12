@@ -20,15 +20,24 @@ class Aragrow_TimeFlies {
         add_action('save_post', array($this, 'save_time_entry_data'));
         add_action('wp_ajax_generate_invoice', array($this, 'generate_invoice'));
         add_action('admin_enqueue_scripts', array($this, 'enqueue_scripts_styles')); // Enqueue scripts and styles
+        
+        // Add TimeZone to User's MetaData
         add_action('show_user_profile', array($this, 'user_timezone_field'));
         add_action('edit_user_profile', array($this, 'user_timezone_field'));
         add_action('personal_options_update', array($this, 'save_user_timezone'));
         add_action('edit_user_profile_update', array($this, 'save_user_timezone'));
+
+        // Add Timecard to User's Metadata
         add_action('show_user_profile', array($this, 'user_timecard_field'));
         add_action('edit_user_profile', array($this, 'user_timecard_field'));
         add_action('personal_options_update', array($this, 'save_user_timecard'));
         add_action('edit_user_profile_update', array($this, 'save_user_timecard'));
 
+        // Add Currency to User's Metadata
+        add_action('show_user_profile', array($this, 'user_currency_field'));
+        add_action('edit_user_profile', array($this, 'user_currency_field'));
+        add_action('personal_options_update', array($this, 'save_user_currenty'));
+        add_action('edit_user_profile_update', array($this, 'save_user_currency'));
     }
 
     public function enqueue_scripts_styles() {
@@ -197,26 +206,80 @@ class Aragrow_TimeFlies {
         return $structure;
     }
 
- // Add this to your plugin's main file
- public function timecard_dropdown($args = []) {
-    $defaults = [
-        'selected' => 'punch',
-        'name' => 'timeflies_timecard',
-        'class' => ''
-    ];
-    
-    $args = wp_parse_args($args, $defaults);
-
-    $output = '<select name="' . esc_attr($args['name']) . '" class="' . esc_attr($args['class']) . '">';
+    // Add this to your plugin's main file
+    public function timecard_dropdown($args = []) {
+        $defaults = [
+            'selected' => 'punch',
+            'name' => 'timeflies_timecard',
+            'class' => ''
+        ];
         
-    $selected = selected($args['selected'], 'manual', false);
-    $output .= "<option value='punch' selected > Punch In/Out</option>";
-    $output .= "<option value='manual' {$selected} > Manual</option>";
+        $args = wp_parse_args($args, $defaults);
 
-    $output .= '</select>';
-    
-    return $output;
-}
+        $output = '<select name="' . esc_attr($args['name']) . '" class="' . esc_attr($args['class']) . '">';
+            
+        $selected = selected($args['selected'], 'manual', false);
+        $output .= "<option value='punch' selected > Punch In/Out</option>";
+        $output .= "<option value='manual' {$selected} > Manual</option>";
+
+        $output .= '</select>';
+        
+        return $output;
+    }
+
+    // Add timezone to user profile
+    function user_currency_field($user) {
+        $current = get_user_meta($user->ID, 'timeflies_timecurrency', true);
+        ?>
+        <table class="form-table">
+            <tr>
+                <th><label for="timezone">Currency Type</label></th>
+                <td>
+                    <?php echo $this->currency_dropdown([
+                        'selected' => $current,
+                        'name' => 'timeflies_currency',
+                        'class' => 'regular-text'
+                    ]); ?>
+                    <p class="description">Select the type of time keeping.</p>
+                </td>
+            </tr>
+        </table>
+        <?php
+    }
+
+    public function save_user_currency($user_id) {
+        if (current_user_can('edit_user', $user_id)) {
+            update_user_meta($user_id, 'timeflies_currency', 
+                sanitize_text_field($_POST['timeflies_currency']));
+        }
+    }
+
+    // Add this to your plugin's main file
+    public function currency_dropdown($args = []) {
+        $defaults = [
+            'selected' => 'UTC',
+            'name' => 'timeflies_currency',
+            'class' => ''
+        ];
+        
+        $args = wp_parse_args($args, $defaults);
+        
+        $timezones = $this->time_zones_list();
+        
+        $output = '<select name="' . esc_attr($args['name']) . '" class="' . esc_attr($args['class']) . '">';
+        
+        foreach ($timezones as $zone) {
+            $selected = selected($args['selected'], $zone['zone'], false);
+            $output .= '<option value="' . esc_attr($zone['zone']) . '"' . $selected . '>';
+            $output .= esc_html($zone['label']);
+            $output .= '</option>';
+        }
+        
+        $output .= '</select>';
+        
+        return $output;
+    }
+
 }
 
 // Instantiate the plugin class.

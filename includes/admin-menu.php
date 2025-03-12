@@ -165,6 +165,14 @@ class TimeFlies_Admin_Menu {
             array($this, 'time_entry_edit_page')
         );
 
+        add_submenu_page(
+            TIMEFLIES_PARENT_MENU, // Parent menu slug (adjust if different)
+            'Integrations',
+            'Integrations',
+            TIMEFLIES_OWNER_CAP,
+            TIMEFLIES_PARENT_MENU.'-integrations',
+            array($this, 'render_integration_page')
+        );
         // ... other submenus
     }
 
@@ -230,6 +238,10 @@ class TimeFlies_Admin_Menu {
 
     public function time_entry_edit_page() {
         require_once ARAGROW_TIMEFLIES_SCREENS_DIR . 'time-entry-edit.php';
+    }
+
+    public function render_integration_page() {
+        require_once ARAGROW_TIMEFLIES_SCREENS_DIR . 'integration-page.php';
     }
 
     // ... other page callbacks

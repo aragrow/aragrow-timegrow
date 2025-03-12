@@ -15,21 +15,65 @@ class Timeflies_Manual_Entry_Widget {
             echo '<p>You must be logged in to view your projects.</p>';
             return;
         }
+        $integrations = get_option('timeflies_integration_settings');
+        if ($integrations['wc_clients'] && class_exists('WooCommerce')) {
+            $integration = new Timeflies_Integration();
 
-        // Fetch the projects for the current user
-        $sql = $wpdb->prepare(
-            "SELECT p.ID, p.name, c.name AS client_name
-            FROM {$prefix}timeflies_team_members m
-            JOIN {$prefix}timeflies_team_member_projects mp ON mp.team_member_id = m.ID
-            JOIN {$prefix}timeflies_projects p ON mp.project_id = p.ID
-            JOIN {$prefix}timeflies_clients c ON p.client_id = c.ID
-            WHERE m.user_id = %d
-            ORDER BY c.name, p.name",
-            $current_user->ID
-        );
-        $projects = $wpdb->get_results($sql, ARRAY_A);
+            // Fetch the projects for the current user
+            $sql = $wpdb->prepare(
+                "SELECT p.ID, p.name, p.client_id
+                FROM {$prefix}timeflies_team_members m
+                JOIN {$prefix}timeflies_team_member_projects mp ON mp.team_member_id = m.ID
+                JOIN {$prefix}timeflies_projects p ON mp.project_id = p.ID
+                WHERE m.user_id = %d",
+                $current_user->ID
+            );
 
-        // Fetch the projects for the current user
+            $projects = $wpdb->get_results($sql, ARRAY_A);
+
+            $client_ids = array_unique(array_column($projects, 'client_id'));
+
+             // Use the get_wc_customers method to fetch client details
+            $client_details = $integration->get_wc_customers($client_ids, ['ID', 'name'], []);
+            //var_dump($wpdb->last_query);
+            //var_dump($wpdb->last_result);  
+
+            // Create an associative array of clients with ID as key
+            foreach ($client_details as $client) {
+                $clients[$client['ID']] = $client['name'];
+            }
+
+            // Now $clients array contains client IDs as keys and names as values
+            // You can use it like this:
+            foreach ($projects as &$project) {
+                // echo'<hr />';var_dump($project); 
+                $client_id = $project['client_id'];
+                $project['client_name'] = $clients[$client_id];
+            }
+
+
+        } else {
+            // Fetch the projects for the current user
+            $sql = $wpdb->prepare(
+                "SELECT p.ID, p.name, c.name AS client_name
+                FROM {$prefix}timeflies_team_members m
+                JOIN {$prefix}timeflies_team_member_projects mp ON mp.team_member_id = m.ID
+                JOIN {$prefix}timeflies_projects p ON mp.project_id = p.ID
+                JOIN {$prefix}timeflies_clients c ON p.client_id = c.ID
+                WHERE m.user_id = %d
+                ORDER BY c.name, p.name",
+                $current_user->ID
+            );
+
+            $projects = $wpdb->get_results($sql, ARRAY_A);
+
+        }
+
+
+
+
+       
+        // Fetch the entries for the current user
         $sql = $wpdb->prepare(
             "SELECT project_id, entry_type, clock_in_date, hours
             FROM {$prefix}timeflies_time_entries
@@ -60,7 +104,7 @@ class Timeflies_Manual_Entry_Widget {
                 <div class="time-tracker-card">
                     <h4>1st. Select the Project to Assign Time</h4>    
                     <div class="project-buttons">
-                        <?php foreach ($projects as $project) : ?>
+                        <?php foreach ($projects as  &$project) : ?>
                             <div class="project-item">
                                 <label class="project-button" >
                                     <input type="radio" name="project_id" value="<?php echo esc_attr($project['ID']); ?>" > 

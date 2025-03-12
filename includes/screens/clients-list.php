@@ -2,6 +2,14 @@
     <h2>All Clients</h2>
 
     <?php
+
+    $integrations = get_option('timeflies_integration_settings');
+
+    if ($integrations['wc_clients'] && class_exists('WooCommerce')) {
+        echo '<div class="x-notice info"><p>Clients are integrated with WooCommerce Customers.</p></div>';
+        exit();
+    }
+
     global $wpdb;
     $prefix = $wpdb->prefix;
 

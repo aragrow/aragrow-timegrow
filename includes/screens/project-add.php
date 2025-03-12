@@ -5,7 +5,15 @@ if (!defined('ABSPATH')) {
 
 global $wpdb;
 $prefix = $wpdb->prefix;
-$clients = $wpdb->get_results("SELECT ID, name FROM {$prefix}timeflies_clients", ARRAY_A);
+
+$integrations = get_option('timeflies_integration_settings');
+if ($integrations['wc_clients'] && class_exists('WooCommerce')) {
+    $integration = new Timeflies_Integration();
+    // Get all customers
+    $clients = $integration->get_wc_customers('all', ['ID','name'], ['name']);
+} else {
+    $clients = $wpdb->get_results("SELECT ID, name FROM {$prefix}timeflies_clients order by name", ARRAY_A);
+}
 ?>
 
 <div class="wrap">
