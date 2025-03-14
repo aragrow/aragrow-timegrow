@@ -26,6 +26,7 @@ if ($company_id > 0) {
 
     <form id="timeflies-company-form" class="wp-core-ui" method="POST">
         <input type="hidden" name="company_id" value="<?php echo esc_attr($company_id); ?>">
+        <input type="hidden" name="action" value="save_company">
         <?php wp_nonce_field('timeflies_company_nonce', 'timeflies_company_nonce_field'); ?>
 
         <div class="metabox-holder columns-2">

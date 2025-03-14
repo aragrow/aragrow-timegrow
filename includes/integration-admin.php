@@ -17,6 +17,18 @@ class Timeflies_Integration_Settings {
     public function __construct() {
         add_filter('woocommerce_prevent_admin_access', [ $this, 'allow_team_member_admin_access' ], 10, 2);
         add_action('admin_init', [ $this, 'register_integration_settings' ]);
+
+        // Add Currency to User's Metadata
+        add_action('show_user_profile', array($this, 'user_currency_field'));
+        add_action('edit_user_profile', array($this, 'user_currency_field'));
+        add_action('personal_options_update', array($this, 'save_user_currency'));
+        add_action('edit_user_profile_update', array($this, 'save_user_currency'));
+
+        // Add Default Flat Fee to User's Metadata
+        add_action('show_user_profile', array($this, 'user_default_flat_fee_field'));
+        add_action('edit_user_profile', array($this, 'user_default_flat_fee_field'));
+        add_action('personal_options_update', array($this, 'save_user_default_flat_fee'));
+        add_action('edit_user_profile_update', array($this, 'save_user_default_flat_fee'));
     }
 
     /**
@@ -118,6 +130,82 @@ class Timeflies_Integration_Settings {
             Enable invoice synchronization
         </label>
         <?php
+    }
+
+    // Add timezone to user profile
+    function user_currency_field($user) {
+        $current = get_user_meta($user->ID, 'timeflies_currency', true);
+        ?>
+        <table class="form-table">
+            <tr>
+                <th><label for="timezone">Currency Type</label></th>
+                <td>
+                    <?php echo $this->currency_dropdown([
+                        'selected' => $current,
+                        'name' => 'timeflies_currency',
+                        'class' => 'regular-text'
+                    ]); ?>
+                    <p class="description">Select the type of time keeping.</p>
+                </td>
+            </tr>
+        </table>
+        <?php
+    }
+
+    public function save_user_currency($user_id) {
+        if (current_user_can('edit_user', $user_id)) {
+            update_user_meta($user_id, 'timeflies_currency', 
+                sanitize_text_field($_POST['timeflies_currency']));
+        }
+    }
+
+    // Add this to your plugin's main file
+    public function currency_dropdown($args = []) {
+        $defaults = [
+            'selected' => 'DOLLAR',
+            'name' => 'timeflies_currency',
+            'class' => ''
+        ];
+        
+        $args = wp_parse_args($args, $defaults);
+        
+        $output = '<select name="' . esc_attr($args['name']) . '" class="' . esc_attr($args['class']) . '">';
+    
+        $selected = selected($args['selected'], 'dollar', false);
+        $output .= '<option value="dollar"' . $selected . '>';
+        $output .= esc_html('$');
+        $output .= '</option>';
+        $selected = selected($args['selected'], 'euro', false);
+        $output .= '<option value="euro"' . $selected . '>';
+        $output .= esc_html('€');
+        $output .= '</option>';
+        
+        $output .= '</select>';
+        
+        return $output;
+    }
+
+    // Add Default Flat Fee to user profile
+    function user_default_flat_fee_field($user) {
+        $current = get_user_meta($user->ID, 'timeflies_default_flat_fee', true);
+        ?>
+        <table class="form-table">
+            <tr>
+                <th><label for="timeflies_default_flat_fee">Default Flat Fee</label></th>
+                <td>
+                    <input type="text" name="timeflies_default_flat_fee" id="timeflies_default_flat_fee" value="<?php echo esc_attr($current); ?>" class="regular-text" />
+                    <p class="description">Enter the default flat fee for time keeping.</p>
+                </td>
+            </tr>
+        </table>
+        <?php
+    }
+
+    public function save_user_default_flat_fee($user_id) {
+        if (current_user_can('edit_user', $user_id)) {
+            update_user_meta($user_id, 'timeflies_default_flat_fee', 
+                sanitize_text_field($_POST['timeflies_default_flat_fee']));
+        }
     }
 
 }

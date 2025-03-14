@@ -87,6 +87,7 @@ class Aragrow_TimeFlies_Model {
             start_date date,
             end_date date,
             status smallint(1) NOT NULL DEFAULT 1,
+            billable smallint(1) NOT NULL DEFAULT 1,
             estimate_hours smallint(4) NULL,
             created_by bigint(20) unsigned,
             created_at timestamp,

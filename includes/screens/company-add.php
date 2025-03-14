@@ -10,6 +10,8 @@ if (!defined('ABSPATH')) {
     <h2>Add New Company</h2>
 
     <form id="timeflies-company-form" class="wp-core-ui" method="POST">
+        <input type="hidden" name="company_id" value="0">
+        <input type="hidden" name="acton" value="save_company">
         <?php wp_nonce_field('timeflies_company_nonce', 'timeflies_company_nonce_field'); ?>
 
         <div class="metabox-holder columns-2">

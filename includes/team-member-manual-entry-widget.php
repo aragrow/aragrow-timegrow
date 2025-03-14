@@ -69,21 +69,18 @@ class Timeflies_Manual_Entry_Widget {
 
         }
 
-
-
-
-       
         // Fetch the entries for the current user
         $sql = $wpdb->prepare(
-            "SELECT project_id, entry_type, clock_in_date, hours
-            FROM {$prefix}timeflies_time_entries
-            WHERE member_id = %d
-            AND entry_type = ('MAN')
-            ORDER BY ID desc",
+            "SELECT te.project_id, te.entry_type, te.clock_in_date, te.hours, p.name
+            FROM {$prefix}timeflies_time_entries te
+            INNER JOIN {$prefix}timeflies_projects p ON te.project_id = p.ID
+            WHERE te.member_id = %d
+            AND te.entry_type = ('MAN')
+            ORDER BY te.clock_in_date DESC, p.name desc",
             $current_user->ID
         );
         $entries = $wpdb->get_results($sql, ARRAY_A);
-
+        error_log($wpdb->last_query);
         // User timezone
         $user_timezone = 'UTC';
         if (is_user_logged_in()) {
@@ -96,7 +93,7 @@ class Timeflies_Manual_Entry_Widget {
         ?>
         <div class="time-tracker-wrapper">
             <form id="timeflies-manual-entry" class="wp-core-ui">
-                <input type="hidden" id="action" name="action" value="timeflies_clock_action" readonly   />
+                <input type="hidden" id="action" name="action" value="timeflies_manual_action" readonly   />
                 <?php wp_nonce_field('timeflies_time_entry_nonce', 'timeflies_time_entry_nonce_field'); ?>
                 <input type="hidden" id="member_id" name="member_id" value="<?php echo get_current_user_id(); ?>" readonly   />
                 <input type="hidden" id="entry_type" name="entry_type" value="MAN" readonly   />
@@ -124,7 +121,7 @@ class Timeflies_Manual_Entry_Widget {
                         <div class="gmt-time">
                             <select id="time" name="time" class="regular-text" required>
                                 <?php for ($hour = 0; $hour <= 12; $hour++) : ?>
-                                    <?php foreach (['00', '10', '20', '30', '40', '50'] as $minute) : ?>
+                                    <?php foreach (['00', '15', '30', '45'] as $minute) : ?>
                                         <?php if($hour == 0 && $minute == '00') continue; ?>
                                         <option value="<?php echo $hour . ':' . $minute; ?>">
                                             <?php echo $hour . ' hours ' . $minute . ' minutes'; ?>
@@ -141,28 +138,29 @@ class Timeflies_Manual_Entry_Widget {
             </form>
             <div class="recent-entries">
                 <h2>Recent Entries</h2>
-                <label class="recent-entry header">Project</label>
-                <label class="recent-entry header">GMT</label>
-                <label class="recent-entry header">Local</label>  
-                <label class="recent-entry header">Hours</label>  
+                <label class="recent-entry header project">Project</label>
+                <label class="recent-entry header date">GMT</label>
+                <label class="recent-entry header date">Local</label>  
+                <label class="recent-entry header hour">Hours</label>  
+                <?php $class = 'alternate' ?>
                 <?php foreach ($entries as $entry) : 
+                    $class = ($class == 'alternate')? '': 'alternate';
                     $date = $entry['clock_in_date'];
-                    
+                    error_log($date);
                     // Create a DateTime object with the GMT/UTC timezone
                     $gmtDateTime = new DateTime($date, new DateTimeZone('UTC'));
-
                     // Set the local timezone (e.g., America/New_York)
                     $localDateTime = clone $gmtDateTime; // Clone to avoid modifying the original object
                     $localDateTime->setTimezone(new DateTimeZone($user_timezone));
-
                     // Format and print the local time
                     $local =  $localDateTime->format('Y-m-d H:i:s');
+                    
                     ?>
-                    <div class="recent-entries-list">
-                    <label class="recent-entry entry"><?php echo $entry['project_id'];?></label>
-                    <label class="recent-entry entry"><?php echo $entry['clock_in_date']?></label> 
-                    <label class="recent-entry entry"><?php echo $local;?></label> 
-                    <label class="recent-entry entry"><?php echo $entry['$hours'];?></label> 
+                    <div class="recent-entries-list <? echo $class; ?>">
+                    <label class="recent-entry entry project"><?php echo $entry['name'];?></label>
+                    <label class="recent-entry entry date"><?php echo date("m/d/Y", strtotime($date)); ?></label> 
+                    <label class="recent-entry entry date"><?php echo date("m/d/Y", strtotime($local)); ?></label> 
+                    <label class="recent-entry entry hour"><?php echo $entry['hours'];?></label> 
                     </div>
                 <?php endforeach; ?>
             </div>
@@ -209,7 +207,7 @@ class Timeflies_Manual_Entry_Widget {
 $Timeflies_Manual_Entry = new Timeflies_Manual_Entry_Widget;
 
 // Hook for AJAX calls (assuming timeflies_clock_action is defined elsewhere)
-add_action( 'wp_ajax_timeflies_clock_action', 'timeflies_handle_manual_action' );
+add_action( 'wp_ajax_timeflies_manual_action', 'timeflies_handle_manual_action' );
 
 function timeflies_handle_manual_action() {
     try {
@@ -219,11 +217,10 @@ function timeflies_handle_manual_action() {
 
         global $wpdb;
         $table = $wpdb->prefix . 'timeflies_time_entries';
-
         $member_id = sanitize_text_field($_POST['member_id']);
         $project_id = sanitize_text_field($_POST['project_id']);
         $entry_type = sanitize_text_field($_POST['entry_type']);
-        $hours = timeflies_convert_to_decimal_hours(sanitize_text_field($_POST['hours']));
+        $hours = timeflies_convert_to_decimal_hours(sanitize_text_field($_POST['time']));
         $date = sanitize_text_field($_POST['date']);
 
         $stored_tz = get_user_meta(get_current_user_id(), 'timeflies_timezone', true);
@@ -231,25 +228,24 @@ function timeflies_handle_manual_action() {
     
         // Create a DateTime object with the local time
         $localDate = new DateTime($date, new DateTimeZone($timezone));
-
         // Set the timezone to GMT
         $localDate->setTimezone(new DateTimeZone('GMT'));
-
+        $localDate->setTime(0, 0, 0); // Set time to 00:00:00
         // Format and output the GMT date
-        $localDate->format('Y-m-d');
+        $formattedDate=$localDate->format('Y-m-d');
 
         $current_date = current_time('mysql');
-
+        
         $params = [
             'member_id' => $member_id,
             'project_id' => $project_id,
             'entry_type' => $entry_type,
-            'clock_in_date' => $localDate,
+            'clock_in_date' => $formattedDate,
             'hours' => $hours,
             'created_at' => $current_date,
             'updated_at' => $current_date,
         ];
-        
+        error_log(print_r($params,true));
         $result = $wpdb->insert($table, $params, ['%d', '%d', '%s', '%s', '%f', '%s', '%s']);
         if ($result) {
             wp_send_json_success("Clocked $entry_type successfully!");
@@ -261,14 +257,16 @@ function timeflies_handle_manual_action() {
         wp_send_json_error(['message' => $e->getMessage()]);
     }
 
-    function timeflies_convert_to_decimal_hours($time) {
-        // Split the time into hours and minutes
-        list($hours, $minutes) = explode(':', $time);
-    
-        // Convert to decimal hours
-        $decimalHours = $hours + ($minutes / 60);
-    
-        // Return the result as a float with two decimal places
-        return number_format($decimalHours, 2);
-    }
+}
+
+function timeflies_convert_to_decimal_hours($time) {
+    error_log($time);
+    // Split the time into hours and minutes
+    list($hours, $minutes) = explode(':', $time);
+
+    // Convert to decimal hours
+    $decimalHours = $hours + ($minutes / 60);
+
+    // Return the result as a float with two decimal places
+    return number_format($decimalHours, 2);
 }

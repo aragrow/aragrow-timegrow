@@ -86,7 +86,7 @@ class Timeflies_Clock_In_Out_Widget {
                         </div>
                         
                         <div class="time-controls">
-                            <?php if($entries[0]['entry_type'] == 'OUT') { ?>
+                            <?php if($entries[0]['entry_type'] != 'IN') { ?>
                             <button class="clock-btn clock-in" id="IN"><i class="fa-solid fa-toggle-on"></i> Clock In</button>
                             <?php } else { ?>
                             <button class="clock-btn clock-out" id="OUT"><i class="fa-solid fa-toggle-off"></i> Clock Out</button>

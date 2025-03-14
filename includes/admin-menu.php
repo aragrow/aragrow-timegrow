@@ -35,7 +35,7 @@ class TimeFlies_Admin_Menu {
             'Companies',
             'Companies',
             TIMEFLIES_OWNER_CAP,
-            TIMEFLIES_PARENT_MENU . '-company-list',
+            TIMEFLIES_PARENT_MENU . '-companies-list',
             array($this, 'companies_list_page')
         );
 

@@ -40,6 +40,7 @@
                 <th scope="col" class="manage-column column-start-date">Start Date</th>
                 <th scope="col" class="manage-column column-end-date">End Date</th>
                 <th scope="col" class="manage-column column-status">Status</th>
+                <th scope="col" class="manage-column column-status">Billable</th>
                 <th scope="col" class="manage-column column-actions">Actions</th>
             </tr>
         </thead>
@@ -55,6 +56,7 @@
                         <td class="column-start-date" data-colname="Start Date"><?php echo esc_html($project['start_date']); ?></td>
                         <td class="column-end-date" data-colname="End Date"><?php echo esc_html($project['end_date']); ?></td>
                         <td class="column-status" data-colname="Status"><?php echo esc_html($project['status']); ?></td>
+                        <td class="column-billable" data-colname="Billable"><?php echo ($project['billable']) ? 'YES' : 'NO';?></td>
                         <td class="column-actions" data-colname="Actions">
                             <a href="<?php echo admin_url('admin.php?page=' . TIMEFLIES_PARENT_MENU . '-project-edit&id=' . $project['ID']); ?>" class="button button-small">Edit</a>
                         </td>

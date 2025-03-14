@@ -11,9 +11,9 @@ jQuery(document).ready(function($) {
         }
     });
 
-    $('#timeflies-project-form').submit(function(e) {
+    $('#timeflies-time-entry-form').submit(function(e) {
 
-        console.log('#timeflies-entry-form.submit');
+        console.log('#timeflies-time-entry-form.submit');
 
         e.preventDefault();
 

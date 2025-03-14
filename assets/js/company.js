@@ -3,9 +3,9 @@ jQuery(document).ready(function($) {
     $('#timeflies-company-form').submit(function(e) {
         e.preventDefault();
 
-        var data = $(this).serialize();
-        data.action = 'save_company';
+        data = $(this).serialize();
       
+        console.log(data);
         $.ajax({
             url: timeflies_ajax.ajax_url,
             type: 'POST',

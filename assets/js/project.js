@@ -31,10 +31,11 @@ jQuery(document).ready(function($) {
         $.ajax({
             url: timeflies_ajax.ajax_url,
             type: 'POST',
-            data: formData + '&action=save_project',
+            data: formData,
             dataType: 'json',
             async: true,
             success: function(response) {
+                console.log(response.data.message);
                 if (response.success) {
                     alert(response.data.message);
                     window.location.href = timeflies_projects_list.list_url;
@@ -42,9 +43,11 @@ jQuery(document).ready(function($) {
                     alert('Error: ' + response.data.message);
                 }
             },
-            error: function(error) {
-                console.error(error);
-                alert('An error occurred.');
+            error: function(xhr, status, error) {
+                console.error('XHR:', xhr);
+                console.error('Status:', status);
+                console.error('Error:', error);
+                alert('An error occurred 123.');
             }
         });
     });

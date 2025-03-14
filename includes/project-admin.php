@@ -37,7 +37,7 @@ class Timeflies_Projects_Admin {
 
     public function save_ajax() {
         try {
-            if (WP_DEBUG) error_log('Exc: Timeflies_projects_Admin.save_ajax()');
+            if (WP_DEBUG) error_log('Exec: Timeflies_projects_Admin.save_ajax()');
             check_ajax_referer('timeflies_project_nonce', 'timeflies_project_nonce_field');
         
             if (WP_DEBUG) error_log('--> Validation Passed!!');
@@ -47,10 +47,11 @@ class Timeflies_Projects_Admin {
             $name = sanitize_text_field($_POST['name']);
             $description = wp_kses_post($_POST['description']);
             $default_flat_fee = floatval($_POST['default_flat_fee']);
-            $start_date = sanitize_text_field($_POST['start_date']);
-            $end_date = sanitize_text_field($_POST['end_date']);
+            $start_date = !empty($_POST['start_date']) ? sanitize_text_field($_POST['start_date']) : null;
+            $end_date = !empty($_POST['end_date']) ? sanitize_text_field($_POST['end_date']) : null;
             $estimate_hours = floatval($_POST['estimate_hours']);
-            $status = isset($_POST['status']) ? 1 : 0;
+            $billable = isset($_POST['billable']) ? $_POST['billable'] : 0;
+            $status = isset($_POST['status']) ? $_POST['status'] : 0;
 
             $current_date = current_time('mysql');
 
@@ -62,24 +63,29 @@ class Timeflies_Projects_Admin {
                 'start_date' => $start_date,
                 'end_date' => $end_date,
                 'estimate_hours' => $estimate_hours,
+                'billable' => $billable,
                 'status' => $status,
                 'updated_at' => $current_date,
             );
+
+            error_log(print_r($project_data,true));
 
             global $wpdb;
             $prefix = $wpdb->prefix;
             
             if ($project_id === 0) {
                 $project_data['created_at'] = $current_date;
-                $wpdb->insert("{$prefix}timeflies_projects", $project_data, array(
-                    '%d', '%s', '%s', '%f', '%s', '%s', '%f', '%d', '%s', '%s'
+                $return = $wpdb->insert("{$prefix}timeflies_projects", $project_data, array(
+                    '%d', '%s', '%s', '%f', '%s', '%s', '%f', '%d', '%d','%s', '%s'
                 ));
                 $project_id = $wpdb->insert_id;
             } else {
-                $wpdb->update("{$prefix}timeflies_projects", $project_data, array('ID' => $project_id), array(
-                    '%d', '%s', '%s', '%f', '%s', '%s', '%f', '%d', '%s'
+                $return = $wpdb->update("{$prefix}timeflies_projects", $project_data, array('ID' => $project_id), array(
+                    '%d', '%s', '%s', '%f', '%s', '%s', '%f', '%d', '%d','%s'
                 ));
             }
+            error_log(print_r($return, true));
+            error_log($wpdb->last_query);
         
             wp_send_json_success(array('message' => 'project Saved.', 'project_id' => $project_id));
         

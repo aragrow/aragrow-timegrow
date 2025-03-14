@@ -31,6 +31,7 @@ if ($project_id > 0) {
 
     <form id="timeflies-project-form" class="wp-core-ui" method="POST">
         <input type="hidden" name="project_id" value="<?php echo esc_attr($project_id); ?>">
+        <input type="hidden" name="action" value="save_project">
         <?php wp_nonce_field('timeflies_project_nonce', 'timeflies_project_nonce_field'); ?>
 
         <div class="metabox-holder columns-2">
@@ -75,14 +76,27 @@ if ($project_id > 0) {
                                     <div id="estimate_hours_slider" style="margin-top: 10px;"></div>
                                 </td>
                             </tr>
+                            <tr>
+                                <th scope="row"><label for="default_flat_fee">Flat Fee</label></th>
+                                <td>
+                                    <input type="number" id="default_flat_fee" name="default_flat_fee" class="regular-text" step="0.01" min="0" value="<?php echo isset($client['default_flat_fee']) ? esc_attr($client['default_flat_fee']) : '0.00'; ?>">
+                                </td>
+                            </tr>
                         </table>
                     </div>
+                    
                 </div>
 
                 <div class="postbox">
                     <h3 class="hndle"><span>Additional Information</span></h3>
                     <div class="inside">
                         <table class="form-table">
+                            <tr>
+                                <th scope="row"><label for="description">Billable</label></th>
+                                <td>
+                                    <input type="checkbox" name="billable" id="billable" value="1" <?php echo ($project['billable']) ? 'checked' : ''; ?>>
+                                </td>
+                            </tr> 
                             <tr>
                                 <th scope="row"><label for="description">Description</label></th>
                                 <td>

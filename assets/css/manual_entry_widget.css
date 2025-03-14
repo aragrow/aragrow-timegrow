@@ -105,9 +105,28 @@
 
 .recent-entry  {
     display: inline-block;
-    width: 20%;
-    max-width:200px;
+    font-size: .75em;
 }
 .recent-entry.header {
     font-weight: bold;
+}
+.recent-entry.header.project,
+.recent-entry.entry.project {
+    width: 50%;
+}
+.recent-entry.header.date,
+.recent-entry.entry.date {
+    width: 20%;
+}
+.recent-entry.header.hour,
+.recent-entry.entry.hour {
+    width: 5%;
+}
+
+.recent-entries-list {
+    padding: 2px 5px 2px 5px;
+}
+
+.alternate {
+    background-color: lightgray;
 }

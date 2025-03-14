@@ -21,6 +21,7 @@ if ($integrations['wc_clients'] && class_exists('WooCommerce')) {
 
     <form id="timeflies-project-form" class="wp-core-ui" method="POST">
         <input type="hidden" name="project_id" value="0">
+        <input type="hidden" name="action" value="save_project">
         <?php wp_nonce_field('timeflies_project_nonce', 'timeflies_project_nonce_field'); ?>
 
         <div class="metabox-holder columns-2">
@@ -66,9 +67,9 @@ if ($integrations['wc_clients'] && class_exists('WooCommerce')) {
                                 </td>
                             </tr>
                             <tr>
-                                <th scope="row"><label for="default_flat_fee">Flat Fee</th>
+                                <th scope="row"><label for="default_flat_fee">Flat Fee</label></th>
                                 <td>
-                                    <input type="text" id="default_flat_fee" name="default_flat_fee" class="regular-text" readonly value="">
+                                    <input type="number" id="default_flat_fee" name="default_flat_fee" class="regular-text" step="0.01" min="0" value="0.00">
                                 </td>
                             </tr>
                         </table>
@@ -79,6 +80,12 @@ if ($integrations['wc_clients'] && class_exists('WooCommerce')) {
                     <h3 class="hndle"><span>Additional Information</span></h3>
                     <div class="inside">
                         <table class="form-table">
+                            <tr>
+                                <th scope="row"><label for="description">Billable</label></th>
+                                <td>
+                                    <input value="1" type="checkbox" id="billable" name="billable" checked>
+                                </td>
+                            </tr> 
                             <tr>
                                 <th scope="row"><label for="description">Description</label></th>
                                 <td>

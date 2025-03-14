@@ -51,6 +51,19 @@
     border-radius: 5px;
 }
 
+.clock-btn {
+    font-size: 2em !important;
+    min-width: 250px;
+    min-height: 250px;
+    border: 1px solid black !important;
+    border-radius: 200px !important;
+}
+
+.clock-btn:hover {
+
+    background: #c2c2c2;
+}
+
 .time-controls {
     display: flex;
     gap: 10px;
