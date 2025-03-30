@@ -46,6 +46,15 @@ class Timeflies_Integration_Settings {
             if (in_array('team_member', (array) $user->roles)) {
                 return false; // Allow access
             }
+
+            $integrations = get_option('timeflies_integration_settings');
+            if ($integrations['wc_clients'] && class_exists('WooCommerce')) {
+                if (in_array('customer', (array) $user->roles)) {
+                    return true; // Revoke access, which is the default for future used.
+                }
+            }
+
+
         
         return $prevent_access; // Default WooCommerce behavior
     }

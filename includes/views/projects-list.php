@@ -27,7 +27,7 @@
 
     <div class="tablenav top">
         <div class="alignleft actions">
-            <a href="<?php echo admin_url('admin.php?page=' . TIMEFLIES_PARENT_MENU . '-project-add'); ?>" class="button button-primary">Add New Project</a>
+            <a href="<?php echo admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-project-add'); ?>" class="button button-primary">Add New Project</a>
         </div>
         <br class="clear">
     </div>
@@ -56,9 +56,9 @@
                         <td class="column-start-date" data-colname="Start Date"><?php echo esc_html($project['start_date']); ?></td>
                         <td class="column-end-date" data-colname="End Date"><?php echo esc_html($project['end_date']); ?></td>
                         <td class="column-status" data-colname="Status"><?php echo esc_html($project['status']); ?></td>
-                        <td class="column-billable" data-colname="Billable"><?php echo ($project['billable']) ? 'YES' : 'NO';?></td>
+                        <td class="column-billable" data-colname="Billable"><?php echo ($project['billable']) ? 'YES' : 'NO';   ?></td>
                         <td class="column-actions" data-colname="Actions">
-                            <a href="<?php echo admin_url('admin.php?page=' . TIMEFLIES_PARENT_MENU . '-project-edit&id=' . $project['ID']); ?>" class="button button-small">Edit</a>
+                            <a href="<?php echo admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-project-edit&id=' . $project['ID']); ?>" class="button button-small">Edit</a>
                         </td>
                     </tr>
                 <?php endforeach; ?>
@@ -82,7 +82,7 @@
 
     <div class="tablenav bottom">
         <div class="alignleft actions">
-            <a href="<?php echo admin_url('admin.php?page=' . TIMEFLIES_PARENT_MENU . '-project-add'); ?>" class="button button-primary">Add New Project</a>
+            <a href="<?php echo admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-project-add'); ?>" class="button button-primary">Add New Project</a>
         </div>
         <br class="clear">
     </div>

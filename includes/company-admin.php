@@ -21,13 +21,13 @@ class Timeflies_Companies_Admin {
     }
 
     public function enqueue_scripts_styles() {
-        wp_enqueue_style('timeflies-companies-style', ARAGROW_TIMEFLIES_BASE_URI . 'assets/css/company.css');
-        wp_enqueue_script('timeflies-companies-script', ARAGROW_TIMEFLIES_BASE_URI . 'assets/js/company.js', array('jquery'), '1.0', true);
+        wp_enqueue_style('timeflies-companies-style', ARAGROW_TIMEGROW_BASE_URI . 'assets/css/company.css');
+        wp_enqueue_script('timeflies-companies-script', ARAGROW_TIMEGROW_BASE_URI . 'assets/js/company.js', array('jquery'), '1.0', true);
         wp_localize_script(
             'timeflies-companies-script',
             'timeflies_company_list',
             [
-                'list_url' => admin_url('admin.php?page=' . TIMEFLIES_PARENT_MENU . '-companies-list'),
+                'list_url' => admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-companies-list'),
                 'nonce' => wp_create_nonce('timeflies_company_nonce') // Pass the nonce to JS
             ]
         );

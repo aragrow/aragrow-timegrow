@@ -1,6 +1,6 @@
 <?php
 
-class Aragrow_TimeFlies {
+class TimeGrow {
     private static $instance;
 
     public static function get_instance() {
@@ -36,8 +36,8 @@ class Aragrow_TimeFlies {
     }
 
     public function enqueue_scripts_styles() {
-        wp_enqueue_style('timeflies-style', ARAGROW_TIMEFLIES_BASE_URI . 'assets/css/admin_styles.css', '', '1.0'); // Create this CSS file
-        wp_enqueue_script('timeflies-script', ARAGROW_TIMEFLIES_BASE_URI . 'assets/js/admin_script.js', array('jquery'), '1.0', true); // Create this JS file
+        wp_enqueue_style('timeflies-style', ARAGROW_TIMEGROW_BASE_URI . 'assets/css/admin_styles.css', '', '1.0'); // Create this CSS file
+        wp_enqueue_script('timeflies-script', ARAGROW_TIMEGROW_BASE_URI . 'assets/js/admin_script.js', array('jquery'), '1.0', true); // Create this JS file
         wp_localize_script('timeflies-script', 'timeflies_ajax', array('ajax_url' => admin_url('admin-ajax.php')));
 
         if (!wp_script_is('font-awesome-kit', 'enqueued')) {
@@ -222,7 +222,18 @@ class Aragrow_TimeFlies {
         return $output;
     }
 
+    // Autoload classes
+    function load_mvc_classes($class) {
+        $path  = dirname( __FILE__ ) . '/includes/';
+        if ( file_exists( $path . 'models/' . $class . '.php' ) ) {
+            require_once $path . 'models/' . $class . '.php';
+        } elseif ( file_exists( $path . 'views/' . $class . '.php' ) ) {
+            require_once $path . 'views/' . $class . '.php';
+        } elseif ( file_exists( $path . 'controllers/' . $class . '.php' ) ) {
+            require_once $path . 'controllers/' . $class . '.php';
+        }
+    }
 }
 
 // Instantiate the plugin class.
-Aragrow_TimeFlies::get_instance();
+TimeGrow::get_instance();

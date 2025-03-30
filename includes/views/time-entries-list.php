@@ -3,7 +3,7 @@
 
     <div class="tablenav top">
         <div class="alignleft actions">
-            <a href="<?php echo admin_url('admin.php?page=' . TIMEFLIES_PARENT_MENU . '-time-entry-add'); ?>" class="button button-primary">Add New Time Entry</a>
+            <a href="<?php echo admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-time-entry-add'); ?>" class="button button-primary">Add New Time Entry</a>
         </div>
         <br class="clear">
     </div>
@@ -34,7 +34,7 @@
                         </td>
                         <td class="column-duration"><?php echo gmdate('H:i', $duration); ?></td>
                         <td class="column-actions">
-                            <a href="<?php echo admin_url('admin.php?page=' . TIMEFLIES_PARENT_MENU . '-time-entry-edit&id=' . $entry['id']); ?>" class="button button-small">Edit</a>
+                            <a href="<?php echo admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-time-entry-edit&id=' . $entry['id']); ?>" class="button button-small">Edit</a>
                             <a href="#" class="button button-small delete-time-entry" data-id="<?php echo $entry['id']; ?>">Delete</a>
                         </td>
                     </tr>
@@ -58,7 +58,7 @@
     </table>
     <div class="tablenav top">
         <div class="alignleft actions">
-            <a href="<?php echo admin_url('admin.php?page=' . TIMEFLIES_PARENT_MENU . '-time-entry-add'); ?>" class="button button-primary">Add New Time Entry</a>
+            <a href="<?php echo admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-time-entry-add'); ?>" class="button button-primary">Add New Time Entry</a>
         </div>
         <br class="clear">
     </div>  

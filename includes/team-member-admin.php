@@ -25,13 +25,13 @@ class Timeflies_Team_Members_Admin {
     }
 
     public function enqueue_scripts_styles() {
-        wp_enqueue_style('timeflies-team-members-style', ARAGROW_TIMEFLIES_BASE_URI . 'assets/css/team_member.css');
-        wp_enqueue_script('timeflies-team-members-script', ARAGROW_TIMEFLIES_BASE_URI. 'assets/js/team_member.js', array('jquery'), '1.0', true);
+        wp_enqueue_style('timeflies-team-members-style', ARAGROW_TIMEGROW_BASE_URI . 'assets/css/team_member.css');
+        wp_enqueue_script('timeflies-team-members-script', ARAGROW_TIMEGROW_BASE_URI. 'assets/js/team_member.js', array('jquery'), '1.0', true);
         wp_localize_script(
             'timeflies-team-members-script',
             'timeflies_team_member_list',
             [
-                'list_url' => admin_url('admin.php?page=' . TIMEFLIES_PARENT_MENU . '-team-members-list'),
+                'list_url' => admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-team-members-list'),
                 'nonce' => wp_create_nonce('timeflies_team_member_nonce')
             ]
         );

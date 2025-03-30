@@ -22,13 +22,13 @@ class Timeflies_Clients_Admin {
     }
 
     public function enqueue_scripts_styles() {
-        wp_enqueue_style('timeflies-clients-style', ARAGROW_TIMEFLIES_BASE_URI . 'assets/css/client.css');
-        wp_enqueue_script('timeflies-clients-script', ARAGROW_TIMEFLIES_BASE_URI . 'assets/js/client.js', array('jquery'), '1.0', true);
+        wp_enqueue_style('timeflies-clients-style', ARAGROW_TIMEGROW_BASE_URI . 'assets/css/client.css');
+        wp_enqueue_script('timeflies-clients-script', ARAGROW_TIMEGROW_BASE_URI . 'assets/js/client.js', array('jquery'), '1.0', true);
         wp_localize_script(
             'timeflies-clients-script',
             'timeflies_clients_list',
             [
-                'list_url' => admin_url('admin.php?page=' . TIMEFLIES_PARENT_MENU . '-clients-list'),
+                'list_url' => admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-clients-list'),
                 'nonce' => wp_create_nonce('timeflies_client_nonce') // Pass the nonce to JS
             ]
         );

@@ -23,7 +23,7 @@
 
     <div class="tablenav top">
         <div class="alignleft actions">
-            <a href="<?php echo admin_url('admin.php?page=' . TIMEFLIES_PARENT_MENU . '-client-add'); ?>" class="button button-primary">Add New Client</a>
+            <a href="<?php echo admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-client-add'); ?>" class="button button-primary">Add New Client</a>
         </div>
         <br class="clear">
     </div>
@@ -52,7 +52,7 @@
                         <td class="column-address" data-colname="Address"><?php echo esc_html($client['address_1']); ?></td>
                         <td class="column-city" data-colname="City"><?php echo esc_html($client['city']); ?></td>
                         <td class="column-actions" data-colname="Actions">
-                            <a href="<?php echo admin_url('admin.php?page=' . TIMEFLIES_PARENT_MENU . '-client-edit&id=' . $client['ID']); ?>" class="button button-small">Edit</a> 
+                            <a href="<?php echo admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-client-edit&id=' . $client['ID']); ?>" class="button button-small">Edit</a> 
                         </td>
                     </tr>
                 <?php endforeach; ?>
@@ -76,7 +76,7 @@
 
     <div class="tablenav bottom">
         <div class="alignleft actions">
-            <a href="<?php echo admin_url('admin.php?page=' . TIMEFLIES_PARENT_MENU . '-client-add'); ?>" class="button button-primary">Add New Client</a>
+            <a href="<?php echo admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-client-add'); ?>" class="button button-primary">Add New Client</a>
         </div>
         <br class="clear">
     </div>

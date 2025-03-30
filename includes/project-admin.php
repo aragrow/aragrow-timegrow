@@ -21,13 +21,13 @@ class Timeflies_Projects_Admin {
     }
 
     public function enqueue_scripts_styles() {
-        wp_enqueue_style('timeflies-projects-style', ARAGROW_TIMEFLIES_BASE_URI . 'assets/css/project.css');
-        wp_enqueue_script('timeflies-projects-script', ARAGROW_TIMEFLIES_BASE_URI . 'assets/js/project.js', array('jquery'), '1.0', true);
+        wp_enqueue_style('timeflies-projects-style', ARAGROW_TIMEGROW_BASE_URI . 'assets/css/project.css');
+        wp_enqueue_script('timeflies-projects-script', ARAGROW_TIMEGROW_BASE_URI . 'assets/js/project.js', array('jquery'), '1.0', true);
         wp_localize_script(
             'timeflies-projects-script',
             'timeflies_projects_list',
             [
-                'list_url' => admin_url('admin.php?page=' . TIMEFLIES_PARENT_MENU . '-projects-list'),
+                'list_url' => admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-projects-list'),
                 'nonce' => wp_create_nonce('timeflies_project_nonce')
             ]
         );

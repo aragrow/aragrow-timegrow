@@ -10,7 +10,7 @@
 
     <div class="tablenav top">
         <div class="alignleft actions">
-            <a href="<?php echo admin_url('admin.php?page=' . TIMEFLIES_PARENT_MENU . '-company-add'); ?>" class="button button-primary">Add New Company</a>
+            <a href="<?php echo admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-company-add'); ?>" class="button button-primary">Add New Company</a>
         </div>
         <br class="clear">
     </div>
@@ -37,7 +37,7 @@
                         <td class="column-address" data-colname="Address"><?php echo esc_html($company['address']); ?></td>
                         <td class="column-city" data-colname="City"><?php echo esc_html($company['city']); ?></td>
                         <td class="column-actions" data-colname="Actions">
-                            <a href="<?php echo admin_url('admin.php?page=' . TIMEFLIES_PARENT_MENU . '-company-edit&id=' . $company['ID']); ?>" class="button button-small">Edit</a>
+                            <a href="<?php echo admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-company-edit&id=' . $company['ID']); ?>" class="button button-small">Edit</a>
                         </td>
                     </tr>
                 <?php endforeach; ?>
@@ -60,7 +60,7 @@
 
     <div class="tablenav bottom">
         <div class="alignleft actions">
-            <a href="<?php echo admin_url('admin.php?page=' . TIMEFLIES_PARENT_MENU . '-company-add'); ?>" class="button button-primary">Add New Company</a>
+            <a href="<?php echo admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-company-add'); ?>" class="button button-primary">Add New Company</a>
         </div>
         <br class="clear">
     </div>

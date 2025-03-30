@@ -164,7 +164,6 @@ class Timeflies_Manual_Entry_Widget {
                     </div>
                 <?php endforeach; ?>
             </div>
-           
         </div>
         <?php
         echo ob_get_clean();
@@ -185,8 +184,8 @@ class Timeflies_Manual_Entry_Widget {
     public function enqueue_admin_scripts() {
         $timezone = get_user_meta(get_current_user_id(), 'timeflies_timezone');
 
-        wp_enqueue_style( 'timeflies-manual-entry-widget-styles', ARAGROW_TIMEFLIES_BASE_URI . 'assets/css/manual_entry_widget.css' );
-        wp_enqueue_script( 'timeflies-manual-entry-widget-script', ARAGROW_TIMEFLIES_BASE_URI . 'assets/js/manual_entry_widget.js', array( 'jquery' ), null, true );
+        wp_enqueue_style( 'timeflies-manual-entry-widget-styles', ARAGROW_TIMEGROW_BASE_URI . 'assets/css/manual_entry_widget.css' );
+        wp_enqueue_script( 'timeflies-manual-entry-widget-script', ARAGROW_TIMEGROW_BASE_URI . 'assets/js/manual_entry_widget.js', array( 'jquery' ), null, true );
 
 
         wp_localize_script(
@@ -207,7 +206,7 @@ class Timeflies_Manual_Entry_Widget {
 $Timeflies_Manual_Entry = new Timeflies_Manual_Entry_Widget;
 
 // Hook for AJAX calls (assuming timeflies_clock_action is defined elsewhere)
-add_action( 'wp_ajax_timeflies_manual_action', 'timeflies_handle_manual_action' );
+add_action( 'wp_ajax_TIMEGROW_manual_action', 'timeflies_handle_manual_action' );
 
 function timeflies_handle_manual_action() {
     try {

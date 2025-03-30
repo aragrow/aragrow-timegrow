@@ -15,7 +15,7 @@
 
     <div class="tablenav top">
         <div class="alignleft actions">
-            <a href="<?php echo admin_url('admin.php?page=' . TIMEFLIES_PARENT_MENU . '-team-member-add'); ?>" class="button button-primary">Add New Team Member</a>
+            <a href="<?php echo admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-team-member-add'); ?>" class="button button-primary">Add New Team Member</a>
         </div>
         <br class="clear">
     </div>
@@ -42,7 +42,7 @@
                         <td class="column-email" data-colname="Email"><?php echo esc_html($team_member['email']); ?></td>
                         <td class="column-title" data-colname="Title"><?php echo esc_html($team_member['title']); ?></td>
                         <td class="column-actions" data-colname="Actions">
-                            <a href="<?php echo admin_url('admin.php?page=' . TIMEFLIES_PARENT_MENU . '-team-member-edit&id=' . $team_member['ID']); ?>" class="button button-small">Edit</a>
+                            <a href="<?php echo admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-team-member-edit&id=' . $team_member['ID']); ?>" class="button button-small">Edit</a>
                         </td>
                     </tr>
                 <?php endforeach; ?>
@@ -65,7 +65,7 @@
 
     <div class="tablenav bottom">
         <div class="alignleft actions">
-            <a href="<?php echo admin_url('admin.php?page=' . TIMEFLIES_PARENT_MENU . '-team-member-add'); ?>" class="button button-primary">Add New Team Member</a>
+            <a href="<?php echo admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-team-member-add'); ?>" class="button button-primary">Add New Team Member</a>
         </div>
         <br class="clear">
     </div>

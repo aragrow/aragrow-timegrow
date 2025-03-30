@@ -156,6 +156,27 @@ class Aragrow_TimeFlies_Model {
             FOREIGN KEY (project_id) REFERENCES {$prefix}timeflies_projects(ID) -- Assuming you have a projects table
         ) $charset_collate;";
 
+        $sql_expenses = "CREATE TABLE IF NOT EXISTS {$prefix}timeflies_expenses (  -- Join table for many-to-many
+            ID BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+            expense_name VARCHAR(255) NOT NULL,
+            expense_description text NOT NULL,
+            amount DECIMAL(10,2) NOT NULL,
+            category VARCHAR(255) NOT NULL,
+            assigned_to ENUM('project', 'client', 'general') NOT NULL,
+            assigned_to_id mediumint(9) NULL,
+            created_at timestamp,
+            updated_at timestamp,
+            PRIMARY KEY (id)
+        ) $charset_collate;";
+
+        $sql_expenses_files = "CREATE TABLE IF NOT EXISTS {$prefix}timeflies_expense_files ( 
+            id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+            expense_id BIGINT(20) UNSIGNED NOT NULL,
+            file_url TEXT NOT NULL,
+            upload_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            FOREIGN KEY (expense_id) REFERENCES {$wpdb->prefix}timeflies_expenses(id) ON DELETE CASCADE
+        ) $charset_collate;";
 
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         dbDelta($sql_companies);
@@ -165,6 +186,8 @@ class Aragrow_TimeFlies_Model {
         dbDelta($sql_invoices);
         dbDelta($sql_team_members);
         dbDelta($sql_team_members_projects);
+        dbDelta($sql_expenses);
+        dbDelta($sql_expenses_files);
 
         // Add company_id and default_flat_fee to wp_users (only needs to be done once):
         // $this->add_columns_to_wp_users();

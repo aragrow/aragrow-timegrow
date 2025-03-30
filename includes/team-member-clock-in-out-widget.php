@@ -144,8 +144,8 @@ class Timeflies_Clock_In_Out_Widget {
     public function enqueue_admin_scripts() {
         $timezone = get_user_meta(get_current_user_id(), 'timeflies_timezone');
 
-        wp_enqueue_style( 'timeflies-clock-widget-styles', ARAGROW_TIMEFLIES_BASE_URI . 'assets/css/clock_widget.css' );
-        wp_enqueue_script( 'timeflies-clock-widget-script', ARAGROW_TIMEFLIES_BASE_URI . 'assets/js/clock_widget.js', array( 'jquery' ), null, true );
+        wp_enqueue_style( 'timeflies-clock-widget-styles', ARAGROW_TIMEGROW_BASE_URI . 'assets/css/clock_widget.css' );
+        wp_enqueue_script( 'timeflies-clock-widget-script', ARAGROW_TIMEGROW_BASE_URI . 'assets/js/clock_widget.js', array( 'jquery' ), null, true );
 
 
         wp_localize_script(
@@ -165,7 +165,7 @@ class Timeflies_Clock_In_Out_Widget {
 $Timeflies_Clock_In_Out = new Timeflies_Clock_In_Out_Widget;
 
 // Hook for AJAX calls (assuming timeflies_clock_action is defined elsewhere)
-add_action( 'wp_ajax_timeflies_clock_action', 'timeflies_handle_clock_action' );
+add_action( 'wp_ajax_TIMEGROW__clock_action', 'timeflies_handle_clock_action' );
 
 function timeflies_handle_clock_action() {
     try {

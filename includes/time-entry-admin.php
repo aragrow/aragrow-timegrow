@@ -31,13 +31,13 @@ class Timeflies_TimeEntries_Admin {
             $stored_tz = get_user_meta(get_current_user_id(), 'timeflies_timezone', true);
             $user_timezone = !empty($stored_tz) ? $stored_tz : 'UTC';
         }
-        wp_enqueue_style('timeflies-time-entries-style', ARAGROW_TIMEFLIES_BASE_URI . 'assets/css/time_entry.css');
-        wp_enqueue_script('timeflies-time-entries-script', ARAGROW_TIMEFLIES_BASE_URI. 'assets/js/time_entry.js', array('jquery'), '1.0', true);
+        wp_enqueue_style('timeflies-time-entries-style', ARAGROW_TIMEGROW_BASE_URI . 'assets/css/time_entry.css');
+        wp_enqueue_script('timeflies-time-entries-script', ARAGROW_TIMEGROW_BASE_URI. 'assets/js/time_entry.js', array('jquery'), '1.0', true);
         wp_localize_script(
             'timeflies-time-entries-script',
             'timeflies_time_entry_list',
             [
-                'list_url' => admin_url('admin.php?page=' . TIMEFLIES_PARENT_MENU . '-time-entries-list'),
+                'list_url' => admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-time-entries-list'),
                 'nonce' => wp_create_nonce('timeflies_time_entry_nonce'),
                 'user_timezone' => $user_timezone
             ]
