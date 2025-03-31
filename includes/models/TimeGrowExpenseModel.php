@@ -7,6 +7,7 @@ if (!defined('ABSPATH')) {
 class TimeGrowExpenseModel {
 
     private $table_name;
+    private $table_name2;
     private $wpdb;
     private $charset_collate;
 
@@ -15,7 +16,7 @@ class TimeGrowExpenseModel {
         global $wpdb;
         $this->wpdb = $wpdb;
         $this->charset_collate = $wpdb->get_charset_collate();
-        $this->table_name = $this->wpdb->prefix . 'expense_tracker'; // Make sure this matches your table name
+        $this->table_name = $this->wpdb->prefix . TIMEGROW_PREFIX . 'expense_tracker'; // Make sure this matches your table name
     }
 
     public function initialize() {
@@ -32,7 +33,9 @@ class TimeGrowExpenseModel {
             updated_at timestamp,
             PRIMARY KEY (id)
         ) $this->charset_collate;";
+
         dbDelta($sql);
+
     }
     
     /**

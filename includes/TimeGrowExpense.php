@@ -69,9 +69,10 @@ class TimeGrowExpense {
     }
 
     public function tracker_mvc_admin_page($screen) {
-        $model = new TimeGrowExpenseModel();
-        $view = new TimeGrowExpenseView();
-        $controller = new TimeGrowExpenseController($model, $view);
+        $expense_model = new TimeGrowExpenseModel();
+        $receipt_model = new TimeGrowExpenseReceiptModel();
+        $expense_view = new TimeGrowExpenseView();
+        $controller = new TimeGrowExpenseController($expense_model, $receipt_model, $expense_view);
         $controller->display_admin_page($screen);
     }
 }
