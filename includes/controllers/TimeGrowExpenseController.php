@@ -11,25 +11,30 @@ class TimeGrowExpenseController{
     private $expense_view;
 
     public function __construct(TimeGrowExpenseModel $expense_model, TimeGrowExpenseReceiptModel $receipt_model, TimeGrowExpenseView $expense_view) {
+        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         $this->expense_model = $expense_model;
         $this->receipt_model = $receipt_model;
         $this->expense_view = $expense_view;
     }
 
     public function handle_form_submission() {
+        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         
         if (!isset($_POST['id'])) return; 
 
+        $current_date = current_time('mysql');
         $data = [
             'expense_name' => sanitize_text_field($_POST['expense_name']),
+            'expense_description' => sanitize_text_field($_POST['expense_description']),
             'amount' => floatval($_POST['amount']),
             'category' => sanitize_text_field($_POST['category']),
             'assigned_to' => sanitize_text_field($_POST['assigned_to']),
-            'expense_description' => sanitize_textarea_field($_POST['expense_description']),
+            'assigned_to_id' => intval($_POST['assigned_to_id']),
+            'updated_at' => $current_date
         ];
 
         if ($_POST['id'] == 0) {
-            
+            $data['created_at'] = $current_date;
             $id = $this->expense_model->create($data);
 
             if ($id) {
@@ -60,17 +65,20 @@ class TimeGrowExpenseController{
     }
 
     public function list_expenses() {
+        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         $expenses = $this->expense_model->select(null); // Fetch all expenses
         $this->expense_view->display_expenses($expenses);
     }
 
     public function add_expenses() {
+        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         global $wpdb;
         $clients = $wpdb->get_results("SELECT ID, name FROM {$wpdb->prefix}timeflies_clients ORDER BY name", ARRAY_A);
         $this->expense_view->add_expense($clients);
     }
 
     public function edit_expenses($id) {
+        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         global $wpdb;
         $clients = $wpdb->get_results("SELECT ID, name FROM {$wpdb->prefix}timeflies_clients ORDER BY name", ARRAY_A);
         $expense = $this->expense_model->select($id); // Fetch all expenses
@@ -79,7 +87,18 @@ class TimeGrowExpenseController{
     }
 
     public function display_admin_page($screen) {
-    
+        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        
+        var_dump( ($screen == 'list' ));
+        var_dump(  isset($_POST['add_item']) );
+        var_dump( isset($_POST['edit_item']) );
+
+        if ($screen != 'list' && ( isset($_POST['add_item']) || isset($_POST['edit_item']) )) {
+            var_dump('processing form');
+            $this->handle_form_submission();
+            $screen = 'list';
+        }
+
         if ($screen == 'list')
             $this->list_expenses();
         elseif ($screen == 'add')

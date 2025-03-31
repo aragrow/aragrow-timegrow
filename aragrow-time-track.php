@@ -15,7 +15,7 @@ if (!defined('ABSPATH')) {
 
 // Define a constant for the plugin's base directory. This makes the code more readable and easier to maintain.
 defined( 'TIMEGROW' ) or define( 'TIMEGROW', 'TimeGrow' );
-defined( 'TIMEGROW_PREFIX' ) or define( 'TIMEGROW_PREFIX', '_'.strtolower(TIMEGROW) );
+defined( 'TIMEGROW_PREFIX' ) or define( 'TIMEGROW_PREFIX', strtolower(TIMEGROW). '_' );
 defined( 'TIMEGROW_BASE_DIR' ) or define( 'ARAGROW_TIMEGROW_BASE_DIR', plugin_dir_path( __FILE__ ) );
 defined( 'TIMEGROW_BASE_URI' ) or define( 'ARAGROW_TIMEGROW_BASE_URI', plugin_dir_url( __FILE__ ) );
 defined( 'TIMEGROW_INCLUDES_DIR' ) or define( 'TIMEGROW_INCLUDES_DIR', ARAGROW_TIMEGROW_BASE_DIR.'includes/' );

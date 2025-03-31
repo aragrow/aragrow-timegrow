@@ -10,6 +10,7 @@ class TimeGrowExpenseModel {
     private $table_name2;
     private $wpdb;
     private $charset_collate;
+    private $allowed_fields;
 
     public function __construct() {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
@@ -17,6 +18,8 @@ class TimeGrowExpenseModel {
         $this->wpdb = $wpdb;
         $this->charset_collate = $wpdb->get_charset_collate();
         $this->table_name = $this->wpdb->prefix . TIMEGROW_PREFIX . 'expense_tracker'; // Make sure this matches your table name
+        $this->allowed_fields = ['expense_name', 'amount', 'category', 'assigned_to', 'assigned_to_id', 'expense_description', 'updated_at', 'created_at'];
+       
     }
 
     public function initialize() {
@@ -85,17 +88,20 @@ class TimeGrowExpenseModel {
         $id = intval($id); // Sanitize ID
 
         // Whitelist allowed fields to prevent SQL injection
-        $allowed_fields = ['expense_name', 'amount', 'category', 'assigned_to', 'expense_description'];
-        $sanitized_data = [];
+         $sanitized_data = [];
 
         foreach ($data as $key => $value) {
-            if (in_array($key, $allowed_fields, true)) {
+            if (in_array($key,  $this->allowed_fields , true)) {
                 $sanitized_data[$key] = sanitize_text_field($value); // Sanitize each field
             }
         }
 
-        // Ensure there's data to update
-        if (empty($sanitized_data)) {
+        // Ensure all required fields are present
+        if (empty($sanitized_data['expense_name']) || 
+            empty($sanitized_data['amount']) || 
+            empty($sanitized_data['category']) ||
+            empty($sanitized_data['assigned_to_id']) ||
+            empty($sanitized_data['expense_description']) ) {
             return false;
         }
 
@@ -117,17 +123,20 @@ class TimeGrowExpenseModel {
     public function create($data) {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         // Whitelist allowed fields to prevent SQL injection
-        $allowed_fields = ['expense_name', 'amount', 'category', 'assigned_to', 'expense_description'];
         $sanitized_data = [];
     
         foreach ($data as $key => $value) {
-            if (in_array($key, $allowed_fields, true)) {
+            if (in_array($key,  $this->allowed_fields , true)) {
                 $sanitized_data[$key] = sanitize_text_field($value); // Sanitize each field
             }
         }
     
         // Ensure all required fields are present
-        if (empty($sanitized_data['expense_name']) || empty($sanitized_data['amount']) || empty($sanitized_data['category'])) {
+        if (empty($sanitized_data['expense_name']) || 
+            empty($sanitized_data['amount']) || 
+            empty($sanitized_data['category']) ||
+            empty($sanitized_data['assigned_to_id']) ||
+            empty($sanitized_data['expense_description']) ) {
             return false;
         }
 

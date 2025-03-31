@@ -69,6 +69,7 @@ class TimeGrowExpense {
     }
 
     public function tracker_mvc_admin_page($screen) {
+        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         $expense_model = new TimeGrowExpenseModel();
         $receipt_model = new TimeGrowExpenseReceiptModel();
         $expense_view = new TimeGrowExpenseView();

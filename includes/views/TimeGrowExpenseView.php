@@ -6,16 +6,8 @@ if (!defined('ABSPATH')) {
 
 class TimeGrowExpenseView {
     
-    private static $instance;
-
-    public static function get_instance() {
-        if (null === self::$instance) {
-            self::$instance = new self();
-        }
-        return self::$instance;
-    }
-
     public function display_expenses($expenses) {
+        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         ?>
         <div class="wrap">
         <h2>All Expenses</h2>
@@ -83,12 +75,14 @@ class TimeGrowExpenseView {
     }
 
     public function add_expense($clients) {
+        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         ?>
         <div class="wrap">
             <h2>Add New Expense</h2>
         
             <form id="timeflies-expense-form" class="wp-core-ui" method="POST">
-                <input type="hidden" name="expense_id" value="0">
+                <input type="hidden" name="expense_id" value="0" />
+                <input type="hidden" name="add_item" value="1" />
                 <?php wp_nonce_field('timeflies_expense_nonce', 'timeflies_expense_nonce_field'); ?>
         
                 <div class="metabox-holder columns-2">
@@ -177,12 +171,14 @@ class TimeGrowExpenseView {
     }
 
     public function edit_expense($expense, $clients) {
+        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         ?>
         <div class="wrap">
             <h2>Edit Expense</h2>
         
             <form id="timeflies-expense-form" class="wp-core-ui" method="POST">
                 <input type="hidden" name="expense_id" value="<?php echo esc_attr($expense->id); ?>">
+                <input type="hidden" name="edit_item" value="1" />
                 <?php wp_nonce_field('timeflies_expense_nonce', 'timeflies_expense_nonce_field'); ?>
         
                 <div class="metabox-holder columns-2">
