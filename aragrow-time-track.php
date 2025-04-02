@@ -29,7 +29,6 @@ defined( 'TIMEGROW_TEAM_MEMBER_MENU' ) or define( 'TIMEGROW_TEAM_MEMBER_MENU', T
 require_once TIMEGROW_INCLUDES_DIR . 'time-flies.php';
 require_once TIMEGROW_INCLUDES_DIR . 'model.php';
 require_once TIMEGROW_INCLUDES_DIR . 'admin-menu.php';
-require_once TIMEGROW_INCLUDES_DIR . 'company-admin.php';
 require_once TIMEGROW_INCLUDES_DIR . 'client-admin.php';
 require_once TIMEGROW_INCLUDES_DIR . 'project-admin.php';
 require_once TIMEGROW_INCLUDES_DIR . 'team-member-admin.php';
@@ -43,18 +42,18 @@ function timegrow_load_mvc_classes($class) {
     // Check if the class name starts with "timegrow"
     if (strpos($class, 'TimeGrow') !== 0) return; // Exit the function, don't load the class
     error_log(  'timegrow_load_mvc_classes'. ' - Class: ' . $class );  //Best option for Classes
-    error_log(TIMEGROW_INCLUDES_DIR . $class . '.php' );
+    //error_log(TIMEGROW_INCLUDES_DIR . $class . '.php' );
     if (file_exists( TIMEGROW_INCLUDES_DIR . $class . '.php' ) ) {
-        error_log(1);
+        //error_log(1);
         require_once TIMEGROW_INCLUDES_DIR . $class . '.php';
     } elseif ( file_exists( TIMEGROW_INCLUDES_DIR . 'models/' . $class . '.php' ) ) {
-        error_log(2);
+        //error_log(2);
         require_once TIMEGROW_INCLUDES_DIR . 'models/' . $class . '.php';
     } elseif ( file_exists( TIMEGROW_INCLUDES_DIR . 'views/' . $class . '.php' ) ) {
-        error_log(3);
+        //error_log(3);
         require_once TIMEGROW_INCLUDES_DIR . 'views/' . $class . '.php';
     } elseif ( file_exists( TIMEGROW_INCLUDES_DIR . 'controllers/' . $class . '.php' ) ) {
-        error_log(4);
+       // error_log(4);
         require_once TIMEGROW_INCLUDES_DIR . 'controllers/' . $class . '.php';
     }
 }
@@ -62,5 +61,6 @@ function timegrow_load_mvc_classes($class) {
 spl_autoload_register( 'timegrow_load_mvc_classes' );
 
 // Function to initialize the plugin
-
+if ( ! isset( $timegrow_company ) ) $timegrow_company = New TimeGrowCompany();
 if ( ! isset( $timegrow_expense ) ) $timegrow_expense = New TimeGrowExpense();
+

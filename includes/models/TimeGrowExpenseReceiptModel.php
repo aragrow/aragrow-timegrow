@@ -48,7 +48,7 @@ class TimeGrowExpenseReceiptModel {
             $ids = array_map('intval', $ids); // Sanitize IDs
             $placeholders = implode(',', array_fill(0, count($ids), '%d')); // Create placeholders for prepared statement
             $sql = $this->wpdb->prepare(
-                "SELECT * FROM {$this->table_name} WHERE ID IN ($placeholders) ORDER BY name",
+                "SELECT * FROM {$this->table_name} WHERE ID IN ($placeholders) ORDER BY file_url",
                 $ids
             );
         }
@@ -56,19 +56,23 @@ class TimeGrowExpenseReceiptModel {
         elseif (intval($ids)) {
             $id = intval($ids); // Sanitize ID
             $sql = $this->wpdb->prepare(
-                "SELECT * FROM {$this->table_name} WHERE ID = %d ORDER BY name",
+                "SELECT * FROM {$this->table_name} WHERE ID = %d",
                 $id
             );
         }
         // If no IDs are provided, fetch all rows
         else {
-            $sql = "SELECT * FROM {$this->table_name} ORDER BY name";
+            $sql = "SELECT * FROM {$this->table_name} ORDER BY file_url";
         }
     
         return $this->wpdb->get_results($sql);
     }
     
     public function update($expense_id, $file) {
+        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+
+        global $wpdb;
+        
          // Handle file upload
         if (empty($file)) return;
         
@@ -91,9 +95,9 @@ class TimeGrowExpenseReceiptModel {
         }
 
         // Validate file size (e.g., max 5MB)
-        $max_file_size = 5 * 1024 * 1024; // 5 MB
+        $max_file_size = .5 * 1024 * 1024; // 5 MB
         if ($file['size'] > $max_file_size) {
-            return new WP_Error('file_too_large', 'File size exceeds the maximum limit of 5MB.');
+            return new WP_Error('file_too_large', 'File size exceeds the maximum limit of 512K.');
         }
 
         // Use WordPress functions to handle uploads

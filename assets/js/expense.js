@@ -1,5 +1,6 @@
 
 jQuery(document).ready(function($) {
+    
     const dropzone = $('#file-dropzone');
     const fileInput = $('#file_upload');
     const status = $('#file-upload-status');
@@ -47,5 +48,14 @@ jQuery(document).ready(function($) {
             status.text(`File selected: ${this.files[0].name}`);
         }
     });
+
+    jQuery(document).ready(function($) {
+        $('.delete-button').on('click', function(e) {
+            if (!confirm("Are you sure you want to delete? This action cannot be undone.")) {
+                e.preventDefault(); // Prevent navigation if the user cancels
+            }
+        });
+    });
+
 });
 

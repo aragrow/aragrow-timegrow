@@ -23,10 +23,10 @@ class TimeGrowExpenseView {
             <thead>
                 <tr>
                     <th scope="col" class="manage-column column-name column-primary">Name</th>
+                    <th scope="col" class="manage-column column-name">Date</th>
                     <th scope="col" class="manage-column column-company">Amount</th>  
                     <th scope="col" class="manage-column column-document">Category</th>
                     <th scope="col" class="manage-column column-address">Assigned To</th>
-                    <th scope="col" class="manage-column column-city">Date Created</th>
                     <th scope="col" class="manage-column column-actions">Actions</th>
                 </tr>
             </thead>
@@ -35,14 +35,14 @@ class TimeGrowExpenseView {
                     <?php foreach ($expenses as $item) : ?>
                         <tr>
                             <td class="column-name column-primary" data-colname="Name">
-                                <strong><?php echo esc_html($item['expense_name']); ?></strong>
+                                <strong><?php echo esc_html($item->expense_name); ?></strong>
                             </td>
-                            <td class="column-amount" data-colname="Amount"><?php echo esc_html($item['amount']); ?></td>  
-                            <td class="column-document" data-colname="Category"><?php echo esc_html($item['category']); ?></td>
-                            <td class="column-address" data-colname="Assigned To"><?php echo esc_html($item['assigned_to']); ?></td>
-                            <td class="column-city" data-colname="Date Created"><?php echo esc_html($item['date_created']); ?></td>
+                            <td class="column-amount" data-colname="Date"><?php echo esc_html($item->expense_date); ?></td>  
+                            <td class="column-amount" data-colname="Amount"><?php echo esc_html($item->amount); ?></td>  
+                            <td class="column-document" data-colname="Category"><?php echo esc_html($item->category); ?></td>
+                            <td class="column-address" data-colname="Assigned To"><?php echo esc_html($item->assigned_to); ?></td>
                             <td class="column-actions" data-colname="Actions">
-                                <a href="<?php echo admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-expense-edit&id=' . $item['ID']); ?>" class="button button-small">Edit</a> 
+                                <a href="<?php echo admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-expense-edit&id=' . $item->ID); ?>" class="button button-small">Edit</a> 
                             </td>
                         </tr>
                     <?php endforeach; ?>
@@ -55,10 +55,10 @@ class TimeGrowExpenseView {
             <tfoot>
                 <tr>
                     <th scope="col" class="manage-column column-name column-primary">Name</th>
+                    <th scope="col" class="manage-column column-name">Date</th>
                     <th scope="col" class="manage-column column-company">Amount</th>  
                     <th scope="col" class="manage-column column-document">Category</th>
                     <th scope="col" class="manage-column column-address">Assigned To</th>
-                    <th scope="col" class="manage-column column-city">Date Created</th>
                     <th scope="col" class="manage-column column-actions">Actions</th>
                 </tr>
             </tfoot>
@@ -80,7 +80,7 @@ class TimeGrowExpenseView {
         <div class="wrap">
             <h2>Add New Expense</h2>
         
-            <form id="timeflies-expense-form" class="wp-core-ui" method="POST">
+            <form id="timeflies-expense-form" class="wp-core-ui" method="POST" enctype="multipart/form-data">
                 <input type="hidden" name="expense_id" value="0" />
                 <input type="hidden" name="add_item" value="1" />
                 <?php wp_nonce_field('timeflies_expense_nonce', 'timeflies_expense_nonce_field'); ?>
@@ -94,6 +94,10 @@ class TimeGrowExpenseView {
                                 <tr>
                                     <th scope="row"><label for="expense_name">Expense Name</label></th>
                                     <td><input type="text" name="expense_name" id="expense_name" class="regular-text" required></td>
+                                </tr>
+                                <tr>
+                                    <th scope="row"><label for="expense_date">Expense Date</label></th>
+                                    <td><input type="text" id="expense_date" name="expense_date" class="datepicker" required></td>
                                 </tr>
                                 <tr>
                                     <th scope="row"><label for="amount">Amount</label></th>
@@ -140,7 +144,13 @@ class TimeGrowExpenseView {
                                     </td>
                                 </tr>
                                 <tr id="assigned_to_row">
-                                    <th scope="row"><label for="assigned_to_id">Assigned To ID</label></th>
+                                    <th scope="row">
+                                        <label for="assigned_to_id">Assigned To ID</label>
+                                    </th>
+                                    <td>
+                                        <input type="hidden" name="assigned_to_id" value="0" />
+                                    </td>
+                                </tr>
                                 </table>
                             </div>
                         </div>
@@ -170,14 +180,14 @@ class TimeGrowExpenseView {
         <?php
     }
 
-    public function edit_expense($expense, $clients) {
+    public function edit_expense($expense, $receipts, $clients) {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         ?>
         <div class="wrap">
             <h2>Edit Expense</h2>
         
-            <form id="timeflies-expense-form" class="wp-core-ui" method="POST">
-                <input type="hidden" name="expense_id" value="<?php echo esc_attr($expense->id); ?>">
+            <form id="timeflies-expense-form" class="wp-core-ui" method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="expense_id" value="<?php echo esc_attr($expense->ID); ?>">
                 <input type="hidden" name="edit_item" value="1" />
                 <?php wp_nonce_field('timeflies_expense_nonce', 'timeflies_expense_nonce_field'); ?>
         
@@ -191,6 +201,10 @@ class TimeGrowExpenseView {
                                         <th scope="row"><label for="expense_name">Expense Name</label></th>
                                         <td><input type="text" name="expense_name" id="expense_name" class="regular-text" value="<?php echo esc_attr($expense->expense_name); ?>" required></td>
                                     </tr>
+                                    <tr>
+                                    <th scope="row"><label for="expense_date">Expense Date</label></th>
+                                    <td><input type="text" id="expense_date" name="expense_date" class="datepicker" value="<?php echo esc_attr($expense->expense_date); ?>" required></td>
+                                </tr>
                                     <tr>
                                         <th scope="row"><label for="amount">Amount</label></th>
                                         <td><input type="number" name="amount" id="amount" step="0.01" class="regular-text" value="<?php echo esc_attr($expense->amount); ?>" required></td>
@@ -236,8 +250,13 @@ class TimeGrowExpenseView {
                                         </td>
                                     </tr>
                                     <tr id="assigned_to_row">
-                                        <th scope="row"><label for="assigned_to_id">Assigned To ID</label></th>
-                                    </tr>
+                                    <th scope="row">
+                                        <label for="assigned_to_id">Assigned To ID</label>
+                                    </th>
+                                    <td>
+                                        <input type="hidden" name="assigned_to_id" value="<?php echo esc_attr($expense->assigned_to_id); ?>" />
+                                    </td>
+                                </tr>
                                 </table>
                             </div>
                         </div>
@@ -255,6 +274,34 @@ class TimeGrowExpenseView {
                                             <p id="file-upload-status"></p>
                                         </td>
                                     </tr>
+                                </table>
+                                <table class="wp-list-table widefat fixed striped table-view-list clients">
+                                    <thead>
+                                        <tr>
+                                            <th scope="col" colspan="2" class="manage-column column-name column-primary">Receipt Url</th>
+                                            <th scope="col" class="manage-column column-name ">Upload Date</th>
+                                            <th scope="col" class="manage-column column-actions">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php foreach ($receipts as $item): ?>
+                                            <tr>
+                                                <th scope="col" colspan="2" class="manage-column column-name column-primary"><? echo esc_attr($item->file_url) ?></th>
+                                                <th scope="col" class="manage-column column-name"><? echo esc_attr($item->upload_date) ?></th>
+                                                <th scope="col" class="manage-column column-actions">
+                                                    <a href="<? echo esc_attr($item->file_url) ?>" target="_view_receipt" class="button button-small mr-2">View</a> | 
+                                                    <a href="<?php echo admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-expense-receipt-delete&id=' . $item->ID); ?>" class="button button-danger button-small ml-2 delete-button">Delete</a>                   
+                                                </th>
+                                            </tr>
+                                        <?php endforeach ?>
+                                    </tbody>
+                                    <tfoot>
+                                        <tr>
+                                            <th scope="col" colspan="2" class="manage-column column-name column-primary">Receipt Url</th>
+                                            <th scope="col" class="manage-column column-name ">Upload Date</th>
+                                            <th scope="col" class="manage-column column-actions">Actions</th>
+                                        </tr>
+                                    </tfoot>
                                 </table>
                             </div>
                         </div>           

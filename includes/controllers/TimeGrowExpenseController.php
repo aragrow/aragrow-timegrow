@@ -20,12 +20,13 @@ class TimeGrowExpenseController{
     public function handle_form_submission() {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         
-        if (!isset($_POST['id'])) return; 
+        if (!isset($_POST['expense_id'])) return; 
 
         $current_date = current_time('mysql');
         $data = [
             'expense_name' => sanitize_text_field($_POST['expense_name']),
             'expense_description' => sanitize_text_field($_POST['expense_description']),
+            'expense_date' => sanitize_text_field($_POST['expense_date']),
             'amount' => floatval($_POST['amount']),
             'category' => sanitize_text_field($_POST['category']),
             'assigned_to' => sanitize_text_field($_POST['assigned_to']),
@@ -33,7 +34,8 @@ class TimeGrowExpenseController{
             'updated_at' => $current_date
         ];
 
-        if ($_POST['id'] == 0) {
+        $id = intval($_POST['expense_id']);
+        if ($id == 0) {
             $data['created_at'] = $current_date;
             $id = $this->expense_model->create($data);
 
@@ -45,7 +47,6 @@ class TimeGrowExpenseController{
 
         } else {
 
-            $id = intval($_POST['id']);
             $result = $this->expense_model->update($id, $data);
 
             if ($result) {
@@ -81,17 +82,13 @@ class TimeGrowExpenseController{
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         global $wpdb;
         $clients = $wpdb->get_results("SELECT ID, name FROM {$wpdb->prefix}timeflies_clients ORDER BY name", ARRAY_A);
-        $expense = $this->expense_model->select($id); // Fetch all expenses
-        $receipt = $this->receipt_model->select($id); // Fetch all expenses
-        $this->expense_view->edit_expense($expense, $receipt, $clients);
+        $expense = $this->expense_model->select($id)[0]; // Fetch all expenses
+        $receipts = $this->receipt_model->select($id); // Fetch all expenses
+        $this->expense_view->edit_expense($expense, $receipts, $clients);
     }
 
     public function display_admin_page($screen) {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
-        
-        var_dump( ($screen == 'list' ));
-        var_dump(  isset($_POST['add_item']) );
-        var_dump( isset($_POST['edit_item']) );
 
         if ($screen != 'list' && ( isset($_POST['add_item']) || isset($_POST['edit_item']) )) {
             var_dump('processing form');
@@ -107,7 +104,14 @@ class TimeGrowExpenseController{
             $id = 0;
             if ( isset( $_GET['id'] ) ) {
                 $id = intval( $_GET['id'] ); // Sanitize the ID as an integer
-                return $id;
+            } else {
+                wp_die( 'Error: Expense ID not provided in the URL.', 'Missing Expense ID', array( 'back_link' => true ) );
+            }
+            $this->edit_expenses($id);
+        } elseif ($screen == 'receipt-delete') {
+            $id = 0;
+            if ( isset( $_GET['id'] ) ) {
+                $id = intval( $_GET['id'] ); // Sanitize the ID as an integer
             } else {
                 wp_die( 'Error: Expense ID not provided in the URL.', 'Missing Expense ID', array( 'back_link' => true ) );
             }

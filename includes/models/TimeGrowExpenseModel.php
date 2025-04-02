@@ -18,7 +18,7 @@ class TimeGrowExpenseModel {
         $this->wpdb = $wpdb;
         $this->charset_collate = $wpdb->get_charset_collate();
         $this->table_name = $this->wpdb->prefix . TIMEGROW_PREFIX . 'expense_tracker'; // Make sure this matches your table name
-        $this->allowed_fields = ['expense_name', 'amount', 'category', 'assigned_to', 'assigned_to_id', 'expense_description', 'updated_at', 'created_at'];
+        $this->allowed_fields = ['expense_name', 'expense_date', 'amount', 'category', 'assigned_to', 'assigned_to_id', 'expense_description', 'updated_at', 'created_at'];
        
     }
 
@@ -28,6 +28,7 @@ class TimeGrowExpenseModel {
             ID BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
             expense_name VARCHAR(255) NOT NULL,
             expense_description text NOT NULL,
+            expense_date date NOT NULL,
             amount DECIMAL(10,2) NOT NULL,
             category VARCHAR(255) NOT NULL,
             assigned_to ENUM('project', 'client', 'general') NOT NULL,
@@ -55,7 +56,7 @@ class TimeGrowExpenseModel {
             $ids = array_map('intval', $ids); // Sanitize IDs
             $placeholders = implode(',', array_fill(0, count($ids), '%d')); // Create placeholders for prepared statement
             $sql = $this->wpdb->prepare(
-                "SELECT * FROM {$this->table_name} WHERE id IN ($placeholders) ORDER BY name",
+                "SELECT * FROM {$this->table_name} WHERE ID IN ($placeholders) ORDER BY expense_name",
                 $ids
             );
         }
@@ -63,13 +64,13 @@ class TimeGrowExpenseModel {
         elseif (intval($ids)) {
             $id = intval($ids); // Sanitize ID
             $sql = $this->wpdb->prepare(
-                "SELECT * FROM {$this->table_name} WHERE id = %d ORDER BY name",
+                "SELECT * FROM {$this->table_name} WHERE ID = %d ORDER BY expense_name",
                 $id
             );
         }
         // If no IDs are provided, fetch all rows
         else {
-            $sql = "SELECT * FROM {$this->table_name} ORDER BY name";
+            $sql = "SELECT * FROM {$this->table_name} ORDER BY expense_name";
         }
     
         return $this->wpdb->get_results($sql);
@@ -98,11 +99,13 @@ class TimeGrowExpenseModel {
 
         // Ensure all required fields are present
         if (empty($sanitized_data['expense_name']) || 
+            empty($sanitized_data['expense_date']) || 
             empty($sanitized_data['amount']) || 
-            empty($sanitized_data['category']) ||
-            empty($sanitized_data['assigned_to_id']) ||
+            empty($sanitized_data['category']) ||   
+            empty($sanitized_data['assigned_to']) ||
+            (empty($sanitized_data['assigned_to'])  && $sanitized_data['assigned_to_id'] === 0 ) || //empty considers 0 and '0' empty
             empty($sanitized_data['expense_description']) ) {
-            return false;
+            wp_die( 'Error: validation not passed', array( 'back_link' => true ) );
         }
 
         return $this->wpdb->update(
@@ -122,34 +125,48 @@ class TimeGrowExpenseModel {
      */
     public function create($data) {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
-        // Whitelist allowed fields to prevent SQL injection
-        $sanitized_data = [];
-    
-        foreach ($data as $key => $value) {
-            if (in_array($key,  $this->allowed_fields , true)) {
-                $sanitized_data[$key] = sanitize_text_field($value); // Sanitize each field
+        try {
+            // Whitelist allowed fields to prevent SQL injection
+            $sanitized_data = [];
+
+            foreach ($data as $key => $value) {
+                if (in_array($key,  $this->allowed_fields , true)) {
+                    $sanitized_data[$key] = sanitize_text_field($value); // Sanitize each field
+                }
             }
-        }
-    
-        // Ensure all required fields are present
-        if (empty($sanitized_data['expense_name']) || 
-            empty($sanitized_data['amount']) || 
-            empty($sanitized_data['category']) ||
-            empty($sanitized_data['assigned_to_id']) ||
-            empty($sanitized_data['expense_description']) ) {
-            return false;
-        }
 
-        $result = $this->wpdb->insert(
-            $this->table_name,
-            $sanitized_data,
-            '%s' // string
-        );
+            // Ensure all required fields are present
+            if (empty($sanitized_data['expense_name']) || 
+                empty($sanitized_data['expense_date']) || 
+                empty($sanitized_data['amount']) || 
+                empty($sanitized_data['category']) ||   
+                empty($sanitized_data['assigned_to']) ||
+                (empty($sanitized_data['assigned_to'])  && $sanitized_data['assigned_to_id'] === 0 ) || //empty considers 0 and '0' empty
+                empty($sanitized_data['expense_description']) ) {
+                wp_die( 'Error: validation not passed', array( 'back_link' => true ) );
+            }
 
-        if ($result === false) {
-            return false;
+            $result = $this->wpdb->insert(
+                $this->table_name,
+                $sanitized_data,
+                '%s' // string
+            );
+            error_log($this->wpdb->last_query);
+            
+            if ($result === false) {
+                return false;
+            }
+
+            return $this->wpdb->insert_id;
+        } catch (Exception $e) {
+            // Handle general exceptions
+            error_log("Exception: " . $e->getMessage());
+            echo "An error occurred: " . htmlspecialchars($e->getMessage());
+            return new WP_Error(
+                'An error occurred', // Error code
+                __(htmlspecialchars($e->getMessage())), // Error message
+                array('status' => 503) // Optional additional data
+            );
         }
-
-        return $this->wpdb->insert_id;
     }
 }

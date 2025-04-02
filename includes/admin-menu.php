@@ -32,33 +32,6 @@ class TimeFlies_Admin_Menu {
 
         add_submenu_page(
             TIMEGROW_PARENT_MENU,
-            'Companies',
-            'Companies',
-            TIMEGROW_OWNER_CAP,
-            TIMEGROW_PARENT_MENU . '-companies-list',
-            array($this, 'companies_list_page')
-        );
-
-        add_submenu_page(
-            null, // Hidden submenu for editing
-            'Add New Company',
-            'Add New Company',
-            TIMEGROW_OWNER_CAP,
-            TIMEGROW_PARENT_MENU . '-company-add',
-            array($this, 'company_add_page')
-        );
-
-        add_submenu_page(
-            null, // Hidden submenu for editing
-            'Edit Company',
-            'Edit Company',
-            TIMEGROW_OWNER_CAP,
-            TIMEGROW_PARENT_MENU . '-company-edit',
-            array($this, 'company_edit_page')
-        );
-
-        add_submenu_page(
-            TIMEGROW_PARENT_MENU,
             'Team Members',
             'Team Member',
             TIMEGROW_OWNER_CAP,

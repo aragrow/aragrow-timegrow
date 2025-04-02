@@ -5,26 +5,28 @@ if (!defined('ABSPATH')) {
     exit; // Exit if accessed directly.
 }
 
-class TimeGrowExpense {
+class TimeGrowCompany{
 
     public function __construct() {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
    //     add_action('wp_ajax_save_expense', array($this, 'save_ajax'));
    //     add_action('wp_ajax_delete_expense', array($this, 'delete_ajax')); // Add delete action
         add_action('admin_menu', [$this, 'register_admin_menu']);
-        add_action('admin_enqueue_scripts', [$this, 'enqueue_scripts_styles']);
+        add_action('wp_ajax_save_company', array($this, 'save_ajax'));
+        add_action('wp_ajax_delete_company', array($this, 'delete_ajax')); // Add delete action
+        add_action('admin_enqueue_scripts', array($this, 'enqueue_scripts_styles'));
     }
 
 
     public function register_admin_menu() {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
-       
+
         add_submenu_page(
             TIMEGROW_PARENT_MENU,
-            'Expenses',
-            'Expenses',
+            'Companies',
+            'Companies',
             TIMEGROW_OWNER_CAP,
-            TIMEGROW_PARENT_MENU . '-expenses-list',
+            TIMEGROW_PARENT_MENU . '-companies-list',
             function() { // Define a closure
                 $this->tracker_mvc_admin_page( 'list' ); // Call the tracker_mvc method, passing the parameter
             },
@@ -33,10 +35,10 @@ class TimeGrowExpense {
 
         add_submenu_page(
             null,
-            'Add Expenses',
-            'Add Expenses',
+            'Add Company',
+            'Add Company',
             TIMEGROW_OWNER_CAP,
-            TIMEGROW_PARENT_MENU . '-expense-add',
+            TIMEGROW_PARENT_MENU . '-company-add',
             function() { // Define a closure
                 $this->tracker_mvc_admin_page( 'add' ); // Call the tracker_mvc method, passing the parameter
             },
@@ -44,47 +46,36 @@ class TimeGrowExpense {
 
         add_submenu_page(
             null,
-            'Edit Expenses',
-            'Edit Expenses',
+            'Edit Company',
+            'Edit Company',
             TIMEGROW_OWNER_CAP,
-            TIMEGROW_PARENT_MENU . '-expense-edit',
+            TIMEGROW_PARENT_MENU . '-company-edit',
             function() { // Define a closure
                 $this->tracker_mvc_admin_page( 'edit' ); // Call the tracker_mvc method, passing the parameter
             },
         );
 
-        add_submenu_page(
-            null,
-            'Delete Receipt',
-            'Delete Receipt',
-            TIMEGROW_OWNER_CAP,
-            TIMEGROW_PARENT_MENU . '-expense-receipt-delete',
-            function() { // Define a closure
-                $this->tracker_mvc_admin_page( 'receipt-delete' ); // Call the tracker_mvc method, passing the parameter
-            },
-        );
     }
 
     public function enqueue_scripts_styles() {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
-        wp_enqueue_style('timeflies-expenses-style', ARAGROW_TIMEGROW_BASE_URI . 'assets/css/expense.css');
-        wp_enqueue_script('timeflies-expenses-script', ARAGROW_TIMEGROW_BASE_URI . 'assets/js/expense.js', array('jquery'), '1.0', true);
+        wp_enqueue_style('timeflies-companies-style', ARAGROW_TIMEGROW_BASE_URI . 'assets/css/company.css');
+        wp_enqueue_script('timeflies-companiues-script', ARAGROW_TIMEGROW_BASE_URI . 'assets/js/company.js', array('jquery'), '1.0', true);
         wp_localize_script(
-            'timeflies-expenses-script',
-            'timeflies_expenses_list',
+            'timeflies-companies-script',
+            'timeflies_companies_list',
             [
-                'list_url' => admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-expenses-list'),
-                'nonce' => wp_create_nonce('timeflies_expense_nonce') // Pass the nonce to JS
+                'list_url' => admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-companies-list'),
+                'nonce' => wp_create_nonce('timeflies_company_nonce') // Pass the nonce to JS
             ]
         );
     }
 
     public function tracker_mvc_admin_page($screen) {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
-        $expense_model = new TimeGrowExpenseModel();
-        $receipt_model = new TimeGrowExpenseReceiptModel();
-        $expense_view = new TimeGrowExpenseView();
-        $controller = new TimeGrowExpenseController($expense_model, $receipt_model, $expense_view);
+        $company_model = new TimeGrowExpenseModel();
+        $company_view = new TimeGrowExpenseView();
+        $controller = new TimeGrowExpenseController($company_model, $company_view);
         $controller->display_admin_page($screen);
     }
 }
