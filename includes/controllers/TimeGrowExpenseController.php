@@ -34,10 +34,22 @@ class TimeGrowExpenseController{
             'updated_at' => $current_date
         ];
 
+        $format = [
+            '%s',  // expense_name (string)
+            '%s',  // expense_description (string)
+            '%s',  // expense_date (string, could also use '%s' for MySQL date/datetime)
+            '%f',  // amount (float)
+            '%s',  // category (string)
+            '%s',  // assigned_to (string)
+            '%d',  // assigned_to_id (integer)
+            '%s',  // updated_at (datetime string)
+        ];
+
         $id = intval($_POST['expense_id']);
         if ($id == 0) {
             $data['created_at'] = $current_date;
-            $id = $this->expense_model->create($data);
+            $format[] = '%s';
+            $id = $this->expense_model->create($data, $format);
 
             if ($id) {
                 echo '<div class="notice notice-success is-dismissible"><p>Expense added successfully!</p></div>';
@@ -47,7 +59,7 @@ class TimeGrowExpenseController{
 
         } else {
 
-            $result = $this->expense_model->update($id, $data);
+            $result = $this->expense_model->update($id, $data, $format);
 
             if ($result) {
                 echo '<div class="notice notice-success is-dismissible"><p>Expense added successfully!</p></div>';

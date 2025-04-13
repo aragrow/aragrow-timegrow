@@ -29,7 +29,7 @@ class TimeFlies_Admin_Menu {
             'dashicons-clock',
             25
         );
-
+/*
         add_submenu_page(
             TIMEGROW_PARENT_MENU,
             'Team Members',
@@ -56,7 +56,7 @@ class TimeFlies_Admin_Menu {
             TIMEGROW_PARENT_MENU . '-team-member-edit',
             array($this, 'team_member_edit_page')
         );
-
+*/
         add_submenu_page(
             TIMEGROW_PARENT_MENU,
             'Clients',
@@ -109,33 +109,6 @@ class TimeFlies_Admin_Menu {
             TIMEGROW_OWNER_CAP,
             TIMEGROW_PARENT_MENU . '-project-edit',
             array($this, 'project_edit_page')
-        );
-
-        add_submenu_page(
-            TIMEGROW_PARENT_MENU,
-            'Time Entries',
-            'Time Entries',
-            TIMEGROW_OWNER_CAP,
-            TIMEGROW_PARENT_MENU . '-time-entries-list',
-            array($this, 'time_entries_list_page')
-        );
-
-        add_submenu_page(
-            null, // Hidden submenu for editing
-            'Add New Time',
-            'Add New Time',
-            TIMEGROW_OWNER_CAP,
-            TIMEGROW_PARENT_MENU . '-time-entry-add',
-            array($this, 'time_entry_add_page')
-        );
-
-        add_submenu_page(
-            null, // Hidden submenu for editing
-            'Edit Time',
-            'Edit Time',
-            TIMEGROW_OWNER_CAP,
-            TIMEGROW_PARENT_MENU . '-time-entry-edit',
-            array($this, 'time_entry_edit_page')
         );
 
         add_submenu_page(
@@ -229,17 +202,6 @@ class TimeFlies_Admin_Menu {
         require_once ARAGROW_TIMEGROW_SCREENS_DIR . 'project-edit.php';
     }
 
-    public function time_entries_list_page() {
-        require_once ARAGROW_TIMEGROW_SCREENS_DIR . 'time-entries-list.php';
-    }
-
-    public function time_entry_add_page() {
-        require_once ARAGROW_TIMEGROW_SCREENS_DIR . 'time-entry-add.php';
-    }
-
-    public function time_entry_edit_page() {
-        require_once ARAGROW_TIMEGROW_SCREENS_DIR . 'time-entry-edit.php';
-    }
 
     public function render_integration_page() {
         require_once ARAGROW_TIMEGROW_SCREENS_DIR . 'integration-page.php';

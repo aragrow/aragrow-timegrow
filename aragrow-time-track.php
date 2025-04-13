@@ -26,16 +26,19 @@ defined( 'TIMEGROW_TEAM_MEMBER_CAP' ) or define( 'TIMEGROW_TEAM_MEMBER_CAP', 'ti
 defined( 'TIMEGROW_PARENT_MENU' ) or define( 'TIMEGROW_PARENT_MENU', 'timeflies' );
 defined( 'TIMEGROW_TEAM_MEMBER_MENU' ) or define( 'TIMEGROW_TEAM_MEMBER_MENU', TIMEGROW_PARENT_MENU.'-team-member' );
 
+/*
 require_once TIMEGROW_INCLUDES_DIR . 'time-flies.php';
 require_once TIMEGROW_INCLUDES_DIR . 'model.php';
+*/
 require_once TIMEGROW_INCLUDES_DIR . 'admin-menu.php';
+/*
 require_once TIMEGROW_INCLUDES_DIR . 'client-admin.php';
 require_once TIMEGROW_INCLUDES_DIR . 'project-admin.php';
 require_once TIMEGROW_INCLUDES_DIR . 'team-member-admin.php';
-require_once TIMEGROW_INCLUDES_DIR . 'time-entry-admin.php';
 require_once TIMEGROW_INCLUDES_DIR . 'integration-admin.php';
 require_once TIMEGROW_INCLUDES_DIR . 'team-member-clock-in-out-widget.php';
 require_once TIMEGROW_INCLUDES_DIR . 'team-member-manual-entry-widget.php';
+*/
 
 // Autoload classes
 function timegrow_load_mvc_classes($class) {
@@ -63,4 +66,5 @@ spl_autoload_register( 'timegrow_load_mvc_classes' );
 // Function to initialize the plugin
 if ( ! isset( $timegrow_company ) ) $timegrow_company = New TimeGrowCompany();
 if ( ! isset( $timegrow_expense ) ) $timegrow_expense = New TimeGrowExpense();
-
+if ( ! isset( $timegrow_time_entry ) ) $timegrow_time_entry = New TimeGrowTimeEntry();
+if ( ! isset( $timegrow_team_member ) ) $timegrow_time_entry = New TimeGrowTeamMember();

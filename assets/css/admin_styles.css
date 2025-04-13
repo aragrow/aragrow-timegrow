@@ -116,3 +116,7 @@ div.x-notice.info {
     border-color: #0000ff;
     background-color: #f0f0ff;
 }
+
+input.conditional-field-hidden {
+    display: none;
+}
