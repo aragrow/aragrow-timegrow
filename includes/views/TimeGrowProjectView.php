@@ -106,7 +106,7 @@ class TimeGrowProjectView {
                                             <select id="client_id" name="client_id" class="regular-text" required>
                                                 <option value="">Select a Client</option>
                                                 <?php foreach ($clients as $client) : ?>
-                                                    <option value="<?php echo esc_attr($client->ID); ?>"><?php echo esc_html($client->name); ?></option>
+                                                    <option value="<?php echo esc_attr($client->ID); ?>"><?php echo esc_html($client->display_name); ?></option>
                                                 <?php endforeach; ?>
                                             </select>
                                         </td>
