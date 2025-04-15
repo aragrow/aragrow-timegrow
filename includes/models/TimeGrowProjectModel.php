@@ -9,11 +9,9 @@ class TimeGrowProjectModel {
     private $table_name;
     private $table_name2;
     private $table_name3;
-    private $table_name4;
     private $wpdb;
     private $charset_collate;
     private $allowed_fields;
-    private $allowed_fields2;
 
     public function __construct() {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
@@ -21,29 +19,22 @@ class TimeGrowProjectModel {
         $this->wpdb = $wpdb;
         $this->charset_collate = $wpdb->get_charset_collate();
         $this->table_name = $this->wpdb->prefix . TIMEGROW_PREFIX . 'project_tracker'; // Make sure this matches your table name
-        $this->table_name2 = $this->wpdb->prefix . TIMEGROW_PREFIX . 'team_member_projects_tracker'; // Make sure this matches your table name
-        $this->table_name3 = $this->wpdb->prefix . 'users'; // Make sure this matches your table name
-        $this->table_name4 = $this->wpdb->prefix . TIMEGROW_PREFIX . 'team_member_tracker'; // Make sure this matches your table name      
-        $this->allowed_fields = ['client_id',
-                                'name', 'description', 
-                                'status', 'default_flat_fee', 
-                                'start_date', 'end_date', 
-                                'billable', 'estimate_hours', 
-                                'created_by',  
-                                'created_at', 'updated_at'];
-
-        $this->allowed_fields2 = ['team_member_id','project_id', 
-                                'created_at', 'updated_at'];
+        $this->table_name2 = $this->wpdb->prefix . 'users'; // Make sure this matches your table name
+        $this->table_name3 = $this->wpdb->prefix . 'posts'; // Make sure this matches your table name
+        $this->allowed_fields = ['client_id', 'name', 
+                                'status', 'created_at', 'updated_at'];
     }
 
     public function initialize() {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
 
-        $sql = "CREATE TABLE IF NOT EXISTS {$this->table_name} (
+        $sql = "CREATE TABLE IF NOT EXISTS table_name}(
             ID mediumint(9) NOT NULL AUTO_INCREMENT,
             client_id mediumint(9) NOT NULL,
+            product_id mediumint(9) NULL,
             name varchar(255) NOT NULL,
             description text,
+            status varchar(50) DEFAULT 'active',
             default_flat_fee DECIMAL(10, 2) DEFAULT 0.00,
             start_date date,
             end_date date,
@@ -54,19 +45,9 @@ class TimeGrowProjectModel {
             created_at timestamp,
             updated_at timestamp,
             PRIMARY KEY  (ID),
-            FOREIGN KEY (client_id) REFERENCES {$this->table_name3}(ID,
-            FOREIGN KEY (created_by) REFERENCES {$this->table_name3}(ID)
-        ) $this->charset_collate;";
-
-        $sql2 = "CREATE TABLE IF NOT EXISTS {$this->table_name2} (
-            ID mediumint(9) NOT NULL AUTO_INCREMENT,
-            team_member_id mediumint(9) NOT NULL,
-            project_id mediumint(9) NOT NULL,
-            created_at timestamp,
-            updated_at timestamp,
-            PRIMARY KEY (team_member_id, project_id), -- Composite key to prevent duplicates
-            FOREIGN KEY (team_member_id) REFERENCES {$this->table_name4}(ID),
-            FOREIGN KEY (project_id) REFERENCES {$this->table_name3}(ID) 
+            FOREIGN KEY (client_id) REFERENCES {$this->table_name2}(ID),
+            FOREIGN KEY (project_id) REFERENCES {$this->table_name3}(ID),
+            FOREIGN KEY (created_by) REFERENCES {$this->table_name2}users(ID)
         ) $this->charset_collate;";
 
         dbDelta($sql);
@@ -89,7 +70,7 @@ class TimeGrowProjectModel {
             $sql = $this->wpdb->prepare(
                 "SELECT a.*, b.display_name as client_name
                 FROM {$this->table_name} a 
-                INNER JOIN  $this->table_name3 b ON a.client_id = b.ID
+                INNER JOIN  $this->table_name2 b ON a.client_id = b.ID
                 WHERE a.ID IN ($placeholders) 
                 ORDER BY a.name",
                 $ids
@@ -101,7 +82,7 @@ class TimeGrowProjectModel {
             $sql = $this->wpdb->prepare(
                 "SELECT a.*, b.display_name as client_name 
                 FROM {$this->table_name} a 
-                INNER JOIN  $this->table_name3 b ON a.client_id = b.ID
+                INNER JOIN  $this->table_name2 b ON a.client_id = b.ID
                 WHERE a.ID = %d",
                 $id
             );
@@ -110,41 +91,13 @@ class TimeGrowProjectModel {
         else {
             $sql = "SELECT a.*, b.display_name as client_name 
                     FROM {$this->table_name} a 
-                    INNER JOIN  $this->table_name3 b ON a.client_id = b.ID
+                    INNER JOIN  $this->table_name2 b ON a.client_id = b.ID
                     ORDER BY a.name";
         }
     
         return $this->wpdb->get_results($sql);
     }
     
-    public function assigned($ids = null) {
-        if (WP_DEBUG) error_log(__CLASS__ . '::' . __FUNCTION__);
-    
-        // If IDs are provided as an array
-        if (is_array($ids)) {
-            $ids = array_map('intval', $ids); // Sanitize IDs
-            $placeholders = implode(',', array_fill(0, count($ids), '%d')); // Create placeholders for prepared statement
-            $sql = $this->wpdb->prepare(
-                "SELECT * FROM {$this->table_name2} WHERE team_member_id IN ($placeholders) ORDER BY team_member_id, project_id",
-                $ids
-            );
-        }
-        // If a single ID is provided
-        elseif (intval($ids)) {
-            $id = intval($ids); // Sanitize ID
-            $sql = $this->wpdb->prepare(
-                "SELECT * FROM {$this->table_name2} WHERE team_member_id = %d ORDER BY project_id",
-                $id
-            );
-        }
-        // If no IDs are provided, fetch all rows
-        else {
-            $sql = "SELECT * FROM {$this->table_name2} ORDER BY team_member_id, project_id";
-        }
-    
-        return $this->wpdb->get_results($sql);
-    }
-
     /**
      * Update an existing expense.
      *
@@ -157,7 +110,7 @@ class TimeGrowProjectModel {
         $id = intval($id); // Sanitize ID
 
         // Whitelist allowed fields to prevent SQL injection
-         $sanitized_data = [];
+        $sanitized_data = [];
 
         foreach ($data as $key => $value) {
             if (in_array($key,  $this->allowed_fields , true)) {

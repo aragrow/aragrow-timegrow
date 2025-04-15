@@ -65,6 +65,8 @@ spl_autoload_register( 'timegrow_load_mvc_classes' );
 
 // Function to initialize the plugin
 if ( ! isset( $timegrow_company ) ) $timegrow_company = New TimeGrowCompany();
+if ( ! isset( $timegrow_client ) ) $timegrow_client = New TimeGrowClient();
+if ( ! isset( $timegrow_project ) ) $timegrow_project = New TimeGrowProject();
 if ( ! isset( $timegrow_expense ) ) $timegrow_expense = New TimeGrowExpense();
 if ( ! isset( $timegrow_time_entry ) ) $timegrow_time_entry = New TimeGrowTimeEntry();
 if ( ! isset( $timegrow_team_member ) ) $timegrow_time_entry = New TimeGrowTeamMember();

@@ -59,14 +59,19 @@ class TimeGrowTeamMember{
 
     public function enqueue_scripts_styles() {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
-        wp_enqueue_style('timeflies-companies-style', ARAGROW_TIMEGROW_BASE_URI . 'assets/css/team_member.css');
-        wp_enqueue_script('timeflies-companiues-script', ARAGROW_TIMEGROW_BASE_URI . 'assets/js/team_member.js', array('jquery'), '1.0', true);
+
+        // jQuery UI core and sortable
+        wp_enqueue_script('jquery-ui-sortable');
+        wp_enqueue_script('jquery-ui-draggable');
+
+        wp_enqueue_style('timegrow-companies-style', ARAGROW_TIMEGROW_BASE_URI . 'assets/css/team_member.css');
+        wp_enqueue_script('timegrow-companiues-script', ARAGROW_TIMEGROW_BASE_URI . 'assets/js/team_member.js', array('jquery'), '1.0', true);
         wp_localize_script(
-            'timeflies-team-member-script',
-            'timeflies_team_member_list',
+            'timegrow-team-member-script',
+            'timegrow_team_member_list',
             [
                 'list_url' => admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-team-member-list'),
-                'nonce' => wp_create_nonce('timeflies_team_member_nonce') // Pass the nonce to JS
+                'nonce' => wp_create_nonce('timegrow_team_member_nonce') // Pass the nonce to JS
             ]
         );
     }

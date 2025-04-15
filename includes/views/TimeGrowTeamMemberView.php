@@ -132,7 +132,6 @@ class TimeGrowTeamMemberView {
                                 </table>
                             </div>
                         </div>
-
                         <div class="postbox">
                             <h3 class="hndle"><span>Additional Information</span></h3>
                             <div class="inside">
@@ -155,11 +154,11 @@ class TimeGrowTeamMemberView {
                                 <p>Created At and Updated At timestamps will be automatically set when the company is added to the database.</p>
                             </div>
                         </div>
-                    </div>
-
+                    </div>                   
                     <div class="postbox-container">
                         <div class="postbox">
-                            <h3 class="hndle"><span>Project Assignment</span></h3>
+                            <h3 class="hndle"><span>Project Assignment</span>
+                            <br /><span class="description">Double Click to Assign or Remove.</span></h3>
                             <div class="inside">
                                 <div class="project-lists-container">
                                     <div class="assigned-projects">
@@ -167,14 +166,14 @@ class TimeGrowTeamMemberView {
                                         <input type="text" id="assigned-projects-search" placeholder="Search Projects...">
                                         <ul id="assigned-projects-list" class="project-list"></ul>
                                     </div>
-                                    <p class="description">Double Click to Assign or Remove.</p>
                                     <div class="available-projects">
                                         <h4>Available Projects</h4>
                                         <input type="text" id="available-projects-search" placeholder="Search Projects...">
                                         <ul id="available-projects-list" class="project-list">
                                             <?php
                                             foreach ($projects as $project) {
-                                                echo '<li class="project-item available-projects" data-id="' . esc_attr($project->id) . '">' . esc_html($project->name.' - '.$project->client_name) . '</li>';
+                                                echo '<li class="project-item available-projects" data-id="' . esc_attr($project->ID) . '">' 
+                                                . esc_html($project->name).'<br />'.esc_html($project->client_name) . '</li>';
                                             }
                                             ?>
                                         </ul>
@@ -185,9 +184,7 @@ class TimeGrowTeamMemberView {
                         </div>
                     </div>
                 </div>
-
-                <?php submit_button('Add Team Member'); ?>
-
+                <br clear="all" /><?php submit_button('Add Team Member', 'ml-2'); ?>
             </form>
         </div>
         <?php
@@ -216,8 +213,8 @@ class TimeGrowTeamMemberView {
                                         <td>
                                             <select name="user_id" id="user_id">
                                                 <?php foreach ($users as $user) : ?>
-                                                    <option value="<?php echo esc_attr($user['ID']); ?>" <?php selected($item['user_id'], $user['ID']); ?>>
-                                                        <?php echo esc_html($user['user_login'].' - '.$user['user_email']); ?>
+                                                    <option value="<?php echo esc_attr($user->ID); ?>" <?php selected($item->user_id, $user->ID); ?>>
+                                                        <?php echo esc_html($user->user_login.' - '.$user->user_email); ?>
                                                     </option>
                                                 <?php endforeach; ?>
                                             </select>
@@ -229,42 +226,41 @@ class TimeGrowTeamMemberView {
                                             <select id="company_id" name="company_id" required>
                                                 <option value="">Select a Company</option>
                                                 <?php foreach ($companies as $company) : ?>
-                                                    <option value="<?php echo esc_attr($company['ID']); ?>" <?php selected($item['company_id'], $company['ID']); ?>><?php echo esc_html($company['name']); ?></option>
+                                                    <option value="<?php echo esc_attr($company->ID); ?>" <?php selected($item->company_id, $company->ID); ?>><?php echo esc_html($company->name); ?></option>
                                                 <?php endforeach; ?>
                                             </select>
                                         </td>
                                     </tr>
                                     <tr>
                                         <th scope="row"><label for="name">Name <span class="required">*</span></label></th>
-                                        <td><input type="text" name="name" id="name" class="regular-text" value="<?php echo esc_attr($item['name']); ?>" required></td>
+                                        <td><input type="text" name="name" id="name" class="regular-text" value="<?php echo esc_attr($item->name); ?>" required></td>
                                     </tr>
                                     <tr>
                                         <th scope="row"><label for="email">Email</label></th>
-                                        <td><input type="email" name="email" id="email" class="regular-text" value="<?php echo esc_attr($item['email']); ?>"></td>
+                                        <td><input type="email" name="email" id="email" class="regular-text" value="<?php echo esc_attr($item->email); ?>"></td>
                                     </tr>
                                     <tr>
                                         <th scope="row"><label for="phone">Phone</label></th>
-                                        <td><input type="text" name="phone" id="phone" class="regular-text" value="<?php echo esc_attr($item['phone']); ?>"></td>
+                                        <td><input type="text" name="phone" id="phone" class="regular-text" value="<?php echo esc_attr($item->phone); ?>"></td>
                                     </tr>
                                     <tr>
                                         <th scope="row"><label for="title">Title</label></th>
-                                        <td><input type="text" name="title" id="title" class="regular-text" value="<?php echo esc_attr($item['title']); ?>"></td>
+                                        <td><input type="text" name="title" id="title" class="regular-text" value="<?php echo esc_attr($item->title); ?>"></td>
                                     </tr>
                                 </table>
                             </div>
                         </div>
-
                         <div class="postbox">
                             <h3 class="hndle"><span>Additional Information</span></h3>
                             <div class="inside">
                                 <table class="form-table">
                                     <tr>
                                         <th scope="row"><label for="bio">Bio</label></th>
-                                        <td><textarea name="bio" id="bio" class="large-text" rows="5"><?php echo esc_textarea($item['bio']); ?></textarea></td>
+                                        <td><textarea name="bio" id="bio" class="large-text" rows="5"><?php echo esc_textarea($item->bio); ?></textarea></td>
                                     </tr>
                                     <tr>
                                         <th scope="row"><label for="status">Status</label></th>
-                                        <td><input type="checkbox" name="status" id="status" value="1" <?php checked($item['status'], 1); ?>> Active</td>
+                                        <td><input type="checkbox" name="status" id="status" value="1" <?php checked($item->status, 1); ?>> Active</td>
                                     </tr>
                                 </table>
                             </div>
@@ -276,11 +272,11 @@ class TimeGrowTeamMemberView {
                                 <table class="form-table">
                                     <tr>
                                         <th scope="row">Created At</th>
-                                        <td><?php echo esc_html($item['created_at']); ?></td>
+                                        <td><?php echo esc_html($item->created_at); ?></td>
                                     </tr>
                                     <tr>
                                         <th scope="row">Updated At</th>
-                                        <td><?php echo esc_html($item['updated_at']); ?></td>
+                                        <td><?php echo esc_html($item->updated_at); ?></td>
                                     </tr>
                                 </table>
                             </div>
@@ -290,40 +286,41 @@ class TimeGrowTeamMemberView {
                     <div class="postbox-container">
                         <div class="postbox">
                             <h3 class="hndle"><span>Project Assignment</span></h3>
+                            <p class="description">Drag and drop to Click to Assign</p>
                             <div class="inside">
-                                <div class="project-lists-container">
-                                    <div class="assigned-projects">
-                                        <h4>Assigned Projects</h4>
-                                        <input type="text" id="assigned-projects-search" placeholder="Search Projects...">
-                                        <ul id="assigned-projects-list" class="project-list">
-                                            <?php
-                                            foreach ($assigned as $project) {
-                                                echo '<li class="project-item assigned" data-id="' . esc_attr($project['ID']) . '">' . esc_html($project['name'].' - '.$project['client_name']) . '</li>';
-                                            }
-                                            ?>
+                                <div id="project-manager" style="display: flex; gap: 40px;">
+                                    <!-- Assigned Projects -->
+                                    <div>
+                                        <h3>Assigned Projects</h3>
+                                        <input type="text" id="search-assigned" placeholder="Search assigned..." class="widefat">
+                                        <ul id="assigned-projects-list" class="sortable-list connected-list">
+                                            <?php foreach ($assigned as $project): ?>
+                                                <li class="project-item assigned-projects" data-id="<?= esc_attr($project->ID) ?>">
+                                                    <?= esc_html($project->project_name) .'<br />'.esc_html($project->client_name) ?>
+                                                </li>
+                                            <?php endforeach; ?>
                                         </ul>
                                     </div>
-                                    <p class="description">Double Click to Assign or Remove.</p>
-                                    <div class="available-projects">
-                                        <h4>Available Projects</h4>
-                                        <input type="text" id="available-projects-search" placeholder="Search Projects...">
-                                        <ul id="available-projects-list" class="project-list">
-                                            <?php
-                                            foreach ($projects as $project) {
-                                                echo '<li class="project-item available-projects" data-id="' . esc_attr($project['ID']) . '">' . esc_html($project['name'].' - '.$project['client_name']) . '</li>';
-                                            }
-                                            ?>
+                                        <!-- Available Projects -->
+                                    <div>
+                                        <h3>Available Projects</h3>
+                                        <input type="text" id="search-available" placeholder="Search available..." class="widefat">
+                                        <ul id="available-projects-list" class="sortable-list">
+                                            <?php foreach ($projects as $project): ?>
+                                                <li class="project-item available-projects" data-id="<?= esc_attr($project->ID) ?>">
+                                                    <?= esc_html($project->name).'<br />'.esc_html($project->client_name) ?>
+                                                </li>
+                                            <?php endforeach; ?>
                                         </ul>
                                     </div>
                                 </div>
+                                <?php $assigned_project_ids = [];?>
                                 <input type="hidden" name="project_ids" id="project_ids_hidden" value="<?php echo implode(',', $assigned_project_ids); ?>" readonly>
                             </div>
                         </div>
                     </div>
                 </div>
-
-                <?php submit_button('Update Team Member'); ?>
-
+                <br clear="all" /><?php submit_button('Update Team Member', 'ml-2'); ?>
             </form>
         </div>
         <?php
