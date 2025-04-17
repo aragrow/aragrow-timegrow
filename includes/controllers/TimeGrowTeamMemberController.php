@@ -195,9 +195,9 @@ class TimeGrowTeamMemberController{
         $item = $this->model->select($id)[0]; // Fetch  team member
         $users = $this->model_user->select(null); // Fetch all team members
         $companies = $this->model_company->select(null); // Fetch all team member
-        $projects = $this->model_project->select(null); // Fetch all team members
+        $available = $this->model_project->available($item->user_id); // Fetch all team members
         $assigned = $this->model_project->assigned($item->user_id); // Fetch all team members
-        $this->view->edit($item, $users, $companies, $projects, $assigned);
+        $this->view->edit($item, $users, $companies, $available, $assigned);
     }
 
     public function display_admin_page($screen) {

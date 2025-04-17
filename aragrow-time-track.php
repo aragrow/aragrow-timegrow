@@ -23,22 +23,10 @@ defined( 'TIMEGROW_SCREENS_DIR' ) or define( 'ARAGROW_TIMEGROW_SCREENS_DIR', TIM
 defined( 'TIMEGROW_ADMIN_CAP' ) or define( 'TIMEGROW_ADMIN_CAP', 'timeflies_admin' );
 defined( 'TIMEGROW_OWNER_CAP' ) or define( 'TIMEGROW_OWNER_CAP', 'timeflies_owner' );
 defined( 'TIMEGROW_TEAM_MEMBER_CAP' ) or define( 'TIMEGROW_TEAM_MEMBER_CAP', 'timeflies_team_member' );
-defined( 'TIMEGROW_PARENT_MENU' ) or define( 'TIMEGROW_PARENT_MENU', 'timeflies' );
+defined( 'TIMEGROW_PARENT_MENU' ) or define( 'TIMEGROW_PARENT_MENU', 'timegrow' );
 defined( 'TIMEGROW_TEAM_MEMBER_MENU' ) or define( 'TIMEGROW_TEAM_MEMBER_MENU', TIMEGROW_PARENT_MENU.'-team-member' );
 
-/*
-require_once TIMEGROW_INCLUDES_DIR . 'time-flies.php';
-require_once TIMEGROW_INCLUDES_DIR . 'model.php';
-*/
 require_once TIMEGROW_INCLUDES_DIR . 'admin-menu.php';
-/*
-require_once TIMEGROW_INCLUDES_DIR . 'client-admin.php';
-require_once TIMEGROW_INCLUDES_DIR . 'project-admin.php';
-require_once TIMEGROW_INCLUDES_DIR . 'team-member-admin.php';
-require_once TIMEGROW_INCLUDES_DIR . 'integration-admin.php';
-require_once TIMEGROW_INCLUDES_DIR . 'team-member-clock-in-out-widget.php';
-require_once TIMEGROW_INCLUDES_DIR . 'team-member-manual-entry-widget.php';
-*/
 
 // Autoload classes
 function timegrow_load_mvc_classes($class) {
@@ -64,6 +52,7 @@ function timegrow_load_mvc_classes($class) {
 spl_autoload_register( 'timegrow_load_mvc_classes' );
 
 // Function to initialize the plugin
+if ( ! isset( $timegrow_integrations) ) $timegrow_integration = New TimeGrowIntegration();
 if ( ! isset( $timegrow_company ) ) $timegrow_company = New TimeGrowCompany();
 if ( ! isset( $timegrow_client ) ) $timegrow_client = New TimeGrowClient();
 if ( ! isset( $timegrow_project ) ) $timegrow_project = New TimeGrowProject();

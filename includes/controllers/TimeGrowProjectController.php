@@ -20,16 +20,15 @@ class TimeGrowProjectController{
         $this->view = $view;
         $this->model_client = $model_client;
         $this->model_product = $model_product;
+        $this->model_product = $model_product;
     }
 
     public function handle_form_submission() {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
-        
         if (!isset($_POST['project_id'])) return; 
 
         $current_date = current_time('mysql');
         $data = [
-            'project_id' => intval($_POST['project_id']),
             'client_id' => intval($_POST['client_id']),
             'name' => sanitize_text_field($_POST['name']),
             'description' => wp_kses_post($_POST['description']),
@@ -37,26 +36,28 @@ class TimeGrowProjectController{
             'start_date' => sanitize_text_field($_POST['start_date']),
             'end_date' => sanitize_text_field($_POST['end_date']),
             'estimate_hours' => floatval($_POST['estimate_hours']),
-            'billable' => isset($_POST['billable']),
-            'status' => isset($_POST['status']),
+            'billable' => isset($_POST['billable'])?:0,
+            'status' => isset($_POST['status'])?:0,
+            'product_id' => sanitize_text_field($_POST['product_id']),
             'updated_at' => $current_date
+            
         ];
 
         $format = [
-            '%d',   // project_id (integer)
             '%d',   // client_id (integer)
             '%s',   // name (string)
             '%s',   // description (string)
             '%f',   // default_flat_fee (float)
             '%s',   // start date (string)
             '%s',   // end date (string)
-            '%f',   // estimate hours (float)
+            '%d',   // estimate hours
             '%d',   // billable (integer)
+            '%d',   // status (int)
             '%d',   // status (int)
             '%s',   // updated at
         ];
 
-        $id = intval($_POST['expense_id']);
+        $id = intval($_POST['project_id']);
         if ($id == 0) {
             $data['created_at'] = $current_date;
             $format[] = '%s';
@@ -99,14 +100,15 @@ class TimeGrowProjectController{
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         global $wpdb;
         $project = $this->model->select($id)[0]; // Fetch all expenses
+        $clients = $this->model_client->select(); // Fetch all expenses
         $wc_products = $this->model_product->select(); // Fetch all products
-        $this->view->edit($project);
+        $this->view->edit($project, $clients, $wc_products);
     }
 
     public function display_admin_page($screen) {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
-
-        if ($screen != 'list' && ( isset($_POST['add_item']) || isset($_POST['edit_item']) )) {
+        
+        if ($screen != 'list' && ( isset($_POST['action']) && $_POST['action'] == 'save_project')) {
             $this->handle_form_submission();
             $screen = 'list';
         }

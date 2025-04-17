@@ -20,7 +20,7 @@ class TimeGrowExpenseController{
     public function handle_form_submission() {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         
-        if (!isset($_POST['expense_id'])) return; 
+        if (!isset($_POST['project_id'])) return; 
 
         $current_date = current_time('mysql');
         $data = [

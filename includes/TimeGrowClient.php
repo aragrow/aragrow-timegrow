@@ -57,6 +57,15 @@ class TimeGrowClient{
 
     }
 
+/*************  ✨ Windsurf Command ⭐  *************/
+    /**
+     * Enqueue styles and scripts for the client admin pages.
+     *
+     * Hooked into admin_enqueue_scripts
+     *
+     * @return void
+     */
+/*******  bf5cae99-a42a-4000-a91e-2895ec5aea00  *******/
     public function enqueue_scripts_styles() {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         wp_enqueue_style('timeflies-clients-style', ARAGROW_TIMEGROW_BASE_URI . 'assets/css/company.css');
@@ -73,9 +82,7 @@ class TimeGrowClient{
 
     public function tracker_mvc_admin_page($screen) {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
-        $model = new TimeGrowClientModel();
-        $view = new TimeGrowClientView();
-        $controller = new TimeGrowCompanyController($model, $view);
+        $controller = new TimeGrowClientController();
         $controller->display_admin_page($screen);
     }
 }

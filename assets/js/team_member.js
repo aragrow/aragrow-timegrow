@@ -63,61 +63,55 @@ jQuery(document).ready(function($) {
         }
     });
 
-    // Make available projects draggable
-    // .draggable({ ... }) Activates drag functionality using jQuery UI.
-    // connectToSortable: "#assigned-projects-list" - Says: "Hey, these items can be dragged into this other sortable list."
-    // helper: "clone" - Instead of moving the original element while dragging, it creates a visual copy (clone). This keeps the original item in place until it's actually dropped.
-    // revert: "invalid"  -If the item is not dropped in the valid connected sortable area, it will snap back to its original location.
-    $('#available-projects-list .project-item').draggable({
-        connectToSortable: "#assigned-projects-list", 
+    $availableList = $('#available-projects-list');
+    $assignedList = $('#assigned-projects-list');
+
+    // Make project items draggable
+    $availableList.find('.project-item').draggable({
+        connectToSortable: "#assigned-projects-list",
         helper: "clone",
         revert: "invalid",
-        start: function(event, ui) {
-            // Ensure the data-id is copied to the helper
+        start: function (event, ui) {
+            // Copy data-id to the clone helper
             ui.helper.attr('data-id', $(this).data('id'));
         }
     });
 
-    // Make assigned projects sortable and droppable
-    // #assigned-projects-list: The sortable list that accepts dropped items (from draggable).
-    // .sortable({ receive: ... }): Makes this list accept elements from outside and lets you hook into the drop event.
-    // receive: This function runs when a draggable item is dropped into the sortable list.
-    // ui.item: Refers to the element that was just dropped.
-    // What the receive function is doing:
-    //  Removes unwanted styles and classes:
-    //        .available-projects → the class that shouldn't exist once assigned.
-    //        ui-draggable & ui-draggable-handle → jQuery UI classes, often unnecessary after drop.
-    // Adds the .assigned class so that it visually/semantically fits the new list.
-    // .appendTo(this): Ensures the dropped element is properly inserted into the sortable list (might not be necessary depending on behavior).
-
-    $('#assigned-projects-list').sortable({
+    // Make the assigned projects list sortable and droppable
+    $assignedList.sortable({
         tolerance: "pointer",
         items: "> li",
-        receive: function(event, ui) {
-            
-            // Only allow once by checking if it already exists
+        receive: function (event, ui) {
             droppedId = ui.item.attr('data-id');
+
             if (!droppedId) {
-                alert("No data-id found on dropped item");
+                alert("No data-id found on dropped item.");
                 return;
             }
 
-            // Prevent duplicates by checking if the item already exists
-            if ($('#assigned-projects-list .project-item[data-id="' + droppedId + '"]').length > 1) {
-                $(ui.sender).sortable('cancel'); // undo the drop
+            // Prevent duplicates
+            if ($assignedList.find(`.project-item[data-id="${droppedId}"]`).length > 1) {
+                $(ui.sender).sortable('cancel'); // Undo the drop
                 return;
             }
 
-            ui.item
-                .removeClass("available-projects ui-draggable ui-draggable-handle")
-                .addClass("assigned-projects");
+            // Update the class to reflect assignment
+            // Delay class cleanup to after DOM drop finishes
+            setTimeout(() => {
+                ui.item
+                    .removeClass("available-projects ui-draggable ui-draggable-handle")
+                    .addClass("assigned-projects");
+            }, 10);
 
-            alert(ui.item.attr('class'));
+            // Optional: Log or update the UI
+            console.log(`Item with ID ${droppedId} assigned.`);
 
-            // Optionally: Remove from the available list completely
-            $('#available-projects-list .project-item[data-id="' + droppedId + '"]').remove();
-        } 
+            // Remove the original from the available list
+            $availableList.find(`.project-item[data-id="${droppedId}"]`).remove();
+        }
     }).disableSelection();
+
+    
 
     // Search filtering
     function setupSearch(inputSelector, listSelector) {

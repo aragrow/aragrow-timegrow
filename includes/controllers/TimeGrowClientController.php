@@ -11,12 +11,17 @@ class TimeGrowClientController{
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);   
 
     }
+    public function display_admin_page($screen) {
+        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+
+        $this->list();
+    }
 
     public function list() {
 
-        $integrations = get_option('timeflies_integration_settings');
+        $integrations = get_option('timegrow_integration_settings');
         if ($integrations['wc_clients'] && class_exists('WooCommerce')) {
-            echo '<div class="x-notice info"><p>Clients are integrated with WooCommerce Customers.</p></div>';
+            echo '<div class="x-notice info"><h2>Clients are integrated with WooCommerce Customers.</h2></div>';
             exit();
         }
 

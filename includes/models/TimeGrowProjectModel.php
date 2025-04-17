@@ -9,6 +9,7 @@ class TimeGrowProjectModel {
     private $table_name;
     private $table_name2;
     private $table_name3;
+    private $table_name4;
     private $wpdb;
     private $charset_collate;
     private $allowed_fields;
@@ -21,8 +22,13 @@ class TimeGrowProjectModel {
         $this->table_name = $this->wpdb->prefix . TIMEGROW_PREFIX . 'project_tracker'; // Make sure this matches your table name
         $this->table_name2 = $this->wpdb->prefix . 'users'; // Make sure this matches your table name
         $this->table_name3 = $this->wpdb->prefix . 'posts'; // Make sure this matches your table name
+        $this->table_name4 = $this->wpdb->prefix . TIMEGROW_PREFIX . 'team_member_projects_tracker'; // Make sure this matches your table name
         $this->allowed_fields = ['client_id', 'name', 
-                                'status', 'created_at', 'updated_at'];
+                                'status', 'description',
+                                'billable', 'default_flat_fee',
+                                'start_date', 'end_date',
+                                'estimate_hours','product_id',
+                                'created_at', 'updated_at'];
     }
 
     public function initialize() {
@@ -98,6 +104,37 @@ class TimeGrowProjectModel {
         return $this->wpdb->get_results($sql);
     }
     
+    public function available($ids = null) {
+        if (WP_DEBUG) error_log(__CLASS__ . '::' . __FUNCTION__);
+    
+        $id = intval($ids); // Sanitize ID
+        $sql = $this->wpdb->prepare(
+            "SELECT a.*, b.display_name as client_name 
+            FROM {$this->table_name} a 
+            INNER JOIN  $this->table_name2 b ON a.client_id = b.ID
+            WHERE a.ID not in (SELECT project_id FROM {$this->table_name4} WHERE team_member_id = %d)",
+            $id
+        );
+        $return = $this->wpdb->get_results($sql);
+        return $return;
+    }
+
+    public function assigned($ids = null) {
+        if (WP_DEBUG) error_log(__CLASS__ . '::' . __FUNCTION__);
+    
+        $id = intval($ids); // Sanitize ID
+        $sql = $this->wpdb->prepare(
+            "SELECT a.*, b.display_name as client_name 
+            FROM {$this->table_name} a 
+            INNER JOIN  $this->table_name2 b ON a.client_id = b.ID
+            WHERE a.ID in (SELECT project_id FROM {$this->table_name4} WHERE team_member_id = %d)",
+            $id
+        );
+    
+        return $this->wpdb->get_results($sql);
+    }
+    
+
     /**
      * Update an existing expense.
      *
@@ -105,7 +142,7 @@ class TimeGrowProjectModel {
      * @param array $data Array of data to update.
      * @return bool|int False on error, or the number of rows updated.
      */
-    public function update($id, $data) {
+    public function update($id, $data, $format) {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         $id = intval($id); // Sanitize ID
 
@@ -114,25 +151,32 @@ class TimeGrowProjectModel {
 
         foreach ($data as $key => $value) {
             if (in_array($key,  $this->allowed_fields , true)) {
-                $sanitized_data[$key] = sanitize_text_field($value); // Sanitize each field
+                if (strpos($key, 'date') !== false && $value === '') 
+                    $sanitized_data[$key] = null;
+                else
+                    $sanitized_data[$key] = $value; // Sanitize each field
             }
         }
 
         // Ensure all required fields are present
         if (empty($sanitized_data['client_id']) || 
             empty($sanitized_data['name']) || 
-            empty($sanitized_data['status']) || 
-            empty($sanitized_data['billable']) ) {
+            empty($sanitized_data['status']) ) {
             wp_die( 'Error: validation not passed', array( 'back_link' => true ) );
         }
 
-        return $this->wpdb->update(
+        $return = $this->wpdb->update(
             $this->table_name,
             $sanitized_data,
-            ['id' => $id],
-            '%s', // string
+            ['ID' => $id],
+            $format,
             '%d'  // integer
         );
+
+        // var_dump($this->wpdb->last_query);
+
+        return $return;
+
     }
 
     /**
@@ -141,7 +185,7 @@ class TimeGrowProjectModel {
      * @param array $data Array of data to insert.
      * @return int|false The ID of the newly created row, or false on error.
      */
-    public function create($data) {
+    public function create($data, $format) {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         try {
             // Whitelist allowed fields to prevent SQL injection
@@ -156,15 +200,14 @@ class TimeGrowProjectModel {
             // Ensure all required fields are present
             if (empty($sanitized_data['client_id']) || 
                 empty($sanitized_data['name']) || 
-                empty($sanitized_data['status']) || 
-                empty($sanitized_data['billable']) ) {
+                empty($sanitized_data['status']) ) {
                 wp_die( 'Error: validation not passed', array( 'back_link' => true ) );
             }
 
             $result = $this->wpdb->insert(
                 $this->table_name,
                 $sanitized_data,
-                '%s' // string
+                $format
             );
             error_log($this->wpdb->last_query);
             
@@ -184,4 +227,5 @@ class TimeGrowProjectModel {
             );
         }
     }
+
 }

@@ -158,14 +158,15 @@ class TimeGrowTeamMemberView {
                     <div class="postbox-container">
                         <div class="postbox">
                             <h3 class="hndle"><span>Project Assignment</span>
-                            <br /><span class="description">Double Click to Assign or Remove.</span></h3>
+                            <br /><span class="description">Drag and Drop to Assign Projects to Team Member.</span></h3>
                             <div class="inside">
                                 <div class="project-lists-container">
                                     <div class="assigned-projects">
                                         <h4>Assigned Projects</h4>
                                         <input type="text" id="assigned-projects-search" placeholder="Search Projects...">
-                                        <ul id="assigned-projects-list" class="project-list"></ul>
+                                        <ul id="assigned-projects-list" class="project-list assigned-projects-background "></ul>
                                     </div>
+                                    <br clear="all" />
                                     <div class="available-projects">
                                         <h4>Available Projects</h4>
                                         <input type="text" id="available-projects-search" placeholder="Search Projects...">
@@ -203,7 +204,6 @@ class TimeGrowTeamMemberView {
 
                 <div class="metabox-holder columns-2">
                     <div class="postbox-container">
-            
                         <div class="postbox">
                             <h3 class="hndle"><span>Basic Information</span></h3>
                             <div class="inside">
@@ -265,7 +265,6 @@ class TimeGrowTeamMemberView {
                                 </table>
                             </div>
                         </div>
-                        
                         <div class="postbox">
                             <h3 class="hndle"><span>Timestamps</span></h3>
                             <div class="inside">
@@ -282,40 +281,37 @@ class TimeGrowTeamMemberView {
                             </div>
                         </div>
                     </div>
-
                     <div class="postbox-container">
                         <div class="postbox">
-                            <h3 class="hndle"><span>Project Assignment</span></h3>
-                            <p class="description">Drag and drop to Click to Assign</p>
+                            <h3 class="hndle"><span>Project Assignment</span>
+                            <br /><span class="description">Drag and Drop to Assign Projects to Team Member.</span></h3>
                             <div class="inside">
-                                <div id="project-manager" style="display: flex; gap: 40px;">
-                                    <!-- Assigned Projects -->
-                                    <div>
-                                        <h3>Assigned Projects</h3>
-                                        <input type="text" id="search-assigned" placeholder="Search assigned..." class="widefat">
-                                        <ul id="assigned-projects-list" class="sortable-list connected-list">
-                                            <?php foreach ($assigned as $project): ?>
-                                                <li class="project-item assigned-projects" data-id="<?= esc_attr($project->ID) ?>">
-                                                    <?= esc_html($project->project_name) .'<br />'.esc_html($project->client_name) ?>
-                                                </li>
-                                            <?php endforeach; ?>
+                                <div class="project-lists-container">
+                                    <div class="assigned-projects">
+                                        <h4>Assigned Projects</h4>
+                                        <input type="text" id="assigned-projects-search" placeholder="Search Projects...">
+                                        <ul id="assigned-projects-list" class="project-list assigned-projects-background ">
+                                        <?php foreach ($assigned as $project) {
+                                            echo '<li class="project-item assigned-projects" data-id="' . esc_attr($project->ID) . '">' 
+                                            . esc_html($project->name).'<br />'.esc_html($project->client_name) . '</li>';
+                                        } ?>
                                         </ul>
                                     </div>
-                                        <!-- Available Projects -->
-                                    <div>
-                                        <h3>Available Projects</h3>
-                                        <input type="text" id="search-available" placeholder="Search available..." class="widefat">
-                                        <ul id="available-projects-list" class="sortable-list">
-                                            <?php foreach ($projects as $project): ?>
-                                                <li class="project-item available-projects" data-id="<?= esc_attr($project->ID) ?>">
-                                                    <?= esc_html($project->name).'<br />'.esc_html($project->client_name) ?>
-                                                </li>
-                                            <?php endforeach; ?>
+                                    <br clear="all" />
+                                    <div class="available-projects">
+                                        <h4>Available Projects</h4>
+                                        <input type="text" id="available-projects-search" placeholder="Search Projects...">
+                                        <ul id="available-projects-list" class="project-list">
+                                            <?php
+                                            foreach ($projects as $project) {
+                                                echo '<li class="project-item available-projects" data-id="' . esc_attr($project->ID) . '">' 
+                                                . esc_html($project->name).'<br />'.esc_html($project->client_name) . '</li>';
+                                            }
+                                            ?>
                                         </ul>
                                     </div>
                                 </div>
-                                <?php $assigned_project_ids = [];?>
-                                <input type="hidden" name="project_ids" id="project_ids_hidden" value="<?php echo implode(',', $assigned_project_ids); ?>" readonly>
+                                <input type="hidden" name="project_ids" id="project_ids_hidden" value="">
                             </div>
                         </div>
                     </div>

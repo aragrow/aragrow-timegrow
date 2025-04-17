@@ -27,40 +27,36 @@ class TimeGrowWcProductModel {
      * @param int|array $ids Single ID or array of IDs.
      * @return array|object|null Array of expense objects or null if no results.
      */
-    public function select($ids = null) {
+    public function select() {
         if (WP_DEBUG) error_log(__CLASS__ . '::' . __FUNCTION__);
     
-        // If IDs are provided as an array
-        if (is_array($ids)) {
-            $ids = array_map('intval', $ids); // Sanitize IDs
-            $placeholders = implode(',', array_fill(0, count($ids), '%d')); // Create placeholders for prepared statement
-            $sql = $this->wpdb->prepare(
-                "SELECT ID, post_title 
-                FROM {$this->table_name}
-                WHERE ID IN ($placeholders) 
-                ORDER BY post_title",
-                $ids
-            );
+            $args = [
+            'post_type'      => 'product', // Change this to your custom post type (e.g., 'product', 'event')
+            'posts_per_page' => -1,        // Number of posts to return
+            'post_status' => 'publish',
+            'fields'         => 'ids',   //// Return only post IDs for better performance
+            'tax_query'      => [
+                [
+                    'taxonomy' => 'product_cat',
+                    'field'    => 'slug',
+                    'terms'    => 'timegrow',
+                ],
+            ],
+        ];
+        
+        $query = new WP_Query($args);
+        $posts = [];
+
+        if ( $query->have_posts() ) {
+            foreach ( $query->posts as $post_id ) {
+                $posts[] = (object) [
+                    'ID'          => $post_id,
+                    'post_title'  => get_the_title( $post_id ),
+                ];
+            }
         }
-        // If a single ID is provided
-        elseif (intval($ids)) {
-            $id = intval($ids); // Sanitize ID
-            $sql = $this->wpdb->prepare(
-                "SELECT ID, post_title FROM {$this->table_name} WHERE ID = %d",
-                $id
-            );
-        }
-        // If no IDs are provided, fetch all rows
-        else {
-            $sql = "SELECT ID, post_title 
-                    FROM {$this->table_name} 
-                    WHERE post_type IN ('product')
-                    AND post_status = 'publish'
-                    ORDER BY post_title";
-        }
-    
-        $results = $this->wpdb->get_results($sql);
-        return $results;
+
+        return (object) $posts;
 
     }
     

@@ -59,6 +59,12 @@ class TimeGrowProject{
 
     public function enqueue_scripts_styles() {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        wp_enqueue_script('jquery-ui-core');
+        wp_enqueue_script('jquery-ui-slider');
+        wp_enqueue_style(
+            'jquery-ui-css',
+            'https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css'
+        );
         wp_enqueue_style('timegrow-projects-style', ARAGROW_TIMEGROW_BASE_URI . 'assets/css/project.css');
         wp_enqueue_script('timegrow-projects-script', ARAGROW_TIMEGROW_BASE_URI . 'assets/js/project.js', array('jquery'), '1.0', true);
         wp_localize_script(

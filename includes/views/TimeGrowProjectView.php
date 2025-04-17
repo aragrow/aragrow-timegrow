@@ -10,7 +10,7 @@ class TimeGrowProjectView {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         ?>
         <div class="wrap">
-        <h2>All Pojects</h2>
+        <h2>All Projects</h2>
     
         <div class="tablenav top">
             <div class="alignleft actions">
@@ -36,10 +36,10 @@ class TimeGrowProjectView {
                     <?php foreach ($projects as &$project) :?>
                         <tr>
                             <td class="column-name column-primary" data-colname="Project Name">
-                                <strong><?php echo esc_html($project->name); echo $project->ID;?></strong>
+                                <strong><?php echo esc_html($project->name); ?></strong>
                                 <button type="button" class="toggle-row"><span class="screen-reader-text">Show more details</span></button>
                             </td>
-                            <td class="column-client" data-colname="Client"><?php echo esc_html($project->client_name); echo $project->client_id; ?></td>
+                            <td class="column-client" data-colname="Client"><?php echo esc_html($project->client_name); ?></td>
                             <td class="column-start-date" data-colname="Start Date"><?php echo esc_html($project->start_date); ?></td>
                             <td class="column-end-date" data-colname="End Date"><?php echo esc_html($project->end_date); ?></td>
                             <td class="column-status" data-colname="Status"><?php echo esc_html($project->status); ?></td>
@@ -77,19 +77,40 @@ class TimeGrowProjectView {
     <?php
     }
 
-    public function add($clients, $wp_products) {
+    public function add($clients, $woocommerce_products = null) {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         ?>
         <div class="wrap">
             <h2>Add New Project</h2>
         
-            <form id="timeflies-company-form" class="wp-core-ui" method="POST" enctype="multipart/form-data">
+            <form id="timegrow-project-form" class="wp-core-ui" method="POST" enctype="multipart/form-data">
             <input type="hidden" name="project_id" value="0">
                 <input type="hidden" name="action" value="save_project">
                 <?php wp_nonce_field('timegrow_project_nonce', 'timegrow_project_nonce_field'); ?>
 
                 <div class="metabox-holder columns-2">
                     <div class="postbox-container">
+                    <?php $integrations = get_option('timegrow_integration_settings')?: false;
+                            if ($integrations['wc_products'] && class_exists('WooCommerce')) { ?>
+                            <div class="postbox">
+                                <h3 class="hndle"><span>WooCommerce Integraton</span></h3>
+                                <div class="inside">
+                                    <table class="form-table">
+                                        <tr>
+                                            <th scope="row"><label for="product_id">WooCommerce Product <span class="required">*</span></label></th>
+                                            <td>
+                                                <select id="product_id" name="product_id" class="regular-text">
+                                                    <option value="">Select a WooCommerce Product</option>
+                                                    <?php foreach ($woocommerce_products as $item) : ?>
+                                                        <option value="<?php echo esc_attr($item->ID); ?>"><?php echo esc_html($item->post_title); ?></option>
+                                                    <?php endforeach; ?>
+                                                </select>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </div>
+                            </div>
+                        <?php } ?>
                         <div class="postbox">
                             <h3 class="hndle"><span>Project Information</span></h3>
                             <div class="inside">
@@ -167,17 +188,6 @@ class TimeGrowProjectView {
                                             </select>
                                         </td>
                                     </tr>
-                                    <tr>
-                                        <th scope="row"><label for="product_id">WooCommerce Product <span class="required">*</span></label></th>
-                                        <td>
-                                            <select id="product_id" name="product_id" class="regular-text" required>
-                                                <option value="">Select a WooCommerce Product</option>
-                                                <?php foreach ($wp_products as $item) : ?>
-                                                    <option value="<?php echo esc_attr($item->ID); ?>"><?php echo esc_html($item->post_title); ?></option>
-                                                <?php endforeach; ?>
-                                            </select>
-                                        </td>
-                                    </tr>
                                 </table>
                             </div>
                         </div>
@@ -191,130 +201,90 @@ class TimeGrowProjectView {
                     </div>
                 </div>
 
-
-                <?php submit_button('Add Company'); ?>
+                <br clear="all" />                                         
+                <?php submit_button('Add Project'); ?>
             </form>
         </div>
         <?php
     }
 
-    public function edit($company) {
+    public function edit($project, $clients, $woocommerce_products) {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         ?>
         <div class="wrap">
-            <h2>Edit Company</h2>
+            <h2>Edit Project</h2>
         
-            <form id="timeflies-company-form" class="wp-core-ui" method="POST" enctype="multipart/form-data">
-                <input type="hidden" name="company_id" value="<?php echo esc_attr($company->ID); ?>">
-                <input type="hidden" name="action" value="save_company">
-                <?php wp_nonce_field('timeflies_company_nonce', 'timeflies_company_nonce_field'); ?>
-
+            <form id="timegrow-project-form" class="wp-core-ui" method="POST" enctype="multipart/form-data">
+            <input type="hidden" name="project_id" value="<?php echo esc_attr($project->ID); ?>">
+                <input type="hidden" name="action" value="save_project">
+                <?php wp_nonce_field('timegrow_project_nonce', 'timegrow_project_nonce_field'); ?>
                 <div class="metabox-holder columns-2">
                     <div class="postbox-container">
-                        <div class="postbox">
-                            <h3 class="hndle"><span>Company Information</span></h3>
-                            <div class="inside">
-                                <table class="form-table">
-                                    <tr>
-                                        <th scope="row"><label for="name">Company Name <span class="required">*</span></label></th>
-                                        <td>
-                                            <input type="text" id="name" name="name" class="regular-text" value="<?php echo esc_attr($company->name); ?>" required>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <th scope="row"><label for="legal_name">Legal Name</label></th>
-                                        <td>
-                                            <input type="text" id="legal_name" name="legal_name" class="regular-text" value="<?php echo esc_attr($company->legal_name); ?>">
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <th scope="row"><label for="document_number">Document Number</label></th>
-                                        <td>
-                                            <input type="text" id="document_number" name="document_number" class="regular-text" value="<?php echo esc_attr($company->document_number); ?>">
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <th scope="row"><label for="default_flat_fee">Default Flat Fee</label></th>
-                                        <td>
-                                            <input type="number" id="default_flat_fee" name="default_flat_fee" class="regular-text" step="0.01" min="0" value="<?php echo esc_attr($company->default_flat_fee); ?>">
-                                        </td>
-                                    </tr>
-                                </table>
+                    <?php $integrations = get_option('timegrow_integration_settings')?: false;
+                            if ($integrations['wc_products'] && class_exists('WooCommerce')) { ?>
+                            <div class="postbox">
+                                <h3 class="hndle"><span>WooCommerce Integraton</span></h3>
+                                <div class="inside">
+                                    <table class="form-table">
+                                        <tr>
+                                            <th scope="row"><label for="product_id">WooCommerce Product <span class="required">*</span></label></th>
+                                            <td>
+                                                <select id="product_id" name="product_id" class="regular-text">
+                                                    <option value="">Select a WooCommerce Product</option>
+                                                    <?php foreach ($woocommerce_products as $item) : ?>
+                                                        <option value="<?php echo esc_attr($item->ID); ?>" <?php selected($item->ID, $project->product_id); ?>><?php echo esc_html($item->post_title);?></option>
+                                                    <?php endforeach; ?>
+                                                </select>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </div>
                             </div>
-                        </div>
-
+                        <?php } ?>
                         <div class="postbox">
-                            <h3 class="hndle"><span>Contact Information</span></h3>
+                            <h3 class="hndle"><span>Project Information</span></h3>
                             <div class="inside">
                                 <table class="form-table">
                                     <tr>
-                                        <th scope="row"><label for="contact_person">Contact Person</label></th>
+                                        <th scope="row"><label for="name">Project Name <span class="required">*</span></label></th>
                                         <td>
-                                            <input type="text" id="contact_person" name="contact_person" class="regular-text" value="<?php echo esc_attr($company->contact_person); ?>">
+                                            <input type="text" id="name" name="name" class="regular-text" value ="<?php echo esc_html($project->name); ?>" required>
                                         </td>
                                     </tr>
                                     <tr>
-                                        <th scope="row"><label for="email">Email</label></th>
+                                        <th scope="row"><label for="client_id">Client <span class="required">*</span></label></th>
                                         <td>
-                                            <input type="email" id="email" name="email" class="regular-text" value="<?php echo esc_attr($company->email); ?>">
+                                            <select id="client_id" name="client_id" class="regular-text" required>
+                                                <option value="">Select a Client</option>
+                                                <?php foreach ($clients as $item) : ?>
+                                                    <option value="<?php echo esc_attr($item->ID); ?>" <?php selected($item->ID, $project->client_id); ?>><?php echo esc_html($item->display_name); ?></option>
+                                                <?php endforeach; ?>
+                                            </select>
                                         </td>
                                     </tr>
                                     <tr>
-                                        <th scope="row"><label for="phone">Phone</label></th>
+                                        <th scope="row"><label for="start_date">Start Date</label></th>
                                         <td>
-                                            <input type="tel" id="phone" name="phone" class="regular-text" value="<?php echo esc_attr($company->phone); ?>">
+                                            <input type="date" id="start_date" name="start_date" value="<?php echo esc_html($project->start_date); ?>" class="regular-text">
                                         </td>
                                     </tr>
                                     <tr>
-                                        <th scope="row"><label for="website">Website</label></th>
+                                        <th scope="row"><label for="end_date">End Date</label></th>
                                         <td>
-                                            <input type="url" id="website" name="website" class="regular-text" value="<?php echo esc_attr($company->website); ?>">
-                                        </td>
-                                    </tr>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="postbox-container">
-                        <div class="postbox">
-                            <h3 class="hndle"><span>Address</span></h3>
-                            <div class="inside">
-                                <table class="form-table">
-                                    <tr>
-                                        <th scope="row"><label for="address_1">Address 1</label></th>
-                                        <td>
-                                            <input type="text" id="address_1" name="address_1" class="regular-text" value="<?php echo esc_attr($company->address_1); ?>">
+                                            <input type="date" id="end_date" name="end_date" value="<?php echo esc_html($project->end_date); ?>" class="regular-text">
                                         </td>
                                     </tr>
                                     <tr>
-                                        <th scope="row"><label for="address_2">Address 2</label></th>
+                                        <th scope="row"><label for="estimate_hours">Estimate Hours</label></th>
                                         <td>
-                                            <input type="text" id="address_2" name="address_2" class="regular-text" value="<?php echo esc_attr($company->address_2); ?>">
+                                            <input type="text" id="estimate_hours" name="estimate_hours" class="regular-text" readonly value ="<?php echo esc_html($project->estimate_hours); ?>">
+                                            <div id="estimate_hours_slider" style="margin-top: 10px;"></div>
                                         </td>
                                     </tr>
                                     <tr>
-                                        <th scope="row"><label for="city">City</label></th>
+                                        <th scope="row"><label for="default_flat_fee">Flat Fee</label></th>
                                         <td>
-                                            <input type="text" id="city" name="city" class="regular-text" value="<?php echo esc_attr($company->city); ?>">
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <th scope="row"><label for="state">State</label></th>
-                                        <td>
-                                            <input type="text" id="state" name="state" class="regular-text" value="<?php echo esc_attr($company->state); ?>">
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <th scope="row"><label for="postal_code">Postal Code</label></th>
-                                        <td>
-                                            <input type="text" id="postal_code" name="postal_code" class="regular-text" value="<?php echo esc_attr($company->postal_code); ?>">
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <th scope="row"><label for="country">Country</label></th>
-                                        <td>
-                                            <input type="text" id="country" name="country" class="regular-text" value="<?php echo esc_attr($company->country); ?>">
+                                            <input type="number" id="default_flat_fee" name="default_flat_fee" class="regular-text" step="0.01" min="0" value="<?php echo esc_html($project->default_flat_fee); ?>">
                                         </td>
                                     </tr>
                                 </table>
@@ -326,17 +296,25 @@ class TimeGrowProjectView {
                             <div class="inside">
                                 <table class="form-table">
                                     <tr>
-                                        <th scope="row"><label for="notes">Notes</label></th>
+                                        <th scope="row"><label for="description">Billable</label></th>
                                         <td>
-                                            <textarea id="notes" name="notes" class="large-text" rows="5"><?php echo esc_textarea($company->notes); ?></textarea>
+                                            <input value="1" type="checkbox" id="billable" name="billable" checked>
+                                        </td>
+                                    </tr> 
+                                    <tr>
+                                        <th scope="row"><label for="description">Description</label></th>
+                                        <td>
+                                            <textarea id="description" name="description" class="large-text" rows="5"><?php echo esc_html($project->description); ?></textarea>
                                         </td>
                                     </tr>
                                     <tr>
                                         <th scope="row"><label for="status">Status</label></th>
                                         <td>
-                                            <select id="status" name="status">
-                                                <option value="1" <?php selected($company->status, 1); ?>>Active</option>
-                                                <option value="0" <?php selected($company->status, 0); ?>>Inactive</option>
+                                            <select id="status" name="status" class="regular-text">
+                                                <option value="1" selected>Active</option>
+                                                <option value="8" <?php selected("8", $project->status); ?>>Completed</option>
+                                                <option value="5" <?php selected("5", $project->status); ?>>On Hold</option>
+                                                <option value="9" <?php selected("9", $project->status); ?>>Cancelled</option>
                                             </select>
                                         </td>
                                     </tr>
@@ -350,11 +328,11 @@ class TimeGrowProjectView {
                                 <table class="form-table">
                                     <tr>
                                         <th scope="row">Created At</th>
-                                        <td><?php echo esc_html($company->created_at); ?></td>
+                                        <td><?php echo esc_html($project->created_at); ?></td>
                                     </tr>
                                     <tr>
                                         <th scope="row">Updated At</th>
-                                        <td><?php echo esc_html($company->updated_at); ?></td>
+                                        <td><?php echo esc_html($project->updated_at); ?></td>
                                     </tr>
                                 </table>
                             </div>
@@ -362,7 +340,8 @@ class TimeGrowProjectView {
                     </div>
                 </div>
 
-                <?php submit_button('Update Company'); ?>
+                <br clear="all" />                                         
+                <?php submit_button('Edit Project'); ?>
             </form>
         </div>
         <?php

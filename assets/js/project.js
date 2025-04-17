@@ -17,68 +17,13 @@ jQuery(document).ready(function($) {
     $('#estimate_hours_slider').slider('option', 'value', $('#estimate_hours').val());
     $('#estimate_hours').val($('#estimate_hours_slider').slider('value'));
 
+    $('#product_id').on('change', function() {
+        const selectedOption = $(this).find('option:selected');
+        const selectedLabel = selectedOption.text();
+        const nameField = $('#name');
 
-    $('#timeflies-project-form').submit(function(e) {
-
-        console.log('#timeflies-project-form.submit');
-
-        e.preventDefault();
-
-        formData = $(this).serialize();
-
-        console.log(formData);
-
-        $.ajax({
-            url: timeflies_ajax.ajax_url,
-            type: 'POST',
-            data: formData,
-            dataType: 'json',
-            async: true,
-            success: function(response) {
-                console.log(response.data.message);
-                if (response.success) {
-                    alert(response.data.message);
-                    window.location.href = timeflies_projects_list.list_url;
-                } else {
-                    alert('Error: ' + response.data.message);
-                }
-            },
-            error: function(xhr, status, error) {
-                console.error('XHR:', xhr);
-                console.error('Status:', status);
-                console.error('Error:', error);
-                alert('An error occurred 123.');
-            }
-        });
-    });
-
-    $('.delete-project').click(function(e) {
-        e.preventDefault();
-        var projectId = $(this).data('id');
-
-        if (confirm('Are you sure you want to delete this project?')) {
-            $.ajax({
-                url: timeflies_project.ajax_url,
-                type: 'POST',
-                data: {
-                    action: 'delete_project',
-                    project_id: projectId,
-                    timeflies_project_nonce_field: timeflies_project.nonce
-                },
-                dataType: 'json',
-                success: function(response) {
-                    if (response.success) {
-                        alert(response.data.message);
-                        location.reload();
-                    } else {
-                        alert(response.data.message);
-                    }
-                },
-                error: function(error) {
-                    console.error(error);
-                    alert('An error occurred.');
-                }
-            });
+        if (nameField.val().trim() === '') {
+            nameField.val(selectedLabel);
         }
     });
 
