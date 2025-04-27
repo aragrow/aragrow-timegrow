@@ -28,30 +28,30 @@ class TimeGrowProjectView {
                     <th scope="col" class="manage-column column-end-date">End Date</th>
                     <th scope="col" class="manage-column column-status">Status</th>
                     <th scope="col" class="manage-column column-status">Billable</th>
-                    <th scope="col" class="manage-column column-actions">Actions</th>
                 </tr>
             </thead>
             <tbody>
                 <?php if ($projects) :?>
-                    <?php foreach ($projects as &$project) :?>
+                    <?php foreach ($projects as &$item) :?>
                         <tr>
                             <td class="column-name column-primary" data-colname="Project Name">
-                                <strong><?php echo esc_html($project->name); ?></strong>
-                                <button type="button" class="toggle-row"><span class="screen-reader-text">Show more details</span></button>
+                                <strong><?php echo esc_html($item->name); ?></strong>
+                                <div class="row-actions visible">
+                                    <span class="edit">
+                                        <a href="<?php echo admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-project-edit&id=' . $item->ID); ?>" >Edit</a> 
+                                    </span>
+                                </div>
                             </td>
-                            <td class="column-client" data-colname="Client"><?php echo esc_html($project->client_name); ?></td>
-                            <td class="column-start-date" data-colname="Start Date"><?php echo esc_html($project->start_date); ?></td>
-                            <td class="column-end-date" data-colname="End Date"><?php echo esc_html($project->end_date); ?></td>
-                            <td class="column-status" data-colname="Status"><?php echo esc_html($project->status); ?></td>
-                            <td class="column-billable" data-colname="Billable"><?php echo ($project->billable) ? 'YES' : 'NO';   ?></td>
-                            <td class="column-actions" data-colname="Actions">
-                                <a href="<?php echo admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-project-edit&id=' . $project->ID); ?>" class="button button-small">Edit</a>
-                            </td>
+                            <td class="column-client" data-colname="Client"><?php echo esc_html($item->client_name); ?></td>
+                            <td class="column-start-date" data-colname="Start Date"><?php echo esc_html($item->start_date); ?></td>
+                            <td class="column-end-date" data-colname="End Date"><?php echo esc_html($item->end_date); ?></td>
+                            <td class="column-status" data-colname="Status"><?php echo esc_html($item->status); ?></td>
+                            <td class="column-billable" data-colname="Billable"><?php echo ($item->billable) ? 'YES' : 'NO';   ?></td>
                         </tr>
                     <?php endforeach; ?>
                 <?php else : ?>
                     <tr>
-                        <td colspan="6">No projects found.</td>
+                        <td colspan="5">No projects found.</td>
                     </tr>
                 <?php endif; ?>
             </tbody>
@@ -62,7 +62,6 @@ class TimeGrowProjectView {
                     <th scope="col" class="manage-column column-start-date">Start Date</th>
                     <th scope="col" class="manage-column column-end-date">End Date</th>
                     <th scope="col" class="manage-column column-status">Status</th>
-                    <th scope="col" class="manage-column column-actions">Actions</th>
                 </tr>
             </tfoot>
         </table>

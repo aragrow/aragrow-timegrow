@@ -27,28 +27,30 @@ class TimeGrowExpenseView {
                     <th scope="col" class="manage-column column-company">Amount</th>  
                     <th scope="col" class="manage-column column-document">Category</th>
                     <th scope="col" class="manage-column column-address">Assigned To</th>
-                    <th scope="col" class="manage-column column-actions">Actions</th>
                 </tr>
             </thead>
             <tbody>
                 <?php if ($expenses) : ?>
                     <?php foreach ($expenses as $item) : ?>
+                        <?php $display_date = DateTime::createFromFormat('Y-m-d', $item->expense_date)->format('d/m/Y'); ?>
                         <tr>
                             <td class="column-name column-primary" data-colname="Name">
                                 <strong><?php echo esc_html($item->expense_name); ?></strong>
+                                <div class="row-actions visible">
+                                    <span class="edit">
+                                        <a href="<?php echo admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-expense-edit&id=' . $item->ID); ?>" >Edit</a> 
+                                    </span>
+                                </div>
                             </td>
-                            <td class="column-amount" data-colname="Date"><?php echo esc_html($item->expense_date); ?></td>  
+                            <td class="column-amount" data-colname="Date"><?php echo esc_html($display_date); ?></td>  
                             <td class="column-amount" data-colname="Amount"><?php echo esc_html($item->amount); ?></td>  
                             <td class="column-document" data-colname="Category"><?php echo esc_html($item->category); ?></td>
                             <td class="column-address" data-colname="Assigned To"><?php echo esc_html($item->assigned_to); ?></td>
-                            <td class="column-actions" data-colname="Actions">
-                                <a href="<?php echo admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-expense-edit&id=' . $item->ID); ?>" class="button button-small">Edit</a> 
-                            </td>
                         </tr>
                     <?php endforeach; ?>
                 <?php else : ?>
                     <tr>
-                        <td colspan="6">No expenses found.</td>
+                        <td colspan="5">No expenses found.</td>
                     </tr>
                 <?php endif; ?>
             </tbody>
@@ -59,7 +61,6 @@ class TimeGrowExpenseView {
                     <th scope="col" class="manage-column column-company">Amount</th>  
                     <th scope="col" class="manage-column column-document">Category</th>
                     <th scope="col" class="manage-column column-address">Assigned To</th>
-                    <th scope="col" class="manage-column column-actions">Actions</th>
                 </tr>
             </tfoot>
         </table>
@@ -173,7 +174,7 @@ class TimeGrowExpenseView {
                         </div>           
                     </div>
                 </div>
-        
+                <br clear="all" />
                 <?php submit_button('Add Expense'); ?>
             </form>
         </div>
@@ -182,6 +183,8 @@ class TimeGrowExpenseView {
 
     public function edit_expense($expense, $receipts, $clients) {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        $display_date = DateTime::createFromFormat('Y-m-d', $expense->expense_date)->format('d/m/Y');
+
         ?>
         <div class="wrap">
             <h2>Edit Expense</h2>
@@ -203,7 +206,7 @@ class TimeGrowExpenseView {
                                     </tr>
                                     <tr>
                                     <th scope="row"><label for="expense_date">Expense Date</label></th>
-                                    <td><input type="text" id="expense_date" name="expense_date" class="datepicker" value="<?php echo esc_attr($expense->expense_date); ?>" required></td>
+                                    <td><input type="text" id="expense_date" name="expense_date" class="datepicker" value="<?php echo esc_attr($display_date); ?>" required></td>
                                 </tr>
                                     <tr>
                                         <th scope="row"><label for="amount">Amount</label></th>
@@ -307,7 +310,7 @@ class TimeGrowExpenseView {
                         </div>           
                     </div>
                 </div>
-        
+                <br clear="all" />
                 <?php submit_button('Update Expense'); ?>
             </form>
         </div>

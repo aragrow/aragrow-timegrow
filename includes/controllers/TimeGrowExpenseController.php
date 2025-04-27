@@ -8,25 +8,33 @@ class TimeGrowExpenseController{
 
     private $expense_model;
     private $receipt_model;
+    private $client_model;
+    private $project_model;
     private $expense_view;
 
-    public function __construct(TimeGrowExpenseModel $expense_model, TimeGrowExpenseReceiptModel $receipt_model, TimeGrowExpenseView $expense_view) {
+    public function __construct(TimeGrowExpenseModel $expense_model, 
+                                TimeGrowExpenseReceiptModel $receipt_model, 
+                                TimeGrowClientModel $client_model, 
+                                TimeGrowProjectModel $project_model, 
+                                TimeGrowExpenseView $expense_view, ) {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         $this->expense_model = $expense_model;
         $this->receipt_model = $receipt_model;
+        $this->client_model = $client_model;
+        $this->project_model = $project_model;
         $this->expense_view = $expense_view;
     }
 
     public function handle_form_submission() {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         
-        if (!isset($_POST['project_id'])) return; 
+        if (!isset($_POST['expense_id'])) return; 
 
         $current_date = current_time('mysql');
         $data = [
             'expense_name' => sanitize_text_field($_POST['expense_name']),
             'expense_description' => sanitize_text_field($_POST['expense_description']),
-            'expense_date' => sanitize_text_field($_POST['expense_date']),
+            'expense_date' => DateTime::createFromFormat('d/m/Y', sanitize_text_field($_POST['expense_date']))->format('Y-m-d'),
             'amount' => floatval($_POST['amount']),
             'category' => sanitize_text_field($_POST['category']),
             'assigned_to' => sanitize_text_field($_POST['assigned_to']),
@@ -86,17 +94,19 @@ class TimeGrowExpenseController{
     public function add_expenses() {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         global $wpdb;
-        $clients = $wpdb->get_results("SELECT ID, name FROM {$wpdb->prefix}timeflies_clients ORDER BY name", ARRAY_A);
-        $this->expense_view->add_expense($clients);
+        $clients = $this->client_model->select(null); // Fetch all clients
+        $projects = $this->project_model->select(null); // Fetch all projects
+        $this->expense_view->add_expense($clients, $projects);
     }
 
     public function edit_expenses($id) {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         global $wpdb;
-        $clients = $wpdb->get_results("SELECT ID, name FROM {$wpdb->prefix}timeflies_clients ORDER BY name", ARRAY_A);
         $expense = $this->expense_model->select($id)[0]; // Fetch all expenses
         $receipts = $this->receipt_model->select($id); // Fetch all expenses
-        $this->expense_view->edit_expense($expense, $receipts, $clients);
+        $clients = $this->client_model->select(null); // Fetch all clients
+        $projects = $this->project_model->select(null); // Fetch all projects
+        $this->expense_view->edit_expense($expense, $receipts, $clients, $projects);
     }
 
     public function display_admin_page($screen) {

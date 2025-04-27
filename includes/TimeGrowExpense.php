@@ -83,8 +83,10 @@ class TimeGrowExpense {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         $expense_model = new TimeGrowExpenseModel();
         $receipt_model = new TimeGrowExpenseReceiptModel();
+        $client_model = new TimeGrowClientModel();
+        $project_model = new TimeGrowProjectModel();
         $expense_view = new TimeGrowExpenseView();
-        $controller = new TimeGrowExpenseController($expense_model, $receipt_model, $expense_view);
+        $controller = new TimeGrowExpenseController($expense_model, $receipt_model, $client_model, $project_model, $expense_view);
         $controller->display_admin_page($screen);
     }
 }

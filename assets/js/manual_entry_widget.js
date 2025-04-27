@@ -8,12 +8,11 @@ jQuery(document).ready(function($) {
         //    console.log(formData);
 
         $.ajax({
-            url: timeflies_ajax.ajax_url,
+            url: timegrow_ajax.ajax_url,
             type: 'POST',
             data: formData,
             async: true,
             success: function(response) {
-                console.log(timeflies_ajax.ajaxurl);
                 console.log(response);
                 location.reload(); // Reload the current page
             },
