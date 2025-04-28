@@ -16,8 +16,6 @@ function timegrow_run_nexus_custom_endpoints() {
 }
 add_action( 'plugins_loaded', 'timegrow_run_nexus_custom_endpoints' );
 
-
-
 // Allow CORS for development
 // WARNING: Using '*' is INSECURE for production. Restrict to specific origins.
 // Add the REST API init action here, or inside the class if preferred
