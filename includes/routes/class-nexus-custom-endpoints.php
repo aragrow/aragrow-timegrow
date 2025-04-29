@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Nexus_Custom_Endpoints {
 
     // The namespace for the custom REST API endpoints.
-    private $namespace = 'nexus4timegrow/v1';
+    private $namespace = 'jwt-auth/v1';
 
     // The full table names with the WordPress prefix.
     private $company_table_name; // For company_tracker
@@ -26,19 +26,20 @@ class Nexus_Custom_Endpoints {
     private $client_table_name; // For wp_users
     private $clientmeta_table_name; // For wp_usermeta    
     private $team_member_table_name; // For team_member_tracker
-    private $team_membermeta_table_name; // For team_member_meta_tracker
+    private $team_member_meta_table_name; // For team_member_meta_tracker
 
     /**
      * Constructor.
      * Initializes table names with the global $wpdb prefix.
      */
     public function __construct() {
+        error_log(__CLASS__.'::'.__FUNCTION__);
         global $wpdb;
         // Define the table names using the WordPress prefix.
         $this->client_table_name = $wpdb->prefix . 'users';
         $this->clientmeta_table_name  = $wpdb->prefix . 'usermeta';
         $this->team_member_table_name = $wpdb->prefix . 'users';
-        $this->team_member_table_name= $wpdb->prefix . 'usermeta';
+        $this->team_member_meta_table_name= $wpdb->prefix . 'usermeta';
         $this->company_table_name = $wpdb->prefix . 'company_tracker';
         $this->expense_table_name = $wpdb->prefix . 'expense_tracker';
         $this->receipt_table_name = $wpdb->prefix . 'expense_receipt';
@@ -55,7 +56,7 @@ class Nexus_Custom_Endpoints {
      * if the static method is hooked directly (as done in nexus-backend.php).
      */
     public function run() {
-        error_log('Nexus Custom Endpoints: run method called.');
+        error_log(__CLASS__.'::'.__FUNCTION__);
         // Example: add_action( 'some_other_action', array( $this, 'some_method' ) );
     }
 
@@ -64,8 +65,8 @@ class Nexus_Custom_Endpoints {
      * This method is called via the 'rest_api_init' action hook.
      * It must be static because actions are often registered before the object is instantiated.
      */
-    public function register_routes() {
-        error_log('Nexus Custom Endpoints: register_routes method called.');
+    public static function register_routes() {
+        error_log(__CLASS__.'::'.__FUNCTION__); 
         // Create an instance of the class to access non-static methods (like the table names and callbacks).
         $instance = new self();
 
@@ -136,6 +137,7 @@ class Nexus_Custom_Endpoints {
      * @return bool|WP_Error True if permission is granted, WP_Error otherwise.
      */
     public function get_permissions_check( $request ) {
+        error_log(__CLASS__.'::'.__FUNCTION__);
         // Ensure the user is logged in.
         if ( ! is_user_logged_in() ) {
             return new WP_Error( 'rest_not_logged_in', __( 'You are not currently logged in.', 'your-plugin-textdomain' ), array( 'status' => 401 ) );
@@ -162,6 +164,7 @@ class Nexus_Custom_Endpoints {
      * @return bool|WP_Error True if permission is granted, WP_Error otherwise.
      */
     public function get_company_description() {
+        error_log(__CLASS__.'::'.__FUNCTION__);
         global $wpdb;
         $table_name = $wpdb->prefix . 'company_tracker';    
 
@@ -253,6 +256,7 @@ class Nexus_Custom_Endpoints {
      * @return bool|WP_Error True if permission is granted, WP_Error otherwise.
      */
     public function handle_natural_language_query_permissions_check( $request ) {
+        error_log(__CLASS__.'::'.__FUNCTION__);
          // Ensure the user is logged in.
         if ( ! is_user_logged_in() ) {
             return new WP_Error( 'rest_not_logged_in', __( 'You are not currently logged in.', 'your-plugin-textdomain' ), array( 'status' => 401 ) );
@@ -262,7 +266,7 @@ class Nexus_Custom_Endpoints {
         // 'read' might be sufficient if queries are read-only, but use a custom capability
         // if queries can trigger modifications ('nexus_query' or specific action capabilities).
         if ( ! current_user_can( 'read' ) ) { // Example: any logged-in user can submit read queries
-             return new WP_Error( 'rest_forbidden', __( 'You do not have permission to submit queries.', 'your-plugin-textdomain' ), array( 'status' => 403 ) );
+            return new WP_Error( 'rest_forbidden', __( 'You do not have permission to submit queries.', 'your-plugin-textdomain' ), array( 'status' => 403 ) );
         }
 
         return true; // Permission granted.
@@ -278,6 +282,7 @@ class Nexus_Custom_Endpoints {
      * @return WP_REST_Response|WP_Error The response object containing processed query info/results or an error.
      */
     public function handle_natural_language_query( $request ) {
+        error_log(__CLASS__.'::'.__FUNCTION__);
         global $wpdb;
 
 
@@ -296,6 +301,7 @@ class Nexus_Custom_Endpoints {
      * @return WP_REST_Response|WP_Error The response object containing the JWT or an error.
      */
     function handle_app_password_login( WP_REST_Request $request ) {
+        error_log(__CLASS__.'::'.__FUNCTION__);
         // Get parameters. These are automatically validated and sanitized
         // according to the 'args' defined in register_rest_route.
         $username = sanitize_text_field( $request->get_param('username') );
@@ -341,12 +347,14 @@ class Nexus_Custom_Endpoints {
      * @return string The Base64Url encoded string.
      */
     private function base64url_encode( $data ) {
+        error_log(__CLASS__.'::'.__FUNCTION__);
         $base64 = base64_encode( $data ); // Standard base64 encode
         $base64url = strtr( $base64, '+/', '-_' ); // Replace URL-unsafe characters
         return rtrim( $base64url, '=' ); // Remove padding
     }
 
     private function generate_jwt_manually( WP_User $user ) {
+        error_log(__CLASS__.'::'.__FUNCTION__);
         // Step 1: Define Header
         $header_array = array(
             'alg' => 'HS256', // Algorithm: HMAC-SHA256
@@ -355,8 +363,8 @@ class Nexus_Custom_Endpoints {
         $header = json_encode( $header_array );
         // Handle json_encode errors
         if ( $header === false ) {
-             error_log('Nexus Auth Manual JWT: Header json_encode error: ' . json_last_error_msg());
-             return new WP_Error( 'nexus_jwt_encode_header', __( 'Failed to encode JWT header.', 'your-plugin-textdomain' ), array( 'status' => 500, 'details' => json_last_error_msg() ) );
+            error_log('Nexus Auth Manual JWT: Header json_encode error: ' . json_last_error_msg());
+            return new WP_Error( 'nexus_jwt_encode_header', __( 'Failed to encode JWT header.', 'your-plugin-textdomain' ), array( 'status' => 500, 'details' => json_last_error_msg() ) );
         }
     
     
@@ -382,8 +390,8 @@ class Nexus_Custom_Endpoints {
         $payload = json_encode( $payload_array );
          // Handle json_encode errors
         if ( $payload === false ) {
-             error_log('Nexus Auth Manual JWT: Payload json_encode error: ' . json_last_error_msg());
-             return new WP_Error( 'nexus_jwt_encode_payload', __( 'Failed to encode JWT payload.', 'your-plugin-textdomain' ), array( 'status' => 500, 'details' => json_last_error_msg() ) );
+            error_log('Nexus Auth Manual JWT: Payload json_encode error: ' . json_last_error_msg());
+            return new WP_Error( 'nexus_jwt_encode_payload', __( 'Failed to encode JWT payload.', 'your-plugin-textdomain' ), array( 'status' => 500, 'details' => json_last_error_msg() ) );
         }
     
     
@@ -397,8 +405,8 @@ class Nexus_Custom_Endpoints {
     
         // Step 6: Get the Secret Key
         if ( ! defined( 'JWT_AUTH_SECRET_KEY' ) || empty( JWT_AUTH_SECRET_KEY ) ) {
-             error_log('Nexus Auth Manual JWT: JWT_AUTH_SECRET_KEY is not defined.');
-             return new WP_Error( 'nexus_jwt_secret_missing', __( 'JWT secret key is not defined on the backend.', 'your-plugin-textdomain' ), array( 'status' => 500 ) );
+            error_log('Nexus Auth Manual JWT: JWT_AUTH_SECRET_KEY is not defined.');
+            return new WP_Error( 'nexus_jwt_secret_missing', __( 'JWT secret key is not defined on the backend.', 'your-plugin-textdomain' ), array( 'status' => 500 ) );
         }
         $secret_key = JWT_AUTH_SECRET_KEY;
     
@@ -416,6 +424,6 @@ class Nexus_Custom_Endpoints {
         $jwt_token = $dataToSign . '.' . $base64UrlSignature;
     
         // Step 10: Return the generated token string.
-        return $jwt_token;
+        return ['token' => $jwt_token];
     }
 }

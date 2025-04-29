@@ -1,7 +1,7 @@
-<?
+<?php
 /**
  * Plugin Name: Aragrow - Timegrow - Nexus Custom Backend
- * Description: Adds custom REST API endpoints for Nexus app.
+ * Description: Adds custom REST API endpoints for the Nexus app.
  * Version: 1.0
  * Author: Your Name
  */
@@ -11,38 +11,48 @@ require_once plugin_dir_path(__FILE__) . 'includes/routes/class-nexus-custom-end
 
 // Register and run the endpoint class
 function timegrow_run_nexus_custom_endpoints() {
+    error_log(__CLASS__.'::'.__FUNCTION__);
     $plugin = new Nexus_Custom_Endpoints();
     $plugin->run();
+    // Properly hook route registration here
+    add_action('rest_api_init', [$plugin, 'register_routes']);
 }
-add_action( 'plugins_loaded', 'timegrow_run_nexus_custom_endpoints' );
+add_action('plugins_loaded', 'timegrow_run_nexus_custom_endpoints');
 
-// Allow CORS for development
-// WARNING: Using '*' is INSECURE for production. Restrict to specific origins.
-// Add the REST API init action here, or inside the class if preferred
-add_action( 'rest_api_init', array( 'Nexus_Custom_Endpoints', 'register_routes' ), 10 );
-add_action( 'rest_api_init', 'aragrow_timegrow_nexus_allow_cors', 15 );
-
-
+// Allow CORS for local development
 function aragrow_timegrow_nexus_allow_cors() {
-    // Fixes error Error: NetworkError when attempting to fetch resource in the front end.
-    // When your React app (e.g., http://localhost:5173) tries to fetch data from your WordPress API (e.g., http://localhot:999/wp-json/...), 
-    //      the browser blocks the request by default because the origins are different.
-    // Define the allowed origin (your React app's URL during development)
-    // Replace 'http://localhost:5173' with the actual URL Vite is using
-    $allowed_origin = '*';
+    error_log(__CLASS__.'::'.__FUNCTION__);
+    if (isset($_SERVER['HTTP_ORIGIN']) && strpos($_SERVER['HTTP_ORIGIN'], 'localhost:5173') !== false) {
+        header('Access-Control-Allow-Origin: http://localhost:5173');
+        header('Access-Control-Allow-Methods: GET, POST, OPTIONS, PUT, DELETE, PATCH');
+        header('Access-Control-Allow-Credentials: true');
+        header('Access-Control-Allow-Headers: Authorization, Content-Type, X-Requested-With');
+    }
 
-    // Add the access control headers
-    header( 'Access-Control-Allow-Origin: ' . $allowed_origin );
-    header( 'Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS' );
-    header( 'Access-Control-Allow-Headers: Authorization, Content-Type, X-Requested-With' );
-    header( 'Access-Control-Allow-Credentials: true' ); // If you need to send cookies/auth headers
-
-    // Handle preflight OPTIONS requests
-    if ( 'OPTIONS' === $_SERVER['REQUEST_METHOD'] ) {
-        status_header( 200 );
+    // Handle OPTIONS requests immediately
+    if ('OPTIONS' === $_SERVER['REQUEST_METHOD']) {
+        status_header(200);
         exit();
     }
-} // Use a priority later than default to ensure it runs after REST API init
+}
+add_action('init', 'aragrow_timegrow_nexus_allow_cors', 15);
 
+// Handle preflight requests (for REST API)
+function aragrow_timegrow_nexus_rest_preflight($served, $result, $request, $server) {
+    error_log(__CLASS__.'::'.__FUNCTION__);
+    if (isset($_SERVER['HTTP_ORIGIN']) && strpos($_SERVER['HTTP_ORIGIN'], 'localhost:5173') !== false) {
+        header('Access-Control-Allow-Origin: http://localhost:5173');
+        header('Access-Control-Allow-Methods: GET, POST, OPTIONS, PUT, DELETE, PATCH');
+        header('Access-Control-Allow-Credentials: true');
+        header('Access-Control-Allow-Headers: Authorization, Content-Type, X-Requested-With');
+    }
+    return $served;
+}
+add_action('rest_api_init', function() {
+    add_filter('rest_pre_serve_request', 'aragrow_timegrow_nexus_rest_preflight', 10, 4);
+});
+
+// (Optional) If your Nexus_Custom_Endpoints class is already registering routes, you **don't** need this line separately:
+// add_action('rest_api_init', array('Nexus_Custom_Endpoints', 'register_routes'), 10);
 
 ?>
