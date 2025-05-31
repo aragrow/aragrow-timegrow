@@ -18,7 +18,10 @@ class TimeGrowCompanyController{
 
     public function handle_form_submission() {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
-        
+        if (!isset($_POST['timeflies_time_entry_nonce_field']) || 
+            !wp_verify_nonce($_POST['timeflies_company_nonce_field'], 'timeflies_company_nonce')) {
+            wp_die(__('Nonce verification failed.', 'text-domain'));
+        }
         if (!isset($_POST['expense_id'])) return; 
 
         $current_date = current_time('mysql');

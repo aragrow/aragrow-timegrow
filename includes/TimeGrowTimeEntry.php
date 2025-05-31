@@ -1,5 +1,5 @@
 <?php
-// includes/companies.php
+// #### TimeGrowTimeEntry.php ####
 
 if (!defined('ABSPATH')) {
     exit; // Exit if accessed directly.
@@ -74,7 +74,9 @@ class TimeGrowTimeEntry{
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         $model = new TimeGrowTimeEntryModel();
         $view = new TimeGrowTimeEntryView();
-        $controller = new TimeGrowTimeEntryController($model, $view);
+        $project_model = new TimeGrowProjectModel();
+        $member_model = new TimeGrowTeamMemberModel();
+        $controller = new TimeGrowTimeEntryController($model, $view, $project_model, $member_model);
         $controller->display_admin_page($screen);
     }
 }

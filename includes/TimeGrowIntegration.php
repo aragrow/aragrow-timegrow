@@ -198,6 +198,27 @@ class TimeGrowIntegration{
         <?php
     }
 
+
+    function user_currency_field($user) {
+        $current = get_user_meta($user->ID, 'timegrow_currency', true);
+        ?>
+        <table class="form-table">
+            <tr>
+                <th><label for="timegrow_currency">Currency</label></th>
+                <td>
+                    <?php
+                        $args = [
+                            'selected' => $current,
+                        ];
+                        echo $this->currency_dropdown($args);
+                    ?>
+                    <p class="description">Select the currency for time keeping.</p>                    
+                </td>
+            </tr>
+        </table>
+        <?php
+    }
+
     public function save_user_currency($user_id) {
         if (current_user_can('edit_user', $user_id)) {
             update_user_meta($user_id, 'timegrow_currency', 
@@ -210,7 +231,7 @@ class TimeGrowIntegration{
         $defaults = [
             'selected' => 'DOLLAR',
             'name' => 'timegrow_currency',
-            'class' => ''
+            'class' => 'timegrow-currency-dropdown'
         ];
         
         $args = wp_parse_args($args, $defaults);

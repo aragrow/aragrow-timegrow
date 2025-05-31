@@ -162,12 +162,24 @@ class TimeGrowExpenseView {
                                 <tr>
                                     <th scope="row"><label for="file_upload">Upload File</label></th>
                                     <td>
-                                        <div id="file-dropzone" class="file-dropzone-div">
-                                            Drag and drop a file here or click to upload.
-                                            <input type="file" name="file_upload" id="file_upload" style="display: none;" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx">
-                                        </div>
-                                        <p id="file-upload-status"></p>
-                                    </td>
+                                            <div id="file-dropzone" class="file-dropzone-div" style="border: 2px dashed #007cba; border-radius: 8px; padding: 20px; text-align: center; cursor: pointer; transition: background-color 0.3s ease;">
+                                                <p style="margin: 0; font-size: 16px; color: #555;">Drag and drop a file here or <span style="color: #007cba; text-decoration: underline;">click to upload</span>.</p>
+                                                <input type="file" name="file_upload" id="file_upload" style="display: none;" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx">
+                                            </div>
+                                            <script>
+                                                document.getElementById('file-dropzone').addEventListener('click', function() {
+                                                    document.getElementById('file_upload').click();
+                                                });
+
+                                                document.getElementById('file_upload').addEventListener('change', function(event) {
+                                                    const fileName = event.target.files[0]?.name || 'No file selected';
+                                                    const statusElement = document.getElementById('file-upload-status');
+                                                    statusElement.textContent = `Selected file: ${fileName}`;
+                                                    statusElement.style.color = '#007cba';
+                                                });
+                                            </script>
+                                            <p id="file-upload-status"></p>
+                                        </td>
                                 </tr>
                                 </table>
                             </div>
@@ -270,10 +282,22 @@ class TimeGrowExpenseView {
                                     <tr>
                                         <th scope="row"><label for="file_upload">Upload File</label></th>
                                         <td>
-                                            <div id="file-dropzone" class="file-dropzone-div">
-                                                Drag and drop a file here or click to upload.
+                                            <div id="file-dropzone" class="file-dropzone-div" style="border: 2px dashed #007cba; border-radius: 8px; padding: 20px; text-align: center; cursor: pointer; transition: background-color 0.3s ease;">
+                                                <p style="margin: 0; font-size: 16px; color: #555;">Drag and drop a file here or <span style="color: #007cba; text-decoration: underline;">click to upload</span>.</p>
                                                 <input type="file" name="file_upload" id="file_upload" style="display: none;" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx">
                                             </div>
+                                            <script>
+                                                document.getElementById('file-dropzone').addEventListener('click', function() {
+                                                    document.getElementById('file_upload').click();
+                                                });
+
+                                                document.getElementById('file_upload').addEventListener('change', function(event) {
+                                                    const fileName = event.target.files[0]?.name || 'No file selected';
+                                                    const statusElement = document.getElementById('file-upload-status');
+                                                    statusElement.textContent = `Selected file: ${fileName}`;
+                                                    statusElement.style.color = '#007cba';
+                                                });
+                                            </script>
                                             <p id="file-upload-status"></p>
                                         </td>
                                     </tr>

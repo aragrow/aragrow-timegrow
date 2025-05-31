@@ -1,0 +1,123 @@
+<?php
+// #### TimeGrowNexus.php ####
+
+if (!defined('ABSPATH')) {
+    exit; // Exit if accessed directly.
+}
+
+class TimeGrowNexus{
+
+    public function __construct() {
+        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+   //     add_action('wp_ajax_save_expense', array($this, 'save_ajax'));
+   //     add_action('wp_ajax_delete_expense', array($this, 'delete_ajax')); // Add delete action
+        add_action('admin_menu', [$this, 'register_admin_menu']);
+        add_action('wp_ajax_save_nexus', array($this, 'save_ajax'));
+        add_action('wp_ajax_delete_nexus', array($this, 'delete_ajax')); // Add delete action
+        add_action('admin_enqueue_scripts', array($this, 'enqueue_scripts_styles'));
+
+    }
+
+
+    public function register_admin_menu() {
+        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+
+        add_submenu_page(
+            TIMEGROW_PARENT_MENU,
+            'Nexus',
+            'Nexus',
+            TIMEGROW_OWNER_CAP,
+            TIMEGROW_PARENT_MENU . '-nexus',
+            function() { // Define a closure
+                $this->tracker_mvc_admin_page( 'dashboard' ); // Call the tracker_mvc method, passing the parameter
+            },
+        );
+
+        add_submenu_page(
+            null,
+            'Clock',
+            'Clock',
+            TIMEGROW_OWNER_CAP,
+            TIMEGROW_PARENT_MENU . '-nexus-clock',
+            function() { // Define a closure
+                $this->tracker_mvc_admin_page( 'clock' ); // Call the tracker_mvc method, passing the parameter
+            },
+        );
+
+        add_submenu_page(
+            null,
+            'Manual',
+            'Manual',
+            TIMEGROW_OWNER_CAP,
+            TIMEGROW_PARENT_MENU . '-nexus-manual',
+            function() { // Define a closure
+                $this->tracker_mvc_admin_page( 'manual' ); // Call the tracker_mvc method, passing the parameter
+            },
+        );
+
+        add_submenu_page(
+            null,
+            'Expenses',
+            'Expenses',
+            TIMEGROW_OWNER_CAP,
+            TIMEGROW_PARENT_MENU . '-nexus-expenses',
+            function() { // Define a closure
+                $this->tracker_mvc_admin_page( 'expenses' ); // Call the tracker_mvc method, passing the parameter
+            },
+        );
+
+    }
+
+    public function enqueue_scripts_styles($hook) {
+        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        print_r($hook);
+        if ($hook == "admin_page_timegrow-nexus-clock") {
+
+            $plugin_version = '1.0.0'; // Define appropriately
+
+            wp_enqueue_script(
+                'timegrow-clock-js', // New handle, matches wp_localize_script
+                ARAGROW_TIMEGROW_BASE_URI . 'assets/js/clock.js', // Path to your new JS file
+                [], // No React dependencies needed for vanilla JS
+                $plugin_version,
+                true // Load in footer
+            );
+
+            // CSS remains the same, as the class names in HTML are similar
+            wp_enqueue_style(
+                'timegrow-clock-style',
+                ARAGROW_TIMEGROW_BASE_URI . 'assets/css/clock.css',
+                [],
+                $plugin_version
+            );
+
+        } elseif ($hook == "admin_page_timegrow-nexus-manual") {
+        } elseif ($hook == "admin_page_timegrow-nexus-expenses") {
+        } elseif ($hook == "admin_page_timegrow-nexus-reports") {
+        } elseif ($hook == "admin_page_timegrow-nexus-settings") {
+        } else { // Dashboard
+
+            wp_enqueue_style('timeflies-nexus-style', ARAGROW_TIMEGROW_BASE_URI . 'assets/css/nexus-dashboard.css');
+            wp_enqueue_script('timeflies-nexus-script', ARAGROW_TIMEGROW_BASE_URI . 'assets/js/nexus-dashboard.js', array('jquery'), '1.0', true);
+            wp_localize_script(
+                'timegrow-nexus-script',
+                'timegrow_nexus_list',
+                [
+                    'list_url' => admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-nexus'),
+                    'nonce' => wp_create_nonce('timegrow_nexus_nonce') // Pass the nonce to JS
+                ]
+            );
+        
+        }
+        
+    }
+
+
+    public function tracker_mvc_admin_page($screen) {
+        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        $view_dashboard = new TimeGrowNexusView();
+        $view_clock = new TimeGrowNexusClockView();
+        $controller = new TimeGrowNexusController($view_dashboard, $view_clock);
+        $controller->display_admin_page($screen);
+    }
+}

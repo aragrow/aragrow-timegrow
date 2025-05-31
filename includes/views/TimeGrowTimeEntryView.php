@@ -22,7 +22,7 @@ class TimeGrowTimeEntryView {
         <table class="wp-list-table widefat fixed striped table-view-list clients">
             <thead>
                 <tr>
-                    <th scope="col" class="manage-column column-name column-actions column-primary"">Created at</th>
+                    <th scope="col" class="manage-column column-name column-actions column-primary">Date</th>
                     <th scope="col" class="manage-column column-company">Project</th>
                     <th scope="col" class="manage-column column-name">Member</th>
                     <th scope="col" class="manage-column column-company">Type</th>  
@@ -35,7 +35,17 @@ class TimeGrowTimeEntryView {
                     <?php foreach ($time_entries as $item) : ?>
                         <tr>
                             <td class="column-name column-primary" data-colname="created_at">
-                                <strong><?php echo esc_html($item->created_at); ?></strong>
+                                <strong>
+                                        <?php
+                                            if($item->entry_type=='MAN') {
+                                                echo esc_html($item->date);
+                                            } else if($item->entry_type=='IN') {
+                                                echo esc_html($item->clock_in_date);
+                                            } else if($item->entry_type=='OUT') {
+                                                echo esc_html($item->clock_out_date);
+                                            }
+                                        ?>
+                                </strong>
                                 <div class="row-actions visible">
                                     <span class="edit">
                                         <a href="<?php echo admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-time-entry-edit&id=' . $item->ID); ?>" aria-label="Edit Company">Edit</a> | </span>
@@ -44,7 +54,7 @@ class TimeGrowTimeEntryView {
                             </td>
                             <td class="column-document" data-colname="project_name"><?php echo esc_html($item->project_name); ?></td>
                             <td class="column-amount" data-colname="team_member"><?php echo esc_html($item->member_name); ?></td>  
-                            <td class="column-amount" data-colname="entty_type"><?php echo esc_html($item->entry_type); ?></td>  
+                            <td class="column-amount" data-colname="entry_type"><?php echo esc_html($item->entry_type); ?></td>  
                             <td class="column-document" data-colname="billable"><?php echo esc_html(($item->billable) ? 'Yes' : 'No'); ?></td> 
                             <td class="column-document" data-colname="billed"><?php echo esc_html(($item->billed) ? 'Yes' : 'No'); ?></td> 
                         </tr>
@@ -57,7 +67,7 @@ class TimeGrowTimeEntryView {
             </tbody>
             <tfoot>
                 <tr>
-                    <th scope="col" class="manage-column column-name column-actions column-primary"">Created at</th>
+                    <th scope="col" class="manage-column column-name column-actions column-primary">Date</th>
                     <th scope="col" class="manage-column column-company">Project</th>
                     <th scope="col" class="manage-column column-name">Member</th>
                     <th scope="col" class="manage-column column-company">Type</th>  
@@ -83,10 +93,11 @@ class TimeGrowTimeEntryView {
         <div class="wrap">
             <h2>Add New Entry</h2>
         
-            <form id="timeflies-company-form" class="wp-core-ui" method="POST" enctype="multipart/form-data">
-            <input type="hidden" name="company_id" value="0">
+            <form id="timegrow-company-form" class="wp-core-ui" method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="time_entry_id" value="0">
                 <input type="hidden" name="action" value="save_time_entry">
-                <?php wp_nonce_field('timeflies_company_nonce', 'timeflies_company_nonce_field'); ?>
+                <input type="hidden" name="add_item" value="1">
+                <?php wp_nonce_field('timegrow_time_entry_nonce', 'timegrow_time_entry_nonce_field'); ?>
 
                 <div class="metabox-holder columns-2">
                     <div class="postbox-container">
@@ -175,7 +186,9 @@ class TimeGrowTimeEntryView {
                                     <tr>
                                         <th scope="row"><label for="hours">Hours</label></th>
                                         <td>
-                                            <input type="number" step="0.01" id="hours" name="hours" class="large-text conditional-field-hidden" value="">
+                                            <input type="range" id="hours" name="hours" class="large-text conditional-field-hidden" min="0" max="24" step="0.25" value="0" oninput="this.nextElementSibling.value = this.value;this.nextElementSibling.nextElementSibling.value = this.value;">
+                                            <output>0</output>
+                                            <input type="hidden" id="hours" name="hours" class="large-text conditional-field-hidden" value="">
                                         </td>
                                     </tr>
                                 </table>
@@ -192,9 +205,9 @@ class TimeGrowTimeEntryView {
                                         </th>
                                     </tr>
                                     <tr>
-                                        <th scope="row"><label for="notes">Notes</label></th>
+                                        <th scope="row"><label for="notes">Description</label></th>
                                         <td>
-                                            <textarea id="notes" name="notes" class="large-text" rows="5"></textarea>
+                                            <textarea id="description" name="description" class="large-text" rows="5"></textarea>
                                         </td>
                                     </tr>
                                 </table>
@@ -208,10 +221,10 @@ class TimeGrowTimeEntryView {
                             </div>
                         </div>
                     </div>
-                   
+                
                 </div>
                 <br clear="all" />
-                <?php submit_button('Update Company'); ?>
+                <?php submit_button('Add Entry'); ?>
             </form>
         </div>
         <?php
@@ -223,10 +236,11 @@ class TimeGrowTimeEntryView {
         <div class="wrap">
             <h2>Edit Time Entry</h2>
         
-            <form id="timeflies-company-form" class="wp-core-ui" method="POST" enctype="multipart/form-data">
+            <form id="timegrow-company-form" class="wp-core-ui" method="POST" enctype="multipart/form-data">
                 <input type="hidden" name="time_entry_id" value="<?php echo esc_attr($time_entry->ID); ?>">
                 <input type="hidden" name="action" value="save_time_entry">
-                <?php wp_nonce_field('timeflies_time_entry_nonce', 'timeflies_time_entry_nonce_field'); ?>
+                <input type="hidden" name="edit_item" value="1">
+                <?php wp_nonce_field('timegrow_time_entry_nonce', 'timegrow_time_entry_nonce_field'); ?>
 
                 <div class="metabox-holder columns-2">
                     <div class="postbox-container">
@@ -305,7 +319,7 @@ class TimeGrowTimeEntryView {
                                         </td>
                                     </tr>
                                     <tr>
-                                        <th scope="row"><label for="phone">Date</label></th>
+                                        <th scope="row"><label for="date">Date</label></th>
                                         <td>
                                             <input type="date" id="date" name="date" class="large-text conditional-field-hidden" value="<?php echo esc_attr($time_entry->date); ?>">
                                         </td>
@@ -313,7 +327,9 @@ class TimeGrowTimeEntryView {
                                     <tr>
                                         <th scope="row"><label for="hours">Hours</label></th>
                                         <td>
-                                            <input type="number" step="0.01" id="hours" name="hours" class="large-text conditional-field-hidden" value="<?php echo esc_attr($time_entry->hours); ?>">
+                                            <input type="range" id="hours" name="hours" class="large-text conditional-field-hidden" min="0" max="24" step="0.01" value="<?php echo esc_attr($time_entry->hours); ?>" oninput="this.nextElementSibling.value = this.value">
+                                            <output><?php echo esc_attr($time_entry->hours); ?></output>
+                                            <input type="number" step="0.25" id="hours" name="hours" class="large-text conditional-field-hidden" value="<?php echo esc_attr($time_entry->hours); ?>">
                                         </td>
                                     </tr>
                                 </table>
@@ -330,9 +346,9 @@ class TimeGrowTimeEntryView {
                                         </th>
                                     </tr>
                                     <tr>
-                                        <th scope="row"><label for="notes">Notes</label></th>
+                                        <th scope="row"><label for="notes">Description</label></th>
                                         <td>
-                                            <textarea id="notes" name="notes" class="large-text" rows="5"><?php echo esc_textarea($time_entry->notes); ?></textarea>
+                                            <textarea id="description" name="description" class="large-text" rows="5"><?php echo esc_textarea($time_entry->description); ?></textarea>
                                         </td>
                                     </tr>
                                 </table>
@@ -358,7 +374,7 @@ class TimeGrowTimeEntryView {
                    
                 </div>
                 <br clear="all" />
-                <?php submit_button('Update Company'); ?>
+                <?php submit_button('Update Entry'); ?>
                 
             </form>
         </div>

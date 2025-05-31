@@ -19,12 +19,12 @@ class TimeGrowTimeEntryModel {
         $this->wpdb = $wpdb;
         $this->charset_collate = $wpdb->get_charset_collate();
         $this->table_name = $this->wpdb->prefix . TIMEGROW_PREFIX . 'time_entry_tracker'; // Make sure this matches your table name
-        $this->table_name2 = $this->wpdb->prefix . TIMEGROW_PREFIX . 'projects_tracker'; // Make sure this matches your table name
+        $this->table_name2 = $this->wpdb->prefix . TIMEGROW_PREFIX . 'project_tracker'; // Make sure this matches your table name
         $this->table_name3 = $this->wpdb->prefix . TIMEGROW_PREFIX . 'team_member_tracker'; // Make sure this matches your table name
 
         $this->allowed_fields = ['project_id', 'member_id', 
                                 'clock_in_date', 'clock_out_date', 
-                                'hours', 'billable', 
+                                'date','hours', 'billable', 'billed',
                                 'description', 'entry_type', 
                                 'created_at', 'updated_at'];
     }
@@ -113,7 +113,7 @@ class TimeGrowTimeEntryModel {
      * @param array $data Array of data to update.
      * @return bool|int False on error, or the number of rows updated.
      */
-    public function update($id, $data) {
+    public function update($id, $data, $format) {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         $id = intval($id); // Sanitize ID
 
@@ -128,28 +128,30 @@ class TimeGrowTimeEntryModel {
         $id = intval($id); // Sanitize ID
         // Ensure all required fields are present
         if (empty($sanitized_data['entry_type']) ) {
-            wp_die( 'Error: validation not passed', array( 'back_link' => true ) );
+            wp_die( 'Error: validation not passed.1', array( 'back_link' => true ) );
         } 
         if ($sanitized_data['entry_type'] == 'MAN' && (
             empty($sanitized_data['date']) || 
             empty($sanitized_data['hours']) )) {
-                wp_die( 'Error: validation not passed', array( 'back_link' => true ) );
-        } else {
+                wp_die( 'Error: validation not passed.2', array( 'back_link' => true ) );
+        } else if ($sanitized_data['entry_type'] <> 'MAN')  {
             if ($sanitized_data['entry_type'] == 'IN' &&
                 empty($sanitized_data['clock_in_date']) ) {
-                    wp_die( 'Error: validation not passed', array( 'back_link' => true ) );
+                    wp_die( 'Error: validation not passed.3', array( 'back_link' => true ) );
             } else if ( empty($sanitized_data['clock_out_date'])) {
-                wp_die( 'Error: validation not passed', array( 'back_link' => true ) ); 
+                wp_die( 'Error: validation not passed.4', array( 'back_link' => true ) ); 
             }
         }
-
-        return $this->wpdb->update(
+        
+        $result = $this->wpdb->update(
             $this->table_name,
             $sanitized_data,
             ['id' => $id],
-            '%s', // string
+            $format, 
             '%d'  // integer
         );
+
+        return $result;
     }
 
     /**
@@ -158,7 +160,7 @@ class TimeGrowTimeEntryModel {
      * @param array $data Array of data to insert.
      * @return int|false The ID of the newly created row, or false on error.
      */
-    public function create($data) {
+    public function create($data, $format) {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         try {
             // Whitelist allowed fields to prevent SQL injection
@@ -174,25 +176,25 @@ class TimeGrowTimeEntryModel {
             if (empty($sanitized_data['project_id']) || 
                 empty($sanitized_data['member_id']) || 
                 empty($sanitized_data['entry_type']) ) {
-                wp_die( 'Error: validation not passed', array( 'back_link' => true ) );
+                wp_die( 'Error: validation not passed.1', array( 'back_link' => true ) );
             }
             if ($sanitized_data['entry_type'] == 'MAN' && (
                 empty($sanitized_data['date']) || 
                 empty($sanitized_data['hours']) )) {
-                    wp_die( 'Error: validation not passed', array( 'back_link' => true ) );
-            } else {
+                    wp_die( 'Error: validation not passed.2', array( 'back_link' => true ) );
+            } else if ($sanitized_data['entry_type'] <> 'MAN')  {
                 if ($sanitized_data['entry_type'] == 'IN' &&
                     empty($sanitized_data['clock_in_date']) ) {
-                        wp_die( 'Error: validation not passed', array( 'back_link' => true ) );
+                        wp_die( 'Error: validation not passed.3', array( 'back_link' => true ) );
                 } else if ( empty($sanitized_data['clock_out_date'])) {
-                    wp_die( 'Error: validation not passed', array( 'back_link' => true ) ); 
+                    wp_die( 'Error: validation not passed.4', array( 'back_link' => true ) ); 
                 }
             }
 
             $result = $this->wpdb->insert(
                 $this->table_name,
                 $sanitized_data,
-                '%s' // string
+                $format // string
             );
             error_log($this->wpdb->last_query);
             

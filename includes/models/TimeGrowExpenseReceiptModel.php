@@ -68,6 +68,37 @@ class TimeGrowExpenseReceiptModel {
         return $this->wpdb->get_results($sql);
     }
     
+
+     /**
+     * Select expenses by ID or array of IDs.
+     *
+     * @param int|array $ids Single ID or array of IDs.
+     * @return array|object|null Array of expense objects or null if no results.
+     */
+    public function select_by_expense($ids = null) {
+        if (WP_DEBUG) error_log(__CLASS__ . '::' . __FUNCTION__);
+    
+        // If IDs are provided as an array
+        if (is_array($ids)) {
+            $ids = array_map('intval', $ids); // Sanitize IDs
+            $placeholders = implode(',', array_fill(0, count($ids), '%d')); // Create placeholders for prepared statement
+            $sql = $this->wpdb->prepare(
+                "SELECT * FROM {$this->table_name} WHERE expense_id IN ($placeholders) ORDER BY file_url",
+                $ids
+            );
+        }
+        // If a single ID is provided
+        elseif (intval($ids)) {
+            $id = intval($ids); // Sanitize ID
+            $sql = $this->wpdb->prepare(
+                "SELECT * FROM {$this->table_name} WHERE expense_id = %d",
+                $id
+            );
+        }
+    
+        return $this->wpdb->get_results($sql);
+    }
+
     public function update($expense_id, $file) {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
 

@@ -8,50 +8,70 @@ class TimeGrowTimeEntryController{
 
     private $model;
     private $view;
+    private $project_model;
+    private $member_model;
     private $table_name; 
         
-    public function __construct(TimeGrowTimeEntryModel $model,  TimeGrowTimeEntryView $view) {
+    public function __construct(TimeGrowTimeEntryModel $model,  
+                                TimeGrowTimeEntryView $view, 
+                                TimeGrowProjectModel $project_model, 
+                                TimeGrowTeamMemberModel $member_model) {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);   
         $this->model = $model;
         $this->view = $view;
+        $this->project_model = $project_model;
+        $this->member_model = $member_model;
     }
 
     public function handle_form_submission() {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
-        
-        if (!isset($_POST['expense_id'])) return; 
+
+        if (!isset($_POST['timegrow_time_entry_nonce_field']) || 
+            !wp_verify_nonce($_POST['timegrow_time_entry_nonce_field'], 'timegrow_time_entry_nonce')) {
+            wp_die(__('Nonce verification failed.', 'text-domain'));
+        }
+        if (!isset($_POST['time_entry_id'])) return; 
 
         $current_date = current_time('mysql');
         $data = [
             'project_id'      => intval($_POST['project_id']),
             'member_id'       => intval($_POST['member_id']),
-            'clock_in_date'   => sanitize_text_field($_POST['clock_in_date']),
-            'clock_out_date'  => sanitize_text_field($_POST['clock_out_date']),
-            'date'            => sanitize_text_field($_POST['date']),
-            'hours'           => floatval($_POST['hours']),
             'billable'        => isset($_POST['billable']) ? 1 : 0,
             'billed'          => isset($_POST['billed']) ? 1 : 0,
             'description'     => sanitize_textarea_field($_POST['description']),
             'entry_type'      => sanitize_text_field($_POST['entry_type']),
             'updated_at'      => current_time('mysql')
         ];
+       
+        if ($data['entry_type'] == 'MAN') {
+            $data['date'] = sanitize_text_field($_POST['date']);
+            $data['hours'] = floatval($_POST['hours']);
+            $data['clock_in_date'] = null;  
+            $data['clock_out_date'] = null;       
+        } else {
+            $data['date'] = null;
+            $data['hours'] = null;
+            $data['clock_in_date'] = sanitize_text_field($_POST['clock_in_date']);
+            $data['clock_out_date'] = sanitize_text_field($_POST['clock_out_date']);
+        }
 
         $format = [
             '%d',   // project_id (integer)
             '%d',   // member_id (integer)
-            '%s',   // clock_in_date (string)
-            '%s',   // clock_out_date (string)
-            '%s',   // date (string )
-            '%f',   // hours (float)
             '%d',   // billable ( boolean as integer 1/0)
             '%d',   // billed ( boolean as integer 1/0)
             '%s',   // description (string)
             '%s',   // entry_type (string)
-
-            '%s'    // updated_at (datetime string)
+            '%s',   // updated_at (datetime string)
+            '%s',   // date (string )
+            '%f',   // hours (float)
+            '%s',   // clock_in_date (string)
+            '%s'   // clock_out_date (string)
         ];
 
-        $id = intval($_POST['expense_id']);
+
+        // Check if the ID is set and is a valid integer
+        $id = intval($_POST['time_entry_id']);
         if ($id == 0) {
             $data['created_at'] = $current_date;
             $format[] = '%s';
@@ -66,7 +86,7 @@ class TimeGrowTimeEntryController{
         } else {
 
             $result = $this->model->update($id, $data, $format);
-
+        
             if ($result) {
                 echo '<div class="notice notice-success is-dismissible"><p>Time entry updated successfully!</p></div>';
             } else {
@@ -86,18 +106,17 @@ class TimeGrowTimeEntryController{
     public function add() {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         global $wpdb;
-        $projects = $wpdb->get_results("SELECT ID, name FROM wp_timegrow_projects_tracker");
-        $members = $wpdb->get_results("SELECT ID, name FROM wp_timegrow_team_member_tracker");
+        $projects = $this->project_model->select(null); 
+        $members = $this->member_model->select(null); 
         $this->view->add($projects, $members);
     }
 
     public function edit($id) {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         global $wpdb;
-        $time_entries = $this->model->select($id)[0]; // Fetch all expenses
-        // Project and member options
-        $projects = $wpdb->get_results("SELECT ID, name FROM wp_timegrow_projects_tracker");
-        $members = $wpdb->get_results("SELECT ID, name FROM wp_timegrow_team_member_tracker");
+        $time_entries = $this->model->select($id)[0]; // Fetch entry by ID
+        $projects = $this->project_model->select(null); 
+        $members = $this->member_model->select(null); //
         $this->view->edit($time_entries, $projects, $members);
     }
 

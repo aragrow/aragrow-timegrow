@@ -103,7 +103,7 @@ class TimeGrowExpenseController{
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         global $wpdb;
         $expense = $this->expense_model->select($id)[0]; // Fetch all expenses
-        $receipts = $this->receipt_model->select($id); // Fetch all expenses
+        $receipts = $this->receipt_model->select_by_expense($id); // Fetch all expenses
         $clients = $this->client_model->select(null); // Fetch all clients
         $projects = $this->project_model->select(null); // Fetch all projects
         $this->expense_view->edit_expense($expense, $receipts, $clients, $projects);

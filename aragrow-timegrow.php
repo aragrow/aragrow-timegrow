@@ -1,11 +1,11 @@
 <?php
 /**
  * Plugin Name: Aragrow - TimeGrow
- * Plugin URI: https://example.com/aragrow-time-track
+ * Plugin URI: https://example.com/aragrow-timegrow
  * Description: A time tracking plugin for managing projects, team members, and invoicing.
  * Version: 1.0.0
  * Author: David Arago - ARAGROW, LLC
- * Author URI: https://aragrow.me/wp-plugins/time-flies/
+ * Author URI: https://aragrow.me/wp-plugins/timegrow/
  * License: GPL2
  */
 
@@ -59,3 +59,4 @@ if ( ! isset( $timegrow_project ) ) $timegrow_project = New TimeGrowProject();
 if ( ! isset( $timegrow_expense ) ) $timegrow_expense = New TimeGrowExpense();
 if ( ! isset( $timegrow_time_entry ) ) $timegrow_time_entry = New TimeGrowTimeEntry();
 if ( ! isset( $timegrow_team_member ) ) $timegrow_time_entry = New TimeGrowTeamMember();
+if ( ! isset( $timegrow_nexus ) ) $timegrow_nexus = New TimeGrowNexus();
