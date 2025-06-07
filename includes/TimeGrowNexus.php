@@ -71,9 +71,8 @@ class TimeGrowNexus{
     public function enqueue_scripts_styles($hook) {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         print_r($hook);
+        $plugin_version = '1.0.0'; // Define appropriately
         if ($hook == "admin_page_timegrow-nexus-clock") {
-
-            $plugin_version = '1.0.0'; // Define appropriately
 
             wp_enqueue_script(
                 'timegrow-clock-js', // New handle, matches wp_localize_script
@@ -92,6 +91,23 @@ class TimeGrowNexus{
             );
 
         } elseif ($hook == "admin_page_timegrow-nexus-manual") {
+            
+            wp_enqueue_script(
+                'timegrow-clock-js', // New handle, matches wp_localize_script
+                ARAGROW_TIMEGROW_BASE_URI . 'assets/js/manual.js', // Path to your new JS file
+                [], // No React dependencies needed for vanilla JS
+                $plugin_version,
+                true // Load in footer
+            );
+
+            // CSS remains the same, as the class names in HTML are similar
+            wp_enqueue_style(
+                'timegrow-clock-style',
+                ARAGROW_TIMEGROW_BASE_URI . 'assets/css/manual.css',
+                [],
+                $plugin_version
+            );
+
         } elseif ($hook == "admin_page_timegrow-nexus-expenses") {
         } elseif ($hook == "admin_page_timegrow-nexus-reports") {
         } elseif ($hook == "admin_page_timegrow-nexus-settings") {
@@ -117,7 +133,8 @@ class TimeGrowNexus{
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         $view_dashboard = new TimeGrowNexusView();
         $view_clock = new TimeGrowNexusClockView();
-        $controller = new TimeGrowNexusController($view_dashboard, $view_clock);
+        $view_manual = new TimeGrowNexusManualView();
+        $controller = new TimeGrowNexusController($view_dashboard, $view_clock, $view_manual);
         $controller->display_admin_page($screen);
     }
 }

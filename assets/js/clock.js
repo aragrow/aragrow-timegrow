@@ -1,172 +1,128 @@
-// File: assets/js/clock.js
+// clock.js
 
-jQuery(document).ready(function($) { // Use jQuery's DOM ready and pass $ as an alias
-    // Access the global data object
-    const appData = window.timegrowClockAppVanillaData || {}; // Keep this as it's from wp_localize_script
-    console.log(appData);
-    const { i18n, initialStatus, apiNonce, timegrowApiEndpoint } = appData;
+jQuery(document).ready(function ($) {
+  console.log('clock.js loaded');
 
-    console.log('initialStatus: ', initialStatus);
-    // DOM Elements (jQuery selectors)
-    const $clockInBtn = $('#timegrow-clock-in-btn');
-    const $clockOutBtn = $('#timegrow-clock-out-btn');
-    const $messageArea = $('#timegrow-message-area');
-    const $statusDisplayArea = $('#timegrow-status-display-area');
-    const $currentDateEl = $('#timegrow-current-date');
-    const $currentTimeEl = $('#timegrow-current-time');
+  let currentEntryId = initialStatus.entryId;
+  let clockInTimestamp = initialStatus.clockInTimestamp; // Store as UNIX timestamp
+  let clockOutTimestamp = initialStatus.clockOutTimestamp || null;
+  let isClockedIn = initialStatus.status === 'clocked_in';
+  let isClientIn = initialStatus.client === false;
+  const $clockButton = $('#timegrow-clock-toggle');
+  const $clockStatusText = $('#timegrow-clock-status-text');
+  const $clockInTime = $('#timegrow-clock-in-time');
+  const $clockOutTime = $('#timegrow-clock-out-time');
+  const $clockTotalDuration = $('#timegrow-clock-total-duration');
 
-    let isClockedIn = initialStatus.status === 'clocked_in';
-    let currentEntryId = initialStatus.entryId;
-    let clockInTimestamp = initialStatus.clockInTimestamp; // Store as UNIX timestamp
-    let isLoading = false;
+  updateButtonState();
+  updateStatusDisplay();
 
-    // --- Helper Functions ---
-    function showMessage(message, isError = false) {
-        $messageArea.text(message)
-                    .removeClass('success error')
-                    .addClass(isError ? 'error' : 'success')
-                    .show();
-    }
-
-    function clearMessage() {
-        $messageArea.text('').hide();
-    }
-
-    function updateButtonStates() {
-        if (isClockedIn || isLoading) {
-            $clockInBtn.prop('disabled', true).removeClass('active').addClass('disabled');
+  $clockButton.on('click', function () {
+    console.log('Clock button clicked');
+    $.ajax({
+      url: timegrow_ajax.ajax_url,
+      method: 'POST',
+      data: {
+        action: 'timegrow_toggle_clock',
+        security: timegrow_ajax.nonce,
+        entryId: currentEntryId
+      },
+      success: function (response) {
+        console.log('AJAX success:', response);
+        if (response.success) {
+          const result = response.data;
+          isClockedIn = result.status === 'clocked_in';
+          currentEntryId = result.entryId;
+          clockInTimestamp = result.clockInTimestamp;
+          clockOutTimestamp = result.clockOutTimestamp || null;
+          updateButtonState();
+          updateStatusDisplay();
         } else {
-            $clockInBtn.prop('disabled', false).removeClass('disabled').addClass('active');
+          console.error('Error:', response.data);
         }
+      },
+      error: function (error) {
+        console.error('AJAX error:', error);
+      }
+    });
+  });
 
-        if (!isClockedIn || isLoading) {
-            $clockOutBtn.prop('disabled', true).removeClass('active').addClass('disabled');
-        } else {
-            $clockOutBtn.prop('disabled', false).removeClass('disabled').addClass('active');
-        }
-        // Update button text if loading
-        $clockInBtn.text((isLoading && !isClockedIn) ? i18n.loading : i18n.clockIn);
-        $clockOutBtn.text((isLoading && isClockedIn) ? i18n.loading : i18n.clockOut);
+  function updateButtonState() {
+    if (isClockedIn) {
+      $clockButton.text(i18n.clockOut);
+    } else {
+      $clockButton.text(i18n.clockIn);
+    }
+  }
+
+  function updateStatusDisplay() {
+    console.log('Exec: updateStatusDisplay');
+
+    let clockInDate = clockInTimestamp ? new Date(clockInTimestamp * 1000) : null;
+    let clockOutDate = clockOutTimestamp ? new Date(clockOutTimestamp * 1000) : null;
+
+    if (isClockedIn && clockInDate) {
+      const clockInStr = `${clockInDate.toLocaleTimeString()} (${clockInDate.toLocaleDateString()})`;
+      $clockStatusText.html(`${i18n.youAreClockedInAt} <strong>${clockInStr}</strong>`);
+      $clockInTime.text(`${i18n.clockInTime}: ${clockInStr}`).show();
+      $clockOutTime.hide();
+      $clockTotalDuration.hide();
+    } else if (!isClockedIn && clockInDate && clockOutDate) {
+      const clockInStr = `${clockInDate.toLocaleTimeString()} (${clockInDate.toLocaleDateString()})`;
+      const clockOutStr = `${clockOutDate.toLocaleTimeString()} (${clockOutDate.toLocaleDateString()})`;
+      const durationSeconds = Math.floor((clockOutDate - clockInDate) / 1000);
+      const hours = Math.floor(durationSeconds / 3600);
+      const minutes = Math.floor((durationSeconds % 3600) / 60);
+      const seconds = durationSeconds % 60;
+
+      $clockStatusText.html(i18n.youAreClockedOut);
+      $clockInTime.text(`${i18n.clockInTime}: ${clockInStr}`).show();
+      $clockOutTime.text(`${i18n.clockOutTime}: ${clockOutStr}`).show();
+      $clockTotalDuration.text(`${i18n.totalWorkedDuration}: ${hours}h ${minutes}m ${seconds}s`).show();
+    } else {
+      $clockStatusText.html(i18n.youAreClockedOut);
+      $clockInTime.hide();
+      $clockOutTime.hide();
+      $clockTotalDuration.hide();
+    }
+  }
+});
+
+jQuery(document).ready(function($) {
+    const isClockedIn = false; // Replace with dynamic PHP/JS logic as needed
+
+    if (!isClockedIn) {
+        $('#client-drop-section').show();
+        $('#client-tiles-container').show();
     }
 
-    function updateStatusDisplay() {
-        console.log('Exec: updateStatusDisplay');
-        let statusHtml = '';
-        if (isClockedIn && clockInTimestamp) {
-            const date = new Date(clockInTimestamp * 1000);
-            const timeString = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-            const dateString = date.toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-            statusHtml = `<p>${i18n.youAreClockedInAt} <strong>${timeString} (${dateString})</strong></p>`;
-        } else {
-            statusHtml = `<p>${i18n.youAreClockedOut}</p>`;
-        }
-        $statusDisplayArea.html(statusHtml);
-    }
+    // Make client tiles draggable
+    $('.timegrow-client-tile').attr('draggable', true);
 
-    function updateCurrentTimeDisplay() {
-        console.log('Exec: updateCurrentTimeDisplay');
-        const now = new Date();
-        if ($currentDateEl.length) { // Check if element exists
-            $currentDateEl.text(now.toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }));
-        }
-        if ($currentTimeEl.length) { // Check if element exists
-            $currentTimeEl.text(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
-        }
-        console.log('dateSet: '+$currentDateEl.text()+' '+$currentTimeEl.text())
-    }
+    $('.timegrow-client-tile').on('dragstart', function (e) {
+        e.originalEvent.dataTransfer.setData('client-id', $(this).data('client-id'));
+    });
 
-    // --- API Call Function (using jQuery.ajax) ---
-    // Note: async/await can still be used with jQuery's Deferred/Promise objects, but the structure changes slightly.
-    // For simplicity with $.ajax, we'll use its .done(), .fail(), .always() methods.
-    function makeApiCall(endpoint, method = 'POST', data = {}) {
-        isLoading = true;
-        updateButtonStates();
-        clearMessage();
+    $('#drop-zone')
+        .on('dragover', function (e) {
+            e.preventDefault();
+            $(this).addClass('dragging-over');
+        })
+        .on('dragleave', function () {
+            $(this).removeClass('dragging-over');
+        })
+        .on('drop', function (e) {
+            e.preventDefault();
+            $(this).removeClass('dragging-over');
 
-        return $.ajax({
-            url: timegrowApiEndpoint + endpoint,
-            method: method,
-            contentType: 'application/json',
-            dataType: 'json', // Expect JSON response
-            data: Object.keys(data).length ? JSON.stringify(data) : null,
-            headers: {
-                'X-WP-Nonce': apiNonce
+            const clientId = e.originalEvent.dataTransfer.getData('client-id');
+            if (clientId) {
+                // ✅ Trigger your clock-in logic here (e.g. AJAX)
+                console.log('Clocking in with client ID:', clientId);
+
+                // Optionally disable tiles/drop zone
+                $('.timegrow-client-tile').prop('draggable', false).css('opacity', 0.5);
+                $('#drop-zone').text(`Clocked in with ${clientId}`).css('color', '#28a745');
             }
-        }).always(function() { // This will run after done or fail
-            isLoading = false;
-            // updateButtonStates(); // Update states again in done/fail for more specific feedback
         });
-        // The promise returned by $.ajax can be used with .then() if preferred,
-        // but .done() and .fail() are classic jQuery.
-    }
-
-    // --- Event Handlers ---
-    if ($clockInBtn.length) { // Check if element exists
-        $clockInBtn.on('click', function () {
-            if (isClockedIn || isLoading) return;
-
-            makeApiCall('clock-in', 'POST')
-                .done(function(result) {
-                    if (result && result.success) {
-                        isClockedIn = true;
-                        currentEntryId = result.data.entryId;
-                        clockInTimestamp = result.data.clockInTimestamp;
-                        showMessage(result.message || i18n.clockedInSuccess);
-                    } else {
-                        showMessage(result.message || i18n.clockInError, true);
-                    }
-                })
-                .fail(function(jqXHR, textStatus, errorThrown) {
-                    let errorMsg = i18n.clockInError;
-                    if (jqXHR.responseJSON && jqXHR.responseJSON.message) {
-                        errorMsg = jqXHR.responseJSON.message;
-                    } else if (errorThrown) {
-                        errorMsg = errorThrown;
-                    }
-                    console.error('Clock In API Error:', textStatus, errorThrown, jqXHR.responseText);
-                    showMessage(errorMsg, true);
-                })
-                .always(function() {
-                    updateButtonStates();
-                    updateStatusDisplay();
-                });
-        });
-    }
-
-    if ($clockOutBtn.length) { // Check if element exists
-        $clockOutBtn.on('click', function () {
-            if (!isClockedIn || isLoading || !currentEntryId) return;
-
-            makeApiCall('clock-out', 'POST', { entryId: currentEntryId })
-                .done(function(result) {
-                    if (result && result.success) {
-                        isClockedIn = false;
-                        currentEntryId = null;
-                        clockInTimestamp = null;
-                        showMessage(result.message || i18n.clockedOutSuccess);
-                    } else {
-                        showMessage(result.message || i18n.clockOutError, true);
-                    }
-                })
-                .fail(function(jqXHR, textStatus, errorThrown) {
-                    let errorMsg = i18n.clockOutError;
-                     if (jqXHR.responseJSON && jqXHR.responseJSON.message) {
-                        errorMsg = jqXHR.responseJSON.message;
-                    } else if (errorThrown) {
-                        errorMsg = errorThrown;
-                    }
-                    console.error('Clock Out API Error:', textStatus, errorThrown, jqXHR.responseText);
-                    showMessage(errorMsg, true);
-                })
-                .always(function() {
-                    updateButtonStates();
-                    updateStatusDisplay();
-                });
-        });
-    }
-
-    // --- Initial Setup ---
-    updateButtonStates();
-    updateCurrentTimeDisplay();
-    setInterval(updateCurrentTimeDisplay, 1000);
 });

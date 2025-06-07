@@ -93,6 +93,11 @@ class TimeGrowNexusClockView {
                         <?php echo esc_html($js_data['i18n']['clockOut']); ?>
                     </button>
                 </div>
+                <!-- Drop Zone Section (conditionally shown) -->
+                <div id="client-drop-section" class="timegrow-drop-section" style="display: none;">
+                <p class="drop-zone-text">Drop a client here to clock in</p>
+                <div id="drop-zone" class="timegrow-drop-zone"></div>
+                </div>
             </div>
 
             <?php
@@ -101,6 +106,12 @@ class TimeGrowNexusClockView {
             wp_localize_script('timegrow-clock-js', 'timegrowClockAppVanillaData', $js_data);
             ?>
         </div>
+        <!-- Client Tiles (conditionally shown when clocked out) -->
+        <div id="client-tiles-container" class="timegrow-client-tiles" style="display: none;">
+            <!-- Example Client Tile -->
+            <div class="timegrow-client-tile" draggable="true" data-client-id="client_1">Client A</div>
+            <div class="timegrow-client-tile" draggable="true" data-client-id="client_2">Client B</div>
+            </div>
         <?php
     }
 

@@ -211,6 +211,56 @@
     left: 2px;
 }
 
+.timegrow-client-tiles {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin: 25px 0;
+    flex-wrap: wrap;
+}
+
+.timegrow-client-tile {
+    background-color: #f1f3f5;
+    padding: 12px 20px;
+    border-radius: 6px;
+    border: 1px solid #dee2e6;
+    font-weight: 600;
+    cursor: move;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+    user-select: none;
+}
+
+.timegrow-drop-section {
+    margin-top: 30px;
+    text-align: center;
+}
+
+.timegrow-drop-zone {
+    height: 120px;
+    border: 2px dashed #ced4da;
+    border-radius: 8px;
+    background-color: #f8f9fa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6c757d;
+    font-size: 1.1em;
+    transition: background-color 0.3s ease;
+}
+
+.timegrow-drop-zone.dragging-over {
+    background-color: #e0f7ea;
+    border-color: #38c172;
+    color: #38c172;
+}
+
+.drop-zone-text {
+    font-size: 1em;
+    margin-bottom: 10px;
+    font-weight: 500;
+    color: #495057;
+}
+
 @keyframes loadingDots {
     0% { content: '.'; }
     33% { content: '..'; }
