@@ -62,7 +62,7 @@ class TimeGrowNexusManualView {
                     </select>
 
                     <input type="hidden" id="manual-client-id" name="client_id">
-                    <button type="submit" class="timegrow-button active" id="timegrow-submit">
+                    <button type="submit" class="timegrow-button disabled" id="timegrow-submit">
                         <?php esc_html_e('Submit Entry', 'timegrow'); ?>
                     </button>
                      <!-- Client Drop Section -->

@@ -211,27 +211,8 @@
     left: 2px;
 }
 
-.timegrow-client-tiles {
-    display: flex;
-    justify-content: center;
-    gap: 15px;
-    margin: 25px 0;
-    flex-wrap: wrap;
-}
-
-.timegrow-client-tile {
-    background-color: #f1f3f5;
-    padding: 12px 20px;
-    border-radius: 6px;
-    border: 1px solid #dee2e6;
-    font-weight: 600;
-    cursor: move;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.08);
-    user-select: none;
-}
-
 .timegrow-drop-section {
-    margin-top: 30px;
+    margin-bottom: 30px;
     text-align: center;
 }
 

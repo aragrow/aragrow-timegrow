@@ -42,6 +42,9 @@ class TimeGrowNexusClockView {
                 'clockOutError'       => __('Error clocking out. Please try again.', 'timegrow'),
             ],
         ];
+        // Pass data to your plain JavaScript file.
+        // Ensure 'nexus-clock-script' is the handle of the enqueued script.
+        wp_localize_script('timegrow-nexus-clock-script', 'timegrowClockAppVanillaData', $js_data);
 
         // Initial state variables for direct PHP output
         $is_clocked_in = ($current_clock_status['status'] === 'clocked_in');
@@ -52,8 +55,79 @@ class TimeGrowNexusClockView {
             <h1><?php esc_html_e('Clock In / Clock Out', 'timegrow'); ?></h1>
 
             <?php settings_errors('timegrow_clock_messages'); ?>
+     <!-- Client Tiles (conditionally shown when clocked out) -->
 
+        <div id="client-tiles-container" class="timegrow-client-tiles" style="display: none;">
+          
+                <div class="client-list-container">
+
+                    <!-- Client Tile 1 -->
+                    <div class="timegrow-client-tile" draggable="true" data-client-id="client_1" data-client-name="Innovatech Solutions LLC">
+                        <div class="client-logo-placeholder">
+                            <!-- <img src="path/to/logo1.png" alt="Innovatech Solutions Logo"> -->
+                            <span class="logo-initials">IS</span>
+                        </div>
+                        <h3>Innovatech Solutions LLC</h3>
+                        <div class="client-contact-info">
+                            <p><span class="dashicons dashicons-admin-users"></span> <span class="contact-label">Contact:</span> Sarah Chen</p>
+                       </div>
+                    </div>
+
+                    <!-- Client Tile 2 -->
+                    <div class="timegrow-client-tile" draggable="true" data-client-id="client_2" data-client-name="GreenThumb Landscaping Co.">
+                        <div class="client-logo-placeholder">
+                            <span class="logo-initials">GT</span>
+                        </div>
+                        <h3>GreenThumb Landscaping Co.</h3>
+                        <div class="client-contact-info">
+                            <p><span class="dashicons dashicons-admin-users"></span> <span class="contact-label">Contact:</span> Michael B. Jordan</p>
+                        </div>
+                    </div>
+
+                    <!-- Client Tile 3 -->
+                    <div class="timegrow-client-tile" draggable="true" data-client-id="client_3" data-client-name="Culinary Services Inc.">
+                        <div class="client-logo-placeholder">
+                            <span class="logo-initials">CS</span>
+                        </div>
+                        <h3>Culinary Services Inc.</h3>
+
+                    </div>
+
+                    <!-- Client Tile 4 -->
+                    <div class="timegrow-client-tile" draggable="true" data-client-id="client_4">
+                        <div class="client-logo-placeholder">
+                            <span class="logo-initials">AS</span>
+                        </div>
+                        <h3>Aperture Science</h3>
+               
+                    </div>
+
+                    <!-- Client Tile 5 -->
+                    <div class="timegrow-client-tile" draggable="true" data-client-id="client_5" data-client-name="Blue Canary Goods">
+                        <div class="client-logo-placeholder">
+                            <span class="logo-initials">BC</span>
+                        </div>
+                        <h3>Blue Canary Goods</h3>
+              
+                    </div>
+
+                    <!-- Client Tile 6 -->
+                    <div class="timegrow-client-tile" draggable="true" data-client-id="client_6" data-client-name="Pied Piper Systems">
+                        <div class="client-logo-placeholder">
+                            <span class="logo-initials">PP</span>
+                        </div>
+                        <h3>Pied Piper Systems</h3>
+                    </div>
+                    <!-- Add more client tiles as needed -->
+
+                </div>
+            </div>
             <div id="timegrow-clock-interface" class="timegrow-clock-container"> 
+                <!-- Drop Zone Section (conditionally shown) -->
+                <div id="client-drop-section" class="timegrow-drop-section" style="display: none;">
+                    <p class="drop-zone-text">Drop a client here to clock in</p>
+                    <div id="drop-zone" class="timegrow-drop-zone"></div>
+                </div>
 
                 <div class="timegrow-current-time-display">
                     <div id="timegrow-current-date" class="date">--</div>
@@ -93,25 +167,10 @@ class TimeGrowNexusClockView {
                         <?php echo esc_html($js_data['i18n']['clockOut']); ?>
                     </button>
                 </div>
-                <!-- Drop Zone Section (conditionally shown) -->
-                <div id="client-drop-section" class="timegrow-drop-section" style="display: none;">
-                <p class="drop-zone-text">Drop a client here to clock in</p>
-                <div id="drop-zone" class="timegrow-drop-zone"></div>
-                </div>
             </div>
 
-            <?php
-            // Pass data to your plain JavaScript file.
-            // Ensure 'clock-js' is the handle of the enqueued script.
-            wp_localize_script('timegrow-clock-js', 'timegrowClockAppVanillaData', $js_data);
-            ?>
         </div>
-        <!-- Client Tiles (conditionally shown when clocked out) -->
-        <div id="client-tiles-container" class="timegrow-client-tiles" style="display: none;">
-            <!-- Example Client Tile -->
-            <div class="timegrow-client-tile" draggable="true" data-client-id="client_1">Client A</div>
-            <div class="timegrow-client-tile" draggable="true" data-client-id="client_2">Client B</div>
-            </div>
+   
         <?php
     }
 

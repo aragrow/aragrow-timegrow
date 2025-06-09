@@ -75,13 +75,13 @@ class TimeGrowNexus{
         if ($hook == "admin_page_timegrow-nexus-clock") {
 
             wp_enqueue_script(
-                'timegrow-clock-js', // New handle, matches wp_localize_script
+                'timegrow-nexus-clock-script', // New handle, matches wp_localize_script
                 ARAGROW_TIMEGROW_BASE_URI . 'assets/js/clock.js', // Path to your new JS file
                 [], // No React dependencies needed for vanilla JS
                 $plugin_version,
                 true // Load in footer
             );
-
+            wp_enqueue_style('timeflies-nexus-client-bc-style', ARAGROW_TIMEGROW_BASE_URI . 'assets/css/nexus_client_bc.css');
             // CSS remains the same, as the class names in HTML are similar
             wp_enqueue_style(
                 'timegrow-clock-style',
@@ -89,18 +89,35 @@ class TimeGrowNexus{
                 [],
                 $plugin_version
             );
+            wp_localize_script(
+                    'timegrow-nexus-clock-script',
+                    'timegrow_nexus_list',
+                    [
+                        'list_url' => admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-nexus'),
+                        'nonce' => wp_create_nonce('timegrow_nexus_nonce') // Pass the nonce to JS
+                    ]
+                );
 
         } elseif ($hook == "admin_page_timegrow-nexus-manual") {
             
             wp_enqueue_script(
-                'timegrow-clock-js', // New handle, matches wp_localize_script
+                'timegrow-nexus-manual-script', // New handle, matches wp_localize_script
                 ARAGROW_TIMEGROW_BASE_URI . 'assets/js/manual.js', // Path to your new JS file
                 [], // No React dependencies needed for vanilla JS
                 $plugin_version,
                 true // Load in footer
             );
-
+            wp_enqueue_style('timeflies-nexus-client-bc-style', ARAGROW_TIMEGROW_BASE_URI . 'assets/css/nexus_client_bc.css');
             // CSS remains the same, as the class names in HTML are similar
+            wp_localize_script(
+                'timegrow-nexus-manual-script',
+                'timegrow_nexus_list',
+                [
+                    'list_url' => admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-nexus'),
+                    'nonce' => wp_create_nonce('timegrow_nexus_nonce') // Pass the nonce to JS
+                ]
+            );
+            
             wp_enqueue_style(
                 'timegrow-clock-style',
                 ARAGROW_TIMEGROW_BASE_URI . 'assets/css/manual.css',
@@ -113,8 +130,9 @@ class TimeGrowNexus{
         } elseif ($hook == "admin_page_timegrow-nexus-settings") {
         } else { // Dashboard
 
-            wp_enqueue_style('timeflies-nexus-style', ARAGROW_TIMEGROW_BASE_URI . 'assets/css/nexus-dashboard.css');
-            wp_enqueue_script('timeflies-nexus-script', ARAGROW_TIMEGROW_BASE_URI . 'assets/js/nexus-dashboard.js', array('jquery'), '1.0', true);
+            wp_enqueue_style('timeflies-nexus-style', ARAGROW_TIMEGROW_BASE_URI . 'assets/css/nexus_dashboard.css');
+            wp_enqueue_script('timeflies-nexus-script', ARAGROW_TIMEGROW_BASE_URI . 'assets/js/nexus_dashboard.js', array('jquery'), '1.0', true);
+        
             wp_localize_script(
                 'timegrow-nexus-script',
                 'timegrow_nexus_list',
@@ -123,9 +141,9 @@ class TimeGrowNexus{
                     'nonce' => wp_create_nonce('timegrow_nexus_nonce') // Pass the nonce to JS
                 ]
             );
-        
         }
         
+
     }
 
 
