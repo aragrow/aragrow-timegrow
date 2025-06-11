@@ -9,7 +9,7 @@ jQuery(document).ready(function ($) {
   let clockInTimestamp = appData.clockInTimestamp || null // Store as UNIX timestamp
   let clockOutTimestamp = appData.clockOutTimestamp || null;
   let isClockedIn = appData.status === 'clocked_in';
-  let isClientIn = appData.client === false;
+  let isClientIn = appData.project === false;
   const $clockButton = $('#timegrow-clock-toggle');
   const $clockStatusText = $('#timegrow-clock-status-text');
   const $clockInTime = $('#timegrow-clock-in-time');
@@ -109,16 +109,17 @@ jQuery(document).ready(function($) {
     const isClockedIn = false; // Replace with dynamic PHP/JS logic as needed
 
     if (!isClockedIn) {
-        $('#client-drop-section').show();
-        $('#client-tiles-container').show();
+        $('#project-drop-section').show();
+        $('#project-tiles-container').show();
     }
 
-    // Make client tiles draggable
-    $('.timegrow-client-tile').attr('draggable', true);
+    // Make project tiles draggable
+    $('.timegrow-project-tile').attr('draggable', true);
 
-    $('.timegrow-client-tile').on('dragstart', function (e) {
-        e.originalEvent.dataTransfer.setData('client-id', $(this).data('client-id'));
-        e.originalEvent.dataTransfer.setData('name', $(this).data('client-name'));
+    $('.timegrow-project-tile').on('dragstart', function (e) {
+        e.originalEvent.dataTransfer.setData('project-id', $(this).data('project-id'));
+        e.originalEvent.dataTransfer.setData('name', $(this).data('project-name'));
+        e.originalEvent.dataTransfer.setData('desc', $(this).data('project-desc') || 'No description available');
     });
 
     $('#drop-zone')
@@ -133,15 +134,16 @@ jQuery(document).ready(function($) {
             e.preventDefault();
             $(this).removeClass('dragging-over');
 
-            const clientId = e.originalEvent.dataTransfer.getData('client-id');
-            const clientName = e.originalEvent.dataTransfer.getData('name');
-            if (clientId) {
+            const projectId = e.originalEvent.dataTransfer.getData('project-id');
+            const projectName = e.originalEvent.dataTransfer.getData('name');
+            const projectDesc = e.originalEvent.dataTransfer.getData('desc') || 'No description available';
+            if (projectId) {
                 // ✅ Trigger your clock-in logic here (e.g. AJAX)
-                console.log('Clocking in with client ID:', clientId);
+                console.log('Clocking in with project ID:', projectId);
 
                 // Optionally disable tiles/drop zone
-                $('.timegrow-client-tile').prop('draggable', false).css('opacity', 0.5);
-                $('#drop-zone').text(`Clocked in with ${clientName} (ID: ${clientId})`).css('color', '#28a745');
+                $('.timegrow-project-tile').prop('draggable', false).css('opacity', 0.5);
+                $('#drop-zone').html(`Clocked in with ${projectName} (${projectId}) <br /> ${projectDesc}`).css('color', '#28a745')
             }
         });
 });

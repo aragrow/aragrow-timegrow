@@ -10,6 +10,8 @@ class TimeGrowTeamMemberModel {
     private $wpdb;
     private $charset_collate;
     private $allowed_fields;
+    private $table_name2;
+    private $table_name3;
 
     public function __construct() {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
@@ -17,6 +19,8 @@ class TimeGrowTeamMemberModel {
         $this->wpdb = $wpdb;
         $this->charset_collate = $this->wpdb->get_charset_collate();
         $this->table_name = $this->wpdb->prefix . TIMEGROW_PREFIX . 'team_member_tracker'; // Make sure this matches your table name
+        $this->table_name2 = $this->wpdb->prefix . TIMEGROW_PREFIX . 'team_member_projects_tracker'; // Make sure this matches your table name
+        $this->table_name3 = $this->wpdb->prefix . TIMEGROW_PREFIX . 'project_tracker'; // Make sure this matches your table name
         $this->allowed_fields = ['user_id', 'company_id', 
                                 'name', 'email', 
                                 'phone', 'title', 
@@ -169,4 +173,80 @@ class TimeGrowTeamMemberModel {
             );
         }
     }
+
+     /**
+     * Select projects by ID or array of IDs.
+     *
+     * @param int|array $ids Single ID or array of IDs.
+     * @return array|object|null Array of expense objects or null if no results.
+     */
+    public function get_projects_for_member($ids = null) {
+        if (WP_DEBUG) error_log(__CLASS__ . '::' . __FUNCTION__);
+    
+        //var_dump($ids);
+        // If IDs are provided as an array
+        if (is_array($ids)) {
+            var_dump('is_array');
+            $ids = array_map('intval', $ids); // Sanitize IDs
+            $placeholders = implode(',', array_fill(0, count($ids), '%d')); // Create placeholders for prepared statement
+            $sql = $this->wpdb->prepare(
+                "SELECT M.ID AS team_ID, M.name AS team_name, P.* FROM {$this->table_name} M  
+                    JOIN {$this->table_name2} X ON M.ID = X.team_member_id
+                    JOIN {$this->table_name3} P ON X.project_id = P.ID  
+                    WHERE A.ID IN ($placeholders) 
+                    AND P.status = 1
+                    ORDER BY M.name, P.name",
+                $ids
+            );
+        }
+        // If a single ID is provided
+        elseif (intval($ids) and $ids == -1) {
+            $id = intval($ids); // Sanitize ID
+            $sql = $this->wpdb->prepare(
+                "SELECT null AS team_ID, null AS team_name, P.* 
+                    FROM {$this->table_name3} P 
+                WHERE P.status = 1
+                ORDER BY P.name",
+                $id
+            );
+        }
+        // If a single ID is provided
+        elseif (intval($ids)) {
+            $id = intval($ids); // Sanitize ID
+            $sql = $this->wpdb->prepare(
+                "SELECT M.ID AS team_ID, M.name AS team_name, P.* 
+                    FROM {$this->table_name} M
+                    JOIN {$this->table_name2} X ON M.ID = X.team_member_id
+                    JOIN {$this->table_name3} P ON X.project_id = P.ID
+                WHERE M.ID = %d
+                AND P.status = 1
+                ORDER BY P.name",
+                $id
+            );
+        }
+        // If no IDs are provided, fetch all rows
+        else {
+            var_dump('No IDs provided');
+            $sql = "SELECT M.ID AS team_ID, M.name AS team_name, P.* 
+            FROM {$this->table_name} M
+            JOIN {$this->table_name2} X ON M.ID = X.team_member_id
+            JOIN {$this->table_name3} P ON X.project_id = P.ID  
+            WHERE M.status = 1
+            AND P.status = 1
+            ORDER BY M.name, P.name";
+        }
+    
+        $results = $this->wpdb->get_results($sql);
+        //var_dump($this->wpdb->last_query);
+        if ($this->wpdb->last_error) {
+            error_log("Database error: " . $this->wpdb->last_error);
+            return new WP_Error('db_error', __('Database error occurred.', 'timegrow'));
+        }
+        if (empty($results)) {
+            return null; // No results found
+        }
+        // Convert results to an array of objects
+        return $results;
+    }
+    
 }

@@ -3,11 +3,13 @@ jQuery(document).ready(function($) {
 
   const $clockButton = $('#timegrow-submit');
 
-  // Make client tiles draggable
-  $('.timegrow-client-tile').attr('draggable', true);
+  // Make project tiles draggable
+  $('.timegrow-project-tile').attr('draggable', true);
 
-  $('.timegrow-client-tile').on('dragstart', function (e) {
-    e.originalEvent.dataTransfer.setData('client-id', $(this).data('client-id'));
+  $('.timegrow-project-tile').on('dragstart', function (e) {
+    e.originalEvent.dataTransfer.setData('project-id', $(this).data('project-id'));
+    e.originalEvent.dataTransfer.setData('name', $(this).data('project-name'));
+    e.originalEvent.dataTransfer.setData('desc', $(this).data('project-desc'));
   });
 
   $('#manual-drop-zone')
@@ -20,11 +22,15 @@ jQuery(document).ready(function($) {
     })
     .on('drop', function (e) {
       e.preventDefault();
-      const clientId = e.originalEvent.dataTransfer.getData('client-id');
-      if (clientId) {
-        $('#manual-client-id').val(clientId);
-        $(this).text(`Client selected: ${clientId}`).css('color', '#28a745');
-        $('.timegrow-client-tile').css('opacity', 0.5);
+      const projectId = e.originalEvent.dataTransfer.getData('project-id');
+      const projectName = e.originalEvent.dataTransfer.getData('name');
+      const projectDesc = e.originalEvent.dataTransfer.getData('desc');
+      if (projectId) {
+        $('#manual-project-id').val(projectId);
+        $(this).html(`Project selected: ${projectName} (${projectId}) <br /> ${projectDesc}`).css('color', '#28a745');
+
+
+        $('.timegrow-project-tile').css('opacity', 0.5);
         updateButtonState();
       }
       $(this).removeClass('dragging-over');

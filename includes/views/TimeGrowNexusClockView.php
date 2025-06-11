@@ -14,7 +14,7 @@ class TimeGrowNexusClockView {
      * @param WP_User $user The current WordPress user object.
      * @param array $args Additional arguments.
      */
-    public function display($user, $args = []) {
+    public function display($user, $projects = []) {
         if (!$user || !$user->ID) {
             echo '<div class="wrap"><p>' . esc_html__('Error: User not found or not logged in.', 'timegrow') . '</p></div>';
             return;
@@ -56,76 +56,25 @@ class TimeGrowNexusClockView {
 
             <?php settings_errors('timegrow_clock_messages'); ?>
      <!-- Client Tiles (conditionally shown when clocked out) -->
+        <h3><?php esc_html_e('Select a Project to Clock In', 'timegrow'); ?></h3>
 
-        <div id="client-tiles-container" class="timegrow-client-tiles" style="display: none;">
-          
-                <div class="client-list-container">
+            <div id="project-tiles-container" class="timegrow-project-tiles" style="display: none;">
+            
+                <div class="project-list-container">
 
-                    <!-- Client Tile 1 -->
-                    <div class="timegrow-client-tile" draggable="true" data-client-id="client_1" data-client-name="Innovatech Solutions LLC">
-                        <div class="client-logo-placeholder">
-                            <!-- <img src="path/to/logo1.png" alt="Innovatech Solutions Logo"> -->
-                            <span class="logo-initials">IS</span>
-                        </div>
-                        <h3>Innovatech Solutions LLC</h3>
-                        <div class="client-contact-info">
-                            <p><span class="dashicons dashicons-admin-users"></span> <span class="contact-label">Contact:</span> Sarah Chen</p>
-                       </div>
+            
+                    <?php foreach ($projects as $project) : ?>
+                    <div class="timegrow-project-tile" draggable="true" data-project-id="<?php echo esc_attr($project->ID); ?>" data-project-name="<?php echo esc_attr($project->name) ?>" data-project-desc="<?php echo esc_attr($project->description) ?>">
+                        <h3><?php echo esc_html($project->name); ?></h3>
+                        <p><?php echo esc_html($project->description); ?></p>    
                     </div>
-
-                    <!-- Client Tile 2 -->
-                    <div class="timegrow-client-tile" draggable="true" data-client-id="client_2" data-client-name="GreenThumb Landscaping Co.">
-                        <div class="client-logo-placeholder">
-                            <span class="logo-initials">GT</span>
-                        </div>
-                        <h3>GreenThumb Landscaping Co.</h3>
-                        <div class="client-contact-info">
-                            <p><span class="dashicons dashicons-admin-users"></span> <span class="contact-label">Contact:</span> Michael B. Jordan</p>
-                        </div>
-                    </div>
-
-                    <!-- Client Tile 3 -->
-                    <div class="timegrow-client-tile" draggable="true" data-client-id="client_3" data-client-name="Culinary Services Inc.">
-                        <div class="client-logo-placeholder">
-                            <span class="logo-initials">CS</span>
-                        </div>
-                        <h3>Culinary Services Inc.</h3>
-
-                    </div>
-
-                    <!-- Client Tile 4 -->
-                    <div class="timegrow-client-tile" draggable="true" data-client-id="client_4">
-                        <div class="client-logo-placeholder">
-                            <span class="logo-initials">AS</span>
-                        </div>
-                        <h3>Aperture Science</h3>
-               
-                    </div>
-
-                    <!-- Client Tile 5 -->
-                    <div class="timegrow-client-tile" draggable="true" data-client-id="client_5" data-client-name="Blue Canary Goods">
-                        <div class="client-logo-placeholder">
-                            <span class="logo-initials">BC</span>
-                        </div>
-                        <h3>Blue Canary Goods</h3>
-              
-                    </div>
-
-                    <!-- Client Tile 6 -->
-                    <div class="timegrow-client-tile" draggable="true" data-client-id="client_6" data-client-name="Pied Piper Systems">
-                        <div class="client-logo-placeholder">
-                            <span class="logo-initials">PP</span>
-                        </div>
-                        <h3>Pied Piper Systems</h3>
-                    </div>
-                    <!-- Add more client tiles as needed -->
-
+                    <?php endforeach; ?>
                 </div>
             </div>
             <div id="timegrow-clock-interface" class="timegrow-clock-container"> 
                 <!-- Drop Zone Section (conditionally shown) -->
-                <div id="client-drop-section" class="timegrow-drop-section" style="display: none;">
-                    <p class="drop-zone-text">Drop a client here to clock in</p>
+                <div id="project-drop-section" class="timegrow-drop-section" style="display: none;">
+                    <p class="drop-zone-text">Drop a project here to clock in</p>
                     <div id="drop-zone" class="timegrow-drop-zone"></div>
                 </div>
 

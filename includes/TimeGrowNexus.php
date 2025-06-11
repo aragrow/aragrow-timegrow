@@ -81,7 +81,7 @@ class TimeGrowNexus{
                 $plugin_version,
                 true // Load in footer
             );
-            wp_enqueue_style('timeflies-nexus-client-bc-style', ARAGROW_TIMEGROW_BASE_URI . 'assets/css/nexus_client_bc.css');
+            wp_enqueue_style('timeflies-nexus-project-bc-style', ARAGROW_TIMEGROW_BASE_URI . 'assets/css/nexus_project_bc.css');
             // CSS remains the same, as the class names in HTML are similar
             wp_enqueue_style(
                 'timegrow-clock-style',
@@ -107,8 +107,7 @@ class TimeGrowNexus{
                 $plugin_version,
                 true // Load in footer
             );
-            wp_enqueue_style('timeflies-nexus-client-bc-style', ARAGROW_TIMEGROW_BASE_URI . 'assets/css/nexus_client_bc.css');
-            // CSS remains the same, as the class names in HTML are similar
+            wp_enqueue_style('timeflies-nexus-client-bc-style', ARAGROW_TIMEGROW_BASE_URI . 'assets/css/nexus_project_bc.css');
             wp_localize_script(
                 'timegrow-nexus-manual-script',
                 'timegrow_nexus_list',
@@ -117,7 +116,8 @@ class TimeGrowNexus{
                     'nonce' => wp_create_nonce('timegrow_nexus_nonce') // Pass the nonce to JS
                 ]
             );
-            
+             // CSS remains the same, as the class names in HTML are similar
+           
             wp_enqueue_style(
                 'timegrow-clock-style',
                 ARAGROW_TIMEGROW_BASE_URI . 'assets/css/manual.css',
@@ -126,6 +126,32 @@ class TimeGrowNexus{
             );
 
         } elseif ($hook == "admin_page_timegrow-nexus-expenses") {
+            wp_enqueue_script(
+                'timegrow-nexus-expense-script', // New handle, matches wp_localize_script
+                ARAGROW_TIMEGROW_BASE_URI . 'assets/js/expense-recorder.js', // Path to your new JS file
+                [], // No React dependencies needed for vanilla JS
+                $plugin_version,
+                true // Load in footer
+            );
+            wp_enqueue_style('timeflies-nexus-project-bc-style', ARAGROW_TIMEGROW_BASE_URI . 'assets/css/nexus_project_bc.css');
+
+            wp_localize_script(
+                'timegrow-nexus-expense-script',
+                'timegrow_nexus_list',
+                [
+                    'list_url' => admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-nexus'),
+                    'nonce' => wp_create_nonce('timegrow_nexus_nonce') // Pass the nonce to JS
+                ]
+            );
+             // CSS remains the same, as the class names in HTML are similar
+           
+            wp_enqueue_style(
+                'timegrow-expense-style',
+                ARAGROW_TIMEGROW_BASE_URI . 'assets/css/expense.css',
+                [],
+                $plugin_version
+            );
+          
         } elseif ($hook == "admin_page_timegrow-nexus-reports") {
         } elseif ($hook == "admin_page_timegrow-nexus-settings") {
         } else { // Dashboard
@@ -152,7 +178,20 @@ class TimeGrowNexus{
         $view_dashboard = new TimeGrowNexusView();
         $view_clock = new TimeGrowNexusClockView();
         $view_manual = new TimeGrowNexusManualView();
-        $controller = new TimeGrowNexusController($view_dashboard, $view_clock, $view_manual);
+        $view_expense = new TimeGrowNexusExpenseView();
+      
+        if ( $screen == 'clock' or $screen == 'manual' or $screen == 'expenses' ) {
+            $team_member_model = new TimeGrowTeamMemberModel();
+            if (current_user_can('administrator') ) {
+                // User is an administrator
+                $projects = $team_member_model->get_projects_for_member(-1); // -1 for admin means all projects
+            } else {
+                // User is not an administrator, get projects for the current user
+                $projects = $team_member_model->get_projects_for_member(get_current_user_id());
+            }
+        } else $projects = []; // Default to empty array for other screens
+
+        $controller = new TimeGrowNexusController($view_dashboard, $view_clock, $view_manual, $view_expense, $projects);
         $controller->display_admin_page($screen);
     }
 }

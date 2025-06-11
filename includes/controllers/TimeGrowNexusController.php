@@ -10,17 +10,23 @@ class TimeGrowNexusController{
     private $view_dashboard;
     private $view_clock;
     private $view_manual;
+    private $view_expense;
+    private $projects;
 
     public function __construct(
         TimeGrowNexusView $view_dashboard,
         TimeGrowNexusClockView $view_clock,
         TimeGrowNexusManualView $view_manual,
+        TimeGrowNexusExpenseView $view_expense,
+        $projects
     
     ) {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);   
         $this->view_dashboard = $view_dashboard;
         $this->view_clock = $view_clock;
         $this->view_manual = $view_manual;
+        $this->view_expense = $view_expense;
+        $this->projects = $projects;
     }
 
     public function handle_form_submission() {
@@ -35,9 +41,11 @@ class TimeGrowNexusController{
         if ($screen == 'dashboard')
             $this->view_dashboard->display($user);
         elseif ($screen == 'clock')
-            $this->view_clock->display($user);
-         elseif ($screen == 'manual')
-            $this->view_manual->display($user);
+            $this->view_clock->display($user, $this->projects);
+        elseif ($screen == 'manual')
+            $this->view_manual->display($user, $this->projects);
+        elseif ($screen == 'expenses')
+            $this->view_expense->display($user, $this->projects);
     }
 
 }
