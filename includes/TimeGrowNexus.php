@@ -66,6 +66,30 @@ class TimeGrowNexus{
             },
         );
 
+        add_submenu_page(
+            null,
+            __('Reports', 'timegrow'),         // Page title
+            __('Reports', 'timegrow'),         // Menu title
+            TIMEGROW_OWNER_CAP,
+            TIMEGROW_PARENT_MENU . '-nexus-reports', // Menu slug
+            function() { // Define a closure
+                $this->tracker_mvc_admin_page( 'reports' ); // Call the tracker_mvc method, passing the parameter
+            },
+        );
+
+        // Hidden page for viewing individual reports
+        // This won't appear in the menu but provides a target for report links
+        add_submenu_page(
+            null,                              // No parent menu (hidden)
+            __('View A Report', 'timegrow'),     // Page title (for browser tab)
+            __('View A Report', 'timegrow'),     // Menu title (not shown)
+            TIMEGROW_OWNER_CAP,
+            TIMEGROW_PARENT_MENU . '-nexus-a-report',
+            function() { // Define a closure
+                $this->tracker_mvc_admin_page( 'areport' ); // Call the tracker_mvc method, passing the parameter
+            },
+        );
+
     }
 
     public function enqueue_scripts_styles($hook) {
@@ -179,6 +203,11 @@ class TimeGrowNexus{
         $view_clock = new TimeGrowNexusClockView();
         $view_manual = new TimeGrowNexusManualView();
         $view_expense = new TimeGrowNexusExpenseView();
+        $view_report = new TimeGrowNexusReportView();
+        $controller_reports = new TimeGrowReportsController($view_report);
+
+        $projects = []; // Default to empty array
+        $reports = []; // Default to empty array
       
         if ( $screen == 'clock' or $screen == 'manual' or $screen == 'expenses' ) {
             $team_member_model = new TimeGrowTeamMemberModel();
@@ -189,9 +218,12 @@ class TimeGrowNexus{
                 // User is not an administrator, get projects for the current user
                 $projects = $team_member_model->get_projects_for_member(get_current_user_id());
             }
-        } else $projects = []; // Default to empty array for other screens
+        } if ( $screen == 'reports' ) {
+            $$reports = $controller_reports->get_available_reports_for_user(wp_get_current_user()); 
+        }
+  
 
-        $controller = new TimeGrowNexusController($view_dashboard, $view_clock, $view_manual, $view_expense, $projects);
+        $controller = new TimeGrowNexusController($view_dashboard, $view_clock, $view_manual, $view_expense, $view_report, $projects, $reports);
         $controller->display_admin_page($screen);
     }
 }

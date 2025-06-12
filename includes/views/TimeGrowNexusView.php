@@ -45,7 +45,7 @@ class TimeGrowNexusView {
                     </div>
                 </a>
 
-                <a href="<?php echo esc_url("\?page=nexus-reports"); ?>" class="timegrow-tile coming-soon">
+                <a href="<?php echo esc_url("\?page=".TIMEGROW_PARENT_MENU."-nexus-reports"); ?>" class="timegrow-tile coming-soon">
                     <div class="timegrow-tile-icon">
                         <span class="dashicons dashicons-chart-bar"></span>
                     </div>
@@ -55,7 +55,7 @@ class TimeGrowNexusView {
                     </div>
                 </a>
 
-                <a href="<?php echo esc_url("\?page=nexus-settings"); ?>" class="timegrow-tile">
+                <a href="<?php echo esc_url("\?page=".TIMEGROW_PARENT_MENU."nexus-settings"); ?>" class="timegrow-tile">
                     <div class="timegrow-tile-icon">
                         <span class="dashicons dashicons-admin-settings"></span>
                     </div>
