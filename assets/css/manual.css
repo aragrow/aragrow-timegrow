@@ -1,7 +1,8 @@
 /* File: assets/css/manual.css */
 .timegrow-manual-container {
+  width: 35%;
   max-width: 600px;
-  margin: 40px auto;
+  margin: 25px 5px auto;
   padding: 30px;
   border-radius: 10px;
   background-color: #ffffff;
@@ -77,6 +78,10 @@
   box-sizing: border-box;
 }
 
+.timegrow-manual-container input.check {
+  width: auto;
+}
+
 /* --- ACTIVE BUTTON STYLES --- */
 .timegrow-button.active {
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0,0,0,0.08); /* Softer, more modern shadow */
@@ -131,7 +136,7 @@
     left: 2px;
 }
 
-.timegrow-client-tiles {
+.timegrow-project-tiles {
   display: flex;
   justify-content: center;
   gap: 15px;
@@ -139,7 +144,7 @@
   flex-wrap: wrap;
 }
 
-.timegrow-client-tile {
+.timegrow-project-tile {
   background-color: #f1f3f5;
   padding: 12px 20px;
   border-radius: 6px;

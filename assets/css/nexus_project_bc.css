@@ -3,9 +3,9 @@
 /* Styles for your outermost container */
 #project-tiles-container.timegrow-project-tiles {
     padding: 20px 15px; /* Added some horizontal padding */
-    width: 100%;
+    width: 60%;
     box-sizing: border-box;
-     background: linear-gradient(145deg, #ffffff 0%, #f5f7fa 100%); /* White to very light grey */
+  /*   background: linear-gradient(145deg, #ffffff 0%, #f5f7fa 100%); /* White to very light grey */
    
     /* background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); /* Optional subtle gradient background for the section */
     /* Or a simpler light background: */

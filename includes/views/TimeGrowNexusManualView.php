@@ -44,7 +44,7 @@ class TimeGrowNexusManualView {
         <div class="wrap timegrow-page-container timegrow-manual-page-container">
             <h1><?php esc_html_e('Manual Time Entry', 'timegrow'); ?></h1>
             <h3><?php esc_html_e('Select a Project to Enter Time', 'timegrow'); ?></h3>
-            <div id="project-tiles-container" class="timegrow-project-tiles">
+            <div id="project-tiles-container" class="timegrow-project-tiles" style="float:left">
                 <div class="project-list-container">
             
                     <?php foreach ($projects as $project) : ?>
@@ -55,10 +55,16 @@ class TimeGrowNexusManualView {
                     <?php endforeach; ?>
                 </div>
             </div>
-            <div class="timegrow-manual-container">     
+            <div class="timegrow-manual-container"  style="float:right">     
                 <!-- Manual Entry Form -->
-                <form id="manual-entry-form">
-                    <!-- Client Drop Section -->
+                    <form id="timegrow-company-form" class="wp-core-ui" method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="time_entry_id" value="0">
+                    <input type="hidden" name="action" value="save_time_entry">
+                    <input type="hidden" name="add_item" value="1">
+                    <input type="hidden" name="member_id" value="<?php echo $user->ID ?>" />
+                    <input type="hidden" name="entry_type" value="MAN" />
+                    <?php wp_nonce_field('timegrow_time_nexus_nonce', 'timegrow_time_nexus_nonce_field'); ?>
+                    <!-- Project Drop Section -->
                     <div id="manual-project-drop-section" class="timegrow-drop-section">
                         <p class="drop-zone-text"><?php esc_html_e('Drop a Project here to assign', 'timegrow'); ?></p>
                         <div id="manual-drop-zone" class="timegrow-drop-zone"><?php esc_html_e('Drop Project Here', 'timegrow'); ?></div>
@@ -70,7 +76,7 @@ class TimeGrowNexusManualView {
                     </div>
 
                     <label for="manual-datetime"><?php esc_html_e('Select Date & Time:', 'timegrow'); ?></label>
-                    <input type="datetime-local" id="manual-datetime" name="datetime" required>
+                    <input type="date" id="manual-datetime" name="date" required>
 
                     <label for="manual-hours"><?php esc_html_e('Hours Worked:', 'timegrow'); ?></label>
                     <select id="manual-hours" name="hours">
@@ -81,12 +87,19 @@ class TimeGrowNexusManualView {
                         <?php endforeach; ?>
                     </select>
 
+                    <label for="description">Description</label></th>
+                    <textarea id="description" name="description" class="large-text" rows="5"></textarea>
+
+                    <label for="manual-hours"><?php esc_html_e('Billable:', 'timegrow'); ?></label>
+                    <input type="checkbox" name="billable" value="1" checked class="check">
+
+
                     <input type="hidden" id="manual-project-id" name="project_id">
+
+                    <br /><br />
                     <button type="submit" class="timegrow-button disabled" id="timegrow-submit">
                         <?php esc_html_e('Submit Entry', 'timegrow'); ?>
                     </button>
-
-
         
                 </form>
             </div>
@@ -105,9 +118,9 @@ class TimeGrowNexusManualView {
     private function get_projects_for_user($user_id) {
         // Example hard-coded; replace with CPT, user_meta, etc.
         return [
-            ['id' => 'project_1', 'name' => 'Client A'],
-            ['id' => 'project_2', 'name' => 'Client B'],
-            ['id' => 'project_3', 'name' => 'Client C'],
+            ['id' => 'project_1', 'name' => 'Project A'],
+            ['id' => 'project_2', 'name' => 'Project B'],
+            ['id' => 'project_3', 'name' => 'Project C'],
         ];
     }
 }

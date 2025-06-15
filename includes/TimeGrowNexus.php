@@ -199,6 +199,7 @@ class TimeGrowNexus{
 
     public function tracker_mvc_admin_page($screen) {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        $model = new TimeGrowTimeEntryModel();
         $view_dashboard = new TimeGrowNexusView();
         $view_clock = new TimeGrowNexusClockView();
         $view_manual = new TimeGrowNexusManualView();
@@ -223,7 +224,7 @@ class TimeGrowNexus{
         }
   
 
-        $controller = new TimeGrowNexusController($view_dashboard, $view_clock, $view_manual, $view_expense, $view_report, $projects, $reports);
+        $controller = new TimeGrowNexusController($model, $view_dashboard, $view_clock, $view_manual, $view_expense, $view_report, $projects, $reports);
         $controller->display_admin_page($screen);
     }
 }
