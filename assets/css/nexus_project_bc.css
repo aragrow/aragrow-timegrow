@@ -52,7 +52,7 @@
     background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%); */
     border: 1px solid #dee2e6; /* Lighter, more refined border */
     border-radius: 12px;     /* Softer, more modern rounding */
-    padding: 18px;          /* Adjusted padding */
+    padding: 8px;          /* Adjusted padding */
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0,0,0,0.04); /* Softer, layered shadow */
     transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1),
                 box-shadow 0.3s cubic-bezier(0.25, 0.8, 0.25, 1),

@@ -76,7 +76,7 @@ class TimeGrowTimeEntryModel {
                     INNER JOIN {$this->table_name2} p ON t.project_id = p.ID
                     INNER JOIN {$this->table_name3} m ON t.member_id = m.ID
                     WHERE t.ID IN ($placeholders)  
-                    ORDER BY m.name, p.name, t.date"
+                    ORDER BY t.date desc, m.name, p.name"
             );
         }
         // If a single ID is provided
@@ -97,10 +97,10 @@ class TimeGrowTimeEntryModel {
                 FROM {$this->table_name} t
                 INNER JOIN {$this->table_name2} p ON t.project_id = p.ID
                 INNER JOIN {$this->table_name3} m ON t.member_id = m.ID
-                ORDER BY m.name, p.name, t.date";
+                ORDER BY t.date desc, m.name, p.name";
         }
         $results = $this->wpdb->get_results($sql);
-      //  var_dump($this->wpdb->last_query);
+        //var_dump($this->wpdb->last_query);
         return $results;
   
     }

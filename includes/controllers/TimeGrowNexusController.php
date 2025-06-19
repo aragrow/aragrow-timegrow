@@ -15,6 +15,7 @@ class TimeGrowNexusController{
     private $view_report;
     private $projects;
     private $reports;
+    private $list;
 
     public function __construct(
         TimeGrowTimeEntryModel $model,
@@ -24,9 +25,11 @@ class TimeGrowNexusController{
         TimeGrowNexusExpenseView $view_expense,
         TimeGrowNexusReportView $view_report,
         $projects = [],
-        $reports = []   
+        $reports = [],   
+        $list = [] // Default to empty array
     ) {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);   
+        
         $this->model=$model;
         $this->view_dashboard = $view_dashboard;
         $this->view_clock = $view_clock;
@@ -35,11 +38,12 @@ class TimeGrowNexusController{
         $this->view_report = $view_report;
         $this->projects = $projects;
         $this->reports = $reports;
+        $this->list = $list;
     }
 
- public function handle_form_submission() {
+    public function handle_form_submission() {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
-        
+       
         if (isset($_POST['time_entry_id']))  $this->handle_form_submission_time_entry(); 
         else if (isset($_POST['expense_id']))  $this->handle_form_submission_expense(); 
 
@@ -51,12 +55,19 @@ class TimeGrowNexusController{
         
         $user = wp_get_current_user();
 
+        if (( isset($_POST['time_entry_id']) || isset($_POST['expense_id']) )) {
+            var_dump('processing form');
+            $this->handle_form_submission();
+            $screen = 'list';
+        }
+
+
         if ($screen == 'dashboard')
             $this->view_dashboard->display($user);
         elseif ($screen == 'clock')
-            $this->view_clock->display($user, $this->projects);
+            $this->view_clock->display($user, $this->projects, $this->list);
         elseif ($screen == 'manual')
-            $this->view_manual->display($user, $this->projects);
+            $this->view_manual->display($user, $this->projects, $this->list);
         elseif ($screen == 'expenses')
             $this->view_expense->display($user, $this->projects);
         elseif ($screen == 'reports')

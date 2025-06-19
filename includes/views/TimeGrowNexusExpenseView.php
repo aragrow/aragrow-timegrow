@@ -57,22 +57,24 @@ class TimeGrowNexusExpenseView {
                     <div class="expense-form-stage">
                         <h2>3. Expense Details</h2>
                         <form id="expense-form">
-                            <input type="hidden" id="manual-project-id" name="project_id_for_expense">
+                            <input type="hidden" id="expense_id" name="expense_id">
+                            <input type="hidden" name="action" value="save_expense">
+                            <input type="hidden" name="member_id" value="<?php echo $user->ID ?>" />
                             <!-- Project Drop Section -->
-<!-- Inside your <form id="expense-form"> in TimeGrowNexusExpenseView.php -->
-<div id="expense-project-drop-section" class="timegrow-drop-section">
-    <p class="drop-zone-text"><?php esc_html_e('Assign to Project (Optional - Drag Project Below)', 'timegrow'); ?></p>
-    <div id="expense-drop-zone-display" class="selected-item-display" style="min-height: 60px; /* Ensure space */ display: block; /* Make it always visible */ text-align: center;">
-        <!-- This will be populated by JS -->
-        <span class="project-drop-placeholder"><?php esc_html_e('Drop Project Here', 'timegrow'); ?></span>
-        <div class="selected-project-details" style="display:none;">
-            <!-- JS will fill this: Project selected: Project Name (ID) <br/> Description -->
-        </div>
-        <button type="button" id="clear-dropped-project-btn" class="clear-selection-btn" style="display:none; margin-top: 5px;">Clear Project</button>
-    </div>
-    <!-- Hidden input to store the selected project ID -->
-    <input type="hidden" id="selected-expense-project-id" name="expense_project_id">
-</div>
+                            <!-- Inside your <form id="expense-form"> in TimeGrowNexusExpenseView.php -->
+                            <div id="expense-project-drop-section" class="timegrow-drop-section">
+                                <p class="drop-zone-text"><?php esc_html_e('Assign to Project (Optional - Drag Project Below)', 'timegrow'); ?></p>
+                                <div id="expense-drop-zone-display" class="selected-item-display" style="min-height: 60px; /* Ensure space */ display: block; /* Make it always visible */ text-align: center;">
+                                    <!-- This will be populated by JS -->
+                                    <span class="project-drop-placeholder"><?php esc_html_e('Drop Project Here', 'timegrow'); ?></span>
+                                    <div class="selected-project-details" style="display:none;">
+                                        <!-- JS will fill this: Project selected: Project Name (ID) <br/> Description -->
+                                    </div>
+                                    <button type="button" id="clear-dropped-project-btn" class="clear-selection-btn" style="display:none; margin-top: 5px;">Clear Project</button>
+                                </div>
+                                <!-- Hidden input to store the selected project ID -->
+                                <input type="hidden" id="selected-expense-project-id" name="expense_project_id">
+                            </div>
                             <div class="form-grid">
                                 <div class="form-group">
                                     <label for="expense-date">Date of Expense <span class="required">*</span></label>

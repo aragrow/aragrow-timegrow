@@ -26,7 +26,7 @@ class TimeGrowNexus{
             TIMEGROW_PARENT_MENU,
             'Nexus',
             'Nexus',
-            TIMEGROW_OWNER_CAP,
+            'nexus4timegrow',
             TIMEGROW_PARENT_MENU . '-nexus',
             function() { // Define a closure
                 $this->tracker_mvc_admin_page( 'dashboard' ); // Call the tracker_mvc method, passing the parameter
@@ -37,7 +37,7 @@ class TimeGrowNexus{
             null,
             'Clock',
             'Clock',
-            TIMEGROW_OWNER_CAP,
+            'nexus4timegrow',
             TIMEGROW_PARENT_MENU . '-nexus-clock',
             function() { // Define a closure
                 $this->tracker_mvc_admin_page( 'clock' ); // Call the tracker_mvc method, passing the parameter
@@ -48,7 +48,7 @@ class TimeGrowNexus{
             null,
             'Manual',
             'Manual',
-            TIMEGROW_OWNER_CAP,
+            'nexus4timegrow',
             TIMEGROW_PARENT_MENU . '-nexus-manual',
             function() { // Define a closure
                 $this->tracker_mvc_admin_page( 'manual' ); // Call the tracker_mvc method, passing the parameter
@@ -59,7 +59,7 @@ class TimeGrowNexus{
             null,
             'Expenses',
             'Expenses',
-            TIMEGROW_OWNER_CAP,
+           'nexus4timegrow',
             TIMEGROW_PARENT_MENU . '-nexus-expenses',
             function() { // Define a closure
                 $this->tracker_mvc_admin_page( 'expenses' ); // Call the tracker_mvc method, passing the parameter
@@ -70,7 +70,7 @@ class TimeGrowNexus{
             null,
             __('Reports', 'timegrow'),         // Page title
             __('Reports', 'timegrow'),         // Menu title
-            TIMEGROW_OWNER_CAP,
+            'nexus4timegrow',
             TIMEGROW_PARENT_MENU . '-nexus-reports', // Menu slug
             function() { // Define a closure
                 $this->tracker_mvc_admin_page( 'reports' ); // Call the tracker_mvc method, passing the parameter
@@ -83,7 +83,7 @@ class TimeGrowNexus{
             null,                              // No parent menu (hidden)
             __('View A Report', 'timegrow'),     // Page title (for browser tab)
             __('View A Report', 'timegrow'),     // Menu title (not shown)
-            TIMEGROW_OWNER_CAP,
+            'nexus4timegrow',
             TIMEGROW_PARENT_MENU . '-nexus-a-report',
             function() { // Define a closure
                 $this->tracker_mvc_admin_page( 'areport' ); // Call the tracker_mvc method, passing the parameter
@@ -200,6 +200,7 @@ class TimeGrowNexus{
     public function tracker_mvc_admin_page($screen) {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         $model = new TimeGrowTimeEntryModel();
+        $model_entry = new TimeGrowTimeEntryModel();
         $view_dashboard = new TimeGrowNexusView();
         $view_clock = new TimeGrowNexusClockView();
         $view_manual = new TimeGrowNexusManualView();
@@ -209,22 +210,25 @@ class TimeGrowNexus{
 
         $projects = []; // Default to empty array
         $reports = []; // Default to empty array
+        $list = []; // Default to empty array
       
         if ( $screen == 'clock' or $screen == 'manual' or $screen == 'expenses' ) {
             $team_member_model = new TimeGrowTeamMemberModel();
             if (current_user_can('administrator') ) {
                 // User is an administrator
                 $projects = $team_member_model->get_projects_for_member(-1); // -1 for admin means all projects
+                $list = $model_entry->select(); // -1 for admin means all projects
             } else {
                 // User is not an administrator, get projects for the current user
                 $projects = $team_member_model->get_projects_for_member(get_current_user_id());
+                $list = $model_entry->select(get_current_user_id()); // Get entries for the current user
             }
         } if ( $screen == 'reports' ) {
-            $$reports = $controller_reports->get_available_reports_for_user(wp_get_current_user()); 
+            $reports = $controller_reports->get_available_reports_for_user(wp_get_current_user()); 
         }
   
 
-        $controller = new TimeGrowNexusController($model, $view_dashboard, $view_clock, $view_manual, $view_expense, $view_report, $projects, $reports);
+        $controller = new TimeGrowNexusController($model, $view_dashboard, $view_clock, $view_manual, $view_expense, $view_report, $projects, $reports, $list);
         $controller->display_admin_page($screen);
     }
 }

@@ -13,7 +13,8 @@ class TimeGrowNexusManualView {
      * @param WP_User $user The current WordPress user object.
      * @param array $args Additional arguments.
      */
-    public function display($user, $projects = []) {
+    public function display($user, $projects = [], $list = []) {
+        if (WP_DEBUG) error_log(__CLASS__ . '::' . __FUNCTION__);
         if (!$user || !$user->ID) {
             echo '<div class="wrap"><p>' . esc_html__('Error: User not found or not logged in.', 'timegrow') . '</p></div>';
             return;
@@ -55,6 +56,11 @@ class TimeGrowNexusManualView {
                     <?php endforeach; ?>
                 </div>
             </div>
+
+
+
+
+
             <div class="timegrow-manual-container"  style="float:right">     
                 <!-- Manual Entry Form -->
                     <form id="timegrow-company-form" class="wp-core-ui" method="POST" enctype="multipart/form-data">
@@ -109,18 +115,90 @@ class TimeGrowNexusManualView {
             wp_localize_script('timegrow-manual-js', 'timegrowManualAppData', $js_data);
             ?>
         </div>
+
+        <?php
+        // Section to display existing manual entries
+        
+        // Handle GET parameters
+        $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
+        $sort = isset($_GET['sort']) ? $_GET['sort'] : 'date';
+        $order = isset($_GET['order']) && strtolower($_GET['order']) === 'desc' ? 'desc' : 'asc';
+        $filter_project = isset($_GET['project']) ? sanitize_text_field($_GET['project']) : '';
+
+        $entries_per_page = 15;
+
+        // Filter by project
+        if (!empty($filter_project)) {
+            $time_entries = array_filter($list, function($entry) use ($filter_project) {
+                return $entry['project_id'] === $filter_project;
+            });
+        }
+
+        // Paginate
+        $total_entries = count($list);
+        $total_pages = ceil($total_entries / $entries_per_page);
+        $offset = ($page - 1) * $entries_per_page;
+        $current_entries = array_slice($list, $offset, $entries_per_page);
+
+        //var_dump($current_entries);
+        // URL helper
+        function build_entry_query($overrides = []) {
+            $params = array_merge($_GET, $overrides);
+            return '?' . http_build_query($params);
+        }
+        ?>
+
+        <br clear="all" />
+        <h2><?php esc_html_e('Existing Manual Entries', 'timegrow'); ?></h2>
+        <p><?php esc_html_e('You can edit or delete entries by clicking on them.', 'timegrow'); ?></p>
+        <div class="time-entries">
+            <form method="get" class="filter-form" style="margin-bottom: 1rem;" action="">
+                <select name="project" onchange="this.form.submit()">
+                    <option value="">All Projects</option>
+                    <?php foreach ($projects as $project): ?>
+                        <option value="<?= esc_attr($project->ID) ?>" <?= selected($filter_project, $project->ID, false) ?>>
+                            <?= esc_html($project->name) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </form>
+
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr>
+                        <th>Project</th>
+                        <th>Date</th>
+                        <!-- Add more columns if needed -->
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if (empty($current_entries)): ?>
+                        <tr><td colspan="2">No entries found.</td></tr>
+                    <?php else: ?>
+                        <?php foreach ($current_entries as $entry): ?>
+                            <tr>
+                                <td><?php echo esc_html($entry->project_name); ?></td>
+                                <td><?php echo esc_html(date('Y-m-d', strtotime($entry->date))); ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+
+            <!-- Pagination -->
+            <div class="pagination" style="margin-top: 1rem;">
+                <?php if ($page > 1): ?>
+                    <a href="<?= build_query(['page' => $page - 1]) ?>">« Prev</a>
+                <?php endif; ?>
+                <span>Page <?= $page ?> of <?= $total_pages ?></span>
+                <?php if ($page < $total_pages): ?>
+                    <a href="<?= build_query(['page' => $page + 1]) ?>">Next »</a>
+                <?php endif; ?>
+            </div>
+        </div>
+
+
         <?php
     }
 
-    /**
-     * Gets projects for a user. Replace with your actual implementation.
-     */
-    private function get_projects_for_user($user_id) {
-        // Example hard-coded; replace with CPT, user_meta, etc.
-        return [
-            ['id' => 'project_1', 'name' => 'Project A'],
-            ['id' => 'project_2', 'name' => 'Project B'],
-            ['id' => 'project_3', 'name' => 'Project C'],
-        ];
-    }
 }
