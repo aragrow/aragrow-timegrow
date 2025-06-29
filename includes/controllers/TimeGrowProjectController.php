@@ -14,7 +14,7 @@ class TimeGrowProjectController{
     private $model_client;
     private $model_product;
 
-    public function __construct(TimeGrowProjectModel $model, TimeGrowProjectView $view, TimeGrowClientModel $model_client, TimeGrowWcProductModel $model_product) {
+    public function __construct(TimeGrowProjectModel $model, TimeGrowProjectView $view, TimeGrowClientModel $model_client, TimeGrowWooProductModel $model_product) {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);   
         $this->model = $model;
         $this->view = $view;

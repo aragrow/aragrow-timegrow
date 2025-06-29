@@ -214,4 +214,27 @@ class TimeGrowTimeEntryModel {
             );
         }
     }
+
+    public function get_time_entries_to_bill() {
+        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        global $wpdb;
+        $result = True;
+        return $result;
+    }
+
+    public static function mark_entries_as_billed($time_entries) {
+        global $wpdb;
+        $table = 'wp_time_entries'; // replace with your actual table
+
+        foreach ($entries as $entry) {
+            $wpdb->update(
+                $table,
+                ['billed' => 1, 'updated_at' => current_time('mysql')],
+                ['ID' => $entry['ID']],
+                ['%d', '%s'],
+                ['%d']
+            );
+        }
+    }
+
 }

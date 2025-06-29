@@ -82,7 +82,7 @@ class TimeGrowProject{
         $model = new TimeGrowProjectModel();
         $view = new TimeGrowProjectView();
         $model_wc_client = new TimeGrowClientModel();
-        $model_wc_product = new TimeGrowWcProductModel();
+        $model_wc_product = new TimeGrowWooProductModel();
         $controller = new TimeGrowProjectController($model, $view, $model_wc_client,  $model_wc_product);
         $controller->display_admin_page($screen);
     }

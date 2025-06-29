@@ -4,7 +4,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-class TimeGrowWcProductModel {
+class TimeGrowWooProductModel {
 
     private $table_name;
     private $wpdb;

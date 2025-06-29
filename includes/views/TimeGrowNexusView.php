@@ -55,13 +55,23 @@ class TimeGrowNexusView {
                     </div>
                 </a>
 
-                <a href="<?php echo esc_url("\?page=".TIMEGROW_PARENT_MENU."nexus-settings"); ?>" class="timegrow-tile">
+                <a href="<?php echo esc_url("\?page=".TIMEGROW_PARENT_MENU."-nexus-settings"); ?>" class="timegrow-tile">
                     <div class="timegrow-tile-icon">
                         <span class="dashicons dashicons-admin-settings"></span>
                     </div>
                     <div class="timegrow-tile-content">
                         <h2><?php esc_html_e('Settings', 'timegrow'); ?></h2>
                         <p><?php esc_html_e('Configure plugin integrations and options.', 'timegrow'); ?> <span class="soon-badge"><?php esc_html_e('Coming Soon', 'timegrow'); ?></span></p>
+                    </div>
+                </a>
+
+                <a href="<?php echo esc_url("\?page=".TIMEGROW_PARENT_MENU."-nexus-process-time"); ?>" class="timegrow-tile">
+                    <div class="timegrow-tile-icon">
+                        <span class="dashicons dashicons-paperclip"></span>
+                    </div>
+                    <div class="timegrow-tile-content">
+                        <h2><?php esc_html_e('Process Time', 'timegrow'); ?></h2>
+                        <p><?php esc_html_e('Process time and attach to Woo Product.', 'timegrow'); ?></p>
                     </div>
                 </a>
 

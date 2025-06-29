@@ -68,6 +68,17 @@ class TimeGrowNexus{
 
         add_submenu_page(
             null,
+            'Process Time',
+            'Process Time',
+           'nexus4timegrow',
+            TIMEGROW_PARENT_MENU . '-nexus-process-time',
+            function() { // Define a closure
+                $this->tracker_mvc_admin_page( 'process_time' ); // Call the tracker_mvc method, passing the parameter
+            },
+        );
+
+        add_submenu_page(
+            null,
             __('Reports', 'timegrow'),         // Page title
             __('Reports', 'timegrow'),         // Menu title
             'nexus4timegrow',
@@ -211,7 +222,7 @@ class TimeGrowNexus{
         $projects = []; // Default to empty array
         $reports = []; // Default to empty array
         $list = []; // Default to empty array
-      
+    
         if ( $screen == 'clock' or $screen == 'manual' or $screen == 'expenses' ) {
             $team_member_model = new TimeGrowTeamMemberModel();
             if (current_user_can('administrator') ) {
@@ -223,12 +234,79 @@ class TimeGrowNexus{
                 $projects = $team_member_model->get_projects_for_member(get_current_user_id());
                 $list = $model_entry->select(get_current_user_id()); // Get entries for the current user
             }
-        } if ( $screen == 'reports' ) {
+        } elseif ( $screen == 'reports' ) {
             $reports = $controller_reports->get_available_reports_for_user(wp_get_current_user()); 
+        } elseif ($screen == 'process_time') {
+            $time_entries = $model_entry->get_time_entries_to_bill();
+            $orders = $this->create_woo_orders_and_products($time_entries);
+            $mark_time_entries_as_billed = $model_entry->get_time_entries_to_bill($time_entries);
+            print($orders);
+            exit();
         }
-  
+
 
         $controller = new TimeGrowNexusController($model, $view_dashboard, $view_clock, $view_manual, $view_expense, $view_report, $projects, $reports, $list);
         $controller->display_admin_page($screen);
     }
+
+    public function create_woo_orders_and_products($time_entries) {
+        if (empty($time_entries)) return [];
+
+        // Group entries by project_id
+        $entries_by_project = [];
+        foreach ($time_entries as $entry) {
+            if (!isset($entries_by_project[$entry['project_id']])) {
+                $entries_by_project[$entry['project_id']] = [];
+            }
+            $entries_by_project[$entry['project_id']][] = $entry;
+        }
+
+        $order_ids = [];
+
+        foreach ($entries_by_project as $project_id => $entries) {
+            $order = wc_create_order(['customer_id' => $user_id]);
+
+            foreach ($entries as $entry) {
+                if (!$entry['billable']) continue;
+
+                $hours = (float) $entry['hours'];
+                $rate = self::get_project_rate($project_id); // You can customize this
+                $total = round($hours * $rate, 2);
+
+                // Create virtual product on the fly (no need to persist it)
+                $product = new WC_Product();
+                $product->set_name("{$hours}h - {$entry['description']}");
+                $product->set_regular_price($total);
+                $product->set_virtual(true);
+                $product->set_catalog_visibility('hidden');
+                $product->save();
+
+                // Add as line item
+                $item = new WC_Order_Item_Product();
+                $item->set_product($product);
+                $item->set_quantity(1);
+                $item->set_total($total);
+                $order->add_item($item);
+            }
+
+            $order->calculate_totals();
+            $order->update_status('processing');
+
+            $order_ids[] = $order->get_id();
+
+            // Optionally update billed status
+            self::mark_entries_as_billed($entries);
+        }
+    
+        if (is_wp_error($order_id)) {
+            error_log('Order creation failed: ' . $order_id->get_error_message());
+        } else {
+            error_log('Order created successfully: ID ' . $order_id);
+        }
+        
+        return $order_ids;
+    }
+
+
+
 }
