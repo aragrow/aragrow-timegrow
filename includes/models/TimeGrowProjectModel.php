@@ -10,6 +10,7 @@ class TimeGrowProjectModel {
     private $table_name2;
     private $table_name3;
     private $table_name4;
+    private $table_name5;
     private $wpdb;
     private $charset_collate;
     private $allowed_fields;
@@ -23,6 +24,7 @@ class TimeGrowProjectModel {
         $this->table_name2 = $this->wpdb->prefix . 'users'; // Make sure this matches your table name
         $this->table_name3 = $this->wpdb->prefix . 'posts'; // Make sure this matches your table name
         $this->table_name4 = $this->wpdb->prefix . TIMEGROW_PREFIX . 'team_member_projects_tracker'; // Make sure this matches your table name
+        $this->table_name5 = $this->wpdb->prefix . TIMEGROW_PREFIX . 'company_tracker'; // Make sure this matches your table name
         $this->allowed_fields = ['client_id', 'name', 
                                 'status', 'description',
                                 'billable', 'default_flat_fee',
@@ -226,6 +228,48 @@ class TimeGrowProjectModel {
                 array('status' => 503) // Optional additional data
             );
         }
+    }
+
+    public function get_project_rate($project_id) {
+
+        $sql = $this->wpdb->prepare(
+            "SELECT default_flat_fee
+            FROM {$this->table_name}  
+            WHERE ID = %d)",
+            $project_id
+        );
+        $return = $this->wpdb->get_results($sql);
+
+        return $return;
+
+    }
+
+    public function get_client_rate($client_id) {
+
+        $sql = $this->wpdb->prepare(
+            "SELECT default_flat_fee
+            FROM {$this->table_name2}  
+            WHERE ID = %d)",
+            $client_id
+        );
+        $return = $this->wpdb->get_results($sql);
+
+        return $return;
+
+    }
+
+    public function get_company_rate($company_id) {
+
+        $sql = $this->wpdb->prepare(
+            "SELECT default_flat_fee
+            FROM {$this->table_name5}  
+            WHERE ID = %d)",
+            $company_id
+        );
+        $return = $this->wpdb->get_results($sql);
+
+        return $return;
+
     }
 
 }

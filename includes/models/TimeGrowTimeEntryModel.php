@@ -21,7 +21,7 @@ class TimeGrowTimeEntryModel {
         $this->table_name = $this->wpdb->prefix . TIMEGROW_PREFIX . 'time_entry_tracker'; // Make sure this matches your table name
         $this->table_name2 = $this->wpdb->prefix . TIMEGROW_PREFIX . 'project_tracker'; // Make sure this matches your table name
         $this->table_name3 = $this->wpdb->prefix . TIMEGROW_PREFIX . 'team_member_tracker'; // Make sure this matches your table name
-
+       
         $this->allowed_fields = ['project_id', 'member_id', 
                                 'clock_in_date', 'clock_out_date', 
                                 'date','hours', 'billable', 'billed',
@@ -71,7 +71,7 @@ class TimeGrowTimeEntryModel {
             $ids = array_map('intval', $ids); // Sanitize IDs
             $placeholders = implode(',', array_fill(0, count($ids), '%d')); // Create placeholders for prepared statement
             $sql = $this->wpdb->prepare(
-                "SELECT t.*, p.name as project_name, m.name as member_name 
+                "SELECT t.*, p.name as project_name, m.name as member_name, p.client_id
                     FROM {$this->table_name} t 
                     INNER JOIN {$this->table_name2} p ON t.project_id = p.ID
                     INNER JOIN {$this->table_name3} m ON t.member_id = m.ID
@@ -83,7 +83,7 @@ class TimeGrowTimeEntryModel {
         elseif (intval($ids)) {
             $id = intval($ids); // Sanitize ID
             $sql = $this->wpdb->prepare(
-                "SELECT t.*, p.name as project_name, m.name as member_name
+                "SELECT t.*, p.name as project_name, m.name as member_name, c.ID as client_id, c.name as client_name
                     FROM {$this->table_name} t
                     INNER JOIN {$this->table_name2} p ON t.project_id = p.ID
                     INNER JOIN {$this->table_name3} m ON t.member_id = m.ID
@@ -93,7 +93,7 @@ class TimeGrowTimeEntryModel {
         }
         // If no IDs are provided, fetch all rows
         else {
-            $sql = "SELECT t.*, p.name as project_name, m.name as member_name 
+            $sql = "SELECT t.*, p.name as project_name, m.name as member_name, , p.client_id 
                 FROM {$this->table_name} t
                 INNER JOIN {$this->table_name2} p ON t.project_id = p.ID
                 INNER JOIN {$this->table_name3} m ON t.member_id = m.ID
@@ -118,7 +118,7 @@ class TimeGrowTimeEntryModel {
         $id = intval($id); // Sanitize ID
 
         // Whitelist allowed fields to prevent SQL injection
-         $sanitized_data = [];
+        $sanitized_data = [];
 
         foreach ($data as $key => $value) {
             if (in_array($key,  $this->allowed_fields , true)) {
@@ -226,7 +226,7 @@ class TimeGrowTimeEntryModel {
         global $wpdb;
         $table = 'wp_time_entries'; // replace with your actual table
 
-        foreach ($entries as $entry) {
+        foreach ($time_entries as $entry) {
             $wpdb->update(
                 $table,
                 ['billed' => 1, 'updated_at' => current_time('mysql')],

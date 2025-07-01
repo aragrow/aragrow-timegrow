@@ -262,20 +262,36 @@ class TimeGrowNexus{
         }
 
         $order_ids = [];
-
+        $model_project = new TimeGrowProjectModel();
+        
         foreach ($entries_by_project as $project_id => $entries) {
-            $order = wc_create_order(['customer_id' => $user_id]);
+            if (!$entries['project_id']) continue;
+            if (!$entries['client_id']) continue;
+            $client_id = (int) $entry['client_id'];
+            $order = wc_create_order(['customer_id' => $client_id]);
 
             foreach ($entries as $entry) {
                 if (!$entry['billable']) continue;
-
+                if ($entry['billed']) continue;
+                
                 $hours = (float) $entry['hours'];
-                $rate = self::get_project_rate($project_id); // You can customize this
+                
+                $rate = $model_project->get_project_rate($project_id); // You can customize this
+                if (!$rate) {
+                    $rate = $model_project->get_client_rate($client_id); // You can customize this
+                }
+                elseif (!$rate) {
+                    $rate = $model_project->get_company_rate(1); // You can customize this
+                }
+                elseif (!$rate) {
+                    $rate = 75;
+                }
+
                 $total = round($hours * $rate, 2);
 
                 // Create virtual product on the fly (no need to persist it)
                 $product = new WC_Product();
-                $product->set_name("{$hours}h - {$entry['description']}");
+                $product->set_name($hours . 'h - ' . $entry['description']);
                 $product->set_regular_price($total);
                 $product->set_virtual(true);
                 $product->set_catalog_visibility('hidden');
@@ -284,7 +300,7 @@ class TimeGrowNexus{
                 // Add as line item
                 $item = new WC_Order_Item_Product();
                 $item->set_product($product);
-                $item->set_quantity(1);
+                $item->set_quantity($hours);
                 $item->set_total($total);
                 $order->add_item($item);
             }
@@ -294,8 +310,6 @@ class TimeGrowNexus{
 
             $order_ids[] = $order->get_id();
 
-            // Optionally update billed status
-            self::mark_entries_as_billed($entries);
         }
     
         if (is_wp_error($order_id)) {
