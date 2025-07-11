@@ -238,7 +238,16 @@ class TimeGrowNexus{
             $reports = $controller_reports->get_available_reports_for_user(wp_get_current_user()); 
         } elseif ($screen == 'process_time') {
             $time_entries = $model_entry->get_time_entries_to_bill();
+            if (empty($time_entries)) {
+                print('No time entries found');
+                exit;
+            }
+
             $orders = $this->create_woo_orders_and_products($time_entries);
+            if (empty($orders)) {
+                print('No orders created');
+                exit();
+            }
             $mark_time_entries_as_billed = $model_entry->get_time_entries_to_bill($time_entries);
             print($orders);
             exit();
@@ -250,73 +259,108 @@ class TimeGrowNexus{
     }
 
     public function create_woo_orders_and_products($time_entries) {
+        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         if (empty($time_entries)) return [];
-
         // Group entries by project_id
-        $entries_by_project = [];
+
+        $entries_by_clients = [];
         foreach ($time_entries as $entry) {
-            if (!isset($entries_by_project[$entry['project_id']])) {
-                $entries_by_project[$entry['project_id']] = [];
+            if (!isset($entries_by_clients[$entry->client_id])) {
+                $entries_by_client[$entry->client_id] = [];
             }
-            $entries_by_project[$entry['project_id']][] = $entry;
+            if (!isset($entries_by_clients[$entry->client_id][$entry->project_id])) {
+                $entries_by_clients[$entry->client_id][$entry->project_id] = [];
+            }
+            $entries_by_clients[$entry->client_id][] = $entry;
         }
+
 
         $order_ids = [];
         $model_project = new TimeGrowProjectModel();
-        
-        foreach ($entries_by_project as $project_id => $entries) {
-            if (!$entries['project_id']) continue;
-            if (!$entries['client_id']) continue;
-            $client_id = (int) $entry['client_id'];
+        $model_product = new TimeGrowProjectModel();
+
+        foreach ($entries_by_clients as $client_id => $entries) {
+            
             $order = wc_create_order(['customer_id' => $client_id]);
 
-            foreach ($entries as $entry) {
-                if (!$entry['billable']) continue;
-                if ($entry['billed']) continue;
+            foreach ($entries_by_clients['client_id'] as $project_id => $entries) {
                 
-                $hours = (float) $entry['hours'];
-                
-                $rate = $model_project->get_project_rate($project_id); // You can customize this
-                if (!$rate) {
-                    $rate = $model_project->get_client_rate($client_id); // You can customize this
+                $project = $model_product->select($project_id);
+                if(!$project) {
+                    error_log('Order creation failed: ' . 'Woo Commerce for Product for Project not found: '. $project_id);
+                    continue;
                 }
-                elseif (!$rate) {
-                    $rate = $model_project->get_company_rate(1); // You can customize this
+                //var_dump($project);
+                $product_id = $project[0]->product_id;
+                $woo_product = wc_get_product($product_id);
+
+
+                $rate = $model_project->get_project_rate($project_id);
+                $the_rate = $rate[0]->default_flat_fee ?? null;
+
+                if (!$rate || bccomp($the_rate, '0.00', 2) === 0) {
+                    $rate = $model_project->get_client_rate($client_id);
+                    $the_rate = $rate[0]->default_flat_fee ?? null;
                 }
-                elseif (!$rate) {
-                    $rate = 75;
+                if (!$the_rate || bccomp($the_rate, '0.00', 2) === 0){
+                    $rate = $model_project->get_company_rate(1);
+                    $the_rate = $rate[0]->default_flat_fee ?? null;
+                }
+                if (!$the_rate || bccomp($the_rate, '0.00', 2) === 0){
+                    $the_rate = 75;
                 }
 
-                $total = round($hours * $rate, 2);
+                $product_hours = 0;
+                $product_total = 0;
 
-                // Create virtual product on the fly (no need to persist it)
-                $product = new WC_Product();
-                $product->set_name($hours . 'h - ' . $entry['description']);
-                $product->set_regular_price($total);
-                $product->set_virtual(true);
-                $product->set_catalog_visibility('hidden');
-                $product->save();
+                foreach ($entries as $entry) {
+                    if (empty($entry->billable)) continue;
+                    if (!empty($entry->billed)) continue;
+                    $project_id = (int) $entry->project_id;
+                    if ($entry->type == "MAN") {
+                        $product_hours += (float) $entry->hours;
+                    } 
+                
+                    print("Project ID: $project_id, WOO Product ID: $product_id, Hours: $entry->hours, Rate: $the_rate\n");
+                
+
+                } // End loop entries
+
+                $product_total = round($product_hours * $the_rate, 2);
+
+                if (!$woo_product) {
+                    // Product does not exist, create it
+                    $product_name = 'Project ' . $project_id . ' - ' . $model_project->select($project_id)->name;
+                    $product = new WC_Product_Simple();
+                    $product->set_name($product_name);
+                    $product->set_sku('nexus_project_' . $project_id);
+                    $product->set_regular_price($rate);
+                    $product->set_virtual(true);
+                    $product->set_catalog_visibility('hidden');
+                    $product->save();
+                    $product_id = $product->get_id();
+                } else {
+                    $product_name = $woo_product->get_name();
+                }
 
                 // Add as line item
                 $item = new WC_Order_Item_Product();
-                $item->set_product($product);
-                $item->set_quantity($hours);
-                $item->set_total($total);
+                
+                $item->set_product_id($product_id);
+                $item->set_name($product_name);
+                $item->set_quantity($product_hours);
+                $item->set_total($product_total);
+                
                 $order->add_item($item);
-            }
+
+            } // End loop thru time for projects
 
             $order->calculate_totals();
             $order->update_status('processing');
 
             $order_ids[] = $order->get_id();
 
-        }
-    
-        if (is_wp_error($order_id)) {
-            error_log('Order creation failed: ' . $order_id->get_error_message());
-        } else {
-            error_log('Order created successfully: ID ' . $order_id);
-        }
+        } // End loop thru projects for clients
         
         return $order_ids;
     }

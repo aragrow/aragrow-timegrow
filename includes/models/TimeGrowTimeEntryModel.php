@@ -218,8 +218,17 @@ class TimeGrowTimeEntryModel {
     public function get_time_entries_to_bill() {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         global $wpdb;
-        $result = True;
-        return $result;
+        $sql = "SELECT t.*, p.name as project_name, m.name as member_name, p.client_id 
+        FROM {$this->table_name} t
+        INNER JOIN {$this->table_name2} p ON t.project_id = p.ID
+        INNER JOIN {$this->table_name3} m ON t.member_id = m.ID
+        WHERE t.billed = 0 AND t.billable = 1
+        ORDER BY t.client_id, t.project_id, t.date";
+        
+        $results = $this->wpdb->get_results($sql);
+
+        return $results;
+
     }
 
     public static function mark_entries_as_billed($time_entries) {

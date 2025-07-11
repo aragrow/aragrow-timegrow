@@ -235,7 +235,7 @@ class TimeGrowProjectModel {
         $sql = $this->wpdb->prepare(
             "SELECT default_flat_fee
             FROM {$this->table_name}  
-            WHERE ID = %d)",
+            WHERE ID = %d",
             $project_id
         );
         $return = $this->wpdb->get_results($sql);
@@ -249,7 +249,7 @@ class TimeGrowProjectModel {
         $sql = $this->wpdb->prepare(
             "SELECT default_flat_fee
             FROM {$this->table_name2}  
-            WHERE ID = %d)",
+            WHERE ID = %d",
             $client_id
         );
         $return = $this->wpdb->get_results($sql);
@@ -263,7 +263,7 @@ class TimeGrowProjectModel {
         $sql = $this->wpdb->prepare(
             "SELECT default_flat_fee
             FROM {$this->table_name5}  
-            WHERE ID = %d)",
+            WHERE ID = %d",
             $company_id
         );
         $return = $this->wpdb->get_results($sql);
