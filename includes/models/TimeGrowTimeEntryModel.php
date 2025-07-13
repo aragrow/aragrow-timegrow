@@ -9,6 +9,7 @@ class TimeGrowTimeEntryModel {
     private $table_name;
     private $table_name2;
     private $table_name3;
+    private $table_user;
     private $wpdb;
     private $charset_collate;
     private $allowed_fields;
@@ -21,7 +22,8 @@ class TimeGrowTimeEntryModel {
         $this->table_name = $this->wpdb->prefix . TIMEGROW_PREFIX . 'time_entry_tracker'; // Make sure this matches your table name
         $this->table_name2 = $this->wpdb->prefix . TIMEGROW_PREFIX . 'project_tracker'; // Make sure this matches your table name
         $this->table_name3 = $this->wpdb->prefix . TIMEGROW_PREFIX . 'team_member_tracker'; // Make sure this matches your table name
-       
+        $this->table_user = $this->wpdb->prefix . 'users'; // Make sure this matches your table name
+      
         $this->allowed_fields = ['project_id', 'member_id', 
                                 'clock_in_date', 'clock_out_date', 
                                 'date','hours', 'billable', 'billed',
@@ -218,12 +220,13 @@ class TimeGrowTimeEntryModel {
     public function get_time_entries_to_bill() {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         global $wpdb;
-        $sql = "SELECT t.*, p.name as project_name, m.name as member_name, p.client_id 
+        $sql = "SELECT t.*, p.name as project_name, m.name as member_name, p.client_id, u.display_name
         FROM {$this->table_name} t
         INNER JOIN {$this->table_name2} p ON t.project_id = p.ID
         INNER JOIN {$this->table_name3} m ON t.member_id = m.ID
+        INNER JOIN {$this->table_user} u ON p.client_id = u.ID
         WHERE t.billed = 0 AND t.billable = 1
-        ORDER BY t.client_id, t.project_id, t.date";
+        ORDER BY p.client_id, t.project_id, t.ID";
         
         $results = $this->wpdb->get_results($sql);
 

@@ -249,7 +249,7 @@ class TimeGrowNexus{
                 exit();
             }
             $mark_time_entries_as_billed = $model_entry->get_time_entries_to_bill($time_entries);
-            print($orders);
+           // print($orders);
             exit();
         }
 
@@ -263,28 +263,38 @@ class TimeGrowNexus{
         if (empty($time_entries)) return [];
         // Group entries by project_id
 
-        $entries_by_clients = [];
-        foreach ($time_entries as $entry) {
-            if (!isset($entries_by_clients[$entry->client_id])) {
-                $entries_by_client[$entry->client_id] = [];
-            }
-            if (!isset($entries_by_clients[$entry->client_id][$entry->project_id])) {
-                $entries_by_clients[$entry->client_id][$entry->project_id] = [];
-            }
-            $entries_by_clients[$entry->client_id][] = $entry;
-        }
-
-
         $order_ids = [];
         $model_project = new TimeGrowProjectModel();
         $model_product = new TimeGrowProjectModel();
 
-        foreach ($entries_by_clients as $client_id => $entries) {
-            
+        $entries_by_clients = [];
+        foreach ($time_entries as $entry) {
+            // print('<br />Entry...<br />');
+            // print_r($entry);print('<br />');
+            // print('Client Id: '. $entry->client_id);
+            // print(' - Project Id: '. $entry->project_id);
+            if (!isset($entries_by_clients[$entry->client_id])) {
+                $entries_by_clients[$entry->client_id] = [];
+            }
+            if (!isset($entries_by_clients[$entry->client_id][$entry->project_id])) {
+                $entries_by_clients[$entry->client_id][$entry->project_id] = [];
+            }
+            $entries_by_clients[$entry->client_id][$entry->project_id][] = $entry;
+        }
+
+      //  print('<br />Array of entries...<br />');
+      //  print_r($entries_by_clients);
+
+        print('<br />Creating WooCommerce Orders and Products for Manual Entries...<br />');
+
+        foreach ($entries_by_clients as $client_id => $client_entries) {
+
+            print('<br />---> ');print('Client Id: '.$client_id);
             $order = wc_create_order(['customer_id' => $client_id]);
 
-            foreach ($entries_by_clients['client_id'] as $project_id => $entries) {
-                
+            foreach ($client_entries as $project_id => $entries) {
+          
+                //print_r($entries);
                 $project = $model_product->select($project_id);
                 if(!$project) {
                     error_log('Order creation failed: ' . 'Woo Commerce for Product for Project not found: '. $project_id);
@@ -310,38 +320,72 @@ class TimeGrowNexus{
                     $the_rate = 75;
                 }
 
+                print("<br />---------> Project Rate: $the_rate\n");
+                    
+
+                $product_manual_hours = 0;
+                $product_clock_hours = 0;
                 $product_hours = 0;
                 $product_total = 0;
 
                 foreach ($entries as $entry) {
-                    if (empty($entry->billable)) continue;
-                    if (!empty($entry->billed)) continue;
+                    if ($entry->entry_type != "MAN") continue;
+                    if ($entry->billable != 1) continue;
+                    if ($entry->billed != 0) continue;
+                    print("<br />------> Project Type: $entry->entry_type, Project ID: $project_id, WOO Product ID: $product_id\n");
                     $project_id = (int) $entry->project_id;
-                    if ($entry->type == "MAN") {
-                        $product_hours += (float) $entry->hours;
-                    } 
+                    $product_manual_hours += $entry->hours;
                 
-                    print("Project ID: $project_id, WOO Product ID: $product_id, Hours: $entry->hours, Rate: $the_rate\n");
-                
-
                 } // End loop entries
 
+                print('<br />---------> Manual Product Hours: '.$product_manual_hours);
+        
+                foreach ($entries as $entry) {
+                    if ($entry->entry_type == "MAN") continue;
+                    if (empty($entry->billable)) continue;
+                    if (!empty($entry->billed)) continue;
+                    print("<br />------> Project Type: $entry->entry_type, Project ID: $project_id, WOO Product ID: $product_id\n");
+                    if ($entry->entry_type == 'IN') 
+                        $clock_IN = $entry->clock_in_date;
+                    else
+                        $clock_OUT = $entry->clock_in_date;
+
+                    if (!isset($clock_IN) || !isset($clock_OUT)) continue;
+
+                    $project_id = (int) $entry->project_id;
+                    $hours = abs($clock_OUT - $clock_IN)/3600;
+                    $product_clock_hours += $hours;
+
+                    $clock_IN = '';
+                    $clock_OUT= ''; 
+                    print("<br />------------------> Hours: $hours, Rate: $the_rate\n");
+                
+                } // End loop entries
+
+                print('<br />---------> Clock In/Out Product Hours: '.$product_clock_hours);
+                $product_hours = $product_manual_hours + $product_clock_hours;  
                 $product_total = round($product_hours * $the_rate, 2);
 
+                print('<br /> -------> Product Total Hours: '.$product_hours);
+                print('<br /> -------> Product Total: '.$product_total);
+
                 if (!$woo_product) {
+                    $project = $model_project->select($project_id)[0];
                     // Product does not exist, create it
-                    $product_name = 'Project ' . $project_id . ' - ' . $model_project->select($project_id)->name;
+                    $product_name = $entry->display_name. ' - ' . $project->name;
                     $product = new WC_Product_Simple();
                     $product->set_name($product_name);
-                    $product->set_sku('nexus_project_' . $project_id);
-                    $product->set_regular_price($rate);
+                    $product->set_regular_price($the_rate);
                     $product->set_virtual(true);
+                    $product->set_category_ids([21]);
                     $product->set_catalog_visibility('hidden');
                     $product->save();
                     $product_id = $product->get_id();
                 } else {
                     $product_name = $woo_product->get_name();
                 }
+
+                print('<br /> ---------> Product Name: '.$product_name);
 
                 // Add as line item
                 $item = new WC_Order_Item_Product();
