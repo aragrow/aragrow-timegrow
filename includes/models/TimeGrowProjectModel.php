@@ -269,6 +269,19 @@ class TimeGrowProjectModel {
         $return = $this->wpdb->get_results($sql);
 
         return $return;
+    }
+
+    public function set_woo_product($project_id, $product_id) {
+
+        $sql = $this->wpdb->prepare(
+            "UPDATE  {$this->table_name}  
+            SET product_id = %d
+            WHERE ID = %d",
+            $product_id, $project_id
+        );
+        $return = $this->wpdb->get_results($sql);
+
+        return $return;
 
     }
 

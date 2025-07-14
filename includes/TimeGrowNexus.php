@@ -265,7 +265,6 @@ class TimeGrowNexus{
 
         $order_ids = [];
         $model_project = new TimeGrowProjectModel();
-        $model_product = new TimeGrowProjectModel();
 
         $entries_by_clients = [];
         foreach ($time_entries as $entry) {
@@ -290,12 +289,35 @@ class TimeGrowNexus{
         foreach ($entries_by_clients as $client_id => $client_entries) {
 
             print('<br />---> ');print('Client Id: '.$client_id);
-            $order = wc_create_order(['customer_id' => $client_id]);
+
+            $order = wc_get_orders([
+                'customer_id' => $client_id,
+                'status' => 'pending',
+                'limit' => -1 // Get all orders
+            ]);
+
+            if (!empty($order)) {
+                // If an order already exists, use it
+                $order = $order[0]; // Get the first order
+                print('<br />---> Order already exists for Client Id: '.$client_id);
+            } else {
+                // Create a new order
+                print('<br />---> Creating new Order for Client Id: '.$client_id);
+                $order = wc_create_order(
+                    [
+                    'customer_id' => $client_id,
+                    'status' => 'pending',
+                    'customer_note' => 'Time entries for client ID: ' . $client_id,
+                    ]   
+                );
+            }   
+
+
 
             foreach ($client_entries as $project_id => $entries) {
-          
+    
                 //print_r($entries);
-                $project = $model_product->select($project_id);
+                $project = $model_project->select($project_id);
                 if(!$project) {
                     error_log('Order creation failed: ' . 'Woo Commerce for Product for Project not found: '. $project_id);
                     continue;
@@ -381,6 +403,9 @@ class TimeGrowNexus{
                     $product->set_catalog_visibility('hidden');
                     $product->save();
                     $product_id = $product->get_id();
+
+                    $model_project->set_woo_product($project_id, $product_id);
+
                 } else {
                     $product_name = $woo_product->get_name();
                 }
@@ -393,6 +418,8 @@ class TimeGrowNexus{
                 $item->set_product_id($product_id);
                 $item->set_name($product_name);
                 $item->set_quantity($product_hours);
+                $item->add_meta_data('_precise_quantity', number_format($product_hours, 2, '.', ''));
+                $item->add_meta_data('_display_quantity', $product_hours . ' hs'); //
                 $item->set_total($product_total);
                 
                 $order->add_item($item);
@@ -409,6 +436,8 @@ class TimeGrowNexus{
         return $order_ids;
     }
 
-
+    public function get_open_order_for_client($client_id) {
+        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+    }
 
 }
