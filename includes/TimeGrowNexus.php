@@ -237,20 +237,45 @@ class TimeGrowNexus{
         } elseif ( $screen == 'reports' ) {
             $reports = $controller_reports->get_available_reports_for_user(wp_get_current_user()); 
         } elseif ($screen == 'process_time') {
-            $time_entries = $model_entry->get_time_entries_to_bill();
-            if (empty($time_entries)) {
-                print('No time entries found');
+            try {
+                print('<h2 class=""><p>Processing Time Entries</p></h2>');
+                $time_entries = $model_entry->get_time_entries_to_bill();
+                if (empty($time_entries)) {
+                    $message_text = 'No time entries found.';
+                    print('<h2 class="notice notice-warning"><p>' . $message_text . '</p></h2>');
+                    exit;
+                }
+
+                $orders = $this->create_woo_orders_and_products($time_entries);
+                if (empty($orders)) {
+                    $message_text = 'No orders created.';
+                    print('<h2 class="notice notice-warning"><p>' . $message_text . '</p></h2>')    ;
+                    exit;   
+                }
+
+                $mark_time_entries_as_billed = $model_entry->get_time_entries_to_bill($time_entries);
+                // print($orders);
+                if (empty($mark_time_entries_as_billed)) {
+                    $message_text = 'No time entries to mark as billed.';
+                    print('<h2 class="notice notice-warning"><p>' . $message_text . '</p></h2>');
+                    exit;
+                }
+                $model_entry->mark_time_entries_as_billed($mark_time_entries_as_billed);
+                print('<br />Orders created successfully: <br />');
+                foreach ($orders as $order_id) {
+                    print('<br />Order ID: '.$order_id);
+
+                }
+                $message_text = 'Time entries processed successfully.';
+                echo '<h2 class="notice notice-success"><p>' . $message_text . '</p></h2>';
+
+                        
+            } catch (Exception $e) {
+                $message_text = 'Error initializing TimeGrowTimeEntryModel: ' . $e->getMessage();
+                $message_text .= '<p>Error initializing time entries. Please check the logs.</p>';
+                echo '<h2 class="notice notice-success"><p>' . $message_text . '</p></h2>';
                 exit;
             }
-
-            $orders = $this->create_woo_orders_and_products($time_entries);
-            if (empty($orders)) {
-                print('No orders created');
-                exit();
-            }
-            $mark_time_entries_as_billed = $model_entry->get_time_entries_to_bill($time_entries);
-           // print($orders);
-            exit();
         }
 
 
@@ -342,8 +367,10 @@ class TimeGrowNexus{
                     $the_rate = 75;
                 }
 
+                $the_rate_10_min = $the_rate / 6; // Convert to 10 minute rate
+
                 print("<br />---------> Project Rate: $the_rate\n");
-                    
+                print("<br />---------> Project Rate (10 min): $the_rate_10_min\n");
 
                 $product_manual_hours = 0;
                 $product_clock_hours = 0;
@@ -386,7 +413,10 @@ class TimeGrowNexus{
 
                 print('<br />---------> Clock In/Out Product Hours: '.$product_clock_hours);
                 $product_hours = $product_manual_hours + $product_clock_hours;  
-                $product_total = round($product_hours * $the_rate, 2);
+
+                $product_quantity = $this->hours_to_10min_units($product_hours);
+
+                $product_total = round($product_quantity * $the_rate_10_min, 2);
 
                 print('<br /> -------> Product Total Hours: '.$product_hours);
                 print('<br /> -------> Product Total: '.$product_total);
@@ -417,9 +447,9 @@ class TimeGrowNexus{
                 
                 $item->set_product_id($product_id);
                 $item->set_name($product_name);
-                $item->set_quantity($product_hours);
-                $item->add_meta_data('_precise_quantity', number_format($product_hours, 2, '.', ''));
-                $item->add_meta_data('_display_quantity', $product_hours . ' hs'); //
+                $item->set_quantity($product_quantity);
+                $item->add_meta_data('_display_message', $product_hours . ' hrs in 10 minutes increments. At a rate of '. $the_rate. ' per hour.');
+
                 $item->set_total($product_total);
                 
                 $order->add_item($item);
@@ -438,6 +468,11 @@ class TimeGrowNexus{
 
     public function get_open_order_for_client($client_id) {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+    }
+
+    function hours_to_10min_units($hours) {
+        $minutes = $hours * 60;
+        return (int) ceil($minutes / 10);
     }
 
 }

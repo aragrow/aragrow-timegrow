@@ -234,18 +234,31 @@ class TimeGrowTimeEntryModel {
 
     }
 
-    public static function mark_entries_as_billed($time_entries) {
+    public function mark_time_entries_as_billed($time_entries) {
+        
         global $wpdb;
-        $table = 'wp_time_entries'; // replace with your actual table
-
+        print('<br />>Marking time entries as billed');
         foreach ($time_entries as $entry) {
-            $wpdb->update(
-                $table,
+            // Validate inputs
+            if (!is_numeric($entry->ID) || $entry->ID <= 0) {
+                return new WP_Error('invalid_id', 'Invalid entry ID');
+            }
+            print('<br/>--->Marking entry ID: '.$entry->ID.' as billed');
+            // Ensure the entry ID is an integer
+            $result = $wpdb->update(
+                $this->table_name,
                 ['billed' => 1, 'updated_at' => current_time('mysql')],
-                ['ID' => $entry['ID']],
+                ['ID' => (int) $entry->ID],
                 ['%d', '%s'],
                 ['%d']
             );
+            if ($result === false) {
+                // Handle error
+                print('<br />Database update failed: ' . $wpdb->last_error);
+                return false;
+            }
+            // Optionally, you can log the success or perform other actions
+            error_log('Entry ID: ' . $entry->ID . ' marked as billed successfully.');   
         }
     }
 
