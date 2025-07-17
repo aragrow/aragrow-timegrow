@@ -335,6 +335,7 @@ class TimeGrowNexus{
                     'customer_note' => 'Time entries for client ID: ' . $client_id,
                     ]   
                 );
+                $order->add_meta_data('_timekeeping_invoice', true);
             }   
 
 
@@ -384,6 +385,7 @@ class TimeGrowNexus{
                     print("<br />------> Project Type: $entry->entry_type, Project ID: $project_id, WOO Product ID: $product_id\n");
                     $project_id = (int) $entry->project_id;
                     $product_manual_hours += $entry->hours;
+                    $work_done = $entry->description;
                 
                 } // End loop entries
 
@@ -449,6 +451,7 @@ class TimeGrowNexus{
                 $item->set_name($product_name);
                 $item->set_quantity($product_quantity);
                 $item->add_meta_data('_display_message', $product_hours . ' hrs in 10 minutes increments. At a rate of '. $the_rate. ' per hour.');
+                $item->add_meta_data('_work_done', $work_done);
 
                 $item->set_total($product_total);
                 
