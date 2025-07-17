@@ -3,7 +3,7 @@
  * Plugin Name: Aragrow - TimeGrow
  * Plugin URI: https://example.com/aragrow-timegrow
  * Description: A time tracking plugin for managing projects, team members, and invoicing.
- * Version: 1.0.0
+ * Version: 1.0.1
  * Author: David Arago - ARAGROW, LLC
  * Author URI: https://aragrow.me/wp-plugins/timegrow/
  * License: GPL2
@@ -27,6 +27,9 @@ defined( 'TIMEGROW_PARENT_MENU' ) or define( 'TIMEGROW_PARENT_MENU', 'timegrow' 
 defined( 'TIMEGROW_TEAM_MEMBER_MENU' ) or define( 'TIMEGROW_TEAM_MEMBER_MENU', TIMEGROW_PARENT_MENU.'-team-member' );
 
 require_once TIMEGROW_INCLUDES_DIR . 'admin-menu.php';
+
+
+
 
 // Autoload classes
 function timegrow_load_mvc_classes($class) {
@@ -60,3 +63,19 @@ if ( ! isset( $timegrow_expense ) ) $timegrow_expense = New TimeGrowExpense();
 if ( ! isset( $timegrow_time_entry ) ) $timegrow_time_entry = New TimeGrowTimeEntry();
 if ( ! isset( $timegrow_team_member ) ) $timegrow_time_entry = New TimeGrowTeamMember();
 if ( ! isset( $timegrow_nexus ) ) $timegrow_nexus = New TimeGrowNexus();
+
+register_activation_hook(__FILE__, 'timegrow_plugin_activate');
+
+function timegrow_plugin_activate() {
+    // Include the WordPress upgrade file to use dbDelta()
+    require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
+    // Instantiate the plugin class.
+    (new TimeGrowClientModel())->initialize();
+    (new TimeGrowCompanyModel())->initialize();
+    (new TimeGrowProjectModel())->initialize();
+    (new TimeGrowExpenseModel())->initialize();
+    (new TimeGrowExpenseReceiptModel())->initialize();
+    (new TimeGrowTeamMemberModel())->initialize();
+    (new TimeGrowTimeEntryModel())->initialize();
+
+}

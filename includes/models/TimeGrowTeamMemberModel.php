@@ -19,8 +19,8 @@ class TimeGrowTeamMemberModel {
         $this->wpdb = $wpdb;
         $this->charset_collate = $this->wpdb->get_charset_collate();
         $this->table_name = $this->wpdb->prefix . TIMEGROW_PREFIX . 'team_member_tracker'; // Make sure this matches your table name
-        $this->table_name2 = $this->wpdb->prefix . TIMEGROW_PREFIX . 'team_member_projects_tracker'; // Make sure this matches your table name
-        $this->table_name3 = $this->wpdb->prefix . TIMEGROW_PREFIX . 'project_tracker'; // Make sure this matches your table name
+        $this->table_name2 = $this->wpdb->prefix . TIMEGROW_PREFIX . 'company_tracker'; // Make sure this matches your table name
+        $this->table_name3 = $this->wpdb->prefix . 'users'; // Make sure this matches your table name
         $this->allowed_fields = ['user_id', 'company_id', 
                                 'name', 'email', 
                                 'phone', 'title', 
@@ -31,10 +31,10 @@ class TimeGrowTeamMemberModel {
     public function initialize() {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
 
-        $sql = "CREATE TABLE IF NOT EXISTS $this->table_name}  (
-            ID mediumint(9) NOT NULL AUTO_INCREMENT,
-            user_id mediumint(9) NOT NULL UNIQUE,  
-            company_id mediumint(9) NOT NULL,  
+        $sql = "CREATE TABLE IF NOT EXISTS $this->table_name  (
+            ID bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            user_id bigint(20) unsigned NOT NULL UNIQUE,  
+            company_id bigint(20) unsigned NOT NULL,  
             name varchar(25) NOT NULL,
             email varchar(255),
             phone varchar(20),
@@ -44,8 +44,8 @@ class TimeGrowTeamMemberModel {
             created_at timestamp,
             updated_at timestamp,
             PRIMARY KEY  (ID),
-            FOREIGN KEY (company_id) REFERENCES {$this->wpdb->prefix}timegrow_companies(ID),
-            FOREIGN KEY (user_id) REFERENCES {$this->wpdb->prefix}users(ID)
+            FOREIGN KEY (company_id) REFERENCES {$this->table_name2}(ID),
+            FOREIGN KEY (user_id) REFERENCES {$this->table_name3}(ID)
         ) $this->charset_collate;";
 
         dbDelta($sql);

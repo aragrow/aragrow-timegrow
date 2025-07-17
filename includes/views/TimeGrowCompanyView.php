@@ -77,10 +77,10 @@ class TimeGrowCompanyView {
         <div class="wrap">
             <h2>Add New Company</h2>
         
-            <form id="timeflies-company-form" class="wp-core-ui" method="POST" enctype="multipart/form-data">
-            <input type="hidden" name="company_id" value="0">
-                <input type="hidden" name="acton" value="save_company">
-                <?php wp_nonce_field('timeflies_company_nonce', 'timeflies_company_nonce_field'); ?>
+            <form id="timegrow-company-form" class="wp-core-ui" method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="company_id" value="0">
+                <input type="hidden" name="add_item" value="1" />
+                <?php wp_nonce_field('timegrow_company_nonce', 'timegrow_company_nonce_field'); ?>
 
                 <div class="metabox-holder columns-2">
                     <div class="postbox-container">
@@ -208,7 +208,7 @@ class TimeGrowCompanyView {
                                         <th scope="row"><label for="status">Status</label></th>
                                         <td>
                                             <select id="status" name="status">
-                                                <option value="1">Active</option>
+                                                <option value="1" selected>Active</option>
                                                 <option value="0">Inactive</option>
                                             </select>
                                         </td>
@@ -238,10 +238,10 @@ class TimeGrowCompanyView {
         <div class="wrap">
             <h2>Edit Company</h2>
         
-            <form id="timeflies-company-form" class="wp-core-ui" method="POST" enctype="multipart/form-data">
+            <form id="timegrow-company-form" class="wp-core-ui" method="POST" enctype="multipart/form-data">
                 <input type="hidden" name="company_id" value="<?php echo esc_attr($company->ID); ?>">
-                <input type="hidden" name="action" value="save_company">
-                <?php wp_nonce_field('timeflies_company_nonce', 'timeflies_company_nonce_field'); ?>
+                <input type="hidden" name="edit_item" value="1" />
+                <?php wp_nonce_field('timegrow_company_nonce', 'timegrow_company_nonce_field'); ?>
 
                 <div class="metabox-holder columns-2">
                     <div class="postbox-container">

@@ -36,17 +36,16 @@ class TimeGrowProjectModel {
     public function initialize() {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
 
-        $sql = "CREATE TABLE IF NOT EXISTS table_name}(
-            ID mediumint(9) NOT NULL AUTO_INCREMENT,
-            client_id mediumint(9) NOT NULL,
-            product_id mediumint(9) NULL,
+        $sql = "CREATE TABLE IF NOT EXISTS {$this->table_name}(
+            ID bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            client_id bigint(20) unsigned NOT NULL,
+            product_id bigint(20) unsigned NULL,
             name varchar(255) NOT NULL,
             description text,
             status varchar(50) DEFAULT 'active',
             default_flat_fee DECIMAL(10, 2) DEFAULT 0.00,
             start_date date,
             end_date date,
-            status smallint(1) NOT NULL DEFAULT 1,
             billable smallint(1) NOT NULL DEFAULT 1,
             estimate_hours smallint(4) NULL,
             created_by bigint(20) unsigned,
@@ -54,8 +53,8 @@ class TimeGrowProjectModel {
             updated_at timestamp,
             PRIMARY KEY  (ID),
             FOREIGN KEY (client_id) REFERENCES {$this->table_name2}(ID),
-            FOREIGN KEY (project_id) REFERENCES {$this->table_name3}(ID),
-            FOREIGN KEY (created_by) REFERENCES {$this->table_name2}users(ID)
+            FOREIGN KEY (product_id) REFERENCES {$this->table_name3}(ID),
+            FOREIGN KEY (created_by) REFERENCES {$this->table_name2}(ID)
         ) $this->charset_collate;";
 
         dbDelta($sql);

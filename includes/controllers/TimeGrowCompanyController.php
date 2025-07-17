@@ -18,15 +18,15 @@ class TimeGrowCompanyController{
 
     public function handle_form_submission() {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
-        if (!isset($_POST['timeflies_time_entry_nonce_field']) || 
-            !wp_verify_nonce($_POST['timeflies_company_nonce_field'], 'timeflies_company_nonce')) {
+     
+        if (!isset($_POST['timegrow_company_nonce_field']) || 
+            !wp_verify_nonce($_POST['timegrow_company_nonce_field'], 'timegrow_company_nonce')) {
             wp_die(__('Nonce verification failed.', 'text-domain'));
         }
-        if (!isset($_POST['expense_id'])) return; 
+        if (!isset($_POST['company_id'])) return; 
 
         $current_date = current_time('mysql');
         $data = [
-            'company_id' => intval($_POST['company_id']),
             'name' => sanitize_text_field($_POST['name']),
             'legal_name' => sanitize_text_field($_POST['legal_name']),
             'document_number' => sanitize_text_field($_POST['document_number']),
@@ -42,12 +42,11 @@ class TimeGrowCompanyController{
             'country' => sanitize_text_field($_POST['country']),
             'website' => esc_url_raw($_POST['website']), // Sanitize URL
             'notes' => wp_kses_post($_POST['notes']), // Sanitize notes
-            'is_active' => isset($_POST['is_active']) ? 1 : 0,
+            'status' => isset($_POST['status']) ? 1 : 0,
             'updated_at' => $current_date
         ];
 
         $format = [
-            '%d',   // company_id (integer)
             '%s',   // name (string)
             '%s',   // legal_name (string)
             '%s',   // document_number (string)
@@ -63,11 +62,11 @@ class TimeGrowCompanyController{
             '%s',   // country (string)
             '%s',   // website (string, sanitized URL)
             '%s',   // notes (string, HTML sanitized)
-            '%d',   // is_active (boolean as integer 1/0)
+            '%d',   // status (boolean as integer 1/0)
             '%s'    // updated_at (datetime string)
         ];
 
-        $id = intval($_POST['expense_id']);
+        $id = intval($_POST['company_id']);
         if ($id == 0) {
             $data['created_at'] = $current_date;
             $format[] = '%s';
@@ -116,10 +115,10 @@ class TimeGrowCompanyController{
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
 
         if ($screen != 'list' && ( isset($_POST['add_item']) || isset($_POST['edit_item']) )) {
-            var_dump('processing form');
             $this->handle_form_submission();
             $screen = 'list';
         }
+   
 
         if ($screen == 'list')
             $this->list();

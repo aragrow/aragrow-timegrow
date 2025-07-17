@@ -37,9 +37,9 @@ class TimeGrowTimeEntryModel {
         global $wpdb;                  
 
         $sql = "CREATE TABLE IF NOT EXISTS {$this->table_name} (
-            ID mediumint(9) NOT NULL AUTO_INCREMENT,
-            project_id mediumint(9) NOT NULL,
-            member_id mediumint(9) NOT NULL,
+            ID bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            project_id bigint(20) unsigned NOT NULL,
+            member_id bigint(20) unsigned NOT NULL,
             clock_in_date datetime,
             clock_out_date datetime,
             date datetime,

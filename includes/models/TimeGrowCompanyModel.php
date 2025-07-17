@@ -26,13 +26,13 @@ class TimeGrowCompanyModel {
                                 'country', 'website', 
                                 'note', 'status', 
                                 'created_at', 'updated_at'];
-       
+
     }
 
     public function initialize() {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         $sql = "CREATE TABLE IF NOT EXISTS {$this->table_name} (
-            ID mediumint(9) NOT NULL AUTO_INCREMENT,
+            ID BIGINT(20) unsigned NOT NULL AUTO_INCREMENT,
             name varchar(255) NOT NULL,
             legal_name varchar(255),  -- Legal name of the company (if different)
             document_number varchar(255) UNIQUE, -- Tax ID, registration number, etc.
@@ -114,13 +114,19 @@ class TimeGrowCompanyModel {
         }
 
         // Ensure all required fields are present
-        if (empty($sanitized_data['expense_name']) || 
-            empty($sanitized_data['expense_date']) || 
-            empty($sanitized_data['amount']) || 
-            empty($sanitized_data['category']) ||   
-            empty($sanitized_data['assigned_to']) ||
-            (empty($sanitized_data['assigned_to'])  && $sanitized_data['assigned_to_id'] === 0 ) || //empty considers 0 and '0' empty
-            empty($sanitized_data['expense_description']) ) {
+        if (empty($sanitized_data['name']) || 
+            empty($sanitized_data['legal_name']) || 
+            empty($sanitized_data['document_number']) ||
+            empty($sanitized_data['default_flat_fee']) ||
+            empty($sanitized_data['contact_person']) || 
+            empty($sanitized_data['email']) || 
+            empty($sanitized_data['phone']) ||   
+            empty($sanitized_data['address_1']) ||
+            empty($sanitized_data['city']) ||
+            empty($sanitized_data['state']) ||
+            empty($sanitized_data['postal_code']) ||
+            empty($sanitized_data['country']) ||
+            empty($sanitized_data['status'])) {
             wp_die( 'Error: validation not passed', array( 'back_link' => true ) );
         }
 
@@ -150,15 +156,22 @@ class TimeGrowCompanyModel {
                     $sanitized_data[$key] = sanitize_text_field($value); // Sanitize each field
                 }
             }
+            var_dump($sanitized_data);
 
             // Ensure all required fields are present
-            if (empty($sanitized_data['expense_name']) || 
-                empty($sanitized_data['expense_date']) || 
-                empty($sanitized_data['amount']) || 
-                empty($sanitized_data['category']) ||   
-                empty($sanitized_data['assigned_to']) ||
-                (empty($sanitized_data['assigned_to'])  && $sanitized_data['assigned_to_id'] === 0 ) || //empty considers 0 and '0' empty
-                empty($sanitized_data['expense_description']) ) {
+            if (empty($sanitized_data['name']) || 
+                empty($sanitized_data['legal_name']) || 
+                empty($sanitized_data['document_number']) ||
+                empty($sanitized_data['default_flat_fee']) ||
+                empty($sanitized_data['contact_person']) || 
+                empty($sanitized_data['email']) || 
+                empty($sanitized_data['phone']) ||   
+                empty($sanitized_data['address_1']) ||
+                empty($sanitized_data['city']) ||
+                empty($sanitized_data['state']) ||
+                empty($sanitized_data['postal_code']) ||
+                empty($sanitized_data['country']) ||
+                empty($sanitized_data['status'])) {
                 wp_die( 'Error: validation not passed', array( 'back_link' => true ) );
             }
 
