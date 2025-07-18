@@ -28,6 +28,11 @@ class TimeGrowExpenseController{
     public function handle_form_submission() {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         
+        if (!isset($_POST['timegrow_expense_nonce_field']) || 
+            !wp_verify_nonce($_POST['timegrow_expense_nonce_field'], 'timegrow_expense_nonce')) {
+            wp_die(__('Nonce verification failed.', 'text-domain'));
+        }
+
         if (!isset($_POST['expense_id'])) return; 
 
         $current_date = current_time('mysql');

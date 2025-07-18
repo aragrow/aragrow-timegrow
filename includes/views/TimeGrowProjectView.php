@@ -85,7 +85,8 @@ class TimeGrowProjectView {
         
             <form id="timegrow-project-form" class="wp-core-ui" method="POST" enctype="multipart/form-data">
             <input type="hidden" name="project_id" value="0">
-                <input type="hidden" name="action" value="save_project">
+            <input type="hidden" name="add_item" value="1">
+            
                 <?php wp_nonce_field('timegrow_project_nonce', 'timegrow_project_nonce_field'); ?>
 
                 <div class="metabox-holder columns-2">
@@ -216,7 +217,7 @@ class TimeGrowProjectView {
         
             <form id="timegrow-project-form" class="wp-core-ui" method="POST" enctype="multipart/form-data">
             <input type="hidden" name="project_id" value="<?php echo esc_attr($project->ID); ?>">
-                <input type="hidden" name="action" value="save_project">
+                <input type="hidden" name="edit_item" value="1">
                 <?php wp_nonce_field('timegrow_project_nonce', 'timegrow_project_nonce_field'); ?>
                 <div class="metabox-holder columns-2">
                     <div class="postbox-container">

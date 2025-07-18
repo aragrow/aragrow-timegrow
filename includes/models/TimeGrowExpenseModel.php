@@ -18,8 +18,16 @@ class TimeGrowExpenseModel {
         $this->wpdb = $wpdb;
         $this->charset_collate = $wpdb->get_charset_collate();
         $this->table_name = $this->wpdb->prefix . TIMEGROW_PREFIX . 'expense_tracker'; // Make sure this matches your table name
-        $this->allowed_fields = ['expense_name', 'expense_date', 'amount', 'category', 'assigned_to', 'assigned_to_id', 'expense_description', 'updated_at', 'created_at'];
-       
+        $this->allowed_fields = ['expense_name', 
+                                'expense_date', 
+                                'amount', 
+                                'category', 
+                                'assigned_to', 
+                                'assigned_to_id', 
+                                'expense_description',
+                                'expense_payment_method',
+                                'updated_at', 
+                                'created_at'];
     }
 
     public function initialize() {
@@ -29,6 +37,7 @@ class TimeGrowExpenseModel {
             expense_name VARCHAR(255) NOT NULL,
             expense_description text NOT NULL,
             expense_date date NOT NULL,
+            expense_payment_method ENUM('personal_card', 'company_card', 'bank_transfer', 'cash', 'other') NOT NULL DEFAULT 'credit_card',
             amount DECIMAL(10,2) NOT NULL,
             category VARCHAR(255) NOT NULL,
             assigned_to ENUM('project', 'client', 'general') NOT NULL,
@@ -103,8 +112,8 @@ class TimeGrowExpenseModel {
             empty($sanitized_data['amount']) || 
             empty($sanitized_data['category']) ||   
             empty($sanitized_data['assigned_to']) ||
-            (empty($sanitized_data['assigned_to'])  && $sanitized_data['assigned_to_id'] === 0 ) || //empty considers 0 and '0' empty
-            empty($sanitized_data['expense_description']) ) {
+            empty($sanitized_data['expense_description']) ||
+            empty($sanitized_data['expense_payment_method']) ) {
             wp_die( 'Error: validation not passed', array( 'back_link' => true ) );
         }
 
@@ -141,8 +150,8 @@ class TimeGrowExpenseModel {
                 empty($sanitized_data['amount']) || 
                 empty($sanitized_data['category']) ||   
                 empty($sanitized_data['assigned_to']) ||
-                (empty($sanitized_data['assigned_to'])  && $sanitized_data['assigned_to_id'] === 0 ) || //empty considers 0 and '0' empty
-                empty($sanitized_data['expense_description']) ) {
+                empty($sanitized_data['expense_description']) ||
+                empty($sanitized_data['expense_payment_method']) ) {
                 wp_die( 'Error: validation not passed', array( 'back_link' => true ) );
             }
 
@@ -158,6 +167,7 @@ class TimeGrowExpenseModel {
             }
 
             return $this->wpdb->insert_id;
+ 
         } catch (Exception $e) {
             // Handle general exceptions
             error_log("Exception: " . $e->getMessage());

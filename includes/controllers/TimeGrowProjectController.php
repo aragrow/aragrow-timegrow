@@ -25,6 +25,12 @@ class TimeGrowProjectController{
 
     public function handle_form_submission() {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+
+        if (!isset($_POST['timegrow_project_nonce_field']) || 
+            !wp_verify_nonce($_POST['timegrow_project_nonce_field'], 'timegrow_project_nonce')) {
+            wp_die(__('Nonce verification failed.', 'text-domain'));
+        }
+
         if (!isset($_POST['project_id'])) return; 
 
         $current_date = current_time('mysql');
@@ -108,7 +114,7 @@ class TimeGrowProjectController{
     public function display_admin_page($screen) {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         
-        if ($screen != 'list' && ( isset($_POST['action']) && $_POST['action'] == 'save_project')) {
+      if ($screen != 'list' && ( isset($_POST['add_item']) || isset($_POST['edit_item']) )) {
             $this->handle_form_submission();
             $screen = 'list';
         }

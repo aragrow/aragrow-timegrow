@@ -84,7 +84,7 @@ class TimeGrowExpenseView {
             <form id="timeflies-expense-form" class="wp-core-ui" method="POST" enctype="multipart/form-data">
                 <input type="hidden" name="expense_id" value="0" />
                 <input type="hidden" name="add_item" value="1" />
-                <?php wp_nonce_field('timeflies_expense_nonce', 'timeflies_expense_nonce_field'); ?>
+                <?php wp_nonce_field('timegrow_expense_nonce', 'timegrow_expense_nonce_field'); ?>
         
                 <div class="metabox-holder columns-2">
                     <div class="postbox-container">
@@ -98,7 +98,7 @@ class TimeGrowExpenseView {
                                 </tr>
                                 <tr>
                                     <th scope="row"><label for="expense_date">Expense Date</label></th>
-                                    <td><input type="text" id="expense_date" name="expense_date" class="datepicker" required></td>
+                                    <td><input type="date" id="expense_date" name="expense_date" class="datepicker" required></td>
                                 </tr>
                                 <tr>
                                     <th scope="row"><label for="amount">Amount</label></th>
@@ -107,7 +107,7 @@ class TimeGrowExpenseView {
                                 <tr>
                                     <th scope="row"><label for="expense_description">Expense Description</label></th>
                                     <td>
-                                        <textarea name="expense_description" id="expense_description" rows="5" class="large-text" placeholder="Enter a detailed description of the expense"></textarea>
+                                        <textarea name="expense_description" id="expense_description" rows="5" class="large-text" placeholder="Enter a detailed description of the expense" required></textarea>
                                     </td>
                                 </tr>
                                 <tr>
@@ -150,6 +150,20 @@ class TimeGrowExpenseView {
                                     </th>
                                     <td>
                                         <input type="hidden" name="assigned_to_id" value="0" />
+                                    </td>
+                                </tr>
+                                <tr id="expense-payment-method">
+                                    <th scope="row">
+                                        <label for="expense_payment_method">Payment Method</label>
+                                    </th>
+                                    <td>
+                                        <select name="expense_payment_method" id="expense_payment_method" required>
+                                            <option value="personal_card">Personal Card (Reimbursable)</option>
+                                            <option value="company_card">Company Card</option>
+                                            <option value="cash">Cash</option>
+                                            <option value="bank_transfer">Bank Transfer</option>
+                                            <option value="other">Other</option>
+                                        </select>
                                     </td>
                                 </tr>
                                 </table>
@@ -204,7 +218,7 @@ class TimeGrowExpenseView {
             <form id="timeflies-expense-form" class="wp-core-ui" method="POST" enctype="multipart/form-data">
                 <input type="hidden" name="expense_id" value="<?php echo esc_attr($expense->ID); ?>">
                 <input type="hidden" name="edit_item" value="1" />
-                <?php wp_nonce_field('timeflies_expense_nonce', 'timeflies_expense_nonce_field'); ?>
+                <?php wp_nonce_field('timegrow_expense_nonce', 'timegrow_expense_nonce_field'); ?>
         
                 <div class="metabox-holder columns-2">
                     <div class="postbox-container">
@@ -218,7 +232,7 @@ class TimeGrowExpenseView {
                                     </tr>
                                     <tr>
                                     <th scope="row"><label for="expense_date">Expense Date</label></th>
-                                    <td><input type="text" id="expense_date" name="expense_date" class="datepicker" value="<?php echo esc_attr($display_date); ?>" required></td>
+                                    <td><input type="date" id="expense_date" name="expense_date" value="<?php echo esc_attr($display_date); ?>" required></td>
                                 </tr>
                                     <tr>
                                         <th scope="row"><label for="amount">Amount</label></th>
@@ -227,7 +241,7 @@ class TimeGrowExpenseView {
                                     <tr>
                                         <th scope="row"><label for="expense_description">Expense Description</label></th>
                                         <td>
-                                            <textarea name="expense_description" id="expense_description" rows="5" class="large-text" placeholder="Enter a detailed description of the expense"><?php echo esc_textarea($expense->expense_description); ?></textarea>
+                                            <textarea name="expense_description" id="expense_description" rows="5" class="large-text" placeholder="Enter a detailed description of the expense" required><?php echo esc_textarea($expense->expense_description); ?></textarea>
                                         </td>
                                     </tr>
                                     <tr>
@@ -270,6 +284,20 @@ class TimeGrowExpenseView {
                                     </th>
                                     <td>
                                         <input type="hidden" name="assigned_to_id" value="<?php echo esc_attr($expense->assigned_to_id); ?>" />
+                                    </td>
+                                </tr>
+                                <tr id="expense-payment-method">
+                                    <th scope="row">
+                                        <label for="expense_payment_method">Payment Method</label>
+                                    </th>
+                                    <td>
+                                        <select name="expense_payment_method" id="expense_payment_method" required>
+                                            <option value="personal_card">Personal Card (Reimbursable)</option>
+                                            <option value="company_card">Company Card</option>
+                                            <option value="cash">Cash</option>
+                                            <option value="bank_transfer">Bank Transfer</option>
+                                            <option value="other">Other</option>
+                                        </select>
                                     </td>
                                 </tr>
                                 </table>
