@@ -211,14 +211,13 @@ class TimeGrowNexus{
     public function tracker_mvc_admin_page($screen) {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         $model = new TimeGrowTimeEntryModel();
-        $model_entry = new TimeGrowTimeEntryModel();
         $view_dashboard = new TimeGrowNexusView();
         $view_clock = new TimeGrowNexusClockView();
         $view_manual = new TimeGrowNexusManualView();
         $view_expense = new TimeGrowNexusExpenseView();
         $view_report = new TimeGrowNexusReportView();
         $controller_reports = new TimeGrowReportsController($view_report);
-
+        $team_member_model = new TimeGrowTeamMemberModel();
         $projects = []; // Default to empty array
         $reports = []; // Default to empty array
         $list = []; // Default to empty array
@@ -228,18 +227,18 @@ class TimeGrowNexus{
             if (current_user_can('administrator') ) {
                 // User is an administrator
                 $projects = $team_member_model->get_projects_for_member(-1); // -1 for admin means all projects
-                $list = $model_entry->select(); // -1 for admin means all projects
+                $list = $model->select(); // -1 for admin means all projects
             } else {
                 // User is not an administrator, get projects for the current user
                 $projects = $team_member_model->get_projects_for_member(get_current_user_id());
-                $list = $model_entry->select(get_current_user_id()); // Get entries for the current user
+                $list = $model->select(get_current_user_id()); // Get entries for the current user
             }
         } elseif ( $screen == 'reports' ) {
             $reports = $controller_reports->get_available_reports_for_user(wp_get_current_user()); 
         } elseif ($screen == 'process_time') {
             try {
                 print('<h2 class=""><p>Processing Time Entries</p></h2>');
-                $time_entries = $model_entry->get_time_entries_to_bill();
+                $time_entries = $model->get_time_entries_to_bill();
                 if (empty($time_entries)) {
                     $message_text = 'No time entries found.';
                     print('<h2 class="notice notice-warning"><p>' . $message_text . '</p></h2>');
@@ -253,14 +252,14 @@ class TimeGrowNexus{
                     exit;   
                 }
 
-                $mark_time_entries_as_billed = $model_entry->get_time_entries_to_bill($time_entries);
+                $mark_time_entries_as_billed = $model->get_time_entries_to_bill($time_entries);
                 // print($orders);
                 if (empty($mark_time_entries_as_billed)) {
                     $message_text = 'No time entries to mark as billed.';
                     print('<h2 class="notice notice-warning"><p>' . $message_text . '</p></h2>');
                     exit;
                 }
-                $model_entry->mark_time_entries_as_billed($mark_time_entries_as_billed);
+                $model->mark_time_entries_as_billed($mark_time_entries_as_billed);
                 print('<br />Orders created successfully: <br />');
                 foreach ($orders as $order_id) {
                     print('<br />Order ID: '.$order_id);
@@ -279,7 +278,7 @@ class TimeGrowNexus{
         }
 
 
-        $controller = new TimeGrowNexusController($model, $view_dashboard, $view_clock, $view_manual, $view_expense, $view_report, $projects, $reports, $list);
+        $controller = new TimeGrowNexusController($model, $view_dashboard, $view_clock, $view_manual, $view_expense, $view_report, $projects, $reports, $team_member_model, $list);
         $controller->display_admin_page($screen);
     }
 

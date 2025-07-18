@@ -13,7 +13,7 @@ class TimeGrowNexusManualView {
      * @param WP_User $user The current WordPress user object.
      * @param array $args Additional arguments.
      */
-    public function display($user, $projects = [], $list = []) {
+    public function display($user, $member_id, $projects = [], $list = []) {
         if (WP_DEBUG) error_log(__CLASS__ . '::' . __FUNCTION__);
         if (!$user || !$user->ID) {
             echo '<div class="wrap"><p>' . esc_html__('Error: User not found or not logged in.', 'timegrow') . '</p></div>';
@@ -44,10 +44,9 @@ class TimeGrowNexusManualView {
     
         <div class="wrap timegrow-page-container timegrow-manual-page-container">
             <h1><?php esc_html_e('Manual Time Entry', 'timegrow'); ?></h1>
-            <h3><?php esc_html_e('Select a Project to Enter Time', 'timegrow'); ?></h3>
+            <h3><?php esc_html_e('Drag and Drop a Project to Enter Time', 'timegrow'); ?></h3>
             <div id="project-tiles-container" class="timegrow-project-tiles" style="float:left">
                 <div class="project-list-container">
-            
                     <?php foreach ($projects as $project) : ?>
                     <div class="timegrow-project-tile" draggable="true" data-project-id="<?php echo esc_attr($project->ID); ?>" data-project-name="<?php echo esc_attr($project->name)?>" data-project-desc="<?php echo esc_attr($project->description) ?>">
                         <h3><?php echo esc_html($project->name); ?></h3>
@@ -67,7 +66,7 @@ class TimeGrowNexusManualView {
                     <input type="hidden" name="time_entry_id" value="0">
                     <input type="hidden" name="action" value="save_time_entry">
                     <input type="hidden" name="add_item" value="1">
-                    <input type="hidden" name="member_id" value="<?php echo $user->ID ?>" />
+                    <input type="hidden" name="member_id" value="<?php echo $member_id ?>" />
                     <input type="hidden" name="entry_type" value="MAN" />
                     <?php wp_nonce_field('timegrow_time_nexus_nonce', 'timegrow_time_nexus_nonce_field'); ?>
                     <!-- Project Drop Section -->

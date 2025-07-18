@@ -15,6 +15,7 @@ class TimeGrowNexusController{
     private $view_report;
     private $projects;
     private $reports;
+    private $team_members_model;
     private $list;
 
     public function __construct(
@@ -25,7 +26,8 @@ class TimeGrowNexusController{
         TimeGrowNexusExpenseView $view_expense,
         TimeGrowNexusReportView $view_report,
         $projects = [],
-        $reports = [],   
+        $reports = [],  
+        TimeGrowTeamMemberModel $team_members_model, 
         $list = [] // Default to empty array
     ) {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);   
@@ -38,6 +40,7 @@ class TimeGrowNexusController{
         $this->view_report = $view_report;
         $this->projects = $projects;
         $this->reports = $reports;
+        $this->team_members_model = $team_members_model;
         $this->list = $list;
     }
 
@@ -54,24 +57,25 @@ class TimeGrowNexusController{
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         
         $user = wp_get_current_user();
+        $member = $this->team_members_model->get_by_user_id($user->ID);
+        $member_id = $member ? $member->ID : 0;
 
         if (( isset($_POST['time_entry_id']) || isset($_POST['expense_id']) )) {
             var_dump('processing form');
             $this->handle_form_submission();
-            $screen = 'list';
+            $screen = 'dashboard';
         }
-
 
         if ($screen == 'dashboard')
             $this->view_dashboard->display($user);
         elseif ($screen == 'clock')
-            $this->view_clock->display($user, $this->projects, $this->list);
+            $this->view_clock->display($user, $member_id, $this->projects, $this->list);
         elseif ($screen == 'manual')
-            $this->view_manual->display($user, $this->projects, $this->list);
+            $this->view_manual->display($user, $member_id, $this->projects, $this->list);
         elseif ($screen == 'expenses')
-            $this->view_expense->display($user, $this->projects);
+            $this->view_expense->display($user, $member_id, $this->projects);
         elseif ($screen == 'reports')
-            $this->view_report->display($user, $this->reports);
+            $this->view_report->display($member_id, $this->reports);
     }
 
     private function handle_form_submission_time_entry() {

@@ -95,7 +95,7 @@ class TimeGrowTimeEntryModel {
         }
         // If no IDs are provided, fetch all rows
         else {
-            $sql = "SELECT t.*, p.name as project_name, m.name as member_name, , p.client_id 
+            $sql = "SELECT t.*, p.name as project_name, m.name as member_name, p.client_id 
                 FROM {$this->table_name} t
                 INNER JOIN {$this->table_name2} p ON t.project_id = p.ID
                 INNER JOIN {$this->table_name3} m ON t.member_id = m.ID

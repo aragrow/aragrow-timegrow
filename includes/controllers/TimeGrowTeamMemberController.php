@@ -29,9 +29,16 @@ class TimeGrowTeamMemberController{
     }
 
     public function handle_form_submission() {
+
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         
-        if (!isset($_POST['expense_id'])) return; 
+        if (!isset($_POST['timegrow_team_member_nonce_field']) || 
+            !wp_verify_nonce($_POST['timegrow_team_member_nonce_field'], 'timegrow_team_member_nonce')) {
+            wp_die(__('Nonce verification failed.', 'text-domain'));
+        }
+
+        if (!isset($_POST['team_member_id'])) return; 
+        print('Processing form submission for team member');
 
         $current_date = current_time('mysql');
         $team_member_id = intval($_POST['team_member_id']);
@@ -77,13 +84,14 @@ class TimeGrowTeamMemberController{
             '%s'    // updated_at (datetime string)
         ];
 
-        $id = intval($_POST['expense_id']);
-
+        $id = intval($_POST['team_member_id']);
+        print('Team Member ID: ' . $id);   
         try {
             // Start transaction
             $this->wpdb->query('START TRANSACTION');
 
             if ($id == 0) {
+                print('<div>Creating new team member</div>');
                 $data['user_id'] = $user_id;
                 $data['created_at'] = $current_date;
                 $format[] = '%d';
@@ -98,7 +106,7 @@ class TimeGrowTeamMemberController{
                 }
 
             } else {
-
+                print('<div>Updating existing team member</div>');
                 $result = $this->model->update($id, $data, $format);
 
                 if ($result) {
@@ -109,13 +117,15 @@ class TimeGrowTeamMemberController{
                 }
 
             }
-
+         
             // Update project assignments
+            print('<div>Updating team member projects</div>');
+            $team_member_id = $id; // Use the ID returned from create or update
             $this->update_team_member_projects($team_member_id, $project_ids);
-
+            
             if(WP_DEBUG) error_log('Timeflies_Team_Members_Admin.save_ajax() -> Completed');
 
-            wp_send_json_success(array('message' => 'Team member saved.', 'team_member_id' => $team_member_id));
+            //wp_send_json_success(array('message' => 'Team member saved.', 'team_member_id' => $team_member_id));
     
             // Commit if everything is OK
             $this->wpdb->query('COMMIT');
@@ -202,9 +212,9 @@ class TimeGrowTeamMemberController{
 
     public function display_admin_page($screen) {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
-
+           
         if ($screen != 'list' && ( isset($_POST['add_item']) || isset($_POST['edit_item']) )) {
-            var_dump('processing form');
+            print('<div class="wrap timegrow-page-container timegrow-team-member-page">');
             $this->handle_form_submission();
             $screen = 'list';
         }

@@ -12,6 +12,7 @@ class TimeGrowTeamMemberModel {
     private $allowed_fields;
     private $table_name2;
     private $table_name3;
+    private $table_name4;
 
     public function __construct() {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
@@ -21,10 +22,12 @@ class TimeGrowTeamMemberModel {
         $this->table_name = $this->wpdb->prefix . TIMEGROW_PREFIX . 'team_member_tracker'; // Make sure this matches your table name
         $this->table_name2 = $this->wpdb->prefix . TIMEGROW_PREFIX . 'company_tracker'; // Make sure this matches your table name
         $this->table_name3 = $this->wpdb->prefix . 'users'; // Make sure this matches your table name
-        $this->allowed_fields = ['user_id', 'company_id', 
-                                'name', 'email', 
-                                'phone', 'title', 
-                                'bio', 'status', 
+        $this->table_name4 = $this->wpdb->prefix . TIMEGROW_PREFIX . 'project_tracker'; // Make sure this matches your table name
+
+        $this->allowed_fields = ['user_id', 'company_id',
+                                'name', 'email',
+                                'phone', 'title',
+                                'bio', 'status',
                                 'created_at', 'updated_at'];
     }
 
@@ -66,7 +69,11 @@ class TimeGrowTeamMemberModel {
             $ids = array_map('intval', $ids); // Sanitize IDs
             $placeholders = implode(',', array_fill(0, count($ids), '%d')); // Create placeholders for prepared statement
             $sql = $this->wpdb->prepare(
-                "SELECT * FROM {$this->table_name} WHERE ID IN ($placeholders) ORDER BY name",
+                "SELECT a.*, b.name AS company_name
+                FROM {$this->table_name} a
+                INNER JOIN {$this->table_name2} b ON a.company_id = b.ID
+                WHERE a.ID IN ($placeholders) 
+                ORDER BY a.name",
                 $ids
             );
         }
@@ -74,13 +81,20 @@ class TimeGrowTeamMemberModel {
         elseif (intval($ids)) {
             $id = intval($ids); // Sanitize ID
             $sql = $this->wpdb->prepare(
-                "SELECT * FROM {$this->table_name} WHERE ID = %d",
+                "SELECT a.*, b.name AS company_name 
+                FROM {$this->table_name} a
+                INNER JOIN {$this->table_name2} b ON a.company_id = b.ID
+                WHERE a.ID = %d
+                ORDER BY a.name",
                 $id
             );
         }
         // If no IDs are provided, fetch all rows
         else {
-            $sql = "SELECT * FROM {$this->table_name} ORDER BY name";
+            $sql = "SELECT a.*, b.name AS company_name
+            FROM {$this->table_name} a
+            INNER JOIN {$this->table_name2} b ON a.company_id = b.ID
+            ORDER BY a.name";
         }
     
         return $this->wpdb->get_results($sql);
@@ -186,15 +200,14 @@ class TimeGrowTeamMemberModel {
         //var_dump($ids);
         // If IDs are provided as an array
         if (is_array($ids)) {
-            var_dump('is_array');
             $ids = array_map('intval', $ids); // Sanitize IDs
             $placeholders = implode(',', array_fill(0, count($ids), '%d')); // Create placeholders for prepared statement
             $sql = $this->wpdb->prepare(
-                "SELECT M.ID AS team_ID, M.name AS team_name, P.* FROM {$this->table_name} M  
+                "SELECT M.ID AS team_ID, M.name AS team_name, P.* 
+                    FROM {$this->table_name} M  
                     JOIN {$this->table_name2} X ON M.ID = X.team_member_id
-                    JOIN {$this->table_name3} P ON X.project_id = P.ID  
+                    JOIN {$this->table_name4} P ON X.project_id = P.ID  
                     WHERE A.ID IN ($placeholders) 
-                    AND P.status = 1
                     ORDER BY M.name, P.name",
                 $ids
             );
@@ -204,7 +217,7 @@ class TimeGrowTeamMemberModel {
             $id = intval($ids); // Sanitize ID
             $sql = $this->wpdb->prepare(
                 "SELECT null AS team_ID, null AS team_name, P.* 
-                    FROM {$this->table_name3} P 
+                    FROM {$this->table_name4} P 
                 WHERE P.status = 1
                 ORDER BY P.name",
                 $id
@@ -217,7 +230,7 @@ class TimeGrowTeamMemberModel {
                 "SELECT M.ID AS team_ID, M.name AS team_name, P.* 
                     FROM {$this->table_name} M
                     JOIN {$this->table_name2} X ON M.ID = X.team_member_id
-                    JOIN {$this->table_name3} P ON X.project_id = P.ID
+                    JOIN {$this->table_name4} P ON X.project_id = P.ID
                 WHERE M.ID = %d
                 AND P.status = 1
                 ORDER BY P.name",
@@ -226,11 +239,11 @@ class TimeGrowTeamMemberModel {
         }
         // If no IDs are provided, fetch all rows
         else {
-            var_dump('No IDs provided');
+         
             $sql = "SELECT M.ID AS team_ID, M.name AS team_name, P.* 
             FROM {$this->table_name} M
             JOIN {$this->table_name2} X ON M.ID = X.team_member_id
-            JOIN {$this->table_name3} P ON X.project_id = P.ID  
+            JOIN {$this->table_name4} P ON X.project_id = P.ID  
             WHERE M.status = 1
             AND P.status = 1
             ORDER BY M.name, P.name";
@@ -249,4 +262,14 @@ class TimeGrowTeamMemberModel {
         return $results;
     }
     
+    public function get_by_user_id($user_id) {
+        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        $user_id = intval($user_id);
+        $sql = $this->wpdb->prepare(
+            "SELECT * FROM {$this->table_name} WHERE user_id = %d",
+            $user_id
+        );
+        $result = $this->wpdb->get_row($sql);
+        return $result ? $result : null; // Return the object or null if not found
+    }
 }

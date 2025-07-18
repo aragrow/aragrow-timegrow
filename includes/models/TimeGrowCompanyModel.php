@@ -156,7 +156,6 @@ class TimeGrowCompanyModel {
                     $sanitized_data[$key] = sanitize_text_field($value); // Sanitize each field
                 }
             }
-            var_dump($sanitized_data);
 
             // Ensure all required fields are present
             if (empty($sanitized_data['name']) || 

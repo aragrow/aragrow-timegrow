@@ -78,9 +78,9 @@ class TimeGrowTeamMemberView {
         <div class="wrap">
             <h2>Add New Team Member</h2>
         
-            <form id="timeflies-company-form" class="wp-core-ui" method="POST" enctype="multipart/form-data">
-            <input type="hidden" name="team_member_id" value="0">
-                <input type="hidden" name="acton" value="save_company">
+            <form id="timegrow-company-form" class="wp-core-ui" method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="team_member_id" value="0">
+                <input type="hidden" name="add_item" value="1" />
                 <?php wp_nonce_field('timegrow_team_member_nonce', 'timegrow_team_member_nonce_field'); ?>
 
                 <div class="metabox-holder columns-2">
@@ -197,9 +197,9 @@ class TimeGrowTeamMemberView {
         <div class="wrap">
             <h2>Edit Team Member</h2>
         
-            <form id="timeflies-company-form" class="wp-core-ui" method="POST" enctype="multipart/form-data">
+            <form id="timegrow-company-form" class="wp-core-ui" method="POST" enctype="multipart/form-data">
                 <input type="hidden" name="team_member_id" value="<?php echo esc_attr($item->ID); ?>">
-                <input type="hidden" name="action" value="save_company">
+                <input type="hidden" name="edit_item" value="1" />
                 <?php wp_nonce_field('timegrow_team_member_nonce', 'timegrow_team_member_nonce_field'); ?>
 
                 <div class="metabox-holder columns-2">

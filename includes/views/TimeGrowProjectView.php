@@ -62,6 +62,7 @@ class TimeGrowProjectView {
                     <th scope="col" class="manage-column column-start-date">Start Date</th>
                     <th scope="col" class="manage-column column-end-date">End Date</th>
                     <th scope="col" class="manage-column column-status">Status</th>
+                    <th scope="col" class="manage-column column-status">Billable</th>
                 </tr>
             </tfoot>
         </table>
