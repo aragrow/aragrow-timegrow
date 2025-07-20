@@ -34,12 +34,12 @@ class TimeGrowExpenseController{
         }
 
         if (!isset($_POST['expense_id'])) return; 
-
         $current_date = current_time('mysql');
         $data = [
             'expense_name' => sanitize_text_field($_POST['expense_name']),
             'expense_description' => sanitize_text_field($_POST['expense_description']),
-            'expense_date' => DateTime::createFromFormat('d/m/Y', sanitize_text_field($_POST['expense_date']))->format('Y-m-d'),
+            'expense_date' => sanitize_text_field($_POST['expense_date']),
+            'expense_payment_method' => sanitize_text_field($_POST['expense_payment_method']),
             'amount' => floatval($_POST['amount']),
             'category' => sanitize_text_field($_POST['category']),
             'assigned_to' => sanitize_text_field($_POST['assigned_to']),
@@ -51,6 +51,7 @@ class TimeGrowExpenseController{
             '%s',  // expense_name (string)
             '%s',  // expense_description (string)
             '%s',  // expense_date (string, could also use '%s' for MySQL date/datetime)
+            '%s',  // expense_payment_method (string)
             '%f',  // amount (float)
             '%s',  // category (string)
             '%s',  // assigned_to (string)

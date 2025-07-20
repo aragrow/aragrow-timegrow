@@ -32,7 +32,9 @@ class TimeGrowExpenseView {
             <tbody>
                 <?php if ($expenses) : ?>
                     <?php foreach ($expenses as $item) : ?>
-                        <?php $display_date = DateTime::createFromFormat('Y-m-d', $item->expense_date)->format('d/m/Y'); ?>
+
+                        <?php $date_format = get_option('date_format');
+                            $display_date = DateTime::createFromFormat('Y-m-d', $item->expense_date)->format($date_format); ?>
                         <tr>
                             <td class="column-name column-primary" data-colname="Name">
                                 <strong><?php echo esc_html($item->expense_name); ?></strong>
@@ -209,7 +211,6 @@ class TimeGrowExpenseView {
 
     public function edit_expense($expense, $receipts, $clients) {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
-        $display_date = DateTime::createFromFormat('Y-m-d', $expense->expense_date)->format('d/m/Y');
 
         ?>
         <div class="wrap">
@@ -232,7 +233,7 @@ class TimeGrowExpenseView {
                                     </tr>
                                     <tr>
                                     <th scope="row"><label for="expense_date">Expense Date</label></th>
-                                    <td><input type="date" id="expense_date" name="expense_date" value="<?php echo esc_attr($display_date); ?>" required></td>
+                                    <td><input type="date" id="expense_date" name="expense_date" value="<?php echo esc_attr($expense->expense_date); ?>" required></td>
                                 </tr>
                                     <tr>
                                         <th scope="row"><label for="amount">Amount</label></th>

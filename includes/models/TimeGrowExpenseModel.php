@@ -37,7 +37,7 @@ class TimeGrowExpenseModel {
             expense_name VARCHAR(255) NOT NULL,
             expense_description text NOT NULL,
             expense_date date NOT NULL,
-            expense_payment_method ENUM('personal_card', 'company_card', 'bank_transfer', 'cash', 'other') NOT NULL DEFAULT 'credit_card',
+            expense_payment_method ENUM('personal_card', 'company_card', 'bank_transfer', 'cash', 'other') NOT NULL DEFAULT 'company_card',
             amount DECIMAL(10,2) NOT NULL,
             category VARCHAR(255) NOT NULL,
             assigned_to ENUM('project', 'client', 'general') NOT NULL,
