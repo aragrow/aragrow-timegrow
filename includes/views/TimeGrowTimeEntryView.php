@@ -241,7 +241,7 @@ class TimeGrowTimeEntryView {
                 <input type="hidden" name="action" value="save_time_entry">
                 <input type="hidden" name="edit_item" value="1">
                 <?php wp_nonce_field('timegrow_time_entry_nonce', 'timegrow_time_entry_nonce_field'); ?>
-
+                <?php var_dump($time_entry); ?>
                 <div class="metabox-holder columns-2">
                     <div class="postbox-container">
                         <div class="postbox">
@@ -320,13 +320,15 @@ class TimeGrowTimeEntryView {
                                     </tr>
                                     <tr>
                                         <th scope="row"><label for="date">Date</label></th>
-                                        <td>
-                                            <input type="date" id="date" name="date" class="large-text conditional-field-hidden" value="<?php echo esc_attr($time_entry->date); ?>">
+                                        <td>  <?php $date_format = get_option('date_format');
+                                                $display_date = DateTime::createFromFormat('Y-m-d H:i:s', sanitize_text_field($time_entry->date))->format($date_format);
+                                            ?>
+                                            <input type="date" id="date" name="date" class="large-text conditional-field-hidden" value="<?php echo esc_attr($display_date); ?>">
                                         </td>
                                     </tr>
                                     <tr>
                                         <th scope="row"><label for="hours">Hours</label></th>
-                                        <td>
+                                        <td><?php var_dump($time_entry->hours); ?>
                                             <input type="range" id="hours" name="hours" class="large-text conditional-field-hidden" min="0" max="24" step="0.01" value="<?php echo esc_attr($time_entry->hours); ?>" oninput="this.nextElementSibling.value = this.value">
                                             <output><?php echo esc_attr($time_entry->hours); ?></output>
                                             <input type="number" step="0.25" id="hours" name="hours" class="large-text conditional-field-hidden" value="<?php echo esc_attr($time_entry->hours); ?>">

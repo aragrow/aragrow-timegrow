@@ -9,6 +9,7 @@ class TimeGrowTimeEntryModel {
     private $table_name;
     private $table_name2;
     private $table_name3;
+    private $table_name4;
     private $table_user;
     private $wpdb;
     private $charset_collate;
@@ -22,6 +23,7 @@ class TimeGrowTimeEntryModel {
         $this->table_name = $this->wpdb->prefix . TIMEGROW_PREFIX . 'time_entry_tracker'; // Make sure this matches your table name
         $this->table_name2 = $this->wpdb->prefix . TIMEGROW_PREFIX . 'project_tracker'; // Make sure this matches your table name
         $this->table_name3 = $this->wpdb->prefix . TIMEGROW_PREFIX . 'team_member_tracker'; // Make sure this matches your table name
+        $this->table_name4 = $this->wpdb->prefix . TIMEGROW_PREFIX . 'client_tracker'; // Make sure this matches your table name
         $this->table_user = $this->wpdb->prefix . 'users'; // Make sure this matches your table name
       
         $this->allowed_fields = ['project_id', 'member_id', 
@@ -73,10 +75,11 @@ class TimeGrowTimeEntryModel {
             $ids = array_map('intval', $ids); // Sanitize IDs
             $placeholders = implode(',', array_fill(0, count($ids), '%d')); // Create placeholders for prepared statement
             $sql = $this->wpdb->prepare(
-                "SELECT t.*, p.name as project_name, m.name as member_name, p.client_id
-                    FROM {$this->table_name} t 
+                "SELECT t.*, p.name as project_name, m.name as member_name, p.client_id, u.display_name as client_name
+                    FROM {$this->table_name} t
                     INNER JOIN {$this->table_name2} p ON t.project_id = p.ID
                     INNER JOIN {$this->table_name3} m ON t.member_id = m.ID
+                    INNER JOIN {$this->table_user} u ON p.client_id = u.ID
                     WHERE t.ID IN ($placeholders)  
                     ORDER BY t.date desc, m.name, p.name"
             );
@@ -85,20 +88,22 @@ class TimeGrowTimeEntryModel {
         elseif (intval($ids)) {
             $id = intval($ids); // Sanitize ID
             $sql = $this->wpdb->prepare(
-                "SELECT t.*, p.name as project_name, m.name as member_name, c.ID as client_id, c.name as client_name
+                "SELECT t.*, p.name as project_name, m.name as member_name, p.client_id, u.display_name as client_name
                     FROM {$this->table_name} t
                     INNER JOIN {$this->table_name2} p ON t.project_id = p.ID
                     INNER JOIN {$this->table_name3} m ON t.member_id = m.ID
+                    INNER JOIN {$this->table_user} u ON p.client_id = u.ID
                     WHERE t.ID = %d",
                 $id
             );
         }
         // If no IDs are provided, fetch all rows
         else {
-            $sql = "SELECT t.*, p.name as project_name, m.name as member_name, p.client_id 
+            $sql = "SELECT t.*, p.name as project_name, m.name as member_name, p.client_id, u.display_name as client_name
                 FROM {$this->table_name} t
                 INNER JOIN {$this->table_name2} p ON t.project_id = p.ID
                 INNER JOIN {$this->table_name3} m ON t.member_id = m.ID
+                INNER JOIN {$this->table_user} u ON p.client_id = u.ID
                 ORDER BY t.date desc, m.name, p.name";
         }
         $results = $this->wpdb->get_results($sql);
