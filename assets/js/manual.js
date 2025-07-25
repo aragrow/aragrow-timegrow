@@ -1,7 +1,8 @@
 // File: assets/js/manual.js
 jQuery(document).ready(function($) {
-
+  console.log
   const $clockButton = $('#timegrow-submit');
+  const $isBillable = $('#timegrow-submit');
 
   // Make project tiles draggable
   $('.timegrow-project-tile').attr('draggable', true);
@@ -21,6 +22,7 @@ jQuery(document).ready(function($) {
       $(this).removeClass('dragging-over');
     })
     .on('drop', function (e) {
+      console.log('Dropping project...');
       e.preventDefault();
       const projectId = e.originalEvent.dataTransfer.getData('project-id');
       const projectName = e.originalEvent.dataTransfer.getData('name');
@@ -30,8 +32,19 @@ jQuery(document).ready(function($) {
         $(this).html(`Project selected: ${projectName} (${projectId}) <br /> ${projectDesc}`).css('color', '#28a745');
 
 
-        $('.timegrow-project-tile').css('opacity', 0.5);
+        $('.timegrow-project-tile').css('opacity', .5);
         updateButtonState();
+        console.log('Checking if project is billable...');
+        const isBillable = checkIsBillable(projectId);
+        if (isBillable) {
+          $isBillable.addClass('check');
+          $isBillable.prop('checked', true);
+          $isBillable.prop('disabled', false);
+        } else {
+          $isBillable.removeClass('check');
+          $isBillable.prop('checked', false);
+          $isBillable.prop('disabled', true);
+        }
       }
       $(this).removeClass('dragging-over');
     });
@@ -47,6 +60,7 @@ jQuery(document).ready(function($) {
 
   function updateButtonState() {
       $clockButton.removeClass('disabled').addClass('active');
+      $clockButton.css('background-color', '#000000');
   }
 
 });

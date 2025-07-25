@@ -3,7 +3,7 @@
  * Plugin Name: Aragrow - TimeGrow
  * Plugin URI: https://example.com/aragrow-timegrow
  * Description: A time tracking plugin for managing projects, team members, and invoicing.
- * Version: 1.0.1
+ * Version: 1.0.2
  * Author: David Arago - ARAGROW, LLC
  * Author URI: https://aragrow.me/wp-plugins/timegrow/
  * License: GPL2
@@ -27,12 +27,11 @@ defined( 'TIMEGROW_PARENT_MENU' ) or define( 'TIMEGROW_PARENT_MENU', 'timegrow' 
 defined( 'TIMEGROW_TEAM_MEMBER_MENU' ) or define( 'TIMEGROW_TEAM_MEMBER_MENU', TIMEGROW_PARENT_MENU.'-team-member' );
 
 require_once TIMEGROW_INCLUDES_DIR . 'admin-menu.php';
-
-
-
+require_once TIMEGROW_INCLUDES_DIR . 'TimeGrowAjaxHandler.php';
 
 // Autoload classes
 function timegrow_load_mvc_classes($class) {
+    
     // Check if the class name starts with "timegrow"
     if (strpos($class, 'TimeGrow') !== 0) return; // Exit the function, don't load the class
     error_log(  'timegrow_load_mvc_classes'. ' - Class: ' . $class );  //Best option for Classes
@@ -61,8 +60,8 @@ if ( ! isset( $timegrow_client ) ) $timegrow_client = New TimeGrowClient();
 if ( ! isset( $timegrow_project ) ) $timegrow_project = New TimeGrowProject();
 if ( ! isset( $timegrow_expense ) ) $timegrow_expense = New TimeGrowExpense();
 if ( ! isset( $timegrow_time_entry ) ) $timegrow_time_entry = New TimeGrowTimeEntry();
-if ( ! isset( $timegrow_team_member ) ) $timegrow_time_entry = New TimeGrowTeamMember();
-if ( ! isset( $timegrow_nexus ) ) $timegrow_nexus = New TimeGrowNexus();
+if ( ! isset( $timegrow_team_member ) ) $timegrow_team_member = New TimeGrowTeamMember();
+if ( ! isset( $timegrow_ajax_handler ) ) $timegrow_ajax_handler = New TimeGrow_Ajax_Handler();
 
 register_activation_hook(__FILE__, 'timegrow_plugin_activate');
 
@@ -79,3 +78,15 @@ function timegrow_plugin_activate() {
     (new TimeGrowTimeEntryModel())->initialize();
 
 }
+
+// Enqueue scripts on admin pages
+add_action('admin_enqueue_scripts', function() {
+    $ajax_handler = new TimeGrow_Ajax_Handler();
+    $ajax_handler->enqueue_ajax_scripts();
+});
+
+// Enqueue scripts on frontend (if needed)
+//add_action('wp_enqueue_scripts', function() {
+//    $ajax_handler = new TimeGrow_Ajax_Handler();
+//    $ajax_handler->enqueue_ajax_scripts();
+//});

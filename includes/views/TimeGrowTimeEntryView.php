@@ -328,7 +328,7 @@ class TimeGrowTimeEntryView {
                                     </tr>
                                     <tr>
                                         <th scope="row"><label for="hours">Hours</label></th>
-                                        <td><?php var_dump($time_entry->hours); ?>
+                                        <td>
                                             <input type="range" id="hours" name="hours" class="large-text conditional-field-hidden" min="0" max="24" step="0.01" value="<?php echo esc_attr($time_entry->hours); ?>" oninput="this.nextElementSibling.value = this.value">
                                             <output><?php echo esc_attr($time_entry->hours); ?></output>
                                             <input type="number" step="0.25" id="hours" name="hours" class="large-text conditional-field-hidden" value="<?php echo esc_attr($time_entry->hours); ?>">

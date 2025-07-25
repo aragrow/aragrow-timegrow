@@ -20,6 +20,7 @@ class TimeFlies_Admin_Menu {
     }
 
     public function register_admin_menu() {
+   
         add_menu_page(
             'TimeGrow',
             'TimeGrow',

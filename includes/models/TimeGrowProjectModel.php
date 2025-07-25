@@ -284,4 +284,13 @@ class TimeGrowProjectModel {
 
     }
 
+    public function is_billable($project_id) {
+        $project_id = intval($project_id);
+        $sql = $this->wpdb->prepare(
+            "SELECT billable FROM {$this->table_name} WHERE ID = %d",
+            $project_id
+        );
+        $result = $this->wpdb->get_var($sql);
+        return (bool)$result;
+    }
 }
