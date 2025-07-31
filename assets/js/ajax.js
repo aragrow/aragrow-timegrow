@@ -3,10 +3,16 @@ jQuery(document).ready(function($) {
     /**
      * Check if project is billable
      */
-    function checkIsBillable(projectId) {
+    function checkIsBillable(projectId, objectId) {
         $.ajax({
             url: timegrow_ajax.ajax_url,
             type: 'POST',
+            dataType: 'json',
+            cache: false,
+            headers: {
+                'X-WP-Nonce': timegrow_ajax.nonce // Use the nonce for security
+            },
+            async: false,
             data: {
                 action: 'check_is_billable',
                 project_id: projectId,
@@ -20,8 +26,15 @@ jQuery(document).ready(function($) {
                 if (response.success) {
                     console.log('Success:', response.data);
                     // Handle success response
-                    alert('Project ' + response.data.project_id + ' is ' + 
-                        (response.data.is_billable ? 'billable' : 'not billable'));
+                    if (response.data.is_billable ) {
+                        console.log('Project is billable, enabling objectId');
+                        objectId.prop('checked', true);
+                        objectId.prop('disabled', false);
+                    } else {
+                        alert('Project is not billable.');
+                        objectId.prop('checked', false);
+                        objectId.prop('disabled', true);
+                    }
                 } else {
                     console.log('Error:', response.data);
                     alert('Error: ' + response.data);
@@ -37,7 +50,7 @@ jQuery(document).ready(function($) {
     // Example: Trigger AJAX call on button click
     $(document).on('click', '.check-billable-btn', function(e) {
         e.preventDefault();
-        var projectId = $(this).data('project-id');
+        var projectId = $(this).data('project-id');  
         checkIsBillable(projectId);
     });
     

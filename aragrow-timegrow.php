@@ -3,7 +3,7 @@
  * Plugin Name: Aragrow - TimeGrow
  * Plugin URI: https://example.com/aragrow-timegrow
  * Description: A time tracking plugin for managing projects, team members, and invoicing.
- * Version: 1.0.2
+ * Version: 1.0.3
  * Author: David Arago - ARAGROW, LLC
  * Author URI: https://aragrow.me/wp-plugins/timegrow/
  * License: GPL2

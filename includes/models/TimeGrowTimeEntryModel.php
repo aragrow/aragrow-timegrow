@@ -11,6 +11,7 @@ class TimeGrowTimeEntryModel {
     private $table_name3;
     private $table_name4;
     private $table_user;
+    private $table_order;
     private $wpdb;
     private $charset_collate;
     private $allowed_fields;
@@ -25,7 +26,8 @@ class TimeGrowTimeEntryModel {
         $this->table_name3 = $this->wpdb->prefix . TIMEGROW_PREFIX . 'team_member_tracker'; // Make sure this matches your table name
         $this->table_name4 = $this->wpdb->prefix . TIMEGROW_PREFIX . 'client_tracker'; // Make sure this matches your table name
         $this->table_user = $this->wpdb->prefix . 'users'; // Make sure this matches your table name
-      
+        $this->table_order = $this->wpdb->prefix . 'wc_orders'; // WooCommerce orders table
+    
         $this->allowed_fields = ['project_id', 'member_id', 
                                 'clock_in_date', 'clock_out_date', 
                                 'date','hours', 'billable', 'billed',
@@ -50,11 +52,13 @@ class TimeGrowTimeEntryModel {
             billed tinyint(1) DEFAULT 0,
             description text,
             entry_type varchar(10),
+            billed_order_id bigint(20) unsigned DEFAULT NULL,
             created_at timestamp,
             updated_at timestamp,
             PRIMARY KEY  (ID),
             FOREIGN KEY (project_id) REFERENCES {$this->table_name2}(ID),
-            FOREIGN KEY (member_id) REFERENCES {$this->table_name3}(ID)
+            FOREIGN KEY (member_id) REFERENCES {$this->table_name3}(ID),
+            FOREIGN KEY (billed_order_id) REFERENCES {$this->table_order}(ID)
         ) $this->charset_collate;";
 
         dbDelta($sql);
@@ -240,7 +244,6 @@ class TimeGrowTimeEntryModel {
     }
 
     public function mark_time_entries_as_billed($time_entries) {
-        
         global $wpdb;
         print('<br />>Marking time entries as billed');
         foreach ($time_entries as $entry) {
@@ -252,9 +255,9 @@ class TimeGrowTimeEntryModel {
             // Ensure the entry ID is an integer
             $result = $wpdb->update(
                 $this->table_name,
-                ['billed' => 1, 'updated_at' => current_time('mysql')],
+                ['billed' => 1, 'billed_order_id' => $entry->billed_order_id, 'updated_at' => current_time('mysql')],
                 ['ID' => (int) $entry->ID],
-                ['%d', '%s'],
+                ['%d', '%d', '%s'],
                 ['%d']
             );
             if ($result === false) {
