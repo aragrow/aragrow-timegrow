@@ -52,7 +52,17 @@ class TimeGrowReportController{
 
             case 'profit_loss_statement':
                 $this->report_view->report_header("Profit &amp; Loss Statement");
-                $this->report_view->profit_loss_statement();
+                $this->report_view->profit_loss_statement_filters();
+                if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST)) {
+                    if (
+                        !isset($_POST['report_nonce']) ||
+                        !wp_verify_nonce($_POST['report_nonce'], 'profit_loss_statement_filter')
+                    ) {
+                        echo '<div class="notice notice-error"><p>Security check failed. Please try again.</p></div>';
+                        return;
+                    }
+                    $this->report_view->profit_loss_statement();
+                }
                 break;
 
             case 'export_csv':

@@ -60,6 +60,34 @@ class TimeGrowReportView {
         <?php
     }
 
+    function profit_loss_statement_filters() {
+
+        // Available years (in real use, you might fetch distinct years from DB)
+        $years = [2023, 2024, 2025];
+
+        // Get current selected year from query (default = current year)
+        $selected_year = isset($_GET['pnl_year']) ? intval($_GET['pnl_year']) : date('Y');
+        ?>
+        <form method="POST" action="" style="margin-bottom: 20px;">
+            <?php wp_nonce_field('profit_loss_statement_filter', 'report_nonce'); ?>
+            <input type="hidden" name="page" value="timekeeping-reports">
+            <input type="hidden" name="report" value="pnl">
+            
+            <label for="pnl_year"><strong>Select Year:</strong></label>
+            <select name="pnl_year" id="pnl_year">
+                <?php foreach ($years as $year): ?>
+                    <option value="<?php echo esc_attr($year); ?>" <?php selected($year, $selected_year); ?>>
+                        <?php echo esc_html($year); ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+            <button type="submit" class="button button-primary">Filter</button>
+        </form>
+        <?php
+        return $selected_year;
+
+    }
+
     /**
      * Tax Summary Report Example
      */
