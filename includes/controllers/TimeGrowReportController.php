@@ -1,0 +1,82 @@
+<?php
+// Exit if accessed directly
+if (!defined('ABSPATH')) {
+    exit;
+}
+
+class TimeGrowReportController{
+
+    private $report_view;
+
+    public function __construct( TimeGrowReportView $report_view) {
+        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        $this->report_view = $report_view;
+    }
+
+    public function list_expenses() {
+        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        $this->report_view->display_reports();
+    }
+
+    public function load_the_report() {
+
+        if (!isset($_GET['report'])) {
+            echo "<p>Select a report from above.</p>";
+            return;
+        }
+
+        $report = sanitize_text_field($_GET['report']);
+
+        
+
+        switch ($report) {
+            case 'daily_hours':
+                echo "<h3>Daily Hours Report</h3>";
+                echo "<p>[Example: Show hours logged by employees today]</p>";
+                break;
+
+            case 'overtime':
+                echo "<h3>Overtime Report</h3>";
+                echo "<p>[Example: Show overtime hours for the selected period]</p>";
+                break;
+
+            case 'employee_breakdown':
+                echo "<h3>Employee Breakdown</h3>";
+                echo "<p>[Example: Show hours per employee]</p>";
+                break;
+
+            case 'yearly_totals':
+                echo "<h3>Yearly Totals</h3>";
+                echo "<p>[Example: Show total hours for the year per employee]</p>";
+                break;
+
+            case 'profit_loss_statement':
+                $this->report_view->report_header("Profit &amp; Loss Statement");
+                $this->report_view->profit_loss_statement();
+                break;
+
+            case 'export_csv':
+                echo "<h3>Export to CSV</h3>";
+                echo "<p>[Example: Export all timekeeping data for accounting]</p>";
+                break;
+
+            default:
+                echo "<p>Unknown report selected.</p>";
+        }
+
+        $this->report_view->report_footer();
+
+    }
+
+
+    public function display_admin_page($screen) {
+        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+
+        if ($screen == 'list') 
+            $this->list_expenses();
+        else 
+            $this->load_the_report();
+        
+    }
+
+}

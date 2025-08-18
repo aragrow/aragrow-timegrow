@@ -62,6 +62,7 @@ if ( ! isset( $timegrow_expense ) ) $timegrow_expense = New TimeGrowExpense();
 if ( ! isset( $timegrow_time_entry ) ) $timegrow_time_entry = New TimeGrowTimeEntry();
 if ( ! isset( $timegrow_team_member ) ) $timegrow_team_member = New TimeGrowTeamMember();
 if ( ! isset( $timegrow_ajax_handler ) ) $timegrow_ajax_handler = New TimeGrow_Ajax_Handler();
+if ( ! isset( $timegrow_report ) ) $timegrow_report = New TimeGrowReport();
 
 register_activation_hook(__FILE__, 'timegrow_plugin_activate');
 
@@ -76,7 +77,6 @@ function timegrow_plugin_activate() {
     (new TimeGrowExpenseReceiptModel())->initialize();
     (new TimeGrowTeamMemberModel())->initialize();
     (new TimeGrowTimeEntryModel())->initialize();
-
 }
 
 // Enqueue scripts on admin pages

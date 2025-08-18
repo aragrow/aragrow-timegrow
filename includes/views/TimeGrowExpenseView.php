@@ -342,10 +342,10 @@ class TimeGrowExpenseView {
                                     <tbody>
                                         <?php foreach ($receipts as $item): ?>
                                             <tr>
-                                                <th scope="col" colspan="2" class="manage-column column-name column-primary"><? echo esc_attr($item->file_url) ?></th>
-                                                <th scope="col" class="manage-column column-name"><? echo esc_attr($item->upload_date) ?></th>
+                                                <th scope="col" colspan="2" class="manage-column column-name column-primary"><?php echo esc_attr($item->file_url) ?></th>
+                                                <th scope="col" class="manage-column column-name"><?php echo esc_attr($item->upload_date) ?></th>
                                                 <th scope="col" class="manage-column column-actions">
-                                                    <a href="<? echo esc_attr($item->file_url) ?>" target="_view_receipt" class="button button-small mr-2">View</a> | 
+                                                    <a href="<?php echo esc_attr($item->file_url) ?>" target="_view_receipt" class="button button-small mr-2">View</a> | 
                                                     <a href="<?php echo admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-expense-receipt-delete&id=' . $item->ID); ?>" class="button button-danger button-small ml-2 delete-button">Delete</a>                   
                                                 </th>
                                             </tr>
