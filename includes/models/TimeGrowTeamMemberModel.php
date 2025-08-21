@@ -13,6 +13,7 @@ class TimeGrowTeamMemberModel {
     private $table_name2;
     private $table_name3;
     private $table_name4;
+    private $table_name5;
 
     public function __construct() {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
@@ -23,7 +24,8 @@ class TimeGrowTeamMemberModel {
         $this->table_name2 = $this->wpdb->prefix . TIMEGROW_PREFIX . 'company_tracker'; // Make sure this matches your table name
         $this->table_name3 = $this->wpdb->prefix . 'users'; // Make sure this matches your table name
         $this->table_name4 = $this->wpdb->prefix . TIMEGROW_PREFIX . 'project_tracker'; // Make sure this matches your table name
-
+        $this->table_name5 = $this->wpdb->prefix . TIMEGROW_PREFIX . 'time_entry_tracker'; // Make sure this matches your table name
+        
         $this->allowed_fields = ['user_id', 'company_id',
                                 'name', 'email',
                                 'phone', 'title',
@@ -272,4 +274,45 @@ class TimeGrowTeamMemberModel {
         $result = $this->wpdb->get_row($sql);
         return $result ? $result : null; // Return the object or null if not found
     }
+
+    public function get_team_member_clock_status($id) {
+        $sql = $this->wpdb->prepare(
+                "SELECT e.ID, e.clock_in_date, e.clock_out_date, p.name as project_name 
+                    FROM {$this->table_name5} e
+                    LEFT OUTER JOIN {$this->table_name4} p ON e.project_id = p.ID
+                    WHERE member_id = %d
+                    AND e.entry_type = 'CLOCK'
+                    ORDER BY e.ID desc
+                    LIMIT 1",
+                $id
+            );
+
+        $result = $this->wpdb->get_results($sql);
+        $item = $result[0];
+        var_dump($this->wpdb->last_query);
+        var_dump($this->wpdb->last_result);
+        if (!empty($result)) {
+            if (empty($item->clock_out_date) && !empty($item->clock_in_date)) {
+
+                return [ // Example: Clocked IN
+                    'status' => 'clocked_in',
+                    'clockInTimestamp' => strtotime($item->clock_in_date),
+                    'entryId' => $item->ID,
+                    'cloked_project' => $item->project_name,
+                ];
+                // You may need to join with project table to get project name if needed
+        
+            } else {
+                return [ // Example: Clocked OUT
+                    'status' => 'clocked_out',
+                ];
+            }
+        } else {
+            return [ // Example: Clocked OUT
+                'status' => 'clocked_out',
+            ];
+        }
+
+    }
+
 }

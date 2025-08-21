@@ -61,7 +61,8 @@ class TimeGrowReportController{
                         echo '<div class="notice notice-error"><p>Security check failed. Please try again.</p></div>';
                         return;
                     }
-                    $this->report_view->profit_loss_statement();
+                    $data = $this->get_profit_lost_statement($_POST['pnl_year']);
+                    $this->report_view->profit_loss_statement($data);
                 }
                 break;
 
@@ -78,6 +79,22 @@ class TimeGrowReportController{
 
     }
 
+    function get_profit_lost_statement($year) {
+
+                // In a real case, you'd fetch this data from your timekeeping/employee DB tables.
+        $revenue = [
+            [ 'name' => 'Alice Johnson', 'hours' => 2080, 'gross' => 52000, 'year'=> 2024],
+            [ 'name' => 'Bob Smith',     'hours' => 1950, 'gross' => 46800, 'year'=> 2024], 
+            [ 'name' => 'Carol Lee',     'hours' => 2100, 'gross' => 54000, 'year'=> 2025],
+        ];
+        $expenses = [
+            [ 'category' => 'Utilities',        'amount' => 3600,   'year'=> 2024],
+            [ 'category' => 'Software Licenses','amount' => 1200,   'year'=> 2024],
+            [ 'category' => 'Contractor Wages', 'amount' => 15000,  'year'=> 2024],
+            [ 'category' => 'Supplies',         'amount' => 800,    'year'=> 2024],
+        ];
+        return ['year' => $year, 'revenue' => $revenue, 'expenses' => $expenses];
+    }
 
     public function display_admin_page($screen) {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);

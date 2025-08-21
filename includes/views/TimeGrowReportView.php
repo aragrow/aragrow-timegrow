@@ -91,19 +91,10 @@ class TimeGrowReportView {
     /**
      * Tax Summary Report Example
      */
-    function profit_loss_statement() {
+    function profit_loss_statement($data) {
         // In a real case, you'd fetch this data from your timekeeping/employee DB tables.
-        $clients = [
-            [ 'name' => 'Alice Johnson', 'hours' => 2080, 'gross' => 52000, 'year'=> 2024],
-            [ 'name' => 'Bob Smith',     'hours' => 1950, 'gross' => 46800, 'year'=> 2024], 
-            [ 'name' => 'Carol Lee',     'hours' => 2100, 'gross' => 54000, 'year'=> 2025],
-        ];
-        $expenses = [
-            [ 'category' => 'Utilities',        'amount' => 3600,   'year'=> 2024],
-            [ 'category' => 'Software Licenses','amount' => 1200,   'year'=> 2024],
-            [ 'category' => 'Contractor Wages', 'amount' => 15000,  'year'=> 2024],
-            [ 'category' => 'Supplies',         'amount' => 800,    'year'=> 2024],
-        ];
+        $revenue = $data['revenue'];
+        $expenses = $data['expenses'];
         $total_revenue = 0;
         $total_expenses = 0;
         ?>
@@ -119,7 +110,7 @@ class TimeGrowReportView {
                 </tr>
             </thead>
             <tbody>
-                <?php foreach ($clients as $item) : ?>
+                <?php foreach ($revenue as $item) : ?>
                     <tr>
                         <td />
                         <td><?php echo esc_html($item['name']); ?></td>
