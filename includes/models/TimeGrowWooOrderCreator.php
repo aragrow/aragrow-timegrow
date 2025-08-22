@@ -60,6 +60,7 @@ class TimeGrowWooOrderCreator {
         if (empty($time_entries)) return [];
         // Group entries by project_id
 
+        var_dump($time_entries);
         $order_ids = [];
         $model_project = new TimeGrowProjectModel();
 
@@ -160,50 +161,44 @@ class TimeGrowWooOrderCreator {
                 print("<br />---------> Project Rate: $the_rate\n");
                 print("<br />---------> Project Rate (10 min): $the_rate_10_min\n");
 
-                $product_manual_hours = 0;
-                $product_clock_hours = 0;
                 $product_hours = 0;
                 $product_total = 0;
 
                 foreach ($entries as $entry) {
-                    if ($entry->entry_type != "MAN") continue;
                     if ($entry->billable != 1) continue;
                     if ($entry->billed != 0) continue;
                     print("<br />------> Project Type: $entry->entry_type, Project ID: $project_id, WOO Product ID: $product_id\n");
                     $project_id = (int) $entry->project_id;
-                    $product_manual_hours += $entry->hours;
+                    
+
+                    if ($entry->entry_type == "MAN") { 
+                        $product_hours += $entry->hours;
+                    } else {
+                        $clock_IN = $entry->clock_in_date;
+                        $clock_OUT = $entry->clock_out_date;
+                        var_dump($clock_IN);
+                        var_dump($clock_OUT);
+
+                        if (!isset($clock_IN) || !isset($clock_OUT)) continue;
+
+                       // 1. Convert to epoch seconds
+                        $in  = strtotime($clock_IN);
+                        $out = strtotime($clock_OUT);
+
+                        // 2. Minutes between the two times
+                        $hours = ($out - $in) / 3600;       // float
+          
+                        var_dump('Hours: '.$hours);
+                        $product_hours += $hours;
+                    }
+       
                     $work_done = $entry->description;
                     $entry->billed_order_id = $order->get_id();
                 
                 } // End loop entries
 
-                print('<br />---------> Manual Product Hours: '.$product_manual_hours);
+                print('<br />---------> Product Hours: '.$product_hours);
         
-                foreach ($entries as $entry) {
-                    if ($entry->entry_type == "MAN") continue;
-                    if (empty($entry->billable)) continue;
-                    if (!empty($entry->billed)) continue;
-                    print("<br />------> Project Type: $entry->entry_type, Project ID: $project_id, WOO Product ID: $product_id\n");
-                    if ($entry->entry_type == 'IN') 
-                        $clock_IN = $entry->clock_in_date;
-                    else
-                        $clock_OUT = $entry->clock_in_date;
-
-                    if (!isset($clock_IN) || !isset($clock_OUT)) continue;
-
-                    $project_id = (int) $entry->project_id;
-                    $hours = abs($clock_OUT - $clock_IN)/3600;
-                    $product_clock_hours += $hours;
-
-                    $clock_IN = '';
-                    $clock_OUT= ''; 
-                    print("<br />------------------> Hours: $hours, Rate: $the_rate\n");
-                    $entry->billed_order_id = $order->get_id();
-                } // End loop entries
-            
-                print('<br />---------> Clock In/Out Product Hours: '.$product_clock_hours);
-                $product_hours = $product_manual_hours + $product_clock_hours;  
-
                 $product_quantity = $this->hours_to_10min_units($product_hours);
 
                 $product_total = round($product_quantity * $the_rate_10_min, 2);

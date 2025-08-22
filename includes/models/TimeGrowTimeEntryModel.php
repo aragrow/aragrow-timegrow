@@ -213,9 +213,7 @@ class TimeGrowTimeEntryModel {
                 if ($sanitized_data['entry_type'] == 'IN' &&
                     empty($sanitized_data['clock_in_date']) ) {
                         wp_die( 'Error: validation not passed.3', array( 'back_link' => true ) );
-                } else if ( empty($sanitized_data['clock_out_date'])) {
-                    wp_die( 'Error: validation not passed.4', array( 'back_link' => true ) ); 
-                }
+                } 
                 
             }
 
