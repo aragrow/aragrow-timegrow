@@ -128,7 +128,7 @@ class TimeGrowTimeEntryModel {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         try {
             $id = intval($id); // Sanitize ID
-
+            error_log(print_r($data,true));
             // Whitelist allowed fields to prevent SQL injection
             $sanitized_data = [];
             error_log(print_r($sanitized_data, true));
@@ -189,11 +189,14 @@ class TimeGrowTimeEntryModel {
             // Whitelist allowed fields to prevent SQL injection
             $sanitized_data = [];
 
+            error_log(print_r($data,true));
+
             foreach ($data as $key => $value) {
                 if (in_array($key,  $this->allowed_fields , true)) {
                     $sanitized_data[$key] = sanitize_text_field($value); // Sanitize each field
                 }
             }
+            error_log('After Validating');
             error_log(print_r($sanitized_data,true));
 
             // Ensure all required fields are present
@@ -205,8 +208,8 @@ class TimeGrowTimeEntryModel {
                 empty($sanitized_data['date']) || 
                 empty($sanitized_data['hours']) )) {
                     wp_die( 'Error: validation not passed.2', array( 'back_link' => true ) );
-            } else if ($sanitized_data['entry_type'] <> 'MAN')  {
-                
+            } elseif ($sanitized_data['entry_type'] <> 'MAN')  {
+            
                 if ($sanitized_data['entry_type'] == 'IN' &&
                     empty($sanitized_data['clock_in_date']) ) {
                         wp_die( 'Error: validation not passed.3', array( 'back_link' => true ) );

@@ -289,8 +289,7 @@ class TimeGrowTeamMemberModel {
 
         $result = $this->wpdb->get_results($sql);
         $item = $result[0];
-        var_dump($this->wpdb->last_query);
-        var_dump($this->wpdb->last_result);
+
         if (!empty($result)) {
             if (empty($item->clock_out_date) && !empty($item->clock_in_date)) {
 
