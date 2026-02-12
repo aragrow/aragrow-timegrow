@@ -96,5 +96,36 @@ jQuery(document).ready(function($) {
     setupSearch("#available-projects-search", "#available-projects-list");
     setupSearch("#assigned-projects-search", "#assigned-projects-list");
 
+    // Handle filter button click
+    $('#filter_team_members').on('click', function(e) {
+        e.preventDefault();
+
+        var filterSearch = $('#filter_search').val();
+        var filterCompany = $('#filter_company').val();
+        var filterTitle = $('#filter_title').val();
+        var filterStatus = $('#filter_status').val();
+
+        var url = new URL(window.location.href);
+        url.searchParams.delete('s');
+        url.searchParams.delete('filter_company');
+        url.searchParams.delete('filter_title');
+        url.searchParams.delete('filter_status');
+
+        if (filterSearch) url.searchParams.set('s', filterSearch);
+        if (filterCompany) url.searchParams.set('filter_company', filterCompany);
+        if (filterTitle) url.searchParams.set('filter_title', filterTitle);
+        if (filterStatus) url.searchParams.set('filter_status', filterStatus);
+
+        window.location.href = url.toString();
+    });
+
+    // Allow Enter key to trigger filter
+    $('#filter_search, #filter_company, #filter_title, #filter_status').on('keypress', function(e) {
+        if (e.which === 13) {
+            e.preventDefault();
+            $('#filter_team_members').click();
+        }
+    });
+
 });
 

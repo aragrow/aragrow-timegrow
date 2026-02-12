@@ -6,33 +6,96 @@ if (!defined('ABSPATH')) {
 
 class TimeGrowExpenseView {
     
-    public function display_expenses($expenses) {
+    public function display_expenses($expenses, $filter_options = [], $current_filters = []) {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+
+        // Merge with defaults
+        $current_filters = array_merge([
+            'orderby' => 'expense_date',
+            'order' => 'DESC',
+            'filter_assigned_to' => '',
+            'filter_date_from' => '',
+            'filter_date_to' => '',
+            'filter_search' => ''
+        ], $current_filters);
+
+        // Helper function for sortable column headers
+        $sortable_link = function($column, $label) use ($current_filters) {
+            $order = ($current_filters['orderby'] == $column && $current_filters['order'] == 'ASC') ? 'DESC' : 'ASC';
+            $url = add_query_arg(array_merge($current_filters, ['orderby' => $column, 'order' => $order]));
+            return sprintf('<a href="%s"><span>%s</span><span class="sorting-indicator"></span></a>', esc_url($url), esc_html($label));
+        };
+
+        // Check if any filters are active
+        $has_filters = !empty($current_filters['filter_assigned_to']) ||
+                       !empty($current_filters['filter_date_from']) || !empty($current_filters['filter_date_to']) ||
+                       !empty($current_filters['filter_search']);
         ?>
         <div class="wrap">
-        <h2>All Expenses</h2>
-    
+        <!-- Modern Header -->
+        <div class="timegrow-modern-header">
+            <div class="timegrow-header-content">
+                <h1><?php esc_html_e('Expenses', 'timegrow'); ?></h1>
+                <p class="subtitle"><?php esc_html_e('Track and manage your business expenses and receipts', 'timegrow'); ?></p>
+            </div>
+            <div class="timegrow-header-illustration">
+                <span class="dashicons dashicons-money-alt"></span>
+            </div>
+        </div>
+
         <div class="tablenav top">
             <div class="alignleft actions">
                 <a href="<?php echo admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-expense-add'); ?>" class="button button-primary">Add New Expense</a>
             </div>
             <br class="clear">
         </div>
-    
+
+        <div class="tablenav top">
+            <div class="alignleft actions">
+                <input type="search" id="filter_search" name="s" value="<?php echo esc_attr($current_filters['filter_search']); ?>" placeholder="<?php esc_attr_e('Search expenses...', 'timegrow'); ?>">
+
+                <select id="filter_assigned_to" name="filter_assigned_to">
+                    <option value=""><?php esc_html_e('All Types', 'timegrow'); ?></option>
+                    <option value="client" <?php selected($current_filters['filter_assigned_to'], 'client'); ?>><?php esc_html_e('Client', 'timegrow'); ?></option>
+                    <option value="project" <?php selected($current_filters['filter_assigned_to'], 'project'); ?>><?php esc_html_e('Project', 'timegrow'); ?></option>
+                    <option value="general" <?php selected($current_filters['filter_assigned_to'], 'general'); ?>><?php esc_html_e('General', 'timegrow'); ?></option>
+                </select>
+
+                <input type="date" id="filter_date_from" name="filter_date_from" value="<?php echo esc_attr($current_filters['filter_date_from']); ?>" placeholder="<?php esc_attr_e('From Date', 'timegrow'); ?>">
+                <input type="date" id="filter_date_to" name="filter_date_to" value="<?php echo esc_attr($current_filters['filter_date_to']); ?>" placeholder="<?php esc_attr_e('To Date', 'timegrow'); ?>">
+
+                <button type="button" id="filter_expenses" class="button"><?php esc_html_e('Filter', 'timegrow'); ?></button>
+
+                <?php if ($has_filters) : ?>
+                    <a href="<?php echo admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-expenses-list'); ?>" class="button"><?php esc_html_e('Clear Filters', 'timegrow'); ?></a>
+                <?php endif; ?>
+            </div>
+            <br class="clear">
+        </div>
+
         <table class="wp-list-table widefat fixed striped table-view-list clients">
             <thead>
                 <tr>
-                    <th scope="col" class="manage-column column-name column-primary">Name</th>
-                    <th scope="col" class="manage-column column-name">Date</th>
-                    <th scope="col" class="manage-column column-company">Amount</th>  
-                    <th scope="col" class="manage-column column-document">Category</th>
-                    <th scope="col" class="manage-column column-address">Assigned To</th>
+                    <th scope="col" class="manage-column column-name column-primary sortable <?php echo ($current_filters['orderby'] == 'expense_name') ? 'sorted ' . strtolower($current_filters['order']) : ''; ?>">
+                        <?php echo $sortable_link('expense_name', __('Name', 'timegrow')); ?>
+                    </th>
+                    <th scope="col" class="manage-column column-date sortable <?php echo ($current_filters['orderby'] == 'expense_date') ? 'sorted ' . strtolower($current_filters['order']) : ''; ?>">
+                        <?php echo $sortable_link('expense_date', __('Date', 'timegrow')); ?>
+                    </th>
+                    <th scope="col" class="manage-column column-amount sortable <?php echo ($current_filters['orderby'] == 'amount') ? 'sorted ' . strtolower($current_filters['order']) : ''; ?>">
+                        <?php echo $sortable_link('amount', __('Amount', 'timegrow')); ?>
+                    </th>
+                    <th scope="col" class="manage-column column-assigned-to sortable <?php echo ($current_filters['orderby'] == 'assigned_to') ? 'sorted ' . strtolower($current_filters['order']) : ''; ?>">
+                        <?php echo $sortable_link('assigned_to', __('Assigned To', 'timegrow')); ?>
+                    </th>
+                    <th scope="col" class="manage-column column-category sortable <?php echo ($current_filters['orderby'] == 'category') ? 'sorted ' . strtolower($current_filters['order']) : ''; ?>">
+                        <?php echo $sortable_link('category', __('Category', 'timegrow')); ?>
+                    </th>
                 </tr>
             </thead>
             <tbody>
                 <?php if ($expenses) : ?>
                     <?php foreach ($expenses as $item) : ?>
-
                         <?php $date_format = get_option('date_format');
                             $display_date = DateTime::createFromFormat('Y-m-d', $item->expense_date)->format($date_format); ?>
                         <tr>
@@ -40,14 +103,24 @@ class TimeGrowExpenseView {
                                 <strong><?php echo esc_html($item->expense_name); ?></strong>
                                 <div class="row-actions visible">
                                     <span class="edit">
-                                        <a href="<?php echo admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-expense-edit&id=' . $item->ID); ?>" >Edit</a> 
+                                        <a href="<?php echo admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-expense-edit&id=' . $item->ID); ?>" >Edit</a>
                                     </span>
                                 </div>
                             </td>
-                            <td class="column-amount" data-colname="Date"><?php echo esc_html($display_date); ?></td>  
-                            <td class="column-amount" data-colname="Amount"><?php echo esc_html($item->amount); ?></td>  
-                            <td class="column-document" data-colname="Category"><?php echo esc_html($item->category); ?></td>
-                            <td class="column-address" data-colname="Assigned To"><?php echo esc_html($item->assigned_to); ?></td>
+                            <td class="column-date" data-colname="Date"><?php echo esc_html($display_date); ?></td>
+                            <td class="column-amount" data-colname="Amount">$<?php echo number_format($item->amount, 2); ?></td>
+                            <td class="column-assigned-to" data-colname="Assigned To">
+                                <?php
+                                if ($item->assigned_to == 'client') {
+                                    echo esc_html($item->client_name);
+                                } elseif ($item->assigned_to == 'project') {
+                                    echo esc_html($item->project_name);
+                                } else {
+                                    echo 'General';
+                                }
+                                ?>
+                            </td>
+                            <td class="column-category" data-colname="Category"><?php echo esc_html($item->category); ?></td>
                         </tr>
                     <?php endforeach; ?>
                 <?php else : ?>
@@ -59,10 +132,10 @@ class TimeGrowExpenseView {
             <tfoot>
                 <tr>
                     <th scope="col" class="manage-column column-name column-primary">Name</th>
-                    <th scope="col" class="manage-column column-name">Date</th>
-                    <th scope="col" class="manage-column column-company">Amount</th>  
-                    <th scope="col" class="manage-column column-document">Category</th>
-                    <th scope="col" class="manage-column column-address">Assigned To</th>
+                    <th scope="col" class="manage-column column-date">Date</th>
+                    <th scope="col" class="manage-column column-amount">Amount</th>
+                    <th scope="col" class="manage-column column-assigned-to">Assigned To</th>
+                    <th scope="col" class="manage-column column-category">Category</th>
                 </tr>
             </tfoot>
         </table>
@@ -81,7 +154,16 @@ class TimeGrowExpenseView {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         ?>
         <div class="wrap">
-            <h2>Add New Expense</h2>
+            <!-- Modern Header -->
+            <div class="timegrow-modern-header">
+                <div class="timegrow-header-content">
+                    <h1><?php esc_html_e('Add New Expense', 'timegrow'); ?></h1>
+                    <p class="subtitle"><?php esc_html_e('Record a new business expense and upload receipts', 'timegrow'); ?></p>
+                </div>
+                <div class="timegrow-header-illustration">
+                    <span class="dashicons dashicons-plus-alt"></span>
+                </div>
+            </div>
         
             <form id="timeflies-expense-form" class="wp-core-ui" method="POST" enctype="multipart/form-data">
                 <input type="hidden" name="expense_id" value="0" />
@@ -214,7 +296,16 @@ class TimeGrowExpenseView {
 
         ?>
         <div class="wrap">
-            <h2>Edit Expense</h2>
+            <!-- Modern Header -->
+            <div class="timegrow-modern-header">
+                <div class="timegrow-header-content">
+                    <h1><?php esc_html_e('Edit Expense', 'timegrow'); ?></h1>
+                    <p class="subtitle"><?php esc_html_e('Update expense information and manage receipts', 'timegrow'); ?></p>
+                </div>
+                <div class="timegrow-header-illustration">
+                    <span class="dashicons dashicons-edit"></span>
+                </div>
+            </div>
         
             <form id="timeflies-expense-form" class="wp-core-ui" method="POST" enctype="multipart/form-data">
                 <input type="hidden" name="expense_id" value="<?php echo esc_attr($expense->ID); ?>">

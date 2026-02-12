@@ -92,4 +92,41 @@ jQuery(document).ready(function($) {
         $(this).prop('disabled', true);
     });
 
+    // Handle filter button click
+    $('#filter_time_entries').on('click', function(e) {
+        e.preventDefault();
+
+        var filterSearch = $('#filter_search').val();
+        var filterProject = $('#filter_project').val();
+        var filterMember = $('#filter_member').val();
+        var filterBillable = $('#filter_billable').val();
+        var filterBilled = $('#filter_billed').val();
+        var filterEntryType = $('#filter_entry_type').val();
+
+        var url = new URL(window.location.href);
+        url.searchParams.delete('s');
+        url.searchParams.delete('filter_project');
+        url.searchParams.delete('filter_member');
+        url.searchParams.delete('filter_billable');
+        url.searchParams.delete('filter_billed');
+        url.searchParams.delete('filter_entry_type');
+
+        if (filterSearch) url.searchParams.set('s', filterSearch);
+        if (filterProject) url.searchParams.set('filter_project', filterProject);
+        if (filterMember) url.searchParams.set('filter_member', filterMember);
+        if (filterBillable) url.searchParams.set('filter_billable', filterBillable);
+        if (filterBilled) url.searchParams.set('filter_billed', filterBilled);
+        if (filterEntryType) url.searchParams.set('filter_entry_type', filterEntryType);
+
+        window.location.href = url.toString();
+    });
+
+    // Allow Enter key to trigger filter
+    $('#filter_search, #filter_project, #filter_member, #filter_billable, #filter_billed, #filter_entry_type').on('keypress', function(e) {
+        if (e.which === 13) {
+            e.preventDefault();
+            $('#filter_time_entries').click();
+        }
+    });
+
 });

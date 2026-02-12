@@ -27,4 +27,35 @@ jQuery(document).ready(function($) {
         }
     });
 
+    // Handle filter button click
+    $('#filter_projects').on('click', function(e) {
+        e.preventDefault();
+
+        var filterSearch = $('#filter_search').val();
+        var filterClient = $('#filter_client').val();
+        var filterStatus = $('#filter_status').val();
+        var filterBillable = $('#filter_billable').val();
+
+        var url = new URL(window.location.href);
+        url.searchParams.delete('s');
+        url.searchParams.delete('filter_client');
+        url.searchParams.delete('filter_status');
+        url.searchParams.delete('filter_billable');
+
+        if (filterSearch) url.searchParams.set('s', filterSearch);
+        if (filterClient) url.searchParams.set('filter_client', filterClient);
+        if (filterStatus) url.searchParams.set('filter_status', filterStatus);
+        if (filterBillable) url.searchParams.set('filter_billable', filterBillable);
+
+        window.location.href = url.toString();
+    });
+
+    // Allow Enter key to trigger filter
+    $('#filter_search, #filter_client, #filter_status, #filter_billable').on('keypress', function(e) {
+        if (e.which === 13) {
+            e.preventDefault();
+            $('#filter_projects').click();
+        }
+    });
+
 });

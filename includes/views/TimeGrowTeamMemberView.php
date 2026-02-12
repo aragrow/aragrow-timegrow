@@ -6,26 +6,105 @@ if (!defined('ABSPATH')) {
 
 class TimeGrowTeamMemberView {
     
-    public function display($items) {
+    public function display($items, $filter_options = [], $current_filters = []) {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+
+        // Merge with defaults
+        $current_filters = array_merge([
+            'orderby' => 'name',
+            'order' => 'ASC',
+            'filter_company' => '',
+            'filter_title' => '',
+            'filter_status' => '',
+            'filter_search' => ''
+        ], $current_filters);
+
+        // Helper function for sortable column headers
+        $sortable_link = function($column, $label) use ($current_filters) {
+            $order = ($current_filters['orderby'] == $column && $current_filters['order'] == 'ASC') ? 'DESC' : 'ASC';
+            $url = add_query_arg(array_merge($current_filters, ['orderby' => $column, 'order' => $order]));
+            $class = ($current_filters['orderby'] == $column) ? 'sorted ' . strtolower($current_filters['order']) : 'sortable';
+            return sprintf('<a href="%s"><span>%s</span><span class="sorting-indicator"></span></a>', esc_url($url), esc_html($label));
+        };
+
+        // Check if any filters are active
+        $has_filters = !empty($current_filters['filter_company']) || !empty($current_filters['filter_title']) ||
+                       !empty($current_filters['filter_status']) || !empty($current_filters['filter_search']);
         ?>
         <div class="wrap">
-        <h2>All Team Members</h2>
-    
+        <!-- Modern Header -->
+        <div class="timegrow-modern-header">
+            <div class="timegrow-header-content">
+                <h1><?php esc_html_e('Team Members', 'timegrow'); ?></h1>
+                <p class="subtitle"><?php esc_html_e('Manage your team members and their project assignments', 'timegrow'); ?></p>
+            </div>
+            <div class="timegrow-header-illustration">
+                <span class="dashicons dashicons-groups"></span>
+            </div>
+        </div>
+
         <div class="tablenav top">
             <div class="alignleft actions">
                 <a href="<?php echo admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-team-member-add'); ?>" class="button button-primary">Add New Team Member</a>
             </div>
             <br class="clear">
         </div>
-    
+
+        <div class="tablenav top">
+            <div class="alignleft actions">
+                <input type="search" id="filter_search" name="s" value="<?php echo esc_attr($current_filters['filter_search']); ?>" placeholder="<?php esc_attr_e('Search team members...', 'timegrow'); ?>">
+
+                <select id="filter_company" name="filter_company">
+                    <option value=""><?php esc_html_e('All Companies', 'timegrow'); ?></option>
+                    <?php foreach ($filter_options['companies'] as $id => $name) : ?>
+                        <option value="<?php echo esc_attr($id); ?>" <?php selected($current_filters['filter_company'], $id); ?>>
+                            <?php echo esc_html($name); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+
+                <select id="filter_title" name="filter_title">
+                    <option value=""><?php esc_html_e('All Titles', 'timegrow'); ?></option>
+                    <?php foreach ($filter_options['titles'] as $title) : ?>
+                        <option value="<?php echo esc_attr($title); ?>" <?php selected($current_filters['filter_title'], $title); ?>>
+                            <?php echo esc_html($title); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+
+                <select id="filter_status" name="filter_status">
+                    <option value=""><?php esc_html_e('All Statuses', 'timegrow'); ?></option>
+                    <option value="1" <?php selected($current_filters['filter_status'], '1'); ?>><?php esc_html_e('Active', 'timegrow'); ?></option>
+                    <option value="0" <?php selected($current_filters['filter_status'], '0'); ?>><?php esc_html_e('Inactive', 'timegrow'); ?></option>
+                </select>
+
+                <button type="button" id="filter_team_members" class="button"><?php esc_html_e('Filter', 'timegrow'); ?></button>
+
+                <?php if ($has_filters) : ?>
+                    <a href="<?php echo admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-team-members-list'); ?>" class="button"><?php esc_html_e('Clear Filters', 'timegrow'); ?></a>
+                <?php endif; ?>
+            </div>
+            <br class="clear">
+        </div>
+
         <table class="wp-list-table widefat fixed striped table-view-list team-members">
             <thead>
                 <tr>
-                    <th scope="col" class="manage-column column-name column-primary">Name</th>
-                    <th scope="col" class="manage-column column-company">Company</th>
-                    <th scope="col" class="manage-column column-email">Email</th>
-                    <th scope="col" class="manage-column column-title">Title</th>
+                    <th scope="col" class="manage-column column-name column-primary sortable <?php echo ($current_filters['orderby'] == 'name') ? 'sorted ' . strtolower($current_filters['order']) : ''; ?>">
+                        <?php echo $sortable_link('name', __('Name', 'timegrow')); ?>
+                    </th>
+                    <th scope="col" class="manage-column column-company sortable <?php echo ($current_filters['orderby'] == 'company_name') ? 'sorted ' . strtolower($current_filters['order']) : ''; ?>">
+                        <?php echo $sortable_link('company_name', __('Company', 'timegrow')); ?>
+                    </th>
+                    <th scope="col" class="manage-column column-email sortable <?php echo ($current_filters['orderby'] == 'email') ? 'sorted ' . strtolower($current_filters['order']) : ''; ?>">
+                        <?php echo $sortable_link('email', __('Email', 'timegrow')); ?>
+                    </th>
+                    <th scope="col" class="manage-column column-title sortable <?php echo ($current_filters['orderby'] == 'title') ? 'sorted ' . strtolower($current_filters['order']) : ''; ?>">
+                        <?php echo $sortable_link('title', __('Title', 'timegrow')); ?>
+                    </th>
+                    <th scope="col" class="manage-column column-status sortable <?php echo ($current_filters['orderby'] == 'status') ? 'sorted ' . strtolower($current_filters['order']) : ''; ?>">
+                        <?php echo $sortable_link('status', __('Status', 'timegrow')); ?>
+                    </th>
                     <th scope="col" class="manage-column column-actions">Actions</th>
                 </tr>
             </thead>
@@ -40,6 +119,13 @@ class TimeGrowTeamMemberView {
                             <td class="column-company" data-colname="Company"><?php echo esc_html($item->company_name); ?></td>
                             <td class="column-email" data-colname="Email"><?php echo esc_html($item->email); ?></td>
                             <td class="column-title" data-colname="Title"><?php echo esc_html($item->title); ?></td>
+                            <td class="column-status" data-colname="Status">
+                                <?php if ($item->status == 1) : ?>
+                                    <span class="timegrow-badge timegrow-badge-success"><?php esc_html_e('Active', 'timegrow'); ?></span>
+                                <?php else : ?>
+                                    <span class="timegrow-badge timegrow-badge-inactive"><?php esc_html_e('Inactive', 'timegrow'); ?></span>
+                                <?php endif; ?>
+                            </td>
                             <td class="column-actions" data-colname="Actions">
                                 <a href="<?php echo admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-team-member-edit&id=' . $item->ID); ?>" class="button button-small">Edit</a>
                             </td>
@@ -47,7 +133,7 @@ class TimeGrowTeamMemberView {
                     <?php endforeach; ?>
                 <?php else : ?>
                     <tr>
-                        <td colspan="5">No team members found.</td>
+                        <td colspan="6">No team members found.</td>
                     </tr>
                 <?php endif; ?>
             </tbody>
@@ -57,11 +143,12 @@ class TimeGrowTeamMemberView {
                     <th scope="col" class="manage-column column-company">Company</th>
                     <th scope="col" class="manage-column column-email">Email</th>
                     <th scope="col" class="manage-column column-title">Title</th>
+                    <th scope="col" class="manage-column column-status">Status</th>
                     <th scope="col" class="manage-column column-actions">Actions</th>
                 </tr>
             </tfoot>
         </table>
-    
+
         <div class="tablenav bottom">
             <div class="alignleft actions">
                 <a href="<?php echo admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-team-member-add'); ?>" class="button button-primary">Add New Team Member</a>
@@ -76,7 +163,16 @@ class TimeGrowTeamMemberView {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         ?>
         <div class="wrap">
-            <h2>Add New Team Member</h2>
+            <!-- Modern Header -->
+            <div class="timegrow-modern-header">
+                <div class="timegrow-header-content">
+                    <h1><?php esc_html_e('Add New Team Member', 'timegrow'); ?></h1>
+                    <p class="subtitle"><?php esc_html_e('Add a new member to your team and assign their projects', 'timegrow'); ?></p>
+                </div>
+                <div class="timegrow-header-illustration">
+                    <span class="dashicons dashicons-plus-alt"></span>
+                </div>
+            </div>
         
             <form id="timegrow-company-form" class="wp-core-ui" method="POST" enctype="multipart/form-data">
                 <input type="hidden" name="team_member_id" value="0">
@@ -195,7 +291,16 @@ class TimeGrowTeamMemberView {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         ?>
         <div class="wrap">
-            <h2>Edit Team Member</h2>
+            <!-- Modern Header -->
+            <div class="timegrow-modern-header">
+                <div class="timegrow-header-content">
+                    <h1><?php esc_html_e('Edit Team Member', 'timegrow'); ?></h1>
+                    <p class="subtitle"><?php esc_html_e('Update team member information and project assignments', 'timegrow'); ?></p>
+                </div>
+                <div class="timegrow-header-illustration">
+                    <span class="dashicons dashicons-edit"></span>
+                </div>
+            </div>
         
             <form id="timegrow-company-form" class="wp-core-ui" method="POST" enctype="multipart/form-data">
                 <input type="hidden" name="team_member_id" value="<?php echo esc_attr($item->ID); ?>">

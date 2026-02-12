@@ -68,6 +68,8 @@ class TimeGrowClient{
 /*******  bf5cae99-a42a-4000-a91e-2895ec5aea00  *******/
     public function enqueue_scripts_styles() {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        wp_enqueue_style('timegrow-modern-style', ARAGROW_TIMEGROW_BASE_URI . 'assets/css/timegrow-modern.css');
+        wp_enqueue_style('timegrow-forms-style', ARAGROW_TIMEGROW_BASE_URI . 'assets/css/forms.css');
         wp_enqueue_style('timeflies-clients-style', ARAGROW_TIMEGROW_BASE_URI . 'assets/css/company.css');
         wp_enqueue_script('timeflies-clients-script', ARAGROW_TIMEGROW_BASE_URI . 'assets/js/company.js', array('jquery'), '1.0', true);
         wp_localize_script(

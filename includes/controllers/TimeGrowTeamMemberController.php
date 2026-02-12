@@ -188,8 +188,92 @@ class TimeGrowTeamMemberController{
 
     public function list() {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
-        $items = $this->model->select(null); // Fetch all team members
-        $this->view->display($items);
+
+        // Get all team members first for filter options
+        $all_items = $this->model->select(null);
+
+        // Build WHERE clause for filtering
+        global $wpdb;
+        $where_conditions = [];
+        $filter_company = isset($_GET['filter_company']) ? sanitize_text_field($_GET['filter_company']) : '';
+        $filter_title = isset($_GET['filter_title']) ? sanitize_text_field($_GET['filter_title']) : '';
+        $filter_status = isset($_GET['filter_status']) ? sanitize_text_field($_GET['filter_status']) : '';
+        $filter_search = isset($_GET['s']) ? sanitize_text_field($_GET['s']) : '';
+
+        if (!empty($filter_search)) {
+            $search_term = '%' . $wpdb->esc_like($filter_search) . '%';
+            $where_conditions[] = $wpdb->prepare(
+                "(tm.name LIKE %s OR tm.email LIKE %s OR tm.title LIKE %s OR tm.phone LIKE %s OR c.name LIKE %s)",
+                $search_term, $search_term, $search_term, $search_term, $search_term
+            );
+        }
+        if (!empty($filter_company)) {
+            $where_conditions[] = $wpdb->prepare("tm.company_id = %d", intval($filter_company));
+        }
+        if (!empty($filter_title)) {
+            $where_conditions[] = $wpdb->prepare("tm.title = %s", $filter_title);
+        }
+        if (!empty($filter_status)) {
+            $where_conditions[] = $wpdb->prepare("tm.status = %d", intval($filter_status));
+        }
+
+        // Get orderby and order parameters
+        $orderby = isset($_GET['orderby']) ? sanitize_text_field($_GET['orderby']) : 'name';
+        $order = isset($_GET['order']) ? sanitize_text_field($_GET['order']) : 'ASC';
+
+        // Validate orderby column
+        $allowed_orderby = ['name', 'company_name', 'email', 'title', 'status'];
+        if (!in_array($orderby, $allowed_orderby)) {
+            $orderby = 'name';
+        }
+
+        // Validate order direction
+        $order = strtoupper($order);
+        if (!in_array($order, ['ASC', 'DESC'])) {
+            $order = 'ASC';
+        }
+
+        // Map orderby to actual column names
+        $orderby_column = $orderby;
+        if ($orderby == 'name' || $orderby == 'email' || $orderby == 'title' || $orderby == 'status') {
+            $orderby_column = 'tm.' . $orderby;
+        } elseif ($orderby == 'company_name') {
+            $orderby_column = 'c.name';
+        }
+
+        // Fetch team members with filtering and ordering
+        $table_name = $wpdb->prefix . TIMEGROW_PREFIX . 'team_member_tracker';
+        $company_table = $wpdb->prefix . TIMEGROW_PREFIX . 'company_tracker';
+        $where_clause = !empty($where_conditions) ? 'WHERE ' . implode(' AND ', $where_conditions) : '';
+        $query = "SELECT tm.*, c.name as company_name
+                  FROM {$table_name} tm
+                  LEFT JOIN {$company_table} c ON tm.company_id = c.ID
+                  {$where_clause}
+                  ORDER BY {$orderby_column} {$order}";
+        $items = $wpdb->get_results($query);
+
+        // Get unique values for filters from all items
+        $filter_options = [
+            'companies' => [],
+            'titles' => array_unique(array_filter(array_column($all_items, 'title')))
+        ];
+
+        // Get companies for filter
+        $companies = $this->model_company->select(null);
+        foreach ($companies as $company) {
+            $filter_options['companies'][$company->ID] = $company->name;
+        }
+
+        sort($filter_options['titles']);
+
+        $this->view->display($items, $filter_options, [
+            'orderby' => $orderby,
+            'order' => $order,
+            'filter_company' => $filter_company,
+            'filter_title' => $filter_title,
+            'filter_status' => $filter_status,
+            'filter_search' => $filter_search
+        ]);
     }
 
     public function add() {

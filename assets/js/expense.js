@@ -57,5 +57,36 @@ jQuery(document).ready(function($) {
         });
     });
 
+    // Handle filter button click
+    $('#filter_expenses').on('click', function(e) {
+        e.preventDefault();
+
+        var filterSearch = $('#filter_search').val();
+        var filterAssignedTo = $('#filter_assigned_to').val();
+        var filterDateFrom = $('#filter_date_from').val();
+        var filterDateTo = $('#filter_date_to').val();
+
+        var url = new URL(window.location.href);
+        url.searchParams.delete('s');
+        url.searchParams.delete('filter_assigned_to');
+        url.searchParams.delete('filter_date_from');
+        url.searchParams.delete('filter_date_to');
+
+        if (filterSearch) url.searchParams.set('s', filterSearch);
+        if (filterAssignedTo) url.searchParams.set('filter_assigned_to', filterAssignedTo);
+        if (filterDateFrom) url.searchParams.set('filter_date_from', filterDateFrom);
+        if (filterDateTo) url.searchParams.set('filter_date_to', filterDateTo);
+
+        window.location.href = url.toString();
+    });
+
+    // Allow Enter key to trigger filter
+    $('#filter_search, #filter_assigned_to, #filter_date_from, #filter_date_to').on('keypress', function(e) {
+        if (e.which === 13) {
+            e.preventDefault();
+            $('#filter_expenses').click();
+        }
+    });
+
 });
 

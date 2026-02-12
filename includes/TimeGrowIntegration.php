@@ -174,7 +174,7 @@ class TimeGrowIntegration{
 
     public function enqueue_scripts_styles() {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
-        wp_enqueue_style('timegrow-integrations-style', ARAGROW_TIMEGROW_BASE_URI . 'assets/css/integration.css');
+        wp_enqueue_style('timegrow-modern-style', ARAGROW_TIMEGROW_BASE_URI . 'assets/css/timegrow-modern.css');
         wp_enqueue_script('timegrow-integrations-script', ARAGROW_TIMEGROW_BASE_URI . 'assets/js/integration.js', array('jquery'), '1.0', true);
     }
 
@@ -184,15 +184,139 @@ class TimeGrowIntegration{
     }
 
     public function display_admin_page() {
+        $wc_installed = class_exists('WooCommerce');
+        $options = get_option('timegrow_integration_settings');
         ?>
-        <div class="wrap">
-        <h1>TimeGrow Integrations</h1>
-            <form method="post" action="options.php"> 
-                <?php
-                settings_fields('timegrow_integration_group');
-                do_settings_sections('timegrow-integrations');
-                submit_button('Save Settings');
-                ?>
+        <div class="wrap timegrow-modern-wrapper">
+            <div class="timegrow-modern-header">
+                <div class="timegrow-header-content">
+                    <h1><?php esc_html_e('TimeGrow Integrations', 'timegrow'); ?></h1>
+                    <p class="subtitle"><?php esc_html_e('Connect TimeGrow with your favorite tools and services', 'timegrow'); ?></p>
+                </div>
+                <div class="timegrow-header-illustration">
+                    <span class="dashicons dashicons-networking"></span>
+                </div>
+            </div>
+
+            <?php if (!$wc_installed): ?>
+            <div class="timegrow-notice timegrow-notice-warning">
+                <span class="dashicons dashicons-warning"></span>
+                <div>
+                    <strong><?php esc_html_e('WooCommerce Not Detected', 'timegrow'); ?></strong>
+                    <p><?php esc_html_e('Install and activate WooCommerce to unlock powerful integrations.', 'timegrow'); ?></p>
+                </div>
+            </div>
+            <?php endif; ?>
+
+            <form method="post" action="options.php" class="timegrow-integration-form">
+                <?php settings_fields('timegrow_integration_group'); ?>
+
+                <div class="timegrow-cards-container">
+
+                    <!-- WooCommerce Integration Card -->
+                    <div class="timegrow-card <?php echo $wc_installed ? '' : 'disabled'; ?>">
+                        <div class="timegrow-card-header">
+                            <div class="timegrow-icon timegrow-icon-woocommerce">
+                                <span class="dashicons dashicons-cart"></span>
+                            </div>
+                            <div class="timegrow-card-title">
+                                <h2><?php esc_html_e('WooCommerce', 'timegrow'); ?></h2>
+                                <span class="timegrow-badge <?php echo $wc_installed ? 'timegrow-badge-active' : 'timegrow-badge-inactive'; ?>">
+                                    <?php echo $wc_installed ? esc_html__('Installed', 'timegrow') : esc_html__('Not Installed', 'timegrow'); ?>
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="timegrow-card-body">
+                            <p class="timegrow-card-description">
+                                <?php esc_html_e('Sync your time tracking data with WooCommerce for seamless invoicing and client management.', 'timegrow'); ?>
+                            </p>
+
+                            <div class="integration-features">
+                                <div class="timegrow-feature-item">
+                                    <label class="timegrow-toggle-switch">
+                                        <input type="checkbox"
+                                               name="timegrow_integration_settings[wc_clients]"
+                                               value="1"
+                                               <?php checked(1, isset($options['wc_clients']) ? $options['wc_clients'] : 0); ?>
+                                               <?php echo !$wc_installed ? 'disabled' : ''; ?>>
+                                        <span class="timegrow-toggle-slider"></span>
+                                    </label>
+                                    <div class="timegrow-feature-info">
+                                        <strong><?php esc_html_e('Client Synchronization', 'timegrow'); ?></strong>
+                                        <p><?php esc_html_e('Sync WooCommerce customers with TimeGrow clients', 'timegrow'); ?></p>
+                                    </div>
+                                </div>
+
+                                <div class="timegrow-feature-item">
+                                    <label class="timegrow-toggle-switch">
+                                        <input type="checkbox"
+                                               name="timegrow_integration_settings[wc_invoices]"
+                                               value="1"
+                                               <?php checked(1, isset($options['wc_invoices']) ? $options['wc_invoices'] : 0); ?>
+                                               <?php echo !$wc_installed ? 'disabled' : ''; ?>>
+                                        <span class="timegrow-toggle-slider"></span>
+                                    </label>
+                                    <div class="timegrow-feature-info">
+                                        <strong><?php esc_html_e('Invoice Synchronization', 'timegrow'); ?></strong>
+                                        <p><?php esc_html_e('Create WooCommerce invoices from tracked time', 'timegrow'); ?></p>
+                                    </div>
+                                </div>
+
+                                <div class="timegrow-feature-item">
+                                    <label class="timegrow-toggle-switch">
+                                        <input type="checkbox"
+                                               name="timegrow_integration_settings[wc_products]"
+                                               value="1"
+                                               <?php checked(1, isset($options['wc_products']) ? $options['wc_products'] : 0); ?>
+                                               <?php echo !$wc_installed ? 'disabled' : ''; ?>>
+                                        <span class="timegrow-toggle-slider"></span>
+                                    </label>
+                                    <div class="timegrow-feature-info">
+                                        <strong><?php esc_html_e('Product Synchronization', 'timegrow'); ?></strong>
+                                        <p><?php esc_html_e('Link TimeGrow projects to WooCommerce products', 'timegrow'); ?></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PayPal Integration Card (Info Only) -->
+                    <div class="timegrow-card info-card">
+                        <div class="timegrow-card-header">
+                            <div class="timegrow-icon timegrow-icon-paypal">
+                                <span class="dashicons dashicons-money-alt"></span>
+                            </div>
+                            <div class="timegrow-card-title">
+                                <h2><?php esc_html_e('PayPal', 'timegrow'); ?></h2>
+                                <span class="timegrow-badge timegrow-badge-info">
+                                    <?php esc_html_e('Available', 'timegrow'); ?>
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="timegrow-card-body">
+                            <p class="timegrow-card-description">
+                                <?php esc_html_e('Automatically create PayPal invoices from WooCommerce orders.', 'timegrow'); ?>
+                            </p>
+                            <div class="timegrow-info-box">
+                                <span class="dashicons dashicons-admin-settings"></span>
+                                <p><?php echo sprintf(
+                                    __('Configure PayPal settings from the %s page', 'timegrow'),
+                                    '<a href="' . admin_url('admin.php?page=timegrow-nexus-settings') . '">Settings</a>'
+                                ); ?></p>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="timegrow-footer">
+                    <?php submit_button(__('Save Integration Settings', 'timegrow'), 'primary large', 'submit', false); ?>
+                    <a href="<?php echo admin_url('admin.php?page=timegrow-nexus-dashboard'); ?>" class="button button-secondary large">
+                        <?php esc_html_e('Back to Dashboard', 'timegrow'); ?>
+                    </a>
+                </div>
             </form>
         </div>
         <?php

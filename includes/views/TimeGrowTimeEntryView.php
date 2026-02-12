@@ -5,29 +5,122 @@ if (!defined('ABSPATH')) {
 }
 
 class TimeGrowTimeEntryView {
-    
-    public function display($time_entries) {
+
+    public function display($time_entries, $filter_options = [], $current_filters = []) {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+
+        // Merge with defaults
+        $current_filters = array_merge([
+            'orderby' => 'date',
+            'order' => 'DESC',
+            'filter_project' => '',
+            'filter_member' => '',
+            'filter_billable' => '',
+            'filter_billed' => '',
+            'filter_entry_type' => '',
+            'filter_search' => ''
+        ], $current_filters);
+
+        // Helper function for sortable column headers
+        $sortable_link = function($column, $label) use ($current_filters) {
+            $order = ($current_filters['orderby'] == $column && $current_filters['order'] == 'ASC') ? 'DESC' : 'ASC';
+            $url = add_query_arg(array_merge($current_filters, ['orderby' => $column, 'order' => $order]));
+            return sprintf('<a href="%s"><span>%s</span><span class="sorting-indicator"></span></a>', esc_url($url), esc_html($label));
+        };
+
+        // Check if any filters are active
+        $has_filters = !empty($current_filters['filter_project']) || !empty($current_filters['filter_member']) ||
+                       !empty($current_filters['filter_billable']) || !empty($current_filters['filter_billed']) ||
+                       !empty($current_filters['filter_entry_type']) || !empty($current_filters['filter_search']);
         ?>
         <div class="wrap">
-        <h2>All Entries</h2>
-    
+        <!-- Modern Header -->
+        <div class="timegrow-modern-header">
+            <div class="timegrow-header-content">
+                <h1><?php esc_html_e('Time Entries', 'timegrow'); ?></h1>
+                <p class="subtitle"><?php esc_html_e('Track manual and clocked time entries for projects', 'timegrow'); ?></p>
+            </div>
+            <div class="timegrow-header-illustration">
+                <span class="dashicons dashicons-clock"></span>
+            </div>
+        </div>
+
         <div class="tablenav top">
             <div class="alignleft actions">
                 <a href="<?php echo admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-time-entry-add'); ?>" class="button button-primary">Add New Entry</a>
             </div>
             <br class="clear">
         </div>
-    
+
+        <div class="tablenav top">
+            <div class="alignleft actions">
+                <input type="search" id="filter_search" name="s" value="<?php echo esc_attr($current_filters['filter_search']); ?>" placeholder="<?php esc_attr_e('Search time entries...', 'timegrow'); ?>">
+
+                <select id="filter_project" name="filter_project">
+                    <option value=""><?php esc_html_e('All Projects', 'timegrow'); ?></option>
+                    <?php foreach ($filter_options['projects'] as $id => $name) : ?>
+                        <option value="<?php echo esc_attr($id); ?>" <?php selected($current_filters['filter_project'], $id); ?>>
+                            <?php echo esc_html($name); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+
+                <select id="filter_member" name="filter_member">
+                    <option value=""><?php esc_html_e('All Members', 'timegrow'); ?></option>
+                    <?php foreach ($filter_options['members'] as $id => $name) : ?>
+                        <option value="<?php echo esc_attr($id); ?>" <?php selected($current_filters['filter_member'], $id); ?>>
+                            <?php echo esc_html($name); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+
+                <select id="filter_billable" name="filter_billable">
+                    <option value=""><?php esc_html_e('All Billable', 'timegrow'); ?></option>
+                    <option value="1" <?php selected($current_filters['filter_billable'], '1'); ?>><?php esc_html_e('Billable', 'timegrow'); ?></option>
+                    <option value="0" <?php selected($current_filters['filter_billable'], '0'); ?>><?php esc_html_e('Non-Billable', 'timegrow'); ?></option>
+                </select>
+
+                <select id="filter_billed" name="filter_billed">
+                    <option value=""><?php esc_html_e('All Billed', 'timegrow'); ?></option>
+                    <option value="1" <?php selected($current_filters['filter_billed'], '1'); ?>><?php esc_html_e('Billed', 'timegrow'); ?></option>
+                    <option value="0" <?php selected($current_filters['filter_billed'], '0'); ?>><?php esc_html_e('Not Billed', 'timegrow'); ?></option>
+                </select>
+
+                <select id="filter_entry_type" name="filter_entry_type">
+                    <option value=""><?php esc_html_e('All Types', 'timegrow'); ?></option>
+                    <option value="MAN" <?php selected($current_filters['filter_entry_type'], 'MAN'); ?>><?php esc_html_e('Manual', 'timegrow'); ?></option>
+                    <option value="IN" <?php selected($current_filters['filter_entry_type'], 'IN'); ?>><?php esc_html_e('Clock In', 'timegrow'); ?></option>
+                    <option value="OUT" <?php selected($current_filters['filter_entry_type'], 'OUT'); ?>><?php esc_html_e('Clock Out', 'timegrow'); ?></option>
+                </select>
+
+                <button type="button" id="filter_time_entries" class="button"><?php esc_html_e('Filter', 'timegrow'); ?></button>
+
+                <?php if ($has_filters) : ?>
+                    <a href="<?php echo admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-time-entries-list'); ?>" class="button"><?php esc_html_e('Clear Filters', 'timegrow'); ?></a>
+                <?php endif; ?>
+            </div>
+            <br class="clear">
+        </div>
+
         <table class="wp-list-table widefat fixed striped table-view-list clients">
             <thead>
                 <tr>
-                    <th scope="col" class="manage-column column-name column-actions column-primary">Date</th>
-                    <th scope="col" class="manage-column column-company">Project</th>
-                    <th scope="col" class="manage-column column-name">Member</th>
-                    <th scope="col" class="manage-column column-company">Type</th>  
-                    <th scope="col" class="manage-column column-document">Billable</th>
-                    <th scope="col" class="manage-column column-document">Billed</th>
+                    <th scope="col" class="manage-column column-name column-actions column-primary sortable <?php echo ($current_filters['orderby'] == 'date') ? 'sorted ' . strtolower($current_filters['order']) : ''; ?>">
+                        <?php echo $sortable_link('date', __('Date', 'timegrow')); ?>
+                    </th>
+                    <th scope="col" class="manage-column column-company sortable <?php echo ($current_filters['orderby'] == 'project_name') ? 'sorted ' . strtolower($current_filters['order']) : ''; ?>">
+                        <?php echo $sortable_link('project_name', __('Project', 'timegrow')); ?>
+                    </th>
+                    <th scope="col" class="manage-column column-name sortable <?php echo ($current_filters['orderby'] == 'member_name') ? 'sorted ' . strtolower($current_filters['order']) : ''; ?>">
+                        <?php echo $sortable_link('member_name', __('Member', 'timegrow')); ?>
+                    </th>
+                    <th scope="col" class="manage-column column-company">Type</th>
+                    <th scope="col" class="manage-column column-document sortable <?php echo ($current_filters['orderby'] == 'billable') ? 'sorted ' . strtolower($current_filters['order']) : ''; ?>">
+                        <?php echo $sortable_link('billable', __('Billable', 'timegrow')); ?>
+                    </th>
+                    <th scope="col" class="manage-column column-document sortable <?php echo ($current_filters['orderby'] == 'billed') ? 'sorted ' . strtolower($current_filters['order']) : ''; ?>">
+                        <?php echo $sortable_link('billed', __('Billed', 'timegrow')); ?>
+                    </th>
                 </tr>
             </thead>
             <tbody>
@@ -53,10 +146,22 @@ class TimeGrowTimeEntryView {
                                 </div>
                             </td>
                             <td class="column-document" data-colname="project_name"><?php echo esc_html($item->project_name); ?></td>
-                            <td class="column-amount" data-colname="team_member"><?php echo esc_html($item->member_name); ?></td>  
-                            <td class="column-amount" data-colname="entry_type"><?php echo esc_html($item->entry_type); ?></td>  
-                            <td class="column-document" data-colname="billable"><?php echo esc_html(($item->billable) ? 'Yes' : 'No'); ?></td> 
-                            <td class="column-document" data-colname="billed"><?php echo esc_html(($item->billed) ? 'Yes' : 'No'); ?></td> 
+                            <td class="column-amount" data-colname="team_member"><?php echo esc_html($item->member_name); ?></td>
+                            <td class="column-amount" data-colname="entry_type"><?php echo esc_html($item->entry_type); ?></td>
+                            <td class="column-document" data-colname="billable">
+                                <?php if ($item->billable == 1) : ?>
+                                    <span class="timegrow-badge timegrow-badge-primary"><?php esc_html_e('Yes', 'timegrow'); ?></span>
+                                <?php else : ?>
+                                    <span class="timegrow-badge timegrow-badge-warning"><?php esc_html_e('No', 'timegrow'); ?></span>
+                                <?php endif; ?>
+                            </td>
+                            <td class="column-document" data-colname="billed">
+                                <?php if ($item->billed == 1) : ?>
+                                    <span class="timegrow-badge timegrow-badge-success"><?php esc_html_e('Yes', 'timegrow'); ?></span>
+                                <?php else : ?>
+                                    <span class="timegrow-badge timegrow-badge-inactive"><?php esc_html_e('No', 'timegrow'); ?></span>
+                                <?php endif; ?>
+                            </td> 
                         </tr>
                     <?php endforeach; ?>
                 <?php else : ?>

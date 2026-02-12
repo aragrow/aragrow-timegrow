@@ -67,6 +67,8 @@ class TimeGrowExpense {
 
     public function enqueue_scripts_styles() {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        wp_enqueue_style('timegrow-modern-style', ARAGROW_TIMEGROW_BASE_URI . 'assets/css/timegrow-modern.css');
+        wp_enqueue_style('timegrow-forms-style', ARAGROW_TIMEGROW_BASE_URI . 'assets/css/forms.css');
         wp_enqueue_style('timeflies-expenses-style', ARAGROW_TIMEGROW_BASE_URI . 'assets/css/expense.css');
         wp_enqueue_script('timeflies-expenses-script', ARAGROW_TIMEGROW_BASE_URI . 'assets/js/expense.js', array('jquery'), '1.0', true);
         wp_localize_script(

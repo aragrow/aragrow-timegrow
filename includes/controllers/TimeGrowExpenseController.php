@@ -93,8 +93,101 @@ class TimeGrowExpenseController{
 
     public function list_expenses() {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
-        $expenses = $this->expense_model->select(null); // Fetch all expenses
-        $this->expense_view->display_expenses($expenses);
+
+        // Get all expenses first for filter options
+        $all_expenses = $this->expense_model->select(null);
+
+        // Build WHERE clause for filtering
+        global $wpdb;
+        $where_conditions = [];
+        $filter_assigned_to = isset($_GET['filter_assigned_to']) ? sanitize_text_field($_GET['filter_assigned_to']) : '';
+        $filter_date_from = isset($_GET['filter_date_from']) ? sanitize_text_field($_GET['filter_date_from']) : '';
+        $filter_date_to = isset($_GET['filter_date_to']) ? sanitize_text_field($_GET['filter_date_to']) : '';
+        $filter_search = isset($_GET['s']) ? sanitize_text_field($_GET['s']) : '';
+
+        if (!empty($filter_search)) {
+            $search_term = '%' . $wpdb->esc_like($filter_search) . '%';
+            $where_conditions[] = $wpdb->prepare(
+                "(e.expense_name LIKE %s OR e.expense_description LIKE %s OR e.amount LIKE %s OR e.category LIKE %s OR u.display_name LIKE %s OR p.name LIKE %s)",
+                $search_term, $search_term, $search_term, $search_term, $search_term, $search_term
+            );
+        }
+        if (!empty($filter_assigned_to)) {
+            $where_conditions[] = $wpdb->prepare("e.assigned_to = %s", $filter_assigned_to);
+        }
+        if (!empty($filter_date_from)) {
+            $where_conditions[] = $wpdb->prepare("e.expense_date >= %s", $filter_date_from);
+        }
+        if (!empty($filter_date_to)) {
+            $where_conditions[] = $wpdb->prepare("e.expense_date <= %s", $filter_date_to);
+        }
+
+        // Get orderby and order parameters
+        $orderby = isset($_GET['orderby']) ? sanitize_text_field($_GET['orderby']) : 'expense_date';
+        $order = isset($_GET['order']) ? sanitize_text_field($_GET['order']) : 'DESC';
+
+        // Validate orderby column
+        $allowed_orderby = ['expense_date', 'amount', 'expense_name', 'assigned_to', 'category'];
+        if (!in_array($orderby, $allowed_orderby)) {
+            $orderby = 'expense_date';
+        }
+
+        // Validate order direction
+        $order = strtoupper($order);
+        if (!in_array($order, ['ASC', 'DESC'])) {
+            $order = 'DESC';
+        }
+
+        // Map orderby to actual column names
+        $orderby_column = $orderby;
+        if ($orderby == 'expense_date' || $orderby == 'amount' || $orderby == 'expense_name' || $orderby == 'assigned_to' || $orderby == 'category') {
+            $orderby_column = 'e.' . $orderby;
+        }
+
+        // Fetch expenses with filtering and ordering
+        $table_name = $wpdb->prefix . TIMEGROW_PREFIX . 'expense_tracker';
+        $user_table = $wpdb->prefix . 'users';
+        $project_table = $wpdb->prefix . TIMEGROW_PREFIX . 'project_tracker';
+        $where_clause = !empty($where_conditions) ? 'WHERE ' . implode(' AND ', $where_conditions) : '';
+        $query = "SELECT e.*,
+                         CASE
+                             WHEN e.assigned_to = 'client' THEN u.display_name
+                             ELSE NULL
+                         END as client_name,
+                         CASE
+                             WHEN e.assigned_to = 'project' THEN p.name
+                             ELSE NULL
+                         END as project_name
+                  FROM {$table_name} e
+                  LEFT JOIN {$user_table} u ON (e.assigned_to = 'client' AND e.assigned_to_id = u.ID)
+                  LEFT JOIN {$project_table} p ON (e.assigned_to = 'project' AND e.assigned_to_id = p.ID)
+                  {$where_clause}
+                  ORDER BY {$orderby_column} {$order}";
+        $expenses = $wpdb->get_results($query);
+
+        // Get unique values for filters
+        $filter_options = ['clients' => [], 'projects' => []];
+
+        // Get clients for filter
+        $clients = $this->client_model->select(null);
+        foreach ($clients as $client) {
+            $filter_options['clients'][$client->ID] = $client->company_name;
+        }
+
+        // Get projects for filter
+        $projects = $this->project_model->select(null);
+        foreach ($projects as $project) {
+            $filter_options['projects'][$project->ID] = $project->name;
+        }
+
+        $this->expense_view->display_expenses($expenses, $filter_options, [
+            'orderby' => $orderby,
+            'order' => $order,
+            'filter_assigned_to' => $filter_assigned_to,
+            'filter_date_from' => $filter_date_from,
+            'filter_date_to' => $filter_date_to,
+            'filter_search' => $filter_search
+        ]);
     }
 
     public function add_expenses() {

@@ -21,7 +21,28 @@ class TimeGrowClientController{
 
         $integrations = get_option('timegrow_integration_settings');
         if ($integrations['wc_clients'] && class_exists('WooCommerce')) {
-            echo '<div class="x-notice info"><h2>Clients are integrated with WooCommerce Customers.</h2></div>';
+            ?>
+            <div class="wrap">
+                <!-- Modern Header -->
+                <div class="timegrow-modern-header">
+                    <div class="timegrow-header-content">
+                        <h1><?php esc_html_e('Clients', 'timegrow'); ?></h1>
+                        <p class="subtitle"><?php esc_html_e('Manage your client information and relationships', 'timegrow'); ?></p>
+                    </div>
+                    <div class="timegrow-header-illustration">
+                        <span class="dashicons dashicons-groups"></span>
+                    </div>
+                </div>
+
+                <div class="timegrow-notice timegrow-notice-info">
+                    <span class="dashicons dashicons-info"></span>
+                    <div>
+                        <strong><?php esc_html_e('WooCommerce Integration Active', 'timegrow'); ?></strong>
+                        <p><?php esc_html_e('Clients are integrated with WooCommerce Customers.', 'timegrow'); ?></p>
+                    </div>
+                </div>
+            </div>
+            <?php
             exit();
         }
 

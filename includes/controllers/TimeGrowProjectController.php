@@ -91,8 +91,87 @@ class TimeGrowProjectController{
 
     public function list() {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
-        $projects = $this->model->select(null); // Fetch all expenses
-        $this->view->display($projects);
+
+        // Get all projects first for filter options
+        $all_projects = $this->model->select(null);
+
+        // Build WHERE clause for filtering
+        global $wpdb;
+        $where_conditions = [];
+        $filter_client = isset($_GET['filter_client']) ? sanitize_text_field($_GET['filter_client']) : '';
+        $filter_status = isset($_GET['filter_status']) ? sanitize_text_field($_GET['filter_status']) : '';
+        $filter_billable = isset($_GET['filter_billable']) ? sanitize_text_field($_GET['filter_billable']) : '';
+        $filter_search = isset($_GET['s']) ? sanitize_text_field($_GET['s']) : '';
+
+        if (!empty($filter_search)) {
+            $search_term = '%' . $wpdb->esc_like($filter_search) . '%';
+            $where_conditions[] = $wpdb->prepare(
+                "(p.name LIKE %s OR p.description LIKE %s OR u.display_name LIKE %s)",
+                $search_term, $search_term, $search_term
+            );
+        }
+        if (!empty($filter_client)) {
+            $where_conditions[] = $wpdb->prepare("p.client_id = %d", intval($filter_client));
+        }
+        if (!empty($filter_status)) {
+            $where_conditions[] = $wpdb->prepare("p.status = %d", intval($filter_status));
+        }
+        if (!empty($filter_billable)) {
+            $where_conditions[] = $wpdb->prepare("p.billable = %d", intval($filter_billable));
+        }
+
+        // Get orderby and order parameters
+        $orderby = isset($_GET['orderby']) ? sanitize_text_field($_GET['orderby']) : 'name';
+        $order = isset($_GET['order']) ? sanitize_text_field($_GET['order']) : 'ASC';
+
+        // Validate orderby column
+        $allowed_orderby = ['name', 'client_name', 'start_date', 'end_date', 'status', 'billable'];
+        if (!in_array($orderby, $allowed_orderby)) {
+            $orderby = 'name';
+        }
+
+        // Validate order direction
+        $order = strtoupper($order);
+        if (!in_array($order, ['ASC', 'DESC'])) {
+            $order = 'ASC';
+        }
+
+        // Map orderby to actual column names
+        $orderby_column = $orderby;
+        if ($orderby == 'name' || $orderby == 'start_date' || $orderby == 'end_date' || $orderby == 'status' || $orderby == 'billable') {
+            $orderby_column = 'p.' . $orderby;
+        } elseif ($orderby == 'client_name') {
+            $orderby_column = 'u.display_name';
+        }
+
+        // Fetch projects with filtering and ordering
+        $table_name = $wpdb->prefix . TIMEGROW_PREFIX . 'project_tracker';
+        $user_table = $wpdb->prefix . 'users';
+        $where_clause = !empty($where_conditions) ? 'WHERE ' . implode(' AND ', $where_conditions) : '';
+        $query = "SELECT p.*, u.display_name as client_name
+                  FROM {$table_name} p
+                  LEFT JOIN {$user_table} u ON p.client_id = u.ID
+                  {$where_clause}
+                  ORDER BY {$orderby_column} {$order}";
+        $projects = $wpdb->get_results($query);
+
+        // Get unique values for filters
+        $filter_options = ['clients' => []];
+
+        // Get clients for filter
+        $clients = $this->model_client->select();
+        foreach ($clients as $client) {
+            $filter_options['clients'][$client->ID] = $client->company_name;
+        }
+
+        $this->view->display($projects, $filter_options, [
+            'orderby' => $orderby,
+            'order' => $order,
+            'filter_client' => $filter_client,
+            'filter_status' => $filter_status,
+            'filter_billable' => $filter_billable,
+            'filter_search' => $filter_search
+        ]);
     }
 
     public function add() {

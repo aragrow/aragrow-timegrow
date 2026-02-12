@@ -64,6 +64,8 @@ class TimeGrowTeamMember{
         wp_enqueue_script('jquery-ui-sortable');
         wp_enqueue_script('jquery-ui-draggable');
 
+        wp_enqueue_style('timegrow-modern-style', ARAGROW_TIMEGROW_BASE_URI . 'assets/css/timegrow-modern.css');
+        wp_enqueue_style('timegrow-forms-style', ARAGROW_TIMEGROW_BASE_URI . 'assets/css/forms.css');
         wp_enqueue_style('timegrow-companies-style', ARAGROW_TIMEGROW_BASE_URI . 'assets/css/team_member.css');
         wp_enqueue_script('timegrow-companiues-script', ARAGROW_TIMEGROW_BASE_URI . 'assets/js/team_member.js', array('jquery'), '1.0', true);
         wp_localize_script(
