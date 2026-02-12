@@ -83,10 +83,92 @@ class TimeGrowExpenseController{
 
         }
 
-        // Handle file upload
+        // Handle file upload with optional Gemini analysis
         if (!empty($_FILES['file_upload']['name'])) {
             $file = $_FILES['file_upload'];
-            $this->receipt_model->update($id, $file);
+
+            // 1. Upload file first (get URL)
+            $upload_result = $this->receipt_model->upload_file($file);
+
+            if (!is_wp_error($upload_result)) {
+                $gemini_data = null;
+
+                // 2. Analyze with AI (if enabled and this is a new expense)
+                $settings = get_option('aragrow_timegrow_ai_settings', []);
+                $enable_analysis = $settings['enable_auto_analysis'] ?? false;
+                $confidence_threshold = $settings['confidence_threshold'] ?? 0.7;
+
+                if ($enable_analysis && $id != 0) {
+                    try {
+                        $analyzer = new TimeGrowGeminiReceiptAnalyzer();
+                        $analysis = $analyzer->analyze_receipt($upload_result['url']);
+
+                        // 3. If analysis successful and meets confidence threshold, update expense data
+                        if (!is_wp_error($analysis) && isset($analysis['confidence']) && $analysis['confidence'] >= $confidence_threshold) {
+                            // Prepare updated expense data
+                            $updated_data = [];
+
+                            // Only update fields if they have values from Gemini
+                            if (!empty($analysis['amount'])) {
+                                $updated_data['amount'] = floatval($analysis['amount']);
+                            }
+                            if (!empty($analysis['expense_date'])) {
+                                $updated_data['expense_date'] = sanitize_text_field($analysis['expense_date']);
+                            }
+                            if (!empty($analysis['expense_name'])) {
+                                $updated_data['expense_name'] = sanitize_text_field($analysis['expense_name']);
+                            }
+                            if (!empty($analysis['category'])) {
+                                $updated_data['category'] = sanitize_text_field($analysis['category']);
+                            }
+                            if (!empty($analysis['expense_description'])) {
+                                $updated_data['expense_description'] = sanitize_text_field($analysis['expense_description']);
+                            }
+                            if (isset($analysis['assigned_to'])) {
+                                $updated_data['assigned_to'] = sanitize_text_field($analysis['assigned_to']);
+                            }
+                            if (isset($analysis['assigned_to_id'])) {
+                                $updated_data['assigned_to_id'] = intval($analysis['assigned_to_id']);
+                            }
+
+                            // Update expense record with Gemini-extracted data
+                            if (!empty($updated_data)) {
+                                $updated_data['updated_at'] = current_time('mysql');
+
+                                // Build format array dynamically
+                                $update_format = [];
+                                foreach (array_keys($updated_data) as $key) {
+                                    if ($key == 'amount') {
+                                        $update_format[] = '%f';
+                                    } elseif ($key == 'assigned_to_id') {
+                                        $update_format[] = '%d';
+                                    } else {
+                                        $update_format[] = '%s';
+                                    }
+                                }
+
+                                $this->expense_model->update($id, $updated_data, $update_format);
+                                echo '<div class="notice notice-success is-dismissible"><p>Receipt analyzed with AI! Expense data has been auto-populated. (Confidence: ' . round($analysis['confidence'] * 100) . '%)</p></div>';
+                            }
+
+                            // Store Gemini data for receipt record
+                            $gemini_data = $analysis;
+                        } elseif (is_wp_error($analysis)) {
+                            echo '<div class="notice notice-warning is-dismissible"><p>AI analysis unavailable: ' . esc_html($analysis->get_error_message()) . ' Please enter details manually.</p></div>';
+                        } elseif (isset($analysis['confidence']) && $analysis['confidence'] < $confidence_threshold) {
+                            echo '<div class="notice notice-warning is-dismissible"><p>AI analysis confidence too low (' . round($analysis['confidence'] * 100) . '%). Please verify and enter details manually.</p></div>';
+                        }
+                    } catch (Exception $e) {
+                        error_log('Gemini analysis exception: ' . $e->getMessage());
+                        echo '<div class="notice notice-warning is-dismissible"><p>AI analysis failed. Please enter details manually.</p></div>';
+                    }
+                }
+
+                // 4. Save receipt record to database
+                $this->receipt_model->save_receipt_record($id, $upload_result['url'], $gemini_data);
+            } else {
+                echo '<div class="notice notice-error is-dismissible"><p>Error uploading file: ' . esc_html($upload_result->get_error_message()) . '</p></div>';
+            }
         }
 
     }

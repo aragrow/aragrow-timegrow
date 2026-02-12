@@ -1,13 +1,14 @@
 /**
  * TimeGrow Forms CSS
  * Styles for forms, tables, and form-related UI elements
+ * SCOPED: All styles are prefixed with .timegrow-page to avoid conflicts
  */
 
 /* ============================================
    TABLE STYLES
    ============================================ */
 
-.wp-list-table {
+.timegrow-page .wp-list-table {
     background: white;
     border-radius: 8px;
     overflow: hidden;
@@ -16,7 +17,7 @@
     margin: 0;
 }
 
-.wp-list-table thead th {
+.timegrow-page .wp-list-table thead th {
     background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
     color: #475569;
     font-weight: 600;
@@ -27,46 +28,46 @@
     border-bottom: 2px solid #e2e8f0;
 }
 
-.wp-list-table tbody tr {
+.timegrow-page .wp-list-table tbody tr {
     border-bottom: 1px solid #f1f5f9;
     transition: all 0.2s;
 }
 
-.wp-list-table tbody tr:hover {
+.timegrow-page .wp-list-table tbody tr:hover {
     background: #f8fafc;
 }
 
-.wp-list-table tbody td {
+.timegrow-page .wp-list-table tbody td {
     padding: 16px 12px;
     color: #64748b;
 }
 
-.wp-list-table tbody td.column-primary strong {
+.timegrow-page .wp-list-table tbody td.column-primary strong {
     color: #1e293b;
     font-weight: 600;
     font-size: 14px;
 }
 
-.wp-list-table .row-actions {
+.timegrow-page .wp-list-table .row-actions {
     color: #667eea;
 }
 
-.wp-list-table .row-actions span {
+.timegrow-page .wp-list-table .row-actions span {
     margin: 0;
 }
 
-.wp-list-table .row-actions a {
+.timegrow-page .wp-list-table .row-actions a {
     color: #667eea;
     text-decoration: none;
     font-weight: 500;
     transition: all 0.2s;
 }
 
-.wp-list-table .row-actions a:hover {
+.timegrow-page .wp-list-table .row-actions a:hover {
     color: #764ba2;
 }
 
-.wp-list-table tfoot th {
+.timegrow-page .wp-list-table tfoot th {
     background: #f8fafc;
     padding: 12px;
     border-top: 2px solid #e2e8f0;
@@ -75,8 +76,8 @@
 }
 
 /* Sortable Columns */
-.wp-list-table th.sortable a,
-.wp-list-table th.sorted a {
+.timegrow-page .wp-list-table th.sortable a,
+.timegrow-page .wp-list-table th.sorted a {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -85,62 +86,62 @@
     transition: color 0.2s;
 }
 
-.wp-list-table th.sortable a:hover,
-.wp-list-table th.sorted a:hover {
+.timegrow-page .wp-list-table th.sortable a:hover,
+.timegrow-page .wp-list-table th.sorted a:hover {
     color: #667eea;
 }
 
-.wp-list-table th.sortable .sorting-indicator,
-.wp-list-table th.sorted .sorting-indicator {
+.timegrow-page .wp-list-table th.sortable .sorting-indicator,
+.timegrow-page .wp-list-table th.sorted .sorting-indicator {
     margin-left: 8px;
     display: inline-block;
     width: 12px;
     height: 12px;
 }
 
-.wp-list-table th.sortable .sorting-indicator::after {
+.timegrow-page .wp-list-table th.sortable .sorting-indicator::after {
     content: "⇅";
     color: #cbd5e1;
     font-size: 14px;
 }
 
-.wp-list-table th.sorted.asc .sorting-indicator::after {
+.timegrow-page .wp-list-table th.sorted.asc .sorting-indicator::after {
     content: "↑";
     color: #667eea;
     font-size: 14px;
 }
 
-.wp-list-table th.sorted.desc .sorting-indicator::after {
+.timegrow-page .wp-list-table th.sorted.desc .sorting-indicator::after {
     content: "↓";
     color: #667eea;
     font-size: 14px;
 }
 
 /* Table Navigation */
-.tablenav {
+.timegrow-page .tablenav {
     margin: 20px 0;
     padding: 4px 0;
 }
 
-.tablenav.top {
+.timegrow-page .tablenav.top {
     border-bottom: 2px solid #f1f5f9;
     margin-bottom: 0;
     padding-bottom: 4px;
 }
 
-.tablenav.bottom {
+.timegrow-page .tablenav.bottom {
     border-top: 2px solid #f1f5f9;
     margin-top: 0;
     padding-top: 4px;
 }
 
-.tablenav .alignleft.actions {
+.timegrow-page .tablenav .alignleft.actions {
     margin: 5px 8px 5px 0;
 }
 
-.tablenav .alignleft.actions select,
-.tablenav .alignleft.actions input[type="search"],
-.tablenav .alignleft.actions input[type="date"] {
+.timegrow-page .tablenav .alignleft.actions select,
+.timegrow-page .tablenav .alignleft.actions input[type="search"],
+.timegrow-page .tablenav .alignleft.actions input[type="date"] {
     margin-right: 8px;
     padding: 8px 12px;
     border: 2px solid #e2e8f0;
@@ -152,19 +153,19 @@
     min-width: 180px;
 }
 
-.tablenav .alignleft.actions input[type="search"] {
+.timegrow-page .tablenav .alignleft.actions input[type="search"] {
     min-width: 250px;
 }
 
-.tablenav .alignleft.actions select:focus,
-.tablenav .alignleft.actions input[type="search"]:focus,
-.tablenav .alignleft.actions input[type="date"]:focus {
+.timegrow-page .tablenav .alignleft.actions select:focus,
+.timegrow-page .tablenav .alignleft.actions input[type="search"]:focus,
+.timegrow-page .tablenav .alignleft.actions input[type="date"]:focus {
     border-color: #667eea;
     outline: none;
     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
-.tablenav .alignleft.actions select {
+.timegrow-page .tablenav .alignleft.actions select {
     cursor: pointer;
     padding-right: 36px;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23475569' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
@@ -175,7 +176,7 @@
     appearance: none;
 }
 
-.tablenav .button {
+.timegrow-page .tablenav .button {
     padding: 8px 16px;
     border-radius: 6px;
     font-size: 14px;
@@ -186,35 +187,35 @@
     color: #475569;
 }
 
-.tablenav .button:hover {
+.timegrow-page .tablenav .button:hover {
     border-color: #cbd5e1;
     background: #f8fafc;
     color: #1e293b;
 }
 
-.tablenav .button#filter_companies,
-.tablenav .button#filter_team_members,
-.tablenav .button#filter_projects,
-.tablenav .button#filter_expenses,
-.tablenav .button#filter_time_entries {
+.timegrow-page .tablenav .button#filter_companies,
+.timegrow-page .tablenav .button#filter_team_members,
+.timegrow-page .tablenav .button#filter_projects,
+.timegrow-page .tablenav .button#filter_expenses,
+.timegrow-page .tablenav .button#filter_time_entries {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     border: none;
     box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
     color: white;
 }
 
-.tablenav .button#filter_companies:hover,
-.tablenav .button#filter_team_members:hover,
-.tablenav .button#filter_projects:hover,
-.tablenav .button#filter_expenses:hover,
-.tablenav .button#filter_time_entries:hover {
+.timegrow-page .tablenav .button#filter_companies:hover,
+.timegrow-page .tablenav .button#filter_team_members:hover,
+.timegrow-page .tablenav .button#filter_projects:hover,
+.timegrow-page .tablenav .button#filter_expenses:hover,
+.timegrow-page .tablenav .button#filter_time_entries:hover {
     background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
     transform: translateY(-2px);
     color: white;
 }
 
-.tablenav .button-primary {
+.timegrow-page .tablenav .button-primary {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     border: none;
     box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
@@ -225,7 +226,7 @@
     transition: all 0.2s;
 }
 
-.tablenav .button-primary:hover {
+.timegrow-page .tablenav .button-primary:hover {
     background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
     transform: translateY(-2px);
@@ -236,24 +237,24 @@
    ============================================ */
 
 /* Form Containers */
-.metabox-holder {
+.timegrow-page .metabox-holder {
     margin-top: 20px;
 }
 
-.metabox-holder.columns-2 {
+.timegrow-page .metabox-holder.columns-2 {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 20px;
 }
 
-.postbox-container {
+.timegrow-page .postbox-container {
     display: flex;
     flex-direction: column;
     gap: 20px;
 }
 
 /* Postbox (Form Section) */
-.postbox {
+.timegrow-page .postbox {
     background: white;
     border: 2px solid #e2e8f0;
     border-radius: 8px;
@@ -261,12 +262,12 @@
     transition: all 0.2s;
 }
 
-.postbox:hover {
+.timegrow-page .postbox:hover {
     border-color: #cbd5e1;
     box-shadow: 0 4px 12px rgba(0,0,0,0.08);
 }
 
-.postbox .hndle {
+.timegrow-page .postbox .hndle {
     background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
     padding: 16px 20px;
     margin: 0;
@@ -274,31 +275,31 @@
     border-radius: 6px 6px 0 0;
 }
 
-.postbox .hndle span {
+.timegrow-page .postbox .hndle span {
     font-size: 15px;
     font-weight: 600;
     color: #1e293b;
 }
 
-.postbox .inside {
+.timegrow-page .postbox .inside {
     padding: 20px;
 }
 
 /* Form Table */
-.form-table {
+.timegrow-page .form-table {
     width: 100%;
     border-spacing: 0;
 }
 
-.form-table tr {
+.timegrow-page .form-table tr {
     border-bottom: 1px solid #f1f5f9;
 }
 
-.form-table tr:last-child {
+.timegrow-page .form-table tr:last-child {
     border-bottom: none;
 }
 
-.form-table th {
+.timegrow-page .form-table th {
     padding: 16px 12px;
     text-align: left;
     width: 35%;
@@ -306,29 +307,29 @@
     padding-top: 20px;
 }
 
-.form-table th label {
+.timegrow-page .form-table th label {
     font-weight: 600;
     color: #475569;
     font-size: 14px;
 }
 
-.form-table th .required {
+.timegrow-page .form-table th .required {
     color: #ef4444;
     font-weight: 700;
 }
 
-.form-table td {
+.timegrow-page .form-table td {
     padding: 16px 12px;
 }
 
 /* Form Inputs */
-.form-table input[type="text"],
-.form-table input[type="email"],
-.form-table input[type="url"],
-.form-table input[type="tel"],
-.form-table input[type="number"],
-.form-table select,
-.form-table textarea {
+.timegrow-page .form-table input[type="text"],
+.timegrow-page .form-table input[type="email"],
+.timegrow-page .form-table input[type="url"],
+.timegrow-page .form-table input[type="tel"],
+.timegrow-page .form-table input[type="number"],
+.timegrow-page .form-table select,
+.timegrow-page .form-table textarea {
     width: 100%;
     padding: 10px 14px;
     border: 2px solid #e2e8f0;
@@ -339,28 +340,28 @@
     background: white;
 }
 
-.form-table input[type="text"]:focus,
-.form-table input[type="email"]:focus,
-.form-table input[type="url"]:focus,
-.form-table input[type="tel"]:focus,
-.form-table input[type="number"]:focus,
-.form-table select:focus,
-.form-table textarea:focus {
+.timegrow-page .form-table input[type="text"]:focus,
+.timegrow-page .form-table input[type="email"]:focus,
+.timegrow-page .form-table input[type="url"]:focus,
+.timegrow-page .form-table input[type="tel"]:focus,
+.timegrow-page .form-table input[type="number"]:focus,
+.timegrow-page .form-table select:focus,
+.timegrow-page .form-table textarea:focus {
     border-color: #667eea;
     outline: none;
     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
-.form-table .regular-text {
+.timegrow-page .form-table .regular-text {
     max-width: 100%;
 }
 
-.form-table .large-text {
+.timegrow-page .form-table .large-text {
     width: 100%;
     min-height: 100px;
 }
 
-.form-table select {
+.timegrow-page .form-table select {
     cursor: pointer;
     padding-right: 36px;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23475569' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
@@ -372,14 +373,14 @@
 }
 
 /* Timestamps Display */
-.postbox .inside p {
+.timegrow-page .postbox .inside p {
     margin: 12px 0;
     color: #64748b;
     line-height: 1.6;
 }
 
 /* Submit Button */
-.wp-core-ui .button-primary {
+.timegrow-page .wp-core-ui .button-primary {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     border: none;
     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
@@ -393,13 +394,13 @@
     margin-top: 20px;
 }
 
-.wp-core-ui .button-primary:hover {
+.timegrow-page .wp-core-ui .button-primary:hover {
     background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
     box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
     transform: translateY(-2px);
 }
 
-.wp-core-ui .button-primary:active {
+.timegrow-page .wp-core-ui .button-primary:active {
     transform: translateY(0);
 }
 
@@ -408,54 +409,101 @@
    ============================================ */
 
 @media (max-width: 1024px) {
-    .metabox-holder.columns-2 {
+    .timegrow-page .metabox-holder.columns-2 {
         grid-template-columns: 1fr;
     }
 }
 
 @media (max-width: 768px) {
-    .form-table th,
-    .form-table td {
+    .timegrow-page .form-table th,
+    .timegrow-page .form-table td {
         display: block;
         width: 100%;
         padding: 8px 12px;
     }
 
-    .form-table th {
+    .timegrow-page .form-table th {
         padding-bottom: 4px;
     }
 
-    .form-table td {
+    .timegrow-page .form-table td {
         padding-top: 4px;
         padding-bottom: 16px;
     }
 
-    .wp-list-table {
+    .timegrow-page .wp-list-table {
         font-size: 13px;
     }
 
-    .wp-list-table thead {
+    .timegrow-page .wp-list-table thead {
         display: none;
     }
 
-    .wp-list-table tbody td {
+    .timegrow-page .wp-list-table tbody td {
         display: block;
         text-align: right;
         padding: 8px 12px;
     }
 
-    .wp-list-table tbody td::before {
+    .timegrow-page .wp-list-table tbody td::before {
         content: attr(data-colname) ": ";
         float: left;
         font-weight: 600;
         color: #475569;
     }
 
-    .wp-list-table tbody td.column-primary {
+    .timegrow-page .wp-list-table tbody td.column-primary {
         border-bottom: 2px solid #e2e8f0;
         padding-bottom: 16px;
         margin-bottom: 8px;
     }
+}
+
+/* ============================================
+   GENERAL BUTTON STYLES (outside tablenav)
+   ============================================ */
+
+/* Apply to all buttons within .timegrow-page */
+.timegrow-page .button {
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s;
+    border: 2px solid #e2e8f0;
+    background: white;
+    color: #475569;
+    text-decoration: none;
+    display: inline-block;
+    cursor: pointer;
+}
+
+.timegrow-page .button:hover {
+    border-color: #cbd5e1;
+    background: #f8fafc;
+    color: #1e293b;
+}
+
+.timegrow-page .button-primary,
+.timegrow-page button.button-primary,
+.timegrow-page input[type="submit"].button-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    border: none !important;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3) !important;
+    color: white !important;
+    padding: 10px 20px !important;
+    border-radius: 6px !important;
+    font-weight: 600 !important;
+    transition: all 0.2s !important;
+}
+
+.timegrow-page .button-primary:hover,
+.timegrow-page button.button-primary:hover,
+.timegrow-page input[type="submit"].button-primary:hover {
+    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%) !important;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4) !important;
+    transform: translateY(-2px);
+    color: white !important;
 }
 
 /* ============================================

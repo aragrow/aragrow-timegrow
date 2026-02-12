@@ -18,7 +18,8 @@ class TimeGrowReport {
 
     public function register_admin_menu() {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
-    
+
+        // Redirect old reports menu to nexus reports page
         add_submenu_page(
             TIMEGROW_PARENT_MENU,
             'Reports',
@@ -26,7 +27,9 @@ class TimeGrowReport {
             TIMEGROW_OWNER_CAP,
             TIMEGROW_PARENT_MENU . '-reports-list',
             function() { // Define a closure
-                $this->tracker_mvc_admin_page( 'list' ); // Call the tracker_mvc method, passing the parameter
+                // Redirect to nexus reports page
+                wp_redirect(admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-nexus-reports'));
+                exit;
             },
             'dashicons-money-alt',
         );
@@ -44,8 +47,18 @@ class TimeGrowReport {
 
     }
 
-    public function enqueue_scripts_styles() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+    public function enqueue_scripts_styles($hook) {
+        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__ . ' - Hook: ' . $hook);
+
+        // Only enqueue on the individual report page (timegrow-reports)
+        $report_pages = [
+            'admin_page_' . TIMEGROW_PARENT_MENU . '-reports',
+        ];
+
+        if (!in_array($hook, $report_pages)) {
+            return; // Exit early if not on report pages
+        }
+
         wp_enqueue_style('timeflies-expenses-style', ARAGROW_TIMEGROW_BASE_URI . 'assets/css/reports.css');
         wp_enqueue_script('timeflies-expenses-script', ARAGROW_TIMEGROW_BASE_URI . 'assets/js/reports.js', array('jquery'), '1.0', true);
         wp_localize_script(

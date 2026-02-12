@@ -1,4 +1,4 @@
-<div class="wrap">
+<div class="wrap timegrow-page">
     <h2><?php echo $time_entry_id ? 'Edit' : 'Add'; ?> Time Entry</h2>
 
     <form id="timeflies-time-entry-form" class="wp-core-ui" method="POST">

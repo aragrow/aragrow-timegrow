@@ -21,11 +21,14 @@ class TimeGrowExpenseReceiptModel {
 
     public function initialize() {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
-        $sql = "CREATE TABLE IF NOT EXISTS  {$this->table_name} ( 
+        $sql = "CREATE TABLE IF NOT EXISTS  {$this->table_name} (
             ID BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
             expense_id BIGINT(20) UNSIGNED NOT NULL,
             file_url TEXT NOT NULL,
             upload_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+            extracted_data LONGTEXT,
+            gemini_confidence DECIMAL(3,2),
+            analyzed_at DATETIME,
             PRIMARY KEY (id),
             FOREIGN KEY (expense_id) REFERENCES {$this->table_name}(id) ON DELETE CASCADE
         ) $this->charset_collate;";
@@ -99,14 +102,21 @@ class TimeGrowExpenseReceiptModel {
         return $this->wpdb->get_results($sql);
     }
 
-    public function update($expense_id, $file) {
+    /**
+     * Upload file to WordPress uploads directory
+     * Separated from database insertion to allow Gemini analysis before saving
+     *
+     * @param array $file File array from $_FILES
+     * @return array|WP_Error Upload result with 'url', 'file', 'type' or error
+     */
+    public function upload_file($file) {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
 
-        global $wpdb;
-        
-         // Handle file upload
-        if (empty($file)) return;
-        
+        // Handle file upload
+        if (empty($file)) {
+            return new WP_Error('empty_file', 'No file provided.');
+        }
+
         // Define allowed MIME types
         $allowed_mime_types = [
             'image/jpeg',
@@ -119,14 +129,14 @@ class TimeGrowExpenseReceiptModel {
             return new WP_Error('upload_error', 'No file uploaded or upload error occurred.');
         }
 
-         // Validate file type
+        // Validate file type
         $file_type = wp_check_filetype($file['name']);
         if (!in_array($file_type['type'], $allowed_mime_types, true)) {
-            return new WP_Error('invalid_file_type', 'Invalid file type. Allowed types are JPEG, PNG, PDF, DOC, and DOCX.');
+            return new WP_Error('invalid_file_type', 'Invalid file type. Allowed types are JPEG, PNG, and PDF.');
         }
 
-        // Validate file size (e.g., max 5MB)
-        $max_file_size = .5 * 1024 * 1024; // 5 MB
+        // Validate file size (max 512KB)
+        $max_file_size = .5 * 1024 * 1024; // 512KB
         if ($file['size'] > $max_file_size) {
             return new WP_Error('file_too_large', 'File size exceeds the maximum limit of 512K.');
         }
@@ -142,22 +152,76 @@ class TimeGrowExpenseReceiptModel {
         // Check for upload errors
         if (isset($upload_result['error'])) {
             return new WP_Error('upload_error', $upload_result['error']);
-        } else {
-            $file_url = $upload_result['url'];
-
-            // Insert file details into database
-            $return = $wpdb->insert($this->table_name, 
-            [
-                'expense_id' => $expense_id, // Last inserted expense ID
-                'file_url' => $file_url,
-                'upload_date' => current_time('mysql'),
-            ]);
-            if ($return)
-                echo '<div class="notice notice-success is-dismissible"><p>File uploaded successfully!</p></div>';
-            else 
-                echo '<div class="notice notice-error is-dismissible"><p>Error uploading file: ' . esc_html($upload_result['error']) . '</p></div>';
         }
 
+        return $upload_result;
+    }
+
+    /**
+     * Save receipt record to database
+     * Separated from file upload to allow Gemini analysis in between
+     *
+     * @param int $expense_id Expense ID to link receipt to
+     * @param string $file_url URL of uploaded file
+     * @param array $gemini_data Optional Gemini analysis data
+     * @return int|false Receipt ID on success, false on failure
+     */
+    public function save_receipt_record($expense_id, $file_url, $gemini_data = null) {
+        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+
+        global $wpdb;
+
+        $data = [
+            'expense_id' => intval($expense_id),
+            'file_url' => esc_url_raw($file_url),
+            'upload_date' => current_time('mysql'),
+        ];
+
+        // Add Gemini data if provided (optional columns)
+        if ($gemini_data && is_array($gemini_data)) {
+            if (isset($gemini_data['raw_gemini_response'])) {
+                $data['extracted_data'] = $gemini_data['raw_gemini_response'];
+            }
+            if (isset($gemini_data['confidence'])) {
+                $data['gemini_confidence'] = floatval($gemini_data['confidence']);
+            }
+            if (isset($gemini_data['analyzed_at'])) {
+                $data['analyzed_at'] = $gemini_data['analyzed_at'];
+            } else {
+                $data['analyzed_at'] = current_time('mysql');
+            }
+        }
+
+        $result = $wpdb->insert($this->table_name, $data);
+
+        if ($result) {
+            echo '<div class="notice notice-success is-dismissible"><p>File uploaded successfully!</p></div>';
+            return $wpdb->insert_id;
+        } else {
+            echo '<div class="notice notice-error is-dismissible"><p>Error saving file record to database.</p></div>';
+            return false;
+        }
+    }
+
+    /**
+     * Legacy method for backward compatibility
+     * Calls upload_file() and save_receipt_record() in sequence
+     *
+     * @param int $expense_id Expense ID
+     * @param array $file File array from $_FILES
+     * @return void
+     */
+    public function update($expense_id, $file) {
+        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+
+        $upload_result = $this->upload_file($file);
+
+        if (is_wp_error($upload_result)) {
+            echo '<div class="notice notice-error is-dismissible"><p>Error uploading file: ' . esc_html($upload_result->get_error_message()) . '</p></div>';
+            return;
+        }
+
+        $this->save_receipt_record($expense_id, $upload_result['url']);
     }
 
 }

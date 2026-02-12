@@ -65,8 +65,19 @@ class TimeGrowExpense {
         );
     }
 
-    public function enqueue_scripts_styles() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+    public function enqueue_scripts_styles($hook) {
+        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__ . ' - Hook: ' . $hook);
+
+        // Only enqueue on expense-related pages
+        $expense_pages = [
+            'admin_page_' . TIMEGROW_PARENT_MENU . '-expenses',
+            'admin_page_' . TIMEGROW_PARENT_MENU . '-expenses-list',
+        ];
+
+        if (!in_array($hook, $expense_pages)) {
+            return; // Exit early if not on expense pages
+        }
+
         wp_enqueue_style('timegrow-modern-style', ARAGROW_TIMEGROW_BASE_URI . 'assets/css/timegrow-modern.css');
         wp_enqueue_style('timegrow-forms-style', ARAGROW_TIMEGROW_BASE_URI . 'assets/css/forms.css');
         wp_enqueue_style('timeflies-expenses-style', ARAGROW_TIMEGROW_BASE_URI . 'assets/css/expense.css');

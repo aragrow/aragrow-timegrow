@@ -13,7 +13,7 @@ class TimeGrowReportView {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         ?>
     
-        <div class="wrap">
+        <div class="wrap timegrow-page">
             <h1>Timekeeping Reports</h1>
 
             <h2>Day-to-Day Reports</h2>

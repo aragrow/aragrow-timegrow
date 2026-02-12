@@ -31,7 +31,7 @@ class TimeGrowTeamMemberView {
         $has_filters = !empty($current_filters['filter_company']) || !empty($current_filters['filter_title']) ||
                        !empty($current_filters['filter_status']) || !empty($current_filters['filter_search']);
         ?>
-        <div class="wrap">
+        <div class="wrap timegrow-page">
         <!-- Modern Header -->
         <div class="timegrow-modern-header">
             <div class="timegrow-header-content">
@@ -162,7 +162,7 @@ class TimeGrowTeamMemberView {
     public function add($users, $companies, $projects) {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         ?>
-        <div class="wrap">
+        <div class="wrap timegrow-page">
             <!-- Modern Header -->
             <div class="timegrow-modern-header">
                 <div class="timegrow-header-content">
@@ -290,7 +290,7 @@ class TimeGrowTeamMemberView {
     public function edit($item, $users, $companies, $projects, $assigned) {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         ?>
-        <div class="wrap">
+        <div class="wrap timegrow-page">
             <!-- Modern Header -->
             <div class="timegrow-modern-header">
                 <div class="timegrow-header-content">

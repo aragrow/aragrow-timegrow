@@ -68,5 +68,32 @@ class TimeGrowClientModel {
         return $result;
 
     }
-    
+
+    /**
+     * Search clients by company name (fuzzy search)
+     * Used by Gemini analyzer to match "CLIENT: XYZ Corp"
+     *
+     * @param string $company_name Company name to search for
+     * @return array Array of matching client objects
+     */
+    public function search_by_name($company_name) {
+        if (WP_DEBUG) error_log(__CLASS__ . '::' . __FUNCTION__);
+
+        $search_term = '%' . $this->wpdb->esc_like($company_name) . '%';
+        $sql = $this->wpdb->prepare(
+            "SELECT a.*
+             FROM {$this->table_name} a
+             INNER JOIN {$this->table_name2} b
+                ON a.ID = b.user_id
+                AND b.meta_key = 'wp_capabilities'
+                AND b.meta_value LIKE '%customer%'
+             WHERE a.display_name LIKE %s
+             ORDER BY a.display_name
+             LIMIT 10",
+            $search_term
+        );
+
+        return $this->wpdb->get_results($sql);
+    }
+
 }

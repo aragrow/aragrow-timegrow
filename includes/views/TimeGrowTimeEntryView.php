@@ -33,7 +33,7 @@ class TimeGrowTimeEntryView {
                        !empty($current_filters['filter_billable']) || !empty($current_filters['filter_billed']) ||
                        !empty($current_filters['filter_entry_type']) || !empty($current_filters['filter_search']);
         ?>
-        <div class="wrap">
+        <div class="wrap timegrow-page">
         <!-- Modern Header -->
         <div class="timegrow-modern-header">
             <div class="timegrow-header-content">
@@ -195,7 +195,7 @@ class TimeGrowTimeEntryView {
     public function add($projects, $members) {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         ?>
-        <div class="wrap">
+        <div class="wrap timegrow-page">
             <h2>Add New Entry</h2>
         
             <form id="timegrow-company-form" class="wp-core-ui" method="POST" enctype="multipart/form-data">
@@ -338,7 +338,7 @@ class TimeGrowTimeEntryView {
     public function edit($time_entry, $projects, $members) {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         ?>
-        <div class="wrap">
+        <div class="wrap timegrow-page">
             <h2>Edit Time Entry</h2>
         
             <form id="timegrow-company-form" class="wp-core-ui" method="POST" enctype="multipart/form-data">

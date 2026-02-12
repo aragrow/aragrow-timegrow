@@ -31,7 +31,7 @@ class TimeGrowProjectView {
         $has_filters = !empty($current_filters['filter_client']) || !empty($current_filters['filter_status']) ||
                        !empty($current_filters['filter_billable']) || !empty($current_filters['filter_search']);
         ?>
-        <div class="wrap">
+        <div class="wrap timegrow-page">
         <!-- Modern Header -->
         <div class="timegrow-modern-header">
             <div class="timegrow-header-content">
@@ -169,7 +169,7 @@ class TimeGrowProjectView {
     public function add($clients, $woocommerce_products = null) {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         ?>
-        <div class="wrap">
+        <div class="wrap timegrow-page">
             <!-- Modern Header -->
             <div class="timegrow-modern-header">
                 <div class="timegrow-header-content">
@@ -310,7 +310,7 @@ class TimeGrowProjectView {
     public function edit($project, $clients, $woocommerce_products) {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         ?>
-        <div class="wrap">
+        <div class="wrap timegrow-page">
             <!-- Modern Header -->
             <div class="timegrow-modern-header">
                 <div class="timegrow-header-content">

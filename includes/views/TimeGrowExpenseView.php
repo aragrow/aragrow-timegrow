@@ -31,7 +31,7 @@ class TimeGrowExpenseView {
                        !empty($current_filters['filter_date_from']) || !empty($current_filters['filter_date_to']) ||
                        !empty($current_filters['filter_search']);
         ?>
-        <div class="wrap">
+        <div class="wrap timegrow-page">
         <!-- Modern Header -->
         <div class="timegrow-modern-header">
             <div class="timegrow-header-content">
@@ -153,7 +153,7 @@ class TimeGrowExpenseView {
     public function add_expense($clients) {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         ?>
-        <div class="wrap">
+        <div class="wrap timegrow-page">
             <!-- Modern Header -->
             <div class="timegrow-modern-header">
                 <div class="timegrow-header-content">
@@ -295,7 +295,7 @@ class TimeGrowExpenseView {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
 
         ?>
-        <div class="wrap">
+        <div class="wrap timegrow-page">
             <!-- Modern Header -->
             <div class="timegrow-modern-header">
                 <div class="timegrow-header-content">

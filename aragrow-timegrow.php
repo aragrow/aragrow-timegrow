@@ -2,8 +2,8 @@
 /**
  * Plugin Name: Aragrow - TimeGrow
  * Plugin URI: https://example.com/aragrow-timegrow
- * Description: A time tracking plugin for managing projects, team members, and invoicing.
- * Version: 1.0.3
+ * Description: A time tracking plugin for managing projects, team members, and invoicing with AI-powered receipt analysis.
+ * Version: 1.1.1
  * Author: David Arago - ARAGROW, LLC
  * Author URI: https://aragrow.me/wp-plugins/timegrow/
  * License: GPL2
@@ -31,7 +31,7 @@ require_once TIMEGROW_INCLUDES_DIR . 'TimeGrowAjaxHandler.php';
 
 // Autoload classes
 function timegrow_load_mvc_classes($class) {
-    
+
     // Check if the class name starts with "timegrow"
     if (strpos($class, 'TimeGrow') !== 0) return; // Exit the function, don't load the class
     error_log(  'timegrow_load_mvc_classes'. ' - Class: ' . $class );  //Best option for Classes
@@ -48,6 +48,9 @@ function timegrow_load_mvc_classes($class) {
     } elseif ( file_exists( TIMEGROW_INCLUDES_DIR . 'controllers/' . $class . '.php' ) ) {
        // error_log(4);
         require_once TIMEGROW_INCLUDES_DIR . 'controllers/' . $class . '.php';
+    } elseif ( file_exists( TIMEGROW_INCLUDES_DIR . 'helpers/' . $class . '.php' ) ) {
+        //error_log(5);
+        require_once TIMEGROW_INCLUDES_DIR . 'helpers/' . $class . '.php';
     }
 }
 
@@ -63,6 +66,7 @@ if ( ! isset( $timegrow_time_entry ) ) $timegrow_time_entry = New TimeGrowTimeEn
 if ( ! isset( $timegrow_team_member ) ) $timegrow_team_member = New TimeGrowTeamMember();
 if ( ! isset( $timegrow_ajax_handler ) ) $timegrow_ajax_handler = New TimeGrow_Ajax_Handler();
 if ( ! isset( $timegrow_report ) ) $timegrow_report = New TimeGrowReport();
+if ( ! isset( $timegrow_settings ) ) $timegrow_settings = New TimeGrowSettings();
 
 register_activation_hook(__FILE__, 'timegrow_plugin_activate');
 

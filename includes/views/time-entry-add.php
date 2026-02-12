@@ -12,7 +12,7 @@ $clients = $wpdb->get_results("SELECT ID, name FROM {$prefix}timeflies_clients",
 $entry_type = 'manual';
 ?>
 
-<div class="wrap">
+<div class="wrap timegrow-page">
     <h2>Add Time Entry</h2>
 
     <form id="timeflies-time-entry-form" class="wp-core-ui" method="POST">

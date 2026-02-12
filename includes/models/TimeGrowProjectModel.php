@@ -293,4 +293,28 @@ class TimeGrowProjectModel {
         $result = $this->wpdb->get_var($sql);
         return (bool)$result;
     }
+
+    /**
+     * Search projects by name (fuzzy search)
+     * Used by Gemini analyzer to match "PROJECT: Website Redesign"
+     *
+     * @param string $project_name Project name to search for
+     * @return array Array of matching project objects
+     */
+    public function search_by_name($project_name) {
+        if (WP_DEBUG) error_log(__CLASS__ . '::' . __FUNCTION__);
+
+        $search_term = '%' . $this->wpdb->esc_like($project_name) . '%';
+        $sql = $this->wpdb->prepare(
+            "SELECT a.*, b.display_name as client_name
+             FROM {$this->table_name} a
+             INNER JOIN {$this->table_name2} b ON a.client_id = b.ID
+             WHERE a.name LIKE %s
+             ORDER BY a.name
+             LIMIT 10",
+            $search_term
+        );
+
+        return $this->wpdb->get_results($sql);
+    }
 }

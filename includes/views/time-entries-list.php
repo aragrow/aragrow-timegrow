@@ -1,4 +1,4 @@
-<div class="wrap">
+<div class="wrap timegrow-page">
     <h2>All Time Entries</h2>
 
     <div class="tablenav top">
