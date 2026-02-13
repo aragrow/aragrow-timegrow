@@ -60,16 +60,15 @@ class TimeGrowWooOrderCreator {
         if (empty($time_entries)) return [];
         // Group entries by project_id
 
+        // Start debug output buffer
+        ob_start();
+
         var_dump($time_entries);
         $order_ids = [];
         $model_project = new TimeGrowProjectModel();
 
         $entries_by_clients = [];
         foreach ($time_entries as $entry) {
-            // print('<br />Entry...<br />');
-            // print_r($entry);print('<br />');
-            // print('Client Id: '. $entry->client_id);
-            // print(' - Project Id: '. $entry->project_id);
             if (!isset($entries_by_clients[$entry->client_id])) {
                 $entries_by_clients[$entry->client_id] = [];
             }
@@ -78,9 +77,6 @@ class TimeGrowWooOrderCreator {
             }
             $entries_by_clients[$entry->client_id][$entry->project_id][] = $entry;
         }
-
-      //  print('<br />Array of entries...<br />');
-      //  print_r($entries_by_clients);
 
         print('<br />Creating WooCommerce Orders and Products for Manual Entries...<br />');
 
@@ -248,9 +244,21 @@ class TimeGrowWooOrderCreator {
             $order_ids[] = $order->get_id();
 
         } // End loop thru projects for clients
-        
+
+        // Capture debug output
+        $debug_output = ob_get_clean();
+
+        // Store debug output for later display
+        $this->debug_output = $debug_output;
+
         return [$order_ids, $time_entries];
     }
+
+    public function get_debug_output() {
+        return $this->debug_output ?? '';
+    }
+
+    private $debug_output = '';
 
     public function hours_to_10min_units($hours) {
         $minutes = $hours * 60;

@@ -261,12 +261,21 @@ class TimeGrowTimeEntryModel {
     public function mark_time_entries_as_billed($time_entries) {
         global $wpdb;
         print('<br />>Marking time entries as billed');
+        $entries_by_order = [];
+
         foreach ($time_entries as $entry) {
             // Validate inputs
             if (!is_numeric($entry->ID) || $entry->ID <= 0) {
                 return new WP_Error('invalid_id', 'Invalid entry ID');
             }
-            print('<br/>--->Marking entry ID: '.$entry->ID.' as billed');
+            print('<br/>--->Marking entry ID: '.$entry->ID.' as billed (Order #'.$entry->billed_order_id.')');
+
+            // Group entries by order for summary
+            if (!isset($entries_by_order[$entry->billed_order_id])) {
+                $entries_by_order[$entry->billed_order_id] = [];
+            }
+            $entries_by_order[$entry->billed_order_id][] = $entry;
+
             // Ensure the entry ID is an integer
             $result = $wpdb->update(
                 $this->table_name,
@@ -281,8 +290,70 @@ class TimeGrowTimeEntryModel {
                 return false;
             }
             // Optionally, you can log the success or perform other actions
-            error_log('Entry ID: ' . $entry->ID . ' marked as billed successfully.');   
+            error_log('Entry ID: ' . $entry->ID . ' marked as billed successfully.');
         }
+
+        return $entries_by_order;
+    }
+
+    /**
+     * Get count of time entries associated with an order
+     *
+     * @param int $order_id The WooCommerce order ID
+     * @return int Number of entries
+     */
+    public function get_entry_count_for_order($order_id) {
+        global $wpdb;
+
+        if (!is_numeric($order_id) || $order_id <= 0) {
+            return 0;
+        }
+
+        $count = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$this->table_name} WHERE billed_order_id = %d",
+            (int) $order_id
+        ));
+
+        return (int) $count;
+    }
+
+    /**
+     * Reset billed status for time entries when an order is trashed or deleted
+     *
+     * @param int $order_id The WooCommerce order ID
+     * @return bool|int Number of entries updated, or false on error
+     */
+    public function unbill_entries_for_order($order_id) {
+        global $wpdb;
+
+        if (!is_numeric($order_id) || $order_id <= 0) {
+            error_log('Invalid order ID provided to unbill_entries_for_order: ' . $order_id);
+            return false;
+        }
+
+        // Reset billed status for all time entries associated with this order
+        $result = $wpdb->update(
+            $this->table_name,
+            [
+                'billed' => 0,
+                'billed_order_id' => null,
+                'updated_at' => current_time('mysql')
+            ],
+            ['billed_order_id' => (int) $order_id],
+            ['%d', '%s', '%s'],
+            ['%d']
+        );
+
+        if ($result === false) {
+            error_log('Failed to unbill time entries for order #' . $order_id . ': ' . $wpdb->last_error);
+            return false;
+        }
+
+        if ($result > 0) {
+            error_log('Successfully unbilled ' . $result . ' time entries for deleted/trashed order #' . $order_id);
+        }
+
+        return $result;
     }
 
 }
