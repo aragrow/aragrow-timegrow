@@ -235,16 +235,322 @@ class TimeGrowReportsController {
         $selected_year = isset($_GET['year']) ? intval($_GET['year']) : date('Y');
 
         // Get available years from database
-        $time_entry_table = $wpdb->prefix . TIMEGROW_PREFIX . 'time_entry_tracker';
         $expense_table = $wpdb->prefix . TIMEGROW_PREFIX . 'expense_tracker';
 
         $available_years_query = "
-            SELECT DISTINCT YEAR(date) as year FROM {$time_entry_table} WHERE date IS NOT NULL
-            UNION
             SELECT DISTINCT YEAR(expense_date) as year FROM {$expense_table} WHERE expense_date IS NOT NULL
             ORDER BY year DESC
         ";
         $available_years = $wpdb->get_col($available_years_query);
+
+        // Add print styles
+        echo '<style>
+            @media print {
+                /* CRITICAL: Override WordPress responsive table behavior - force normal table display */
+                table.wp-list-table,
+                table.wp-list-table thead,
+                table.wp-list-table tbody,
+                table.wp-list-table tr,
+                table.wp-list-table th,
+                table.wp-list-table td {
+                    display: table !important;
+                }
+
+                table.wp-list-table thead {
+                    display: table-header-group !important;
+                }
+
+                table.wp-list-table tbody {
+                    display: table-row-group !important;
+                }
+
+                table.wp-list-table tr {
+                    display: table-row !important;
+                }
+
+                table.wp-list-table th,
+                table.wp-list-table td {
+                    display: table-cell !important;
+                }
+
+                /* Remove responsive pseudo-element labels */
+                table.wp-list-table td::before,
+                table.wp-list-table td[data-colname]::before {
+                    display: none !important;
+                    content: none !important;
+                }
+
+                /* Hide controls and buttons when printing */
+                .tax-report-controls,
+                .button,
+                .wp-admin #wpadminbar,
+                #adminmenuback,
+                #adminmenuwrap,
+                .update-nag,
+                .notice,
+                .debug-info {
+                    display: none !important;
+                }
+
+                /* Set page margins - landscape for wider tables */
+                @page {
+                    margin: 1cm;
+                    size: A4 landscape;
+                }
+
+                /* Reset body for print */
+                body {
+                    background: white !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
+                    font-size: 10pt;
+                    max-width: 100% !important;
+                    width: 100% !important;
+                }
+
+                /* Ensure main container uses full width */
+                .wrap,
+                .timegrow-page {
+                    max-width: 100% !important;
+                    width: 100% !important;
+                    margin: 0 !important;
+                    padding: 10px !important;
+                }
+
+                /* Report header with gradient */
+                div[style*="background: linear-gradient"] {
+                    background: #333 !important;
+                    -webkit-print-color-adjust: exact;
+                    print-color-adjust: exact;
+                    page-break-inside: avoid;
+                    page-break-after: avoid;
+                }
+
+                div[style*="background: linear-gradient"] h1,
+                div[style*="background: linear-gradient"] p {
+                    color: white !important;
+                }
+
+                /* Make tables readable and tabulated - each row shows all columns */
+                table.wp-list-table {
+                    width: 100% !important;
+                    max-width: 100% !important;
+                    border-collapse: collapse;
+                    margin: 0 0 15px 0 !important;
+                    padding: 0 !important;
+                    page-break-inside: auto;
+                    font-size: 7pt;
+                    table-layout: fixed;
+                }
+
+                table.wp-list-table th {
+                    background: #333 !important;
+                    color: white !important;
+                    padding: 5px 3px !important;
+                    font-size: 7pt !important;
+                    font-weight: bold !important;
+                    border: 1px solid #000 !important;
+                    text-align: left !important;
+                    white-space: nowrap !important;
+                    overflow: hidden !important;
+                    text-overflow: ellipsis !important;
+                    -webkit-print-color-adjust: exact;
+                    print-color-adjust: exact;
+                }
+
+                table.wp-list-table td {
+                    padding: 4px 3px !important;
+                    font-size: 6.5pt !important;
+                    border: 1px solid #999 !important;
+                    vertical-align: middle !important;
+                    white-space: nowrap !important;
+                    overflow: hidden !important;
+                    text-overflow: ellipsis !important;
+                    line-height: 1.3 !important;
+                }
+
+                /* Specific column widths for expense tables (6 columns) */
+                /* Date column - compact */
+                table.wp-list-table th:nth-child(1),
+                table.wp-list-table td:nth-child(1) {
+                    width: 9%;
+                    text-align: left !important;
+                }
+
+                /* Name column - allow some wrapping if needed */
+                table.wp-list-table th:nth-child(2),
+                table.wp-list-table td:nth-child(2) {
+                    width: 18%;
+                    white-space: normal !important;
+                }
+
+                /* Amount column - right aligned for numbers */
+                table.wp-list-table th:nth-child(3),
+                table.wp-list-table td:nth-child(3) {
+                    width: 10%;
+                    text-align: right !important;
+                }
+
+                /* Payment Method column */
+                table.wp-list-table th:nth-child(4),
+                table.wp-list-table td:nth-child(4) {
+                    width: 13%;
+                }
+
+                /* Assigned To column */
+                table.wp-list-table th:nth-child(5),
+                table.wp-list-table td:nth-child(5) {
+                    width: 12%;
+                }
+
+                /* Description column - allow wrapping for longer text */
+                table.wp-list-table th:nth-child(6),
+                table.wp-list-table td:nth-child(6) {
+                    width: 38%;
+                    white-space: normal !important;
+                    word-wrap: break-word !important;
+                    overflow: visible !important;
+                }
+
+                /* For invoice tables with more columns */
+                table.wp-list-table th:nth-child(7),
+                table.wp-list-table td:nth-child(7) {
+                    width: auto;
+                }
+
+                table.wp-list-table th:nth-child(8),
+                table.wp-list-table td:nth-child(8) {
+                    width: auto;
+                }
+
+                /* Alternating row colors for better readability */
+                table.wp-list-table tbody tr:nth-child(even) {
+                    background: #f5f5f5 !important;
+                    -webkit-print-color-adjust: exact;
+                    print-color-adjust: exact;
+                }
+
+                table.wp-list-table tbody tr:nth-child(odd) {
+                    background: white !important;
+                }
+
+                /* Ensure rows stay together */
+                table.wp-list-table tbody tr {
+                    page-break-inside: avoid !important;
+                }
+
+                /* Make headings readable */
+                h2, h3, h4 {
+                    color: #000 !important;
+                    page-break-after: avoid;
+                    page-break-inside: avoid;
+                }
+
+                h2 {
+                    font-size: 14pt !important;
+                    margin-top: 15px !important;
+                    margin-bottom: 10px !important;
+                    background: #f0f0f0 !important;
+                    padding: 10px !important;
+                    border-left: 5px solid #000 !important;
+                    -webkit-print-color-adjust: exact;
+                    print-color-adjust: exact;
+                }
+
+                h3 {
+                    font-size: 12pt !important;
+                    margin-top: 12px !important;
+                    margin-bottom: 8px !important;
+                }
+
+                h4 {
+                    font-size: 10pt !important;
+                    background: #f5f5f5 !important;
+                    padding: 6px !important;
+                    border-left: 3px solid #666 !important;
+                    color: #000 !important;
+                    margin: 8px 0 !important;
+                    -webkit-print-color-adjust: exact;
+                    print-color-adjust: exact;
+                }
+
+                /* Summary cards */
+                .tax-report-summary {
+                    display: flex !important;
+                    flex-wrap: wrap !important;
+                    gap: 10px !important;
+                    margin-bottom: 15px !important;
+                    page-break-inside: avoid;
+                }
+
+                .summary-card {
+                    flex: 1 1 30% !important;
+                    min-width: 150px !important;
+                    padding: 8px !important;
+                    border: 1.5px solid #333 !important;
+                    background: #f9f9f9 !important;
+                    text-align: center !important;
+                    -webkit-print-color-adjust: exact;
+                    print-color-adjust: exact;
+                }
+
+                .summary-card h3 {
+                    font-size: 9pt !important;
+                    margin: 0 0 4px 0 !important;
+                    color: #000 !important;
+                }
+
+                .summary-card p {
+                    font-size: 14pt !important;
+                    font-weight: bold !important;
+                    margin: 0 !important;
+                    color: #000 !important;
+                }
+
+                /* Total boxes */
+                div[style*="background: #1565c0"],
+                div[style*="background: #e65100"],
+                div[style*="background: #2e7d32"] {
+                    background: #333 !important;
+                    color: white !important;
+                    padding: 8px !important;
+                    margin: 8px 0 !important;
+                    border: 2px solid #000 !important;
+                    page-break-inside: avoid;
+                    -webkit-print-color-adjust: exact;
+                    print-color-adjust: exact;
+                }
+
+                div[style*="background: #1565c0"] h4,
+                div[style*="background: #e65100"] h4,
+                div[style*="background: #2e7d32"] h3,
+                div[style*="background: #1565c0"] h3,
+                div[style*="background: #e65100"] h3,
+                div[style*="background: #2e7d32"] h4,
+                div[style*="background: #1565c0"] p,
+                div[style*="background: #e65100"] p,
+                div[style*="background: #2e7d32"] p {
+                    color: white !important;
+                    margin: 0 !important;
+                }
+
+                /* Prevent page breaks inside tables when possible */
+                tr {
+                    page-break-inside: avoid;
+                }
+
+                /* Page break before major sections */
+                h2[style*="Business Expenses"],
+                h2[style*="Income"] {
+                    page-break-before: always;
+                }
+
+                /* First section should not break */
+                h2:first-of-type {
+                    page-break-before: auto !important;
+                }
+            }
+        </style>';
 
         // Year selector form
         echo '<div class="tax-report-controls" style="margin-bottom: 20px; padding: 15px; background: #f9f9f9; border: 1px solid #ddd; border-radius: 4px;">';
@@ -266,10 +572,6 @@ class TimeGrowReportsController {
         echo '</div>';
         echo '</div>';
 
-        // Fetch time entries for selected year
-        $time_entries = $this->get_yearly_time_entries($selected_year);
-        $time_entries_sql = $wpdb->last_query;
-
         // Fetch expenses for selected year
         $expenses = $this->get_yearly_expenses($selected_year);
         $expenses_sql = $wpdb->last_query;
@@ -280,12 +582,8 @@ class TimeGrowReportsController {
 
         // Display SQL Debug (only when WP_DEBUG is enabled)
         if (WP_DEBUG): ?>
-            <div style="background: #f8f9fa; border: 2px solid #0073aa; padding: 20px; margin: 20px 0; border-radius: 5px;">
+            <div class="debug-info" style="background: #f8f9fa; border: 2px solid #0073aa; padding: 20px; margin: 20px 0; border-radius: 5px;">
                 <h3 style="margin-top: 0; color: #0073aa;">📊 SQL Queries</h3>
-
-                <h4 style="color: #0073aa; margin-top: 15px;">Time Entries Query:</h4>
-                <pre style="background: #fff; padding: 15px; border: 1px solid #ddd; overflow-x: auto; font-size: 12px; line-height: 1.5;"><?php echo esc_html($time_entries_sql); ?></pre>
-                <p><strong>Results:</strong> <?php echo count($time_entries); ?> time entries found</p>
 
                 <h4 style="color: #0073aa; margin-top: 15px;">Expenses Query:</h4>
                 <pre style="background: #fff; padding: 15px; border: 1px solid #ddd; overflow-x: auto; font-size: 12px; line-height: 1.5;"><?php echo esc_html($expenses_sql); ?></pre>
@@ -302,18 +600,6 @@ class TimeGrowReportsController {
         <?php endif;
 
         // Calculate totals
-        $total_hours = 0;
-        $total_billable_hours = 0;
-        $total_time_value = 0;
-
-        foreach ($time_entries as $entry) {
-            // Use calculated_hours which handles both manual entries and clock in/out
-            $hours = floatval($entry->calculated_hours);
-            $total_hours += $hours;
-            if ($entry->billable) {
-                $total_billable_hours += $hours;
-            }
-        }
 
         $total_expenses = 0;
         foreach ($expenses as $expense) {
@@ -331,13 +617,21 @@ class TimeGrowReportsController {
             $total_paid_amount += ($payment > 0) ? $payment : floatval($invoice->total_amount);
         }
 
-        // Display summary
-        echo '<div class="tax-report-summary" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 30px;">';
+        // Display Report Title and Company Info
+        $company_name = get_bloginfo('name');
+        $company_tagline = get_bloginfo('description');
 
-        echo '<div class="summary-card" style="background: #f3e5f5; padding: 20px; border-radius: 5px; text-align: center;">';
-        echo '<h3 style="margin: 0 0 10px 0; color: #7b1fa2;">Billable Hours</h3>';
-        echo '<p style="font-size: 24px; font-weight: bold; margin: 0;">' . number_format($total_billable_hours, 2) . '</p>';
+        echo '<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; margin-bottom: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">';
+        echo '<h1 style="margin: 0 0 10px 0; font-size: 36px; color: white; text-align: center; font-weight: bold;">📊 Annual Tax Report ' . esc_html($selected_year) . '</h1>';
+        echo '<p style="margin: 0; font-size: 18px; text-align: center; color: #f0f0f0;">' . esc_html($company_name) . '</p>';
+        if (!empty($company_tagline)) {
+            echo '<p style="margin: 5px 0 0 0; font-size: 14px; text-align: center; color: #e0e0e0; font-style: italic;">' . esc_html($company_tagline) . '</p>';
+        }
+        echo '<p style="margin: 15px 0 0 0; font-size: 12px; text-align: center; color: #f0f0f0; opacity: 0.9;">Generated on ' . date('F j, Y \a\t g:i A') . '</p>';
         echo '</div>';
+
+        // Display summary
+        echo '<div class="tax-report-summary" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 30px;">';
 
         echo '<div class="summary-card" style="background: #fff3e0; padding: 20px; border-radius: 5px; text-align: center;">';
         echo '<h3 style="margin: 0 0 10px 0; color: #e65100;">Total Expenses</h3>';
@@ -345,17 +639,17 @@ class TimeGrowReportsController {
         echo '</div>';
 
         echo '<div class="summary-card" style="background: #e8f5e9; padding: 20px; border-radius: 5px; text-align: center;">';
-        echo '<h3 style="margin: 0 0 10px 0; color: #2e7d32;">Paid Invoices</h3>';
+        echo '<h3 style="margin: 0 0 10px 0; color: #2e7d32;">Number of Paid Invoices</h3>';
         echo '<p style="font-size: 24px; font-weight: bold; margin: 0;">' . $total_invoices . '</p>';
         echo '</div>';
 
         echo '<div class="summary-card" style="background: #e3f2fd; padding: 20px; border-radius: 5px; text-align: center;">';
-        echo '<h3 style="margin: 0 0 10px 0; color: #1565c0;">Total Invoice Amount</h3>';
+        echo '<h3 style="margin: 0 0 10px 0; color: #1565c0;">Total Amount Invoiced</h3>';
         echo '<p style="font-size: 24px; font-weight: bold; margin: 0;">$' . number_format($total_invoice_amount, 2) . '</p>';
         echo '</div>';
 
         echo '<div class="summary-card" style="background: #e8f5e9; padding: 20px; border-radius: 5px; text-align: center;">';
-        echo '<h3 style="margin: 0 0 10px 0; color: #388e3c;">Total Paid</h3>';
+        echo '<h3 style="margin: 0 0 10px 0; color: #388e3c;">Total Amount Paid</h3>';
         echo '<p style="font-size: 24px; font-weight: bold; margin: 0;">$' . number_format($total_paid_amount, 2) . '</p>';
         echo '</div>';
 
@@ -364,85 +658,163 @@ class TimeGrowReportsController {
         $pnl_bg = $profit_loss >= 0 ? '#e8f5e9' : '#ffebee';
 
         echo '<div class="summary-card" style="background: ' . $pnl_bg . '; padding: 20px; border-radius: 5px; text-align: center;">';
-        echo '<h3 style="margin: 0 0 10px 0; color: ' . $pnl_color . ';">Profit & Loss</h3>';
+        echo '<h3 style="margin: 0 0 10px 0; color: ' . $pnl_color . ';">Net Profit/Loss</h3>';
         echo '<p style="font-size: 24px; font-weight: bold; margin: 0; color: ' . $pnl_color . ';">$' . number_format($profit_loss, 2) . '</p>';
         echo '</div>';
 
         echo '</div>';
 
-        // Display Time Entries Table (Billable Only)
-        echo '<h2 style="margin-top: 30px;">Billable Time Entries for ' . esc_html($selected_year) . '</h2>';
-
-        // Filter only billable entries
-        $billable_entries = array_filter($time_entries, function($entry) {
-            return $entry->billable == 1;
-        });
-
-        if (!empty($billable_entries)) {
-            echo '<table class="wp-list-table widefat fixed striped" style="margin-bottom: 30px;">';
-            echo '<thead><tr>';
-            echo '<th>Date</th>';
-            echo '<th>Project</th>';
-            echo '<th>Client</th>';
-            echo '<th>Team Member</th>';
-            echo '<th>Hours</th>';
-            echo '<th>Billed</th>';
-            echo '<th>Description</th>';
-            echo '</tr></thead>';
-            echo '<tbody>';
-
-            foreach ($billable_entries as $entry) {
-                echo '<tr>';
-                echo '<td>' . esc_html($entry->entry_date) . '</td>';
-                echo '<td>' . esc_html($entry->project_name) . '</td>';
-                echo '<td>' . esc_html($entry->client_name) . '</td>';
-                echo '<td>' . esc_html($entry->member_name) . '</td>';
-                echo '<td>' . number_format(floatval($entry->calculated_hours), 2) . '</td>';
-                echo '<td>' . ($entry->billed ? '✓' : '—') . '</td>';
-                echo '<td>' . esc_html($entry->description) . '</td>';
-                echo '</tr>';
-            }
-
-            echo '</tbody></table>';
-        } else {
-            echo '<p>No billable time entries found for ' . esc_html($selected_year) . '.</p>';
-        }
-
         // Display Expenses Table
-        echo '<h2 style="margin-top: 30px;">Expenses for ' . esc_html($selected_year) . '</h2>';
+        echo '<h2 style="margin-top: 40px; font-size: 28px; color: #000; background: #f0f0f0; padding: 15px; border-left: 6px solid #e65100; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">📋 Business Expenses for ' . esc_html($selected_year) . '</h2>';
 
         if (!empty($expenses)) {
-            echo '<table class="wp-list-table widefat fixed striped">';
-            echo '<thead><tr>';
-            echo '<th>Date</th>';
-            echo '<th>Name</th>';
-            echo '<th>Category</th>';
-            echo '<th>Amount</th>';
-            echo '<th>Payment Method</th>';
-            echo '<th>Assigned To</th>';
-            echo '<th>Description</th>';
-            echo '</tr></thead>';
-            echo '<tbody>';
+            // Group expenses by category
+            $expenses_by_category = [];
+            $category_totals = [];
+
+            // Define Schedule C Parts
+            $part_ii_categories = [
+                'advertising' => 'Advertising',
+                'car_truck_expenses' => 'Car and Truck Expenses',
+                'commissions_fees' => 'Commissions and Fees',
+                'contract_labor' => 'Contract Labor',
+                'depletion' => 'Depletion',
+                'depreciation' => 'Depreciation',
+                'employee_benefit_programs' => 'Employee Benefit Programs',
+                'insurance' => 'Insurance (Other than Health)',
+                'interest_mortgage' => 'Interest - Mortgage',
+                'interest_other' => 'Interest - Other',
+                'legal_professional' => 'Legal and Professional Services',
+                'office_expense' => 'Office Expense',
+                'pension_profit_sharing' => 'Pension and Profit-Sharing Plans',
+                'rent_vehicles' => 'Rent or Lease - Vehicles, Machinery, Equipment',
+                'rent_property' => 'Rent or Lease - Other Business Property',
+                'repairs_maintenance' => 'Repairs and Maintenance',
+                'supplies' => 'Supplies',
+                'taxes_licenses' => 'Taxes and Licenses',
+                'travel' => 'Travel',
+                'meals' => 'Meals (50% Deductible)',
+                'utilities' => 'Utilities',
+                'wages' => 'Wages'
+            ];
+
+            $part_v_categories = [
+                'online_web_fees' => 'Online Web Fees',
+                'business_telephone' => 'Business Telephone',
+                'other' => 'Other Expenses'
+            ];
 
             foreach ($expenses as $expense) {
-                echo '<tr>';
-                echo '<td>' . esc_html($expense->expense_date) . '</td>';
-                echo '<td>' . esc_html($expense->expense_name) . '</td>';
-                echo '<td>' . esc_html($expense->category) . '</td>';
-                echo '<td>$' . number_format(floatval($expense->amount), 2) . '</td>';
-                echo '<td>' . esc_html(ucwords(str_replace('_', ' ', $expense->expense_payment_method))) . '</td>';
-                echo '<td>' . esc_html(ucfirst($expense->assigned_to)) . '</td>';
-                echo '<td>' . esc_html($expense->expense_description) . '</td>';
-                echo '</tr>';
+                $category = $expense->category;
+                if (!isset($expenses_by_category[$category])) {
+                    $expenses_by_category[$category] = [];
+                    $category_totals[$category] = 0;
+                }
+                $expenses_by_category[$category][] = $expense;
+                $category_totals[$category] += floatval($expense->amount);
             }
 
-            echo '</tbody></table>';
+            // Display Schedule C - Part II Expenses
+            echo '<h3 style="margin-top: 25px; color: #1565c0;">Schedule C - Part II (Main Expenses)</h3>';
+            $part_ii_total = 0;
+
+            foreach ($part_ii_categories as $cat_key => $cat_label) {
+                if (isset($expenses_by_category[$cat_key]) && !empty($expenses_by_category[$cat_key])) {
+                    echo '<h4 style="margin-top: 20px; margin-bottom: 10px; background: #e3f2fd; padding: 10px; border-left: 4px solid #1565c0;">';
+                    echo esc_html($cat_label) . ' - <strong>$' . number_format($category_totals[$cat_key], 2) . '</strong>';
+                    echo '</h4>';
+
+                    echo '<table class="wp-list-table widefat fixed striped" style="margin-bottom: 20px;">';
+                    echo '<thead><tr>';
+                    echo '<th>Date</th>';
+                    echo '<th>Name</th>';
+                    echo '<th>Amount</th>';
+                    echo '<th>Payment Method</th>';
+                    echo '<th>Assigned To</th>';
+                    echo '<th>Description</th>';
+                    echo '</tr></thead>';
+                    echo '<tbody>';
+
+                    foreach ($expenses_by_category[$cat_key] as $expense) {
+                        echo '<tr>';
+                        echo '<td>' . esc_html($expense->expense_date) . '</td>';
+                        echo '<td>' . esc_html($expense->expense_name) . '</td>';
+                        echo '<td>$' . number_format(floatval($expense->amount), 2) . '</td>';
+                        echo '<td>' . esc_html(ucwords(str_replace('_', ' ', $expense->expense_payment_method))) . '</td>';
+                        echo '<td>' . esc_html(ucfirst($expense->assigned_to)) . '</td>';
+                        echo '<td>' . esc_html($expense->expense_description) . '</td>';
+                        echo '</tr>';
+                    }
+
+                    echo '</tbody></table>';
+                    $part_ii_total += $category_totals[$cat_key];
+                }
+            }
+
+            if ($part_ii_total > 0) {
+                echo '<div style="background: #1565c0; color: white; padding: 15px; margin-bottom: 20px; border-radius: 5px;">';
+                echo '<h4 style="margin: 0; color: white;">Part II Total: <strong>$' . number_format($part_ii_total, 2) . '</strong></h4>';
+                echo '</div>';
+            }
+
+            // Display Schedule C - Part V Expenses
+            echo '<h3 style="margin-top: 25px; color: #e65100;">Schedule C - Part V (Other Expenses)</h3>';
+            $part_v_total = 0;
+
+            foreach ($part_v_categories as $cat_key => $cat_label) {
+                if (isset($expenses_by_category[$cat_key]) && !empty($expenses_by_category[$cat_key])) {
+                    echo '<h4 style="margin-top: 20px; margin-bottom: 10px; background: #fff3e0; padding: 10px; border-left: 4px solid #e65100;">';
+                    echo esc_html($cat_label) . ' - <strong>$' . number_format($category_totals[$cat_key], 2) . '</strong>';
+                    echo '</h4>';
+
+                    echo '<table class="wp-list-table widefat fixed striped" style="margin-bottom: 20px;">';
+                    echo '<thead><tr>';
+                    echo '<th>Date</th>';
+                    echo '<th>Name</th>';
+                    echo '<th>Amount</th>';
+                    echo '<th>Payment Method</th>';
+                    echo '<th>Assigned To</th>';
+                    echo '<th>Description</th>';
+                    echo '</tr></thead>';
+                    echo '<tbody>';
+
+                    foreach ($expenses_by_category[$cat_key] as $expense) {
+                        echo '<tr>';
+                        echo '<td>' . esc_html($expense->expense_date) . '</td>';
+                        echo '<td>' . esc_html($expense->expense_name) . '</td>';
+                        echo '<td>$' . number_format(floatval($expense->amount), 2) . '</td>';
+                        echo '<td>' . esc_html(ucwords(str_replace('_', ' ', $expense->expense_payment_method))) . '</td>';
+                        echo '<td>' . esc_html(ucfirst($expense->assigned_to)) . '</td>';
+                        echo '<td>' . esc_html($expense->expense_description) . '</td>';
+                        echo '</tr>';
+                    }
+
+                    echo '</tbody></table>';
+                    $part_v_total += $category_totals[$cat_key];
+                }
+            }
+
+            if ($part_v_total > 0) {
+                echo '<div style="background: #e65100; color: white; padding: 15px; margin-bottom: 20px; border-radius: 5px;">';
+                echo '<h4 style="margin: 0; color: white;">Part V Total: <strong>$' . number_format($part_v_total, 2) . '</strong></h4>';
+                echo '</div>';
+            }
+
+            // Display Grand Total for All Expenses
+            $grand_total = $part_ii_total + $part_v_total;
+            if ($grand_total > 0) {
+                echo '<div style="background: #2e7d32; color: white; padding: 20px; margin: 30px 0 20px 0; border-radius: 5px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">';
+                echo '<h3 style="margin: 0; color: white; font-size: 24px;">Total Business Expenses: <strong>$' . number_format($grand_total, 2) . '</strong></h3>';
+                echo '<p style="margin: 10px 0 0 0; font-size: 14px; color: #e8f5e9;">Part II: $' . number_format($part_ii_total, 2) . ' + Part V: $' . number_format($part_v_total, 2) . '</p>';
+                echo '</div>';
+            }
+
         } else {
             echo '<p>No expenses found for ' . esc_html($selected_year) . '.</p>';
         }
 
         // Display WooCommerce Invoices Table
-        echo '<h2 style="margin-top: 30px;">WooCommerce Invoices for ' . esc_html($selected_year) . ' (Fully Paid & Partial Payments)</h2>';
+        echo '<h2 style="margin-top: 40px; font-size: 28px; color: #000; background: #f0f0f0; padding: 15px; border-left: 6px solid #1565c0; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">💰 Income - WooCommerce Invoices for ' . esc_html($selected_year) . ' (Fully Paid & Partial Payments)</h2>';
 
         if (!empty($invoices)) {
             echo '<table class="wp-list-table widefat fixed striped">';
@@ -458,10 +830,16 @@ class TimeGrowReportsController {
             echo '</tr></thead>';
             echo '<tbody>';
 
+            $total_invoiced = 0;
+            $total_paid = 0;
+
             foreach ($invoices as $invoice) {
                 $payment_amount = floatval($invoice->payment_amount);
                 $display_payment = ($payment_amount > 0) ? $payment_amount : floatval($invoice->total_amount);
                 $payment_date = !empty($invoice->payment_date) ? $invoice->payment_date : 'N/A';
+
+                $total_invoiced += floatval($invoice->total_amount);
+                $total_paid += $display_payment;
 
                 echo '<tr>';
                 echo '<td><a href="' . admin_url('post.php?post=' . $invoice->order_id . '&action=edit') . '" target="_blank">#' . esc_html($invoice->order_id) . '</a></td>';
@@ -476,23 +854,36 @@ class TimeGrowReportsController {
             }
 
             echo '</tbody></table>';
+
+            // Display Invoice Totals Banner
+            echo '<div style="background: #1565c0; color: white; padding: 20px; margin: 20px 0; border-radius: 5px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">';
+            echo '<h3 style="margin: 0; color: white; font-size: 24px;">Total Invoices: <strong>' . count($invoices) . '</strong></h3>';
+            echo '<div style="display: flex; justify-content: center; gap: 40px; margin-top: 15px;">';
+            echo '<div>';
+            echo '<p style="margin: 0; font-size: 14px; color: #e3f2fd;">Total Amount Invoiced</p>';
+            echo '<p style="margin: 5px 0 0 0; font-size: 20px; font-weight: bold; color: white;">$' . number_format($total_invoiced, 2) . '</p>';
+            echo '</div>';
+            echo '<div>';
+            echo '<p style="margin: 0; font-size: 14px; color: #e3f2fd;">Total Amount Paid</p>';
+            echo '<p style="margin: 5px 0 0 0; font-size: 20px; font-weight: bold; color: white;">$' . number_format($total_paid, 2) . '</p>';
+            echo '</div>';
+            echo '</div>';
+            echo '</div>';
+
         } else {
             echo '<p>No paid WooCommerce invoices found for ' . esc_html($selected_year) . '.</p>';
         }
 
         // Export buttons
         echo '<div style="margin-top: 30px; display: flex; gap: 10px;">';
-        echo '<a href="' . admin_url('admin.php?page=' . $_GET['page'] . '&report_slug=yearly_tax_report&year=' . $selected_year . '&export=csv') . '" class="button button-primary">Export to CSV</a>';
-        echo '<a href="' . admin_url('admin.php?page=' . $_GET['page'] . '&report_slug=yearly_tax_report&year=' . $selected_year . '&export=pdf') . '" class="button button-primary">Export to PDF</a>';
-        echo '<button type="button" class="button button-secondary" onclick="window.print();">Print to PDF</button>';
+        echo '<a href="' . admin_url('admin.php?page=' . $_GET['page'] . '&report_slug=yearly_tax_report&year=' . $selected_year . '&export=csv') . '" class="button button-primary">📊 Export to CSV</a>';
+        echo '<button type="button" class="button button-primary" onclick="window.print();">🖨️ Print to PDF</button>';
         echo '</div>';
 
         // Handle exports
         if (isset($_GET['export'])) {
             if ($_GET['export'] === 'csv') {
-                $this->export_yearly_tax_report_csv($selected_year, $time_entries, $expenses, $invoices);
-            } elseif ($_GET['export'] === 'pdf') {
-                $this->export_yearly_tax_report_pdf($selected_year, $time_entries, $expenses, $total_hours, $total_billable_hours, $total_expenses, $invoices, $total_invoice_amount);
+                $this->export_yearly_tax_report_csv($selected_year, $expenses, $invoices);
             }
         }
     }
@@ -621,70 +1012,71 @@ class TimeGrowReportsController {
             <title>Tax Report <?php echo esc_html($year); ?></title>
             <style>
                 @page {
-                    margin: 2cm;
-                    size: A4;
+                    margin: 1.5cm;
+                    size: A4 landscape;
                 }
                 body {
                     font-family: Arial, sans-serif;
-                    font-size: 11pt;
-                    line-height: 1.4;
+                    font-size: 9pt;
+                    line-height: 1.3;
                     color: #000;
                     margin: 0;
-                    padding: 20px;
+                    padding: 10px;
                 }
                 h1 {
-                    font-size: 24pt;
+                    font-size: 18pt;
                     margin-bottom: 5px;
                     color: #000;
                     text-align: center;
-                    border-bottom: 3px solid #0073aa;
-                    padding-bottom: 10px;
+                    border-bottom: 2px solid #0073aa;
+                    padding-bottom: 8px;
                 }
                 .report-meta {
                     text-align: center;
-                    margin-bottom: 30px;
-                    font-size: 10pt;
+                    margin-bottom: 20px;
+                    font-size: 8pt;
                     color: #666;
                 }
                 .summary-section {
                     display: table;
                     width: 100%;
-                    margin-bottom: 30px;
+                    margin-bottom: 20px;
                     page-break-inside: avoid;
                 }
                 .summary-card {
                     display: table-cell;
                     width: 33.33%;
-                    padding: 15px;
+                    padding: 10px;
                     text-align: center;
-                    border: 2px solid #0073aa;
+                    border: 1px solid #0073aa;
                     background: #f0f8ff;
                 }
                 .summary-card h3 {
-                    margin: 0 0 10px 0;
-                    font-size: 12pt;
+                    margin: 0 0 5px 0;
+                    font-size: 9pt;
                     color: #0073aa;
                 }
                 .summary-card .value {
-                    font-size: 20pt;
+                    font-size: 14pt;
                     font-weight: bold;
                     color: #000;
                 }
                 h2 {
-                    font-size: 16pt;
-                    margin-top: 30px;
-                    margin-bottom: 15px;
+                    font-size: 12pt;
+                    margin-top: 20px;
+                    margin-bottom: 10px;
                     color: #000;
                     border-bottom: 2px solid #333;
-                    padding-bottom: 5px;
+                    padding-bottom: 3px;
                     page-break-after: avoid;
                 }
                 table {
                     width: 100%;
                     border-collapse: collapse;
-                    margin-bottom: 30px;
-                    font-size: 9pt;
+                    margin-bottom: 20px;
+                    font-size: 7pt;
                     page-break-inside: auto;
+                    table-layout: fixed;
                 }
                 thead {
                     display: table-header-group;
@@ -696,24 +1088,78 @@ class TimeGrowReportsController {
                 th {
                     background-color: #0073aa;
                     color: #fff;
-                    padding: 10px 8px;
+                    padding: 6px 4px;
                     text-align: left;
                     font-weight: bold;
                     border: 1px solid #005177;
+                    font-size: 7pt;
+                    word-wrap: break-word;
                 }
                 td {
-                    padding: 8px;
+                    padding: 4px;
                     border: 1px solid #ddd;
+                    word-wrap: break-word;
+                    overflow-wrap: break-word;
+                    vertical-align: top;
                 }
                 tbody tr:nth-child(even) {
                     background-color: #f9f9f9;
                 }
+
+                /* Specific column widths for time entries table */
+                table.time-entries th:nth-child(1),
+                table.time-entries td:nth-child(1) { width: 8%; } /* Date */
+                table.time-entries th:nth-child(2),
+                table.time-entries td:nth-child(2) { width: 15%; } /* Project */
+                table.time-entries th:nth-child(3),
+                table.time-entries td:nth-child(3) { width: 12%; } /* Client */
+                table.time-entries th:nth-child(4),
+                table.time-entries td:nth-child(4) { width: 12%; } /* Team Member */
+                table.time-entries th:nth-child(5),
+                table.time-entries td:nth-child(5) { width: 6%; } /* Hours */
+                table.time-entries th:nth-child(6),
+                table.time-entries td:nth-child(6) { width: 6%; } /* Billed */
+                table.time-entries th:nth-child(7),
+                table.time-entries td:nth-child(7) { width: 41%; } /* Description */
+
+                /* Specific column widths for expenses table */
+                table.expenses th:nth-child(1),
+                table.expenses td:nth-child(1) { width: 8%; } /* Date */
+                table.expenses th:nth-child(2),
+                table.expenses td:nth-child(2) { width: 12%; } /* Name */
+                table.expenses th:nth-child(3),
+                table.expenses td:nth-child(3) { width: 12%; } /* Category */
+                table.expenses th:nth-child(4),
+                table.expenses td:nth-child(4) { width: 8%; } /* Amount */
+                table.expenses th:nth-child(5),
+                table.expenses td:nth-child(5) { width: 10%; } /* Payment Method */
+                table.expenses th:nth-child(6),
+                table.expenses td:nth-child(6) { width: 10%; } /* Assigned To */
+                table.expenses th:nth-child(7),
+                table.expenses td:nth-child(7) { width: 40%; } /* Description */
+
+                /* Specific column widths for invoices table */
+                table.invoices th:nth-child(1),
+                table.invoices td:nth-child(1) { width: 8%; } /* Order ID */
+                table.invoices th:nth-child(2),
+                table.invoices td:nth-child(2) { width: 10%; } /* Date */
+                table.invoices th:nth-child(3),
+                table.invoices td:nth-child(3) { width: 15%; } /* Client */
+                table.invoices th:nth-child(4),
+                table.invoices td:nth-child(4) { width: 10%; } /* Status */
+                table.invoices th:nth-child(5),
+                table.invoices td:nth-child(5) { width: 10%; } /* Total Amount */
+                table.invoices th:nth-child(6),
+                table.invoices td:nth-child(6) { width: 15%; } /* Payment Method */
+                table.invoices th:nth-child(7),
+                table.invoices td:nth-child(7) { width: 12%; } /* Items */
+
                 .footer {
-                    margin-top: 50px;
-                    padding-top: 20px;
+                    margin-top: 30px;
+                    padding-top: 15px;
                     border-top: 1px solid #ccc;
                     text-align: center;
-                    font-size: 9pt;
+                    font-size: 7pt;
                     color: #666;
                 }
                 @media print {
@@ -751,7 +1197,7 @@ class TimeGrowReportsController {
             });
             ?>
             <?php if (!empty($billable_entries)) : ?>
-                <table>
+                <table class="time-entries">
                     <thead>
                         <tr>
                             <th>Date</th>
@@ -783,7 +1229,7 @@ class TimeGrowReportsController {
 
             <h2>Expenses for <?php echo esc_html($year); ?></h2>
             <?php if (!empty($expenses)) : ?>
-                <table>
+                <table class="expenses">
                     <thead>
                         <tr>
                             <th>Date</th>
@@ -815,7 +1261,7 @@ class TimeGrowReportsController {
 
             <h2>WooCommerce Invoices for <?php echo esc_html($year); ?> (Paid Only)</h2>
             <?php if (!empty($invoices)) : ?>
-                <table>
+                <table class="invoices">
                     <thead>
                         <tr>
                             <th>Order ID</th>
@@ -865,7 +1311,7 @@ class TimeGrowReportsController {
     /**
      * Export yearly tax report to CSV
      */
-    private function export_yearly_tax_report_csv($year, $time_entries, $expenses, $invoices) {
+    private function export_yearly_tax_report_csv($year, $expenses, $invoices) {
         $filename = 'tax_report_' . $year . '_' . date('Y-m-d') . '.csv';
 
         header('Content-Type: text/csv');
@@ -874,30 +1320,6 @@ class TimeGrowReportsController {
         header('Expires: 0');
 
         $output = fopen('php://output', 'w');
-
-        // Filter only billable entries
-        $billable_entries = array_filter($time_entries, function($entry) {
-            return $entry->billable == 1;
-        });
-
-        // Time Entries Section (Billable Only)
-        fputcsv($output, ['BILLABLE TIME ENTRIES - ' . $year]);
-        fputcsv($output, ['Date', 'Project', 'Client', 'Team Member', 'Hours', 'Billed', 'Description']);
-
-        foreach ($billable_entries as $entry) {
-            fputcsv($output, [
-                $entry->date,
-                $entry->project_name,
-                $entry->client_name,
-                $entry->member_name,
-                number_format(floatval($entry->hours), 2),
-                $entry->billed ? 'Yes' : 'No',
-                $entry->description
-            ]);
-        }
-
-        // Blank row
-        fputcsv($output, []);
 
         // Expenses Section
         fputcsv($output, ['EXPENSES - ' . $year]);
