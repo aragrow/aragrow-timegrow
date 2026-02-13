@@ -1,0 +1,89 @@
+/* assets/css/nexus-dashboard.css */
+.timegrow-tile-navigation {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px; /* Space between tiles */
+    margin-top: 20px;
+    margin-bottom: 30px;
+}
+
+.timegrow-tile {
+    background-color: #fff;
+    border: 1px solid #ccd0d4;
+    box-shadow: 0 1px 1px rgba(0,0,0,.04);
+    padding: 20px;
+    text-decoration: none;
+    color: #444;
+    border-radius: 4px;
+    display: flex; /* For icon and content alignment */
+    flex-direction: column; /* Stack icon and content vertically */
+    align-items: center; /* Center items horizontally */
+    text-align: center;
+    width: calc(33.333% - 14px); /* Adjust for 3 tiles per row, considering gap. (20px * 2/3) */
+    min-width: 220px; /* Minimum width for smaller screens / fewer tiles */
+    box-sizing: border-box;
+    transition: box-shadow 0.1s ease-in-out, transform 0.1s ease-in-out;
+}
+@media (max-width: 960px) {
+    .timegrow-tile {
+        width: calc(50% - 10px); /* 2 tiles per row */
+    }
+}
+@media (max-width: 600px) {
+    .timegrow-tile {
+        width: 100%; /* 1 tile per row */
+    }
+}
+
+
+.timegrow-tile:hover,
+.timegrow-tile:focus {
+    box-shadow: 0 3px 5px rgba(0,0,0,.1);
+    transform: translateY(-2px);
+    border-color: #999;
+}
+
+.timegrow-tile-icon .dashicons {
+    font-size: 48px;
+    width: 48px;
+    height: 48px;
+    line-height: 48px;
+    margin-bottom: 15px;
+    color: #0073aa; /* WordPress blue */
+}
+
+.timegrow-tile-content h2 {
+    font-size: 1.2em;
+    margin: 0 0 8px 0;
+    color: #222;
+}
+
+.timegrow-tile-content p {
+    font-size: 0.9em;
+    margin: 0;
+    color: #555;
+    line-height: 1.4;
+}
+
+.timegrow-tile.coming-soon {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+.timegrow-tile.coming-soon .timegrow-tile-icon .dashicons {
+    color: #999;
+}
+.timegrow-tile.coming-soon:hover {
+    box-shadow: 0 1px 1px rgba(0,0,0,.04);
+    transform: none;
+}
+.soon-badge {
+    display: inline-block;
+    background-color: #ffb900;
+    color: #fff;
+    font-size: 0.7em;
+    padding: 2px 5px;
+    border-radius: 3px;
+    margin-left: 5px;
+    vertical-align: middle;
+    font-weight: bold;
+}

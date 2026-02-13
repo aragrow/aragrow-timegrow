@@ -1,0 +1,185 @@
+/* File: assets/css/manual.css */
+.timegrow-nexus-container {
+  width: 35%;
+  max-width: 600px;
+  margin: 25px 5px auto;
+  padding: 30px;
+  border-radius: 10px;
+  background-color: #ffffff;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+}
+
+.timegrow-nexus-container h1 {
+  font-size: 1.8em;
+  color: #2c3e50;
+  margin-bottom: 25px;
+  text-align: center;
+}
+
+.timegrow-nexus-container label {
+  display: block;
+  margin: 15px 0 5px;
+  font-weight: 600;
+  color: #495057;
+}
+
+/* Action Buttons Container */
+.timegrow-actions {
+    display: flex;
+    justify-content: center;
+    gap: 25px; /* Slightly more space */
+    margin-top: 35px; /* More space above buttons */
+}
+
+/* General Button Styling - Foundation for the "Wow" */
+.timegrow-button {
+    padding: 15px 35px; /* Slightly more padding for a bolder look */
+    font-size: 1.05em;  /* Adjust as needed */
+    font-weight: 600;
+    border: none;
+    border-radius: 8px; /* Consistent with modern tile rounding */
+    cursor: pointer;
+    position: relative; /* Crucial for pseudo-elements and overflow */
+    overflow: hidden;   /* To contain effects like shines or ripples */
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    outline: none;
+    color: #fff; /* Default text color for active buttons */
+    /* Base transition for properties that might change on disabled state etc. */
+    transition: opacity 0.3s ease, transform 0.2s ease-out, box-shadow 0.3s ease-out;
+}
+
+/* Add a subtle 3D effect and shine preparation */
+.timegrow-button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -150%; /* Start shine off-screen */
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+        110deg,
+        transparent 30%,
+        rgba(255, 255, 255, 0.35) 50%, /* Shine color */
+        transparent 70%
+    );
+    transition: left 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94); /* Smooth sweep */
+    opacity: 0; /* Hidden by default, shown on hover for active */
+}
+
+.timegrow-nexus-container input,
+.timegrow-nexus-container select {
+  width: 100%;
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid #ced4da;
+  font-size: 1em;
+  box-sizing: border-box;
+}
+
+.timegrow-nexus-container input.check {
+  width: auto;
+}
+
+/* --- ACTIVE BUTTON STYLES --- */
+.timegrow-button.active {
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0,0,0,0.08); /* Softer, more modern shadow */
+    transform: translateY(0); /* Reset any transform */
+}
+.timegrow-button.active:not(:disabled):hover,
+.timegrow-button.active:not(:disabled):focus {
+    transform: translateY(-4px) scale(1.02); /* Lift and slightly grow */
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15), 0 4px 8px rgba(0,0,0,0.1); /* More pronounced shadow */
+}
+
+/* Shine effect on hover for active, non-disabled buttons */
+.timegrow-button.active:not(:disabled):hover::before,
+.timegrow-button.active:not(:disabled):focus::before {
+    left: 50%; /* Sweep shine across */
+    opacity: 1;
+}
+
+/* Active press down effect */
+.timegrow-button.active:not(:disabled):active {
+    transform: translateY(-1px) scale(0.99);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.12);
+}
+
+/* --- DISABLED BUTTON STYLE --- */
+.timegrow-button.disabled {
+    background-image: none; /* Remove gradient */
+    background-color: #e9ecef; /* Light grey background, similar to previous */
+    color: #adb5bd;      /* Muted text color */
+    cursor: not-allowed;
+    opacity: 0.75;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05); /* Very minimal shadow or none */
+    transform: none !important; /* Ensure no transform on disabled */
+}
+.timegrow-button.disabled::before {
+    display: none; /* No shine effect for disabled */
+}
+
+
+/* Focus visible for accessibility on keyboard navigation */
+.timegrow-button.active:not(:disabled):focus-visible {
+    outline: 2px solid rgba(0, 115, 170, 0.7); /* WordPress blue, slightly transparent */
+    outline-offset: 3px;
+}
+
+/* Text for loading state (if you modify button text in JS) */
+.timegrow-button .loading-text::after {
+    content: '...';
+    display: inline-block;
+    animation: loadingDots 1.4s infinite;
+    position: relative;
+    left: 2px;
+}
+
+.timegrow-drop-section {
+  margin-top: 30px;
+  text-align: center;
+}
+
+.timegrow-drop-zone {
+  height: 120px;
+  border: 2px dashed #ced4da;
+  border-radius: 8px;
+  background-color: #f8f9fa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6c757d;
+  font-size: 1.1em;
+  transition: background-color 0.3s ease;
+}
+
+.timegrow-drop-zone.dragging-over {
+  background-color: #e0f7ea;
+  border-color: #38c172;
+  color: #38c172;
+}
+
+.drop-zone-text {
+  font-size: 1em;
+  margin-bottom: 10px;
+  font-weight: 500;
+  color: #495057;
+}
+
+ .time-entries table, .time-entries th, .time-entries td {
+        border: 1px solid #ccc;
+        padding: 0.5rem;
+    }
+    .time-entries th a {
+        text-decoration: none;
+        color: #000;
+    }
+    .filter-form select {
+        padding: 0.5rem;
+        font-size: 1rem;
+    }
+    .pagination a {
+        margin: 0 0.5rem;
+        text-decoration: none;
+    }

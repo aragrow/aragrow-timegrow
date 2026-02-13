@@ -70,7 +70,7 @@ class TimeGrowCompanyView {
             );
         };
         ?>
-        <div class="wrap timegrow-modern-wrapper">
+        <div class="wrap timegrow-page">
             <!-- Modern Header -->
             <div class="timegrow-modern-header">
                 <div class="timegrow-header-content">
@@ -220,7 +220,7 @@ class TimeGrowCompanyView {
     public function add() {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         ?>
-        <div class="wrap timegrow-modern-wrapper">
+        <div class="wrap timegrow-page">
             <!-- Modern Header -->
             <div class="timegrow-modern-header">
                 <div class="timegrow-header-content">
@@ -390,7 +390,7 @@ class TimeGrowCompanyView {
     public function edit($company) {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         ?>
-        <div class="wrap timegrow-modern-wrapper">
+        <div class="wrap timegrow-page">
             <!-- Modern Header -->
             <div class="timegrow-modern-header">
                 <div class="timegrow-header-content">

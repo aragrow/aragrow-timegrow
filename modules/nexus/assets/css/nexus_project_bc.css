@@ -1,0 +1,215 @@
+/* Project List Styles - Modern & Fresh */
+
+/* Styles for your outermost container */
+#project-tiles-container.timegrow-project-tiles {
+    padding: 20px 15px; /* Added some horizontal padding */
+    width: 60%;
+    box-sizing: border-box;
+  /*   background: linear-gradient(145deg, #ffffff 0%, #f5f7fa 100%); /* White to very light grey */
+   
+    /* background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); /* Optional subtle gradient background for the section */
+    /* Or a simpler light background: */
+    /* background-color: #f8f9fa; */
+}
+
+/* Styles for the H2 heading */
+#project-tiles-container.timegrow-project-tiles h2 {
+    text-align: center;
+    margin-bottom: 35px; /* More space below heading */
+    font-size: 1.8em;    /* Increased heading size */
+    color: #343a40;     /* Darker, more modern heading color */
+    font-weight: 700;   /* Bolder */
+    letter-spacing: 0.5px;
+    /* text-transform: uppercase; */ /* Optional */
+    position: relative;
+    padding-bottom: 10px;
+}
+/* Optional heading underline effect */
+/* #project-tiles-container.timegrow-project-tiles h2::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60px;
+    height: 3px;
+    background-color: #007bff; /* A nice blue accent */
+/* border-radius: 2px; */
+/* } */
+
+
+/* This is your actual grid container */
+.project-list-container {
+    display: grid;
+    gap: 25px; /* Increased gap for more breathing room */
+    /* Default: Small Mobile - 2 columns */
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.timegrow-project-tile {
+    background: linear-gradient(145deg, #f5f7fa 0%, #e7f5ff 100%); /* White to very light grey */
+    /* Subtle gradient alternative:
+    background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%); */
+    border: 1px solid #dee2e6; /* Lighter, more refined border */
+    border-radius: 12px;     /* Softer, more modern rounding */
+    padding: 8px;          /* Adjusted padding */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0,0,0,0.04); /* Softer, layered shadow */
+    transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1),
+                box-shadow 0.3s cubic-bezier(0.25, 0.8, 0.25, 1),
+                border-color 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    position: relative; /* For potential pseudo-elements */
+    overflow: hidden; /* For effects like shine */
+}
+
+.timegrow-project-tile:hover,
+.timegrow-project-tile:focus-within { /* focus-within for better keyboard nav experience */
+    transform: translateY(-6px) scale(1.01); /* More noticeable lift and slight scale */
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1), 0 4px 10px rgba(0,0,0,0.07);
+    border-color: #007bff; /* Accent color on hover/focus */
+    z-index: 10; /* Bring to front on hover */
+}
+
+/* Optional: Shine effect on hover (like tile navigation) */
+.timegrow-project-tile::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -150%;
+    width: 80%; /* Narrower shine */
+    height: 100%;
+    background: linear-gradient(
+        to right,
+        transparent 0%,
+        rgba(255, 255, 255, 0.4) 50%,
+        transparent 100%
+    );
+    transform: skewX(-25deg); /* Angled shine */
+    opacity: 0;
+    transition: left 0.5s ease-in-out, opacity 0.3s ease;
+}
+.timegrow-project-tile:hover::before {
+    left: 110%; /* Sweep across */
+    opacity: 1;
+    transition: left 0.7s ease-in-out, opacity 0.3s ease; /* Slower sweep out */
+}
+
+
+.timegrow-project-tile .project-logo-placeholder {
+    width: 50px; /* Slightly larger */
+    height: 50px;
+    background-color: #e9ecef; /* Lighter placeholder background */
+    border-radius: 10px; /* Squircle shape for logo */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 18px auto;
+    font-size: 1.4em; /* Adjusted for new size */
+    font-weight: 600;
+    color: #007bff;   /* Accent color for initials */
+    border: none; /* Remove border or make it subtle */
+    /* box-shadow: 0 2px 4px rgba(0,0,0,0.05) inset; */ /* Optional inset shadow */
+}
+.timegrow-project-tile .project-logo-placeholder img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: 8px; /* Match placeholder rounding if image is square */
+}
+
+.timegrow-project-tile h3 {
+    font-size: 1.1em; /* Slightly larger for better readability */
+    color: #343a40; /* Darker heading for contrast */
+    margin-top: 0;
+    margin-bottom: 12px; /* Less margin */
+    text-align: center;
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+.timegrow-project-tile .project-contact-info {
+    font-size: 0.85em; /* Increased for readability */
+    color: #6c757d;   /* Softer grey for contact info */
+    line-height: 1.5;
+    margin-top: auto; /* Pushes contact info to bottom if tile height varies */
+}
+
+.timegrow-project-tile .project-contact-info p {
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+}
+.timegrow-project-tile .project-contact-info p:last-child {
+    margin-bottom: 0;
+}
+
+.timegrow-project-tile .project-contact-info .dashicons {
+    margin-right: 6px;
+    color: #007bff; /* Accent blue, can be themed */
+    font-size: 1.2em; /* Slightly smaller but still clear */
+    opacity: 0.8;
+}
+
+.timegrow-project-tile .project-contact-info .contact-label {
+    font-weight: 500; /* Was 500, changed from 600 to differentiate from heading */
+    color: #495057; /* Slightly darker than paragraph text */
+    margin-right: 4px;
+}
+
+.timegrow-project-tile .project-contact-info a {
+    color: #007bff;
+    text-decoration: none;
+    font-weight: 500;
+    word-break: break-all;
+}
+.timegrow-project-tile .project-contact-info a:hover {
+    text-decoration: underline;
+    color: #0056b3; /* Darker blue on hover */
+}
+
+
+/* --- RESPONSIVE BREAKPOINTS --- */
+/* Medium screens (e.g., tablets) - 3 columns */
+@media (min-width: 768px) {
+    .project-list-container {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    #project-tiles-container.timegrow-project-tiles h2 {
+        font-size: 2em; /* Adjust heading size for tablets */
+    }
+}
+
+/* Larger screens (e.g., small desktops) - 4 columns */
+@media (min-width: 992px) {
+    .project-list-container {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+     .timegrow-project-tile h3 {
+        font-size: 1.15em;
+    }
+}
+
+/* Desktop - Target 6 columns, but ensuring readability */
+/* Note: 6 columns can make tiles very narrow. Adjust breakpoint or column count if needed. */
+@media (min-width: 1400px) { /* Increased breakpoint for 6 columns */
+    .project-list-container {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+    }
+    .timegrow-project-tile {
+        padding: 15px; /* Adjusted padding */
+    }
+    .timegrow-project-tile h3 {
+        font-size: 1.05em; /* Ensure still readable */
+        margin-bottom: 10px;
+    }
+    .timegrow-project-tile .project-contact-info {
+        font-size: 0.8em; /* Minimum readable size */
+    }
+    .timegrow-project-tile .project-logo-placeholder {
+        width: 45px; /* Adjust logo size for more columns */
+        height: 45px;
+        font-size: 1.2em;
+        margin-bottom: 12px;
+    }
+}

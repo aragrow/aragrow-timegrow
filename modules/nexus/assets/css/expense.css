@@ -1,0 +1,333 @@
+/* expense-recorder-style.css */
+
+/* Project Drop Section */
+.timegrow-drop-section {
+  margin-top: 20px; /* Adjusted margin */
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+/* Renamed this from .timegrow-drop-zone to be more specific to the display/drop area */
+#expense-drop-zone-display {
+  min-height: 60px; /* Ensure it has some height */
+  padding: 15px; /* Add some padding */
+  border: 2px dashed #ced4da;
+  border-radius: 8px;
+  background-color: #f8f9fa;
+  display: flex; /* Use flex to manage content inside */
+  flex-direction: column; /* Stack placeholder/details and button */
+  align-items: center;
+  justify-content: center;
+  color: #6c757d;
+  font-size: 1em; /* Adjusted font size */
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+  position: relative; /* For absolute positioning of clear button if needed, though flex is fine */
+}
+
+#expense-drop-zone-display.dragging-over {
+  background-color: #e0f7ea; /* Greenish tint when dragging over */
+  border-color: #38c172;
+  color: #38c172;
+}
+#expense-drop-zone-display.has-project {
+  border-style: solid; /* Solid border when project is dropped */
+  border-color: #28a745; /* Green border */
+  background-color: #f0fff4; /* Very light green background */
+  color: #28a745; /* Green text for selected project */
+}
+
+.project-drop-placeholder {
+    display: block; /* Ensure it's visible initially */
+}
+
+.selected-project-details {
+    font-weight: 500;
+    /* color will be set by .has-project */
+}
+.selected-project-details br {
+    margin-bottom: 5px; /* Space after the line break */
+}
+
+
+.clear-selection-btn { /* General style for clear buttons */
+    background: #6c757d;
+    border: none;
+    color: white;
+    cursor: pointer;
+    font-size: 0.85em;
+    padding: 4px 10px;
+    border-radius: 4px;
+    margin-top: 8px; /* Space above button */
+    transition: background-color 0.2s ease;
+}
+.clear-selection-btn:hover {
+    background-color: #5a6268;
+}
+
+.timegrow-expense-recorder-page h1 {
+    text-align: center;
+    margin-bottom: 30px;
+    color: #333;
+}
+
+.timegrow-expense-container {
+    background-color: #fff;
+    padding: 25px;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    max-width: 1200px; /* Control overall width */
+    margin: 0 auto;
+}
+
+.timegrow-drop-section {
+  margin-top: 30px;
+  text-align: center;
+}
+
+.timegrow-drop-zone {
+  height: 120px;
+  border: 2px dashed #ced4da;
+  border-radius: 8px;
+  background-color: #f8f9fa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6c757d;
+  font-size: 1.1em;
+  transition: background-color 0.3s ease;
+}
+
+.timegrow-drop-zone.dragging-over {
+  background-color: #e0f7ea;
+  border-color: #38c172;
+  color: #38c172;
+}
+
+.drop-zone-text {
+  font-size: 1em;
+  margin-bottom: 10px;
+  font-weight: 500;
+  color: #495057;
+}
+
+/* --- Selection Stage --- */
+.expense-selection-stage {
+    display: flex;
+    flex-wrap: wrap; /* Allow columns to wrap on smaller screens */
+    gap: 20px;
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.selection-column {
+    flex: 1;
+    min-width: 280px; /* Ensure columns don't get too narrow before wrapping */
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 6px;
+    border: 1px solid #e9ecef;
+}
+
+.selection-column h2 {
+    font-size: 1.2em;
+    color: #495057;
+    margin-top: 0;
+    margin-bottom: 15px;
+    border-bottom: 1px solid #dee2e6;
+    padding-bottom: 10px;
+}
+
+.selected-item-display {
+    background-color: #e9f5ff; /* Light blue for selected item */
+    border: 1px solid #badcff;
+    padding: 10px 15px;
+    border-radius: 4px;
+    margin-bottom: 15px;
+    min-height: 40px; /* Ensure it has some height even when empty */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.selected-item-display p {
+    margin: 0;
+    font-weight: 500;
+}
+.selected-item-display .item-name {
+    color: #0056b3;
+    font-weight: 600;
+}
+.clear-selection-btn {
+    background: none;
+    border: none;
+    color: #007bff;
+    cursor: pointer;
+    font-size: 0.9em;
+    padding: 2px 5px;
+}
+.clear-selection-btn:hover { text-decoration: underline; }
+
+
+.item-list-container {
+    max-height: 250px; /* Make lists scrollable if too long */
+    overflow-y: auto;
+    border: 1px dashed #ced4da; /* Placeholder border */
+    padding: 10px;
+    background-color: #fff;
+}
+.item-list-container .placeholder-text {
+    color: #6c757d;
+    text-align: center;
+    font-style: italic;
+    padding: 20px 0;
+}
+
+.expense-item-tile {
+    background-color: #fff;
+    border: 1px solid #dee2e6;
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    border-radius: 4px;
+    cursor: grab;
+    display: flex;
+    align-items: center;
+    transition: background-color 0.2s, box-shadow 0.2s;
+}
+.expense-item-tile:hover {
+    background-color: #eef2f7;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+.expense-item-tile:active { cursor: grabbing; }
+
+.expense-item-tile .item-tile-icon {
+    margin-right: 10px;
+    color: #007bff;
+    font-size: 1.3em;
+}
+.expense-item-tile .item-tile-name {
+    font-weight: 500;
+    color: #343a40;
+}
+
+/* --- Form Stage --- */
+.expense-form-stage h2 {
+    font-size: 1.4em;
+    margin-bottom: 20px;
+    color: #333;
+}
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); /* Responsive form fields */
+    gap: 20px;
+}
+.form-group {
+    display: flex;
+    flex-direction: column;
+}
+.form-group.form-group-full {
+    grid-column: 1 / -1; /* Make description take full width */
+}
+.form-group label {
+    margin-bottom: 6px;
+    font-weight: 500;
+    color: #495057;
+    font-size: 0.9em;
+}
+.form-group label .required { color: red; }
+
+.form-group input[type="date"],
+.form-group input[type="number"],
+.form-group select,
+.form-group textarea {
+    padding: 10px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 1em;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    border-color: #80bdff;
+    outline: 0;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.amount-group, .currency-group { /* Specific styling for amount/currency if needed */ }
+
+
+/* --- Receipt Upload Stage --- */
+.receipt-upload-stage { margin-top: 30px; }
+.receipt-upload-stage h2 { font-size: 1.3em; margin-bottom: 15px; }
+
+.receipt-drop-area {
+    border: 2px dashed #007bff;
+    border-radius: 6px;
+    padding: 30px;
+    text-align: center;
+    background-color: #f0f8ff; /* Light blue tint */
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+.receipt-drop-area.dragging-over {
+    background-color: #d6eaff; /* Darker blue when dragging over */
+    border-style: solid;
+}
+.receipt-drop-area .drop-zone-prompt .dashicons {
+    font-size: 3em;
+    color: #007bff;
+    margin-bottom: 10px;
+}
+.receipt-drop-area .drop-zone-prompt p {
+    font-size: 1.1em;
+    color: #333;
+    margin-bottom: 5px;
+}
+.receipt-drop-area .drop-zone-prompt small { color: #6c757d; }
+
+.receipt-preview-list {
+    margin-top: 15px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+.receipt-preview-item {
+    width: 100px; /* Adjust as needed */
+    height: 100px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+}
+.receipt-preview-item img, .receipt-preview-item .pdf-icon {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.receipt-preview-item .pdf-icon { /* For PDF placeholders */
+    display: flex; align-items: center; justify-content: center; background-color: #eee; font-size: 2em;
+}
+.receipt-preview-item .remove-receipt-btn {
+    position: absolute; top: 2px; right: 2px; background: rgba(0,0,0,0.5); color: white; border:none; border-radius:50%; cursor:pointer; width:20px; height:20px; font-size:12px; line-height:18px;
+}
+
+
+/* --- Form Actions & Message --- */
+.form-actions {
+    margin-top: 30px;
+    display: flex;
+    gap: 15px;
+    justify-content: flex-end; /* Align buttons to the right */
+}
+/* .timegrow-button styles from previous examples for Save/Clear buttons */
+
+.form-message { margin-top: 15px; padding:10px; border-radius:4px; }
+.form-message.success { background-color:#d4edda; color:#155724; border:1px solid #c3e6cb; }
+.form-message.error { background-color:#f8d7da; color:#721c24; border:1px solid #f5c6cb; }
+
+/* Responsive adjustments for overall layout */
+@media (max-width: 768px) {
+    .expense-selection-stage {
+        flex-direction: column; /* Stack client/project selection on small screens */
+    }
+}

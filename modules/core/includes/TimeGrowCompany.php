@@ -5,7 +5,7 @@ if (!defined('ABSPATH')) {
     exit; // Exit if accessed directly.
 }
 
-class TimeGrowTeamMember{
+class TimeGrowCompany{
 
     public function __construct() {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
@@ -23,10 +23,10 @@ class TimeGrowTeamMember{
 
         add_submenu_page(
             TIMEGROW_PARENT_MENU,
-            'Team Members',
-            'Team Members',
+            'Companies',
+            'Companies',
             TIMEGROW_OWNER_CAP,
-            TIMEGROW_PARENT_MENU . '-team-member-list',
+            TIMEGROW_PARENT_MENU . '-companies-list',
             function() { // Define a closure
                 $this->tracker_mvc_admin_page( 'list' ); // Call the tracker_mvc method, passing the parameter
             },
@@ -35,10 +35,10 @@ class TimeGrowTeamMember{
 
         add_submenu_page(
             null,
-            'Add Team Member',
-            'Add Team Member',
+            'Add Company',
+            'Add Company',
             TIMEGROW_OWNER_CAP,
-            TIMEGROW_PARENT_MENU . '-team-member-add',
+            TIMEGROW_PARENT_MENU . '-company-add',
             function() { // Define a closure
                 $this->tracker_mvc_admin_page( 'add' ); // Call the tracker_mvc method, passing the parameter
             },
@@ -46,10 +46,10 @@ class TimeGrowTeamMember{
 
         add_submenu_page(
             null,
-            'Edit Team Member',
-            'Edit Team Member',
+            'Edit Company',
+            'Edit Company',
             TIMEGROW_OWNER_CAP,
-            TIMEGROW_PARENT_MENU . '-team-member-edit',
+            TIMEGROW_PARENT_MENU . '-company-edit',
             function() { // Define a closure
                 $this->tracker_mvc_admin_page( 'edit' ); // Call the tracker_mvc method, passing the parameter
             },
@@ -59,33 +59,25 @@ class TimeGrowTeamMember{
 
     public function enqueue_scripts_styles() {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
-
-        // jQuery UI core and sortable
-        wp_enqueue_script('jquery-ui-sortable');
-        wp_enqueue_script('jquery-ui-draggable');
-
-        wp_enqueue_style('timegrow-modern-style', ARAGROW_TIMEGROW_BASE_URI . 'assets/css/timegrow-modern.css');
-        wp_enqueue_style('timegrow-forms-style', ARAGROW_TIMEGROW_BASE_URI . 'assets/css/forms.css');
-        wp_enqueue_style('timegrow-companies-style', ARAGROW_TIMEGROW_BASE_URI . 'assets/css/team_member.css');
-        wp_enqueue_script('timegrow-companiues-script', ARAGROW_TIMEGROW_BASE_URI . 'assets/js/team_member.js', array('jquery'), '1.0', true);
+        wp_enqueue_style('timegrow-modern-style', TIMEGROW_CORE_BASE_URI . 'assets/css/timegrow-modern.css');
+        wp_enqueue_style('timegrow-forms-style', TIMEGROW_CORE_BASE_URI . 'assets/css/forms.css');
+        wp_enqueue_style('timeflies-companies-style', TIMEGROW_CORE_BASE_URI . 'assets/css/company.css');
+        wp_enqueue_script('timeflies-companies-script', TIMEGROW_CORE_BASE_URI . 'assets/js/company.js', array('jquery'), '1.0', true);
         wp_localize_script(
-            'timegrow-team-member-script',
-            'timegrow_team_member_list',
+            'timeflies-companies-script',
+            'timeflies_companies_list',
             [
-                'list_url' => admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-team-member-list'),
-                'nonce' => wp_create_nonce('timegrow_team_member_nonce') // Pass the nonce to JS
+                'list_url' => admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-companies-list'),
+                'nonce' => wp_create_nonce('timeflies_company_nonce') // Pass the nonce to JS
             ]
         );
     }
 
     public function tracker_mvc_admin_page($screen) {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
-        $model = new TimeGrowTeamMemberModel();
-        $view = new TimeGrowTeamMemberView();
-        $model_user = new TimeGrowUserModel;
-        $model_company = new TimeGrowCompanyModel;
-        $model_project = new TimeGrowProjectModel; 
-        $controller = new TimeGrowTeamMemberController($model, $view, $model_user, $model_company, $model_project);
+        $company_model = new TimeGrowCompanyModel();
+        $company_view = new TimeGrowCompanyView();
+        $controller = new TimeGrowCompanyController($company_model, $company_view);
         $controller->display_admin_page($screen);
     }
 }

@@ -2,8 +2,8 @@
 /**
  * Plugin Name: Aragrow - TimeGrow
  * Plugin URI: https://example.com/aragrow-timegrow
- * Description: A time tracking plugin for managing projects, team members, and invoicing with AI-powered receipt analysis.
- * Version: 1.1.2
+ * Description: A comprehensive time tracking plugin for managing projects, team members, invoicing with AI-powered receipt analysis, WooCommerce integration, PayPal auto-invoicing, and REST API endpoints.
+ * Version: 2.0.0
  * Author: David Arago - ARAGROW, LLC
  * Author URI: https://aragrow.me/wp-plugins/timegrow/
  * License: GPL2
@@ -13,77 +13,84 @@ if (!defined('ABSPATH')) {
     exit; // Exit if accessed directly.
 }
 
-// Define a constant for the plugin's base directory. This makes the code more readable and easier to maintain.
+// ==============================================
+// CORE PLUGIN CONSTANTS
+// ==============================================
+
 defined( 'TIMEGROW' ) or define( 'TIMEGROW', 'TimeGrow' );
+defined( 'TIMEGROW_VERSION' ) or define( 'TIMEGROW_VERSION', '2.0.0' );
 defined( 'TIMEGROW_PREFIX' ) or define( 'TIMEGROW_PREFIX', strtolower(TIMEGROW). '_' );
 defined( 'TIMEGROW_BASE_DIR' ) or define( 'ARAGROW_TIMEGROW_BASE_DIR', plugin_dir_path( __FILE__ ) );
 defined( 'TIMEGROW_BASE_URI' ) or define( 'ARAGROW_TIMEGROW_BASE_URI', plugin_dir_url( __FILE__ ) );
-defined( 'TIMEGROW_INCLUDES_DIR' ) or define( 'TIMEGROW_INCLUDES_DIR', ARAGROW_TIMEGROW_BASE_DIR.'includes/' );
-defined( 'TIMEGROW_SCREENS_DIR' ) or define( 'ARAGROW_TIMEGROW_SCREENS_DIR', TIMEGROW_INCLUDES_DIR.'screens/' );
+defined( 'TIMEGROW_MODULES_DIR' ) or define( 'TIMEGROW_MODULES_DIR', ARAGROW_TIMEGROW_BASE_DIR.'modules/' );
 defined( 'TIMEGROW_ADMIN_CAP' ) or define( 'TIMEGROW_ADMIN_CAP', 'timeflies_admin' );
 defined( 'TIMEGROW_OWNER_CAP' ) or define( 'TIMEGROW_OWNER_CAP', 'timeflies_owner' );
 defined( 'TIMEGROW_TEAM_MEMBER_CAP' ) or define( 'TIMEGROW_TEAM_MEMBER_CAP', 'timeflies_team_member' );
 defined( 'TIMEGROW_PARENT_MENU' ) or define( 'TIMEGROW_PARENT_MENU', 'timegrow' );
 defined( 'TIMEGROW_TEAM_MEMBER_MENU' ) or define( 'TIMEGROW_TEAM_MEMBER_MENU', TIMEGROW_PARENT_MENU.'-team-member' );
 
-require_once TIMEGROW_INCLUDES_DIR . 'admin-menu.php';
-require_once TIMEGROW_INCLUDES_DIR . 'TimeGrowAjaxHandler.php';
+// Backward compatibility constants
+defined( 'TIMEGROW_INCLUDES_DIR' ) or define( 'TIMEGROW_INCLUDES_DIR', TIMEGROW_MODULES_DIR.'core/includes/' );
+defined( 'TIMEGROW_SCREENS_DIR' ) or define( 'ARAGROW_TIMEGROW_SCREENS_DIR', TIMEGROW_INCLUDES_DIR.'screens/' );
 
-// Autoload classes
-function timegrow_load_mvc_classes($class) {
+// Core Module Constants (for backward compatibility)
+defined( 'TIMEGROW_CORE_BASE_DIR' ) or define( 'TIMEGROW_CORE_BASE_DIR', TIMEGROW_MODULES_DIR . 'core/' );
+defined( 'TIMEGROW_CORE_BASE_URI' ) or define( 'TIMEGROW_CORE_BASE_URI', ARAGROW_TIMEGROW_BASE_URI . 'modules/core/' );
 
-    // Check if the class name starts with "timegrow"
-    if (strpos($class, 'TimeGrow') !== 0) return; // Exit the function, don't load the class
-    error_log(  'timegrow_load_mvc_classes'. ' - Class: ' . $class );  //Best option for Classes
-    //error_log(TIMEGROW_INCLUDES_DIR . $class . '.php' );
-    if (file_exists( TIMEGROW_INCLUDES_DIR . $class . '.php' ) ) {
-        //error_log(1);
-        require_once TIMEGROW_INCLUDES_DIR . $class . '.php';
-    } elseif ( file_exists( TIMEGROW_INCLUDES_DIR . 'models/' . $class . '.php' ) ) {
-        //error_log(2);
-        require_once TIMEGROW_INCLUDES_DIR . 'models/' . $class . '.php';
-    } elseif ( file_exists( TIMEGROW_INCLUDES_DIR . 'views/' . $class . '.php' ) ) {
-        //error_log(3);
-        require_once TIMEGROW_INCLUDES_DIR . 'views/' . $class . '.php';
-    } elseif ( file_exists( TIMEGROW_INCLUDES_DIR . 'controllers/' . $class . '.php' ) ) {
-       // error_log(4);
-        require_once TIMEGROW_INCLUDES_DIR . 'controllers/' . $class . '.php';
-    } elseif ( file_exists( TIMEGROW_INCLUDES_DIR . 'helpers/' . $class . '.php' ) ) {
-        //error_log(5);
-        require_once TIMEGROW_INCLUDES_DIR . 'helpers/' . $class . '.php';
-    }
+// Nexus Module Constants (define early so the module file can use them)
+defined( 'TIMEGROW_NEXUS_BASE_DIR' ) or define( 'TIMEGROW_NEXUS_BASE_DIR', TIMEGROW_MODULES_DIR . 'nexus/' );
+defined( 'TIMEGROW_NEXUS_BASE_URI' ) or define( 'TIMEGROW_NEXUS_BASE_URI', ARAGROW_TIMEGROW_BASE_URI . 'modules/nexus/' );
+defined( 'TIMEGROW_NEXUS_INCLUDES_DIR' ) or define( 'TIMEGROW_NEXUS_INCLUDES_DIR', TIMEGROW_NEXUS_BASE_DIR . 'includes/' );
+
+// ==============================================
+// LOAD MODULES
+// ==============================================
+
+/**
+ * Load Core Module (Time Tracking, Projects, Team Members, Expenses)
+ */
+if ( file_exists( TIMEGROW_MODULES_DIR . 'core/aragrow-timegrow-core.php' ) ) {
+    require_once TIMEGROW_MODULES_DIR . 'core/aragrow-timegrow-core.php';
 }
 
-spl_autoload_register( 'timegrow_load_mvc_classes' );
+/**
+ * Load Nexus Module (REST API for Nx-LCARS app)
+ */
+if ( file_exists( TIMEGROW_MODULES_DIR . 'nexus/aragrow-timegrow-nexus.php' ) ) {
+    require_once TIMEGROW_MODULES_DIR . 'nexus/aragrow-timegrow-nexus.php';
+}
 
-// Function to initialize the plugin
-if ( ! isset( $timegrow_integrations) ) $timegrow_integration = New TimeGrowIntegration();
-if ( ! isset( $timegrow_company ) ) $timegrow_company = New TimeGrowCompany();
-if ( ! isset( $timegrow_client ) ) $timegrow_client = New TimeGrowClient();
-if ( ! isset( $timegrow_project ) ) $timegrow_project = New TimeGrowProject();
-if ( ! isset( $timegrow_expense ) ) $timegrow_expense = New TimeGrowExpense();
-if ( ! isset( $timegrow_time_entry ) ) $timegrow_time_entry = New TimeGrowTimeEntry();
-if ( ! isset( $timegrow_team_member ) ) $timegrow_team_member = New TimeGrowTeamMember();
-if ( ! isset( $timegrow_ajax_handler ) ) $timegrow_ajax_handler = New TimeGrow_Ajax_Handler();
-if ( ! isset( $timegrow_report ) ) $timegrow_report = New TimeGrowReport();
-if ( ! isset( $timegrow_settings ) ) $timegrow_settings = New TimeGrowSettings();
+/**
+ * Load WooCommerce Integration Module
+ */
+if ( file_exists( TIMEGROW_MODULES_DIR . 'woocommerce-integration/aragrow-woocommerce-intengration.php' ) ) {
+    require_once TIMEGROW_MODULES_DIR . 'woocommerce-integration/aragrow-woocommerce-intengration.php';
+}
+
+/**
+ * Load PayPal Auto Invoicer Module
+ */
+if ( file_exists( TIMEGROW_MODULES_DIR . 'paypal-invoicer/aragrow-wc-paypal-auto-invoicer.php' ) ) {
+    require_once TIMEGROW_MODULES_DIR . 'paypal-invoicer/aragrow-wc-paypal-auto-invoicer.php';
+}
+
+// ==============================================
+// PLUGIN ACTIVATION & CAPABILITIES
+// ==============================================
 
 register_activation_hook(__FILE__, 'timegrow_plugin_activate');
 
 function timegrow_plugin_activate() {
-    // Include the WordPress upgrade file to use dbDelta()
-    require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
-    // Instantiate the plugin class.
-    (new TimeGrowClientModel())->initialize();
-    (new TimeGrowCompanyModel())->initialize();
-    (new TimeGrowProjectModel())->initialize();
-    (new TimeGrowExpenseModel())->initialize();
-    (new TimeGrowExpenseReceiptModel())->initialize();
-    (new TimeGrowTeamMemberModel())->initialize();
-    (new TimeGrowTimeEntryModel())->initialize();
+    // Trigger core module activation
+    do_action('timegrow_activate');
 
     // Register custom capabilities for reports
     timegrow_register_report_capabilities();
+
+    // Trigger Nexus module activation (if available)
+    if (function_exists('timegrow_nexus_plugin_activate')) {
+        timegrow_nexus_plugin_activate();
+    }
 }
 
 /**
@@ -143,18 +150,6 @@ add_action('admin_init', function() {
         timegrow_register_report_capabilities();
     }
 });
-
-// Enqueue scripts on admin pages
-add_action('admin_enqueue_scripts', function() {
-    $ajax_handler = new TimeGrow_Ajax_Handler();
-    $ajax_handler->enqueue_ajax_scripts();
-});
-
-// Enqueue scripts on frontend (if needed)
-//add_action('wp_enqueue_scripts', function() {
-//    $ajax_handler = new TimeGrow_Ajax_Handler();
-//    $ajax_handler->enqueue_ajax_scripts();
-//});
 
 /**
  * Register TimeGrow capabilities with PublishPress Capabilities

@@ -32,10 +32,10 @@ class TimeGrowIntegration{
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
 
         add_options_page(
-            'TimeGrow Integrations',      // Page title
-            'TimeGrow',             // Menu title
+            'WooCommerce Integration',      // Page title
+            'WooCommerce Integration',      // Menu title
             'manage_options',          // Capability
-            TIMEGROW_PARENT_MENU . '-integrations',   // Menu slug
+            'woocommerce-integration',   // Menu slug
             function() { // Define a closure
                 $this->tracker_mvc_admin_page(); // Call the tracker_mvc method, passing the parameter
             }
@@ -63,7 +63,7 @@ class TimeGrowIntegration{
                 'wc_clients',
                 'Integrate with WooCommerce Clients',
                 [ $this, 'wc_clients_callback' ],
-                'timegrow-integrations',
+                'woocommerce-integration',
                 'timegrow_wc_section'
             );
 
@@ -71,7 +71,7 @@ class TimeGrowIntegration{
                 'wc_invoices',
                 'Integrate with WooCommerce Invoices',
                 [ $this, 'wc_invoices_callback' ],
-                'timegrow-integrations',
+                'woocommerce-integration',
                 'timegrow_wc_section'
             );
 
@@ -79,7 +79,7 @@ class TimeGrowIntegration{
                 'wc_products',
                 'Integrate with WooCommerce Products',
                 [ $this, 'wc_products_callback' ],
-                'timegrow-integrations',
+                'woocommerce-integration',
                 'timegrow_wc_section'
             );
         }
@@ -172,10 +172,20 @@ class TimeGrowIntegration{
         return $prevent_access; // Default WooCommerce behavior
     }
 
-    public function enqueue_scripts_styles() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
-        wp_enqueue_style('timegrow-modern-style', ARAGROW_TIMEGROW_BASE_URI . 'assets/css/timegrow-modern.css');
-        wp_enqueue_script('timegrow-integrations-script', ARAGROW_TIMEGROW_BASE_URI . 'assets/js/integration.js', array('jquery'), '1.0', true);
+    public function enqueue_scripts_styles($hook) {
+        if(WP_DEBUG) {
+            error_log(__CLASS__.'::'.__FUNCTION__);
+            error_log('Hook: ' . $hook);
+        }
+
+        // Only enqueue on the integrations settings page
+        if ($hook !== 'settings_page_woocommerce-integration') {
+            return;
+        }
+
+        wp_enqueue_style('timegrow-modern-style', TIMEGROW_CORE_BASE_URI . 'assets/css/timegrow-modern.css');
+        wp_enqueue_style('timegrow-integration-style', TIMEGROW_CORE_BASE_URI . 'assets/css/integration.css');
+        wp_enqueue_script('timegrow-integrations-script', TIMEGROW_CORE_BASE_URI . 'assets/js/integration.js', array('jquery'), '1.0', true);
     }
 
     public function tracker_mvc_admin_page() {
@@ -185,16 +195,17 @@ class TimeGrowIntegration{
 
     public function display_admin_page() {
         $wc_installed = class_exists('WooCommerce');
+        $paypal_module_active = class_exists('Aragrow_WC_PayPal_Auto_Invoicer');
         $options = get_option('timegrow_integration_settings');
         ?>
-        <div class="wrap timegrow-modern-wrapper">
+        <div class="wrap timegrow-page">
             <div class="timegrow-modern-header">
                 <div class="timegrow-header-content">
-                    <h1><?php esc_html_e('TimeGrow Integrations', 'timegrow'); ?></h1>
-                    <p class="subtitle"><?php esc_html_e('Connect TimeGrow with your favorite tools and services', 'timegrow'); ?></p>
+                    <h1><?php esc_html_e('WooCommerce Integration', 'timegrow'); ?></h1>
+                    <p class="subtitle"><?php esc_html_e('Sync time tracking data with WooCommerce for seamless invoicing, client management, and product integration', 'timegrow'); ?></p>
                 </div>
                 <div class="timegrow-header-illustration">
-                    <span class="dashicons dashicons-networking"></span>
+                    <span class="dashicons dashicons-cart"></span>
                 </div>
             </div>
 
@@ -281,40 +292,13 @@ class TimeGrowIntegration{
                         </div>
                     </div>
 
-                    <!-- PayPal Integration Card (Info Only) -->
-                    <div class="timegrow-card info-card">
-                        <div class="timegrow-card-header">
-                            <div class="timegrow-icon timegrow-icon-paypal">
-                                <span class="dashicons dashicons-money-alt"></span>
-                            </div>
-                            <div class="timegrow-card-title">
-                                <h2><?php esc_html_e('PayPal', 'timegrow'); ?></h2>
-                                <span class="timegrow-badge timegrow-badge-info">
-                                    <?php esc_html_e('Available', 'timegrow'); ?>
-                                </span>
-                            </div>
-                        </div>
-
-                        <div class="timegrow-card-body">
-                            <p class="timegrow-card-description">
-                                <?php esc_html_e('Automatically create PayPal invoices from WooCommerce orders.', 'timegrow'); ?>
-                            </p>
-                            <div class="timegrow-info-box">
-                                <span class="dashicons dashicons-admin-settings"></span>
-                                <p><?php echo sprintf(
-                                    __('Configure PayPal settings from the %s page', 'timegrow'),
-                                    '<a href="' . admin_url('admin.php?page=timegrow-nexus-settings') . '">Settings</a>'
-                                ); ?></p>
-                            </div>
-                        </div>
-                    </div>
-
                 </div>
 
                 <div class="timegrow-footer">
                     <?php submit_button(__('Save Integration Settings', 'timegrow'), 'primary large', 'submit', false); ?>
-                    <a href="<?php echo admin_url('admin.php?page=timegrow-nexus-dashboard'); ?>" class="button button-secondary large">
-                        <?php esc_html_e('Back to Dashboard', 'timegrow'); ?>
+                    <a href="<?php echo admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-nexus-settings'); ?>" class="button button-secondary large">
+                        <span class="dashicons dashicons-arrow-left-alt"></span>
+                        <?php esc_html_e('Back to Settings', 'timegrow'); ?>
                     </a>
                 </div>
             </form>
