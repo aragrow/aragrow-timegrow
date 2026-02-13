@@ -14,10 +14,12 @@ class TimeGrowNexusController{
     private $view_expense;
     private $view_report;
     private $view_settings;
+    private $view_process_time;
     private $projects;
     private $reports;
     private $team_members_model;
     private $list;
+    private $clients;
 
     public function __construct(
         TimeGrowTimeEntryModel $model,
@@ -27,10 +29,12 @@ class TimeGrowNexusController{
         TimeGrowNexusExpenseView $view_expense,
         TimeGrowNexusReportView $view_report,
         TimeGrowNexusSettingsView $view_settings,
+        TimeGrowNexusProcessTimeView $view_process_time,
         $projects = [],
         $reports = [],
         TimeGrowTeamMemberModel $team_members_model,
-        $list = [] // Default to empty array
+        $list = [], // Default to empty array
+        $clients = [] // Clients for process time filtering
     ) {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
 
@@ -41,10 +45,12 @@ class TimeGrowNexusController{
         $this->view_expense = $view_expense;
         $this->view_report = $view_report;
         $this->view_settings = $view_settings;
+        $this->view_process_time = $view_process_time;
         $this->projects = $projects;
         $this->reports = $reports;
         $this->team_members_model = $team_members_model;
         $this->list = $list;
+        $this->clients = $clients;
 
     }
 
@@ -86,6 +92,8 @@ class TimeGrowNexusController{
         }
         elseif ($screen == 'settings')
             $this->view_settings->display($user);
+        elseif ($screen == 'process_time')
+            $this->view_process_time->display($user, $this->clients);
     }
 
     private function handle_form_submission_time_entry() {

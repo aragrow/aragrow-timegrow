@@ -28,10 +28,10 @@ class TimeGrowTimeEntryModel {
         $this->table_user = $this->wpdb->prefix . 'users'; // Make sure this matches your table name
         $this->table_order = $this->wpdb->prefix . 'wc_orders'; // WooCommerce orders table
     
-        $this->allowed_fields = ['project_id', 'member_id', 
-                                'clock_in_date', 'clock_out_date', 
+        $this->allowed_fields = ['project_id', 'member_id',
+                                'clock_in_date', 'clock_out_date',
                                 'date','hours', 'billable', 'billed',
-                                'description', 'entry_type', 
+                                'description', 'entry_type', 'billed_order_id',
                                 'created_at', 'updated_at'];
     }
 
@@ -241,17 +241,44 @@ class TimeGrowTimeEntryModel {
         }
     }
 
-    public function get_time_entries_to_bill() {
+    public function get_time_entries_to_bill($client_id = null, $start_date = null, $end_date = null) {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         global $wpdb;
+
+        $where_clauses = ['t.billed = 0', 't.billable = 1'];
+        $prepare_values = [];
+
+        // Add client filter if provided
+        if ($client_id && is_numeric($client_id)) {
+            $where_clauses[] = 'p.client_id = %d';
+            $prepare_values[] = (int) $client_id;
+        }
+
+        // Add date range filter if provided
+        if ($start_date) {
+            $where_clauses[] = 'COALESCE(t.date, t.clock_in_date) >= %s';
+            $prepare_values[] = $start_date;
+        }
+
+        if ($end_date) {
+            $where_clauses[] = 'COALESCE(t.date, t.clock_in_date) <= %s';
+            $prepare_values[] = $end_date . ' 23:59:59';
+        }
+
+        $where_sql = implode(' AND ', $where_clauses);
+
         $sql = "SELECT t.*, p.name as project_name, m.name as member_name, p.client_id, u.display_name
         FROM {$this->table_name} t
         INNER JOIN {$this->table_name2} p ON t.project_id = p.ID
         INNER JOIN {$this->table_name3} m ON t.member_id = m.ID
         INNER JOIN {$this->table_user} u ON p.client_id = u.ID
-        WHERE t.billed = 0 AND t.billable = 1
+        WHERE {$where_sql}
         ORDER BY p.client_id, t.project_id, t.ID";
-        
+
+        if (!empty($prepare_values)) {
+            $sql = $wpdb->prepare($sql, $prepare_values);
+        }
+
         $results = $this->wpdb->get_results($sql);
 
         return $results;

@@ -565,6 +565,7 @@ class TimeGrowNexus{
         $view_expense = new TimeGrowNexusExpenseView();
         $view_report = new TimeGrowNexusReportView();
         $view_settings = new TimeGrowNexusSettingsView();
+        $view_process_time = new TimeGrowNexusProcessTimeView();
         $controller_reports = new TimeGrowReportsController($view_report);
         $team_member_model = new TimeGrowTeamMemberModel();
         $projects = []; // Default to empty array
@@ -584,82 +585,104 @@ class TimeGrowNexus{
                 $list = $model->select(get_current_user_id()); // Get entries for the current user
             }
         } elseif ( $screen == 'reports' ) {
-            $reports = $controller_reports->get_available_reports_for_user(wp_get_current_user()); 
+            $reports = $controller_reports->get_available_reports_for_user(wp_get_current_user());
         } elseif ($screen == 'process_time') {
-            try {
-                $time_entries = $model->get_time_entries_to_bill();
-                if (empty($time_entries)) {
-                    $message_text = 'No time entries found.';
-                    print('<div class="notice notice-warning"><p>' . $message_text . '</p></div>');
-                    exit;
-                }
-                $woo_order_creator = new TimeGrowWooOrderCreator();
-                list($orders, $mark_time_entries_as_billed) = $woo_order_creator->create_woo_orders_and_products($time_entries);
-                if (empty($orders)) {
-                    $message_text = 'No orders created.';
-                    print('<div class="notice notice-warning"><p>' . $message_text . '</p></div>');
-                    exit;
-                }
+            // Check if form was submitted
+            $process_submitted = isset($_POST['process_time_submit']) && check_admin_referer('process_time_nonce', 'process_time_nonce_field');
 
-                if (empty($mark_time_entries_as_billed)) {
-                    $message_text = 'No time entries to mark as billed.';
-                    print('<div class="notice notice-warning"><p>' . $message_text . '</p></div>');
-                    exit;
-                }
-                $entries_by_order = $model->mark_time_entries_as_billed($mark_time_entries_as_billed);
+            if (!$process_submitted) {
+                // Display the filter form
+                $client_model = new TimeGrowClientModel();
+                $clients = $client_model->select();
+                // Form will be displayed by the view
+                $list = []; // Empty list, form will be shown
+            } else {
+                try {
+                    // Get filter parameters
+                    $client_id = isset($_POST['client_id']) && $_POST['client_id'] !== '' ? intval($_POST['client_id']) : null;
+                    $start_date = isset($_POST['start_date']) && $_POST['start_date'] !== '' ? sanitize_text_field($_POST['start_date']) : null;
+                    $end_date = isset($_POST['end_date']) && $_POST['end_date'] !== '' ? sanitize_text_field($_POST['end_date']) : null;
 
-                // Display user-friendly success message
-                echo '<div class="notice notice-success" style="padding: 15px; margin: 20px 0;">';
-                echo '<h3 style="margin-top: 0;">✓ Time Entries Processed Successfully</h3>';
-                echo '<p><strong>' . count($orders) . '</strong> order' . (count($orders) > 1 ? 's' : '') . ' created with <strong>' . count($mark_time_entries_as_billed) . '</strong> time ' . (count($mark_time_entries_as_billed) > 1 ? 'entries' : 'entry') . ':</p>';
-
-                // Display orders with their time entries
-                if ($entries_by_order && is_array($entries_by_order)) {
-                    echo '<div style="margin-top: 15px;">';
-                    foreach ($entries_by_order as $order_id => $entries) {
-                        $order = wc_get_order($order_id);
-                        if ($order) {
-                            $order_edit_url = admin_url('post.php?post=' . $order_id . '&action=edit');
-                            $customer = $order->get_billing_first_name() . ' ' . $order->get_billing_last_name();
-                            $total_hours = 0;
-                            foreach ($entries as $entry) {
-                                $total_hours += floatval($entry->hours ?? 0);
-                            }
-
-                            echo '<div style="margin-bottom: 10px; padding: 10px; background: #f9f9f9; border-left: 4px solid #46b450; border-radius: 3px;">';
-                            echo '<strong>Order <a href="' . esc_url($order_edit_url) . '" target="_blank">#' . $order_id . '</a></strong> - ' . esc_html($customer);
-                            echo '<br><span style="font-size: 0.9em; color: #666;">' . count($entries) . ' time ' . (count($entries) > 1 ? 'entries' : 'entry') . ' (' . number_format($total_hours, 2) . ' hours) - Total: ' . $order->get_formatted_order_total() . '</span>';
-                            echo '</div>';
-                        }
+                    $time_entries = $model->get_time_entries_to_bill($client_id, $start_date, $end_date);
+                    if (empty($time_entries)) {
+                        $message_text = 'No time entries found matching the selected criteria.';
+                        print('<div class="notice notice-warning"><p>' . $message_text . '</p></div>');
+                        print('<p><a href="' . esc_url(admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-nexus-process-time')) . '" class="button">Back to Filter</a></p>');
+                        exit;
                     }
-                    echo '</div>';
-                }
-                echo '</div>';
+                    $woo_order_creator = new TimeGrowWooOrderCreator();
+                    list($orders, $mark_time_entries_as_billed) = $woo_order_creator->create_woo_orders_and_products($time_entries);
+                    if (empty($orders)) {
+                        $message_text = 'No orders created.';
+                        print('<div class="notice notice-warning"><p>' . $message_text . '</p></div>');
+                        print('<p><a href="' . esc_url(admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-nexus-process-time')) . '" class="button">Back to Filter</a></p>');
+                        exit;
+                    }
 
-                // Add collapsible debug section
-                $debug_output = $woo_order_creator->get_debug_output();
-                if (!empty($debug_output)) {
-                    echo '<details style="margin: 20px 0; padding: 15px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px;">';
-                    echo '<summary style="cursor: pointer; font-weight: bold; padding: 10px;">Debug Information (Click to expand)</summary>';
-                    echo '<div style="margin-top: 15px; padding: 10px; background: white; border: 1px solid #ddd; border-radius: 4px; font-family: monospace; font-size: 12px; max-height: 500px; overflow: auto;">';
-                    echo $debug_output;
-                    echo '</div>';
-                    echo '</details>';
-                }
+                    if (empty($mark_time_entries_as_billed)) {
+                        $message_text = 'No time entries to mark as billed.';
+                        print('<div class="notice notice-warning"><p>' . $message_text . '</p></div>');
+                        print('<p><a href="' . esc_url(admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-nexus-process-time')) . '" class="button">Back to Filter</a></p>');
+                        exit;
+                    }
+                    $entries_by_order = $model->mark_time_entries_as_billed($mark_time_entries_as_billed);
 
-            } catch (Exception $e) {
-                $message_text = 'Error processing time entries: ' . $e->getMessage();
-                echo '<div class="notice notice-error"><p>' . $message_text . '</p></div>';
-                if (WP_DEBUG) {
-                    echo '<pre style="background: #f5f5f5; padding: 10px; border: 1px solid #ddd; overflow: auto;">';
-                    echo esc_html($e->getTraceAsString());
-                    echo '</pre>';
+                    // Display user-friendly success message
+                    echo '<div class="notice notice-success" style="padding: 15px; margin: 20px 0;">';
+                    echo '<h3 style="margin-top: 0;">✓ Time Entries Processed Successfully</h3>';
+                    echo '<p><strong>' . count($orders) . '</strong> order' . (count($orders) > 1 ? 's' : '') . ' created with <strong>' . count($mark_time_entries_as_billed) . '</strong> time ' . (count($mark_time_entries_as_billed) > 1 ? 'entries' : 'entry') . ':</p>';
+
+                    // Display orders with their time entries
+                    if ($entries_by_order && is_array($entries_by_order)) {
+                        echo '<div style="margin-top: 15px;">';
+                        foreach ($entries_by_order as $order_id => $entries) {
+                            $order = wc_get_order($order_id);
+                            if ($order) {
+                                $order_edit_url = admin_url('post.php?post=' . $order_id . '&action=edit');
+                                $customer = $order->get_billing_first_name() . ' ' . $order->get_billing_last_name();
+                                $total_hours = 0;
+                                foreach ($entries as $entry) {
+                                    $total_hours += floatval($entry->hours ?? 0);
+                                }
+
+                                echo '<div style="margin-bottom: 10px; padding: 10px; background: #f9f9f9; border-left: 4px solid #46b450; border-radius: 3px;">';
+                                echo '<strong>Order <a href="' . esc_url($order_edit_url) . '" target="_blank">#' . $order_id . '</a></strong> - ' . esc_html($customer);
+                                echo '<br><span style="font-size: 0.9em; color: #666;">' . count($entries) . ' time ' . (count($entries) > 1 ? 'entries' : 'entry') . ' (' . number_format($total_hours, 2) . ' hours) - Total: ' . $order->get_formatted_order_total() . '</span>';
+                                echo '</div>';
+                            }
+                        }
+                        echo '</div>';
+                    }
+                    echo '<p><a href="' . esc_url(admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-nexus-process-time')) . '" class="button">Process More Entries</a></p>';
+                    echo '</div>';
+
+                    // Add collapsible debug section
+                    $debug_output = $woo_order_creator->get_debug_output();
+                    if (!empty($debug_output)) {
+                        echo '<details style="margin: 20px 0; padding: 15px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px;">';
+                        echo '<summary style="cursor: pointer; font-weight: bold; padding: 10px;">Debug Information (Click to expand)</summary>';
+                        echo '<div style="margin-top: 15px; padding: 10px; background: white; border: 1px solid #ddd; border-radius: 4px; font-family: monospace; font-size: 12px; max-height: 500px; overflow: auto;">';
+                        echo $debug_output;
+                        echo '</div>';
+                        echo '</details>';
+                    }
+
+                } catch (Exception $e) {
+                    $message_text = 'Error processing time entries: ' . $e->getMessage();
+                    echo '<div class="notice notice-error"><p>' . $message_text . '</p></div>';
+                    if (WP_DEBUG) {
+                        echo '<pre style="background: #f5f5f5; padding: 10px; border: 1px solid #ddd; overflow: auto;">';
+                        echo esc_html($e->getTraceAsString());
+                        echo '</pre>';
+                    }
+                    print('<p><a href="' . esc_url(admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-nexus-process-time')) . '" class="button">Back to Filter</a></p>');
+                    exit;
                 }
-                exit;
+                exit; // Prevent form from showing again after processing
             }
         }
 
-        $controller = new TimeGrowNexusController($model, $view_dashboard, $view_clock, $view_manual, $view_expense, $view_report, $view_settings, $projects, $reports, $team_member_model, $list);
+        $controller = new TimeGrowNexusController($model, $view_dashboard, $view_clock, $view_manual, $view_expense, $view_report, $view_settings, $view_process_time, $projects, $reports, $team_member_model, $list, $clients);
         $controller->display_admin_page($screen);
     }
 
