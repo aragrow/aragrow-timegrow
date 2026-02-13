@@ -41,7 +41,7 @@ class TimeGrowExpenseController{
             'expense_date' => sanitize_text_field($_POST['expense_date']),
             'expense_payment_method' => sanitize_text_field($_POST['expense_payment_method']),
             'amount' => floatval($_POST['amount']),
-            'category' => sanitize_text_field($_POST['category']),
+            'expense_category_id' => intval($_POST['expense_category_id']),
             'assigned_to' => sanitize_text_field($_POST['assigned_to']),
             'assigned_to_id' => intval($_POST['assigned_to_id']),
             'updated_at' => $current_date
@@ -53,7 +53,7 @@ class TimeGrowExpenseController{
             '%s',  // expense_date (string, could also use '%s' for MySQL date/datetime)
             '%s',  // expense_payment_method (string)
             '%f',  // amount (float)
-            '%s',  // category (string)
+            '%d',  // expense_category_id (integer)
             '%s',  // assigned_to (string)
             '%d',  // assigned_to_id (integer)
             '%s',  // updated_at (datetime string)
@@ -119,7 +119,12 @@ class TimeGrowExpenseController{
                                 $updated_data['expense_name'] = sanitize_text_field($analysis['expense_name']);
                             }
                             if (!empty($analysis['category'])) {
-                                $updated_data['category'] = sanitize_text_field($analysis['category']);
+                                // Convert category slug to ID
+                                $category_model = new TimeGrowExpenseCategoryModel();
+                                $category = $category_model->get_by_slug(sanitize_text_field($analysis['category']));
+                                if ($category) {
+                                    $updated_data['expense_category_id'] = $category->ID;
+                                }
                             }
                             if (!empty($analysis['expense_description'])) {
                                 $updated_data['expense_description'] = sanitize_text_field($analysis['expense_description']);
@@ -190,8 +195,8 @@ class TimeGrowExpenseController{
         if (!empty($filter_search)) {
             $search_term = '%' . $wpdb->esc_like($filter_search) . '%';
             $where_conditions[] = $wpdb->prepare(
-                "(e.expense_name LIKE %s OR e.expense_description LIKE %s OR e.amount LIKE %s OR e.category LIKE %s OR u.display_name LIKE %s OR p.name LIKE %s)",
-                $search_term, $search_term, $search_term, $search_term, $search_term, $search_term
+                "(e.expense_name LIKE %s OR e.expense_description LIKE %s OR e.amount LIKE %s OR u.display_name LIKE %s OR p.name LIKE %s)",
+                $search_term, $search_term, $search_term, $search_term, $search_term
             );
         }
         if (!empty($filter_assigned_to)) {
@@ -209,7 +214,7 @@ class TimeGrowExpenseController{
         $order = isset($_GET['order']) ? sanitize_text_field($_GET['order']) : 'DESC';
 
         // Validate orderby column
-        $allowed_orderby = ['expense_date', 'amount', 'expense_name', 'assigned_to', 'category'];
+        $allowed_orderby = ['expense_date', 'amount', 'expense_name', 'assigned_to', 'expense_category_id'];
         if (!in_array($orderby, $allowed_orderby)) {
             $orderby = 'expense_date';
         }
@@ -222,7 +227,7 @@ class TimeGrowExpenseController{
 
         // Map orderby to actual column names
         $orderby_column = $orderby;
-        if ($orderby == 'expense_date' || $orderby == 'amount' || $orderby == 'expense_name' || $orderby == 'assigned_to' || $orderby == 'category') {
+        if ($orderby == 'expense_date' || $orderby == 'amount' || $orderby == 'expense_name' || $orderby == 'assigned_to' || $orderby == 'expense_category_id') {
             $orderby_column = 'e.' . $orderby;
         }
 

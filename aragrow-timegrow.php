@@ -116,6 +116,8 @@ function timegrow_register_report_capabilities() {
         'view_client_activity_report',       // Client Activity Report
         'view_all_expenses_overview',        // All Expenses Overview
         'view_time_entry_audit_log',         // Time Entry Audit Log
+        'view_monthly_profit_loss',          // Monthly Profit & Loss Report
+        'manage_expense_categories',         // Manage Expense Categories
     ];
 
     // Team member reports (individual use)
@@ -145,7 +147,7 @@ function timegrow_register_report_capabilities() {
 add_action('admin_init', function() {
     // Check if capabilities have been registered
     $admin = get_role('administrator');
-    if ($admin && !$admin->has_cap('view_client_activity_report')) {
+    if ($admin && (!$admin->has_cap('view_client_activity_report') || !$admin->has_cap('view_monthly_profit_loss') || !$admin->has_cap('manage_expense_categories'))) {
         // Capabilities not registered yet, register them now
         timegrow_register_report_capabilities();
     }
@@ -165,6 +167,10 @@ function timegrow_publishpress_capabilities($plugin_caps) {
         'view_client_activity_report',
         'view_all_expenses_overview',
         'view_time_entry_audit_log',
+        'view_monthly_profit_loss',
+
+        // Management Capabilities - Admin Only
+        'manage_expense_categories',
 
         // Report Capabilities - Team Member & Admin
         'view_yearly_tax_report',

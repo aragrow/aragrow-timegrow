@@ -53,6 +53,7 @@ if ( ! isset( $timegrow_company ) ) $timegrow_company = New TimeGrowCompany();
 if ( ! isset( $timegrow_client ) ) $timegrow_client = New TimeGrowClient();
 if ( ! isset( $timegrow_project ) ) $timegrow_project = New TimeGrowProject();
 if ( ! isset( $timegrow_expense ) ) $timegrow_expense = New TimeGrowExpense();
+if ( ! isset( $timegrow_expense_category ) ) $timegrow_expense_category = New TimeGrowExpenseCategory();
 if ( ! isset( $timegrow_time_entry ) ) $timegrow_time_entry = New TimeGrowTimeEntry();
 if ( ! isset( $timegrow_team_member ) ) $timegrow_team_member = New TimeGrowTeamMember();
 if ( ! isset( $timegrow_ajax_handler ) ) $timegrow_ajax_handler = New TimeGrow_Ajax_Handler();
@@ -80,6 +81,15 @@ function timegrow_core_module_activate() {
     (new TimeGrowExpenseReceiptModel())->initialize();
     (new TimeGrowTeamMemberModel())->initialize();
     (new TimeGrowTimeEntryModel())->initialize();
+
+    // Initialize expense categories and populate with defaults
+    $expense_category_model = new TimeGrowExpenseCategoryModel();
+    $expense_category_model->initialize();
+    $expense_category_model->populate_default_categories();
+
+    // Migrate expenses to use category_id instead of category slug
+    $expense_model = new TimeGrowExpenseModel();
+    $expense_model->migrate_to_category_id();
 }
 
 // Hook activation into main plugin activation

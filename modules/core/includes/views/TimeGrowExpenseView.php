@@ -195,38 +195,13 @@ class TimeGrowExpenseView {
                                     </td>
                                 </tr>
                                 <tr>
-                                    <th scope="row"><label for="category">Category</label></th>
+                                    <th scope="row"><label for="expense_category_id">Category</label></th>
                                     <td>
-                                    <select name="category" id="category" required>
-                                        <optgroup label="Schedule C - Part II (Main Expenses)">
-                                            <option value="advertising">Advertising</option>
-                                            <option value="car_truck_expenses">Car and Truck Expenses</option>
-                                            <option value="commissions_fees">Commissions and Fees</option>
-                                            <option value="contract_labor">Contract Labor</option>
-                                            <option value="depletion">Depletion</option>
-                                            <option value="depreciation">Depreciation</option>
-                                            <option value="employee_benefit_programs">Employee Benefit Programs</option>
-                                            <option value="insurance">Insurance (Other than Health)</option>
-                                            <option value="interest_mortgage">Interest - Mortgage</option>
-                                            <option value="interest_other">Interest - Other</option>
-                                            <option value="legal_professional">Legal and Professional Services</option>
-                                            <option value="office_expense">Office Expense</option>
-                                            <option value="pension_profit_sharing">Pension and Profit-Sharing Plans</option>
-                                            <option value="rent_vehicles">Rent or Lease - Vehicles, Machinery, Equipment</option>
-                                            <option value="rent_property">Rent or Lease - Other Business Property</option>
-                                            <option value="repairs_maintenance">Repairs and Maintenance</option>
-                                            <option value="supplies">Supplies</option>
-                                            <option value="taxes_licenses">Taxes and Licenses</option>
-                                            <option value="travel">Travel</option>
-                                            <option value="meals">Meals (50% Deductible)</option>
-                                            <option value="utilities">Utilities</option>
-                                            <option value="wages">Wages</option>
-                                        </optgroup>
-                                        <optgroup label="Schedule C - Part V (Other Expenses)">
-                                            <option value="online_web_fees">Online Web Fees</option>
-                                            <option value="business_telephone">Business Telephone</option>
-                                            <option value="other">Other Expenses</option>
-                                        </optgroup>
+                                    <select name="expense_category_id" id="expense_category_id" required>
+                                        <?php
+                                        $category_model = new TimeGrowExpenseCategoryModel();
+                                        $category_model->render_category_select_options(null, false);
+                                        ?>
                                     </select>
                                     </td>
                                 </tr>
@@ -347,38 +322,13 @@ class TimeGrowExpenseView {
                                         </td>
                                     </tr>
                                     <tr>
-                                        <th scope="row"><label for="category">Category</label></th>
+                                        <th scope="row"><label for="expense_category_id">Category</label></th>
                                         <td>
-                                            <select name="category" id="category" required>
-                                                <optgroup label="Schedule C - Part II (Main Expenses)">
-                                                    <option value="advertising" <?php selected($expense->category, 'advertising'); ?>>Advertising</option>
-                                                    <option value="car_truck_expenses" <?php selected($expense->category, 'car_truck_expenses'); ?>>Car and Truck Expenses</option>
-                                                    <option value="commissions_fees" <?php selected($expense->category, 'commissions_fees'); ?>>Commissions and Fees</option>
-                                                    <option value="contract_labor" <?php selected($expense->category, 'contract_labor'); ?>>Contract Labor</option>
-                                                    <option value="depletion" <?php selected($expense->category, 'depletion'); ?>>Depletion</option>
-                                                    <option value="depreciation" <?php selected($expense->category, 'depreciation'); ?>>Depreciation</option>
-                                                    <option value="employee_benefit_programs" <?php selected($expense->category, 'employee_benefit_programs'); ?>>Employee Benefit Programs</option>
-                                                    <option value="insurance" <?php selected($expense->category, 'insurance'); ?>>Insurance (Other than Health)</option>
-                                                    <option value="interest_mortgage" <?php selected($expense->category, 'interest_mortgage'); ?>>Interest - Mortgage</option>
-                                                    <option value="interest_other" <?php selected($expense->category, 'interest_other'); ?>>Interest - Other</option>
-                                                    <option value="legal_professional" <?php selected($expense->category, 'legal_professional'); ?>>Legal and Professional Services</option>
-                                                    <option value="office_expense" <?php selected($expense->category, 'office_expense'); ?>>Office Expense</option>
-                                                    <option value="pension_profit_sharing" <?php selected($expense->category, 'pension_profit_sharing'); ?>>Pension and Profit-Sharing Plans</option>
-                                                    <option value="rent_vehicles" <?php selected($expense->category, 'rent_vehicles'); ?>>Rent or Lease - Vehicles, Machinery, Equipment</option>
-                                                    <option value="rent_property" <?php selected($expense->category, 'rent_property'); ?>>Rent or Lease - Other Business Property</option>
-                                                    <option value="repairs_maintenance" <?php selected($expense->category, 'repairs_maintenance'); ?>>Repairs and Maintenance</option>
-                                                    <option value="supplies" <?php selected($expense->category, 'supplies'); ?>>Supplies</option>
-                                                    <option value="taxes_licenses" <?php selected($expense->category, 'taxes_licenses'); ?>>Taxes and Licenses</option>
-                                                    <option value="travel" <?php selected($expense->category, 'travel'); ?>>Travel</option>
-                                                    <option value="meals" <?php selected($expense->category, 'meals'); ?>>Meals (50% Deductible)</option>
-                                                    <option value="utilities" <?php selected($expense->category, 'utilities'); ?>>Utilities</option>
-                                                    <option value="wages" <?php selected($expense->category, 'wages'); ?>>Wages</option>
-                                                </optgroup>
-                                                <optgroup label="Schedule C - Part V (Other Expenses)">
-                                                    <option value="online_web_fees" <?php selected($expense->category, 'online_web_fees'); ?>>Online Web Fees</option>
-                                                    <option value="business_telephone" <?php selected($expense->category, 'business_telephone'); ?>>Business Telephone</option>
-                                                    <option value="other" <?php selected($expense->category, 'other'); ?>>Other Expenses</option>
-                                                </optgroup>
+                                            <select name="expense_category_id" id="expense_category_id" required>
+                                                <?php
+                                                $category_model = new TimeGrowExpenseCategoryModel();
+                                                $category_model->render_category_select_options($expense->expense_category_id, false);
+                                                ?>
                                             </select>
                                         </td>
                                     </tr>
