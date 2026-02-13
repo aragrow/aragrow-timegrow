@@ -52,120 +52,6 @@ class TimeGrowExpenseModel {
     }
 
     /**
-     * Migrate category slugs to expense_category_id
-     * Adds expense_category_id column, migrates data, then drops old category column
-     * Safe to run multiple times - checks at each step
-     */
-    public function migrate_to_category_id() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
-
-        // Step 1: Check if new column already exists
-        $new_column_exists = $this->wpdb->get_results(
-            $this->wpdb->prepare(
-                "SHOW COLUMNS FROM {$this->table_name} LIKE %s",
-                'expense_category_id'
-            )
-        );
-
-        // Step 2: Check if old column exists
-        $old_column_exists = $this->wpdb->get_results(
-            $this->wpdb->prepare(
-                "SHOW COLUMNS FROM {$this->table_name} LIKE %s",
-                'category'
-            )
-        );
-
-        // If new column exists and old column is gone, migration is complete
-        if (!empty($new_column_exists) && empty($old_column_exists)) {
-            if(WP_DEBUG) error_log('Migration already completed - expense_category_id exists and category column removed');
-            return true;
-        }
-
-        // If new column doesn't exist but old column does, start migration
-        if (empty($new_column_exists) && !empty($old_column_exists)) {
-            if(WP_DEBUG) error_log('Starting migration: creating expense_category_id column');
-
-            // Add expense_category_id column
-            $this->wpdb->query(
-                "ALTER TABLE {$this->table_name}
-                ADD COLUMN expense_category_id BIGINT(20) UNSIGNED NULL AFTER category,
-                ADD INDEX idx_expense_category_id (expense_category_id)"
-            );
-
-            if(WP_DEBUG) error_log('Added expense_category_id column to expense_tracker table');
-        }
-
-        // If both columns exist, we need to migrate data
-        if (!empty($new_column_exists) && !empty($old_column_exists)) {
-            // Check if there are any expenses that need migration
-            $needs_migration = $this->wpdb->get_var(
-                "SELECT COUNT(*) FROM {$this->table_name}
-                WHERE expense_category_id IS NULL AND category IS NOT NULL AND category != ''"
-            );
-
-            if ($needs_migration > 0) {
-                if(WP_DEBUG) error_log("Found {$needs_migration} expenses that need migration");
-
-                // Get category mapping
-                $category_model = new TimeGrowExpenseCategoryModel();
-                $categories = $category_model->get_all();
-
-                if (empty($categories)) {
-                    if(WP_DEBUG) error_log('ERROR: No expense categories found - cannot migrate');
-                    return false;
-                }
-
-                // Create slug to ID mapping
-                $slug_to_id = [];
-                foreach ($categories as $cat) {
-                    $slug_to_id[$cat->slug] = $cat->ID;
-                }
-
-                // Update expenses with category IDs
-                $migrated_count = 0;
-                foreach ($slug_to_id as $slug => $id) {
-                    $result = $this->wpdb->update(
-                        $this->table_name,
-                        ['expense_category_id' => $id],
-                        ['category' => $slug, 'expense_category_id' => null],
-                        ['%d'],
-                        ['%s', '%s']
-                    );
-                    if ($result !== false && $result > 0) {
-                        $migrated_count += $result;
-                    }
-                }
-
-                if(WP_DEBUG) error_log("Migrated {$migrated_count} expense records to use category IDs");
-            } else {
-                if(WP_DEBUG) error_log('All expenses already have category IDs - skipping data migration');
-            }
-
-            // Verify all expenses have been migrated
-            $unmigrated = $this->wpdb->get_var(
-                "SELECT COUNT(*) FROM {$this->table_name}
-                WHERE expense_category_id IS NULL"
-            );
-
-            if ($unmigrated > 0) {
-                if(WP_DEBUG) error_log("WARNING: {$unmigrated} expenses still without category_id - keeping old category column");
-                return false;
-            }
-
-            // All expenses migrated successfully - drop old column
-            if(WP_DEBUG) error_log('All expenses migrated successfully - dropping old category column');
-
-            $this->wpdb->query(
-                "ALTER TABLE {$this->table_name} DROP COLUMN category"
-            );
-
-            if(WP_DEBUG) error_log('Migration completed successfully - old category column removed');
-        }
-
-        return true;
-    }
-
-    /**
      * Select expenses by ID or array of IDs.
      *
      * @param int|array $ids Single ID or array of IDs.
@@ -221,10 +107,10 @@ class TimeGrowExpenseModel {
         }
 
         // Ensure all required fields are present
-        if (empty($sanitized_data['expense_name']) || 
-            empty($sanitized_data['expense_date']) || 
-            empty($sanitized_data['amount']) || 
-            empty($sanitized_data['category']) ||   
+        if (empty($sanitized_data['expense_name']) ||
+            empty($sanitized_data['expense_date']) ||
+            empty($sanitized_data['amount']) ||
+            empty($sanitized_data['expense_category_id']) ||
             empty($sanitized_data['assigned_to']) ||
             empty($sanitized_data['expense_description']) ||
             empty($sanitized_data['expense_payment_method']) ) {
@@ -259,10 +145,10 @@ class TimeGrowExpenseModel {
             }
 
             // Ensure all required fields are present
-            if (empty($sanitized_data['expense_name']) || 
-                empty($sanitized_data['expense_date']) || 
-                empty($sanitized_data['amount']) || 
-                empty($sanitized_data['category']) ||   
+            if (empty($sanitized_data['expense_name']) ||
+                empty($sanitized_data['expense_date']) ||
+                empty($sanitized_data['amount']) ||
+                empty($sanitized_data['expense_category_id']) ||
                 empty($sanitized_data['assigned_to']) ||
                 empty($sanitized_data['expense_description']) ||
                 empty($sanitized_data['expense_payment_method']) ) {

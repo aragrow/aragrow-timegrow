@@ -86,10 +86,6 @@ function timegrow_core_module_activate() {
     $expense_category_model = new TimeGrowExpenseCategoryModel();
     $expense_category_model->initialize();
     $expense_category_model->populate_default_categories();
-
-    // Migrate expenses to use category_id instead of category slug
-    $expense_model = new TimeGrowExpenseModel();
-    $expense_model->migrate_to_category_id();
 }
 
 // Hook activation into main plugin activation

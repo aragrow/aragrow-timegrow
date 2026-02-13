@@ -235,6 +235,7 @@ class TimeGrowExpenseController{
         $table_name = $wpdb->prefix . TIMEGROW_PREFIX . 'expense_tracker';
         $user_table = $wpdb->prefix . 'users';
         $project_table = $wpdb->prefix . TIMEGROW_PREFIX . 'project_tracker';
+        $category_table = $wpdb->prefix . TIMEGROW_PREFIX . 'expense_categories';
         $where_clause = !empty($where_conditions) ? 'WHERE ' . implode(' AND ', $where_conditions) : '';
         $query = "SELECT e.*,
                          CASE
@@ -244,13 +245,18 @@ class TimeGrowExpenseController{
                          CASE
                              WHEN e.assigned_to = 'project' THEN p.name
                              ELSE NULL
-                         END as project_name
+                         END as project_name,
+                         ec.name as category_name
                   FROM {$table_name} e
                   LEFT JOIN {$user_table} u ON (e.assigned_to = 'client' AND e.assigned_to_id = u.ID)
                   LEFT JOIN {$project_table} p ON (e.assigned_to = 'project' AND e.assigned_to_id = p.ID)
+                  LEFT JOIN {$category_table} ec ON e.expense_category_id = ec.ID
                   {$where_clause}
                   ORDER BY {$orderby_column} {$order}";
+
+        if(WP_DEBUG) error_log('Expense List Query: ' . $query);
         $expenses = $wpdb->get_results($query);
+        if(WP_DEBUG) error_log('Expense Count: ' . count($expenses));
 
         // Get unique values for filters
         $filter_options = ['clients' => [], 'projects' => []];

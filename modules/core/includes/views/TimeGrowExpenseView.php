@@ -120,7 +120,7 @@ class TimeGrowExpenseView {
                                 }
                                 ?>
                             </td>
-                            <td class="column-category" data-colname="Category"><?php echo esc_html($item->category); ?></td>
+                            <td class="column-category" data-colname="Category"><?php echo esc_html($item->category_name ?? 'N/A'); ?></td>
                         </tr>
                     <?php endforeach; ?>
                 <?php else : ?>
