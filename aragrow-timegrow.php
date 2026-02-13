@@ -3,7 +3,7 @@
  * Plugin Name: Aragrow - TimeGrow
  * Plugin URI: https://example.com/aragrow-timegrow
  * Description: A comprehensive time tracking plugin for managing projects, team members, invoicing with AI-powered receipt analysis, WooCommerce integration, PayPal auto-invoicing, and REST API endpoints.
- * Version: 2.0.0
+ * Version: 2.0.2
  * Author: David Arago - ARAGROW, LLC
  * Author URI: https://aragrow.me/wp-plugins/timegrow/
  * License: GPL2
