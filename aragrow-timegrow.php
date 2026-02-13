@@ -3,7 +3,7 @@
  * Plugin Name: Aragrow - TimeGrow
  * Plugin URI: https://example.com/aragrow-timegrow
  * Description: A time tracking plugin for managing projects, team members, and invoicing with AI-powered receipt analysis.
- * Version: 1.1.1
+ * Version: 1.1.2
  * Author: David Arago - ARAGROW, LLC
  * Author URI: https://aragrow.me/wp-plugins/timegrow/
  * License: GPL2
@@ -81,7 +81,68 @@ function timegrow_plugin_activate() {
     (new TimeGrowExpenseReceiptModel())->initialize();
     (new TimeGrowTeamMemberModel())->initialize();
     (new TimeGrowTimeEntryModel())->initialize();
+
+    // Register custom capabilities for reports
+    timegrow_register_report_capabilities();
 }
+
+/**
+ * Register custom capabilities for TimeGrow reports
+ */
+function timegrow_register_report_capabilities() {
+    // Get roles
+    $admin_role = get_role('administrator');
+    $team_member_role = get_role('team_member');
+
+    // Create team_member role if it doesn't exist
+    if (!$team_member_role) {
+        $team_member_role = add_role('team_member', 'Team Member', [
+            'read' => true,
+        ]);
+    }
+
+    // Define report capabilities
+    // Admin-only reports (capability names match report titles)
+    $admin_reports = [
+        'view_team_hours_summary',           // Team Hours Summary
+        'view_project_financials',           // Project Financials
+        'view_client_activity_report',       // Client Activity Report
+        'view_all_expenses_overview',        // All Expenses Overview
+        'view_time_entry_audit_log',         // Time Entry Audit Log
+    ];
+
+    // Team member reports (individual use)
+    $team_member_reports = [
+        'view_yearly_tax_report',            // Yearly Tax Report
+        'view_my_detailed_time_log',         // My Detailed Time Log
+        'view_my_hours_by_project',          // My Hours by Project
+        'view_my_expenses_report',           // My Expenses Report
+    ];
+
+    // Add all capabilities to administrator
+    if ($admin_role) {
+        foreach (array_merge($admin_reports, $team_member_reports) as $cap) {
+            $admin_role->add_cap($cap);
+        }
+    }
+
+    // Add team member capabilities to team_member role
+    if ($team_member_role) {
+        foreach ($team_member_reports as $cap) {
+            $team_member_role->add_cap($cap);
+        }
+    }
+}
+
+// Ensure capabilities are registered on every admin init (for existing installs)
+add_action('admin_init', function() {
+    // Check if capabilities have been registered
+    $admin = get_role('administrator');
+    if ($admin && !$admin->has_cap('view_client_activity_report')) {
+        // Capabilities not registered yet, register them now
+        timegrow_register_report_capabilities();
+    }
+});
 
 // Enqueue scripts on admin pages
 add_action('admin_enqueue_scripts', function() {
@@ -94,3 +155,28 @@ add_action('admin_enqueue_scripts', function() {
 //    $ajax_handler = new TimeGrow_Ajax_Handler();
 //    $ajax_handler->enqueue_ajax_scripts();
 //});
+
+/**
+ * Register TimeGrow capabilities with PublishPress Capabilities
+ * This groups all TimeGrow capabilities together in the capabilities manager
+ */
+add_filter('cme_plugin_capabilities', 'timegrow_publishpress_capabilities');
+
+function timegrow_publishpress_capabilities($plugin_caps) {
+    $plugin_caps['TimeGrow'] = [
+        // Report Capabilities - Admin Only
+        'view_team_hours_summary',
+        'view_project_financials',
+        'view_client_activity_report',
+        'view_all_expenses_overview',
+        'view_time_entry_audit_log',
+
+        // Report Capabilities - Team Member & Admin
+        'view_yearly_tax_report',
+        'view_my_detailed_time_log',
+        'view_my_hours_by_project',
+        'view_my_expenses_report',
+    ];
+
+    return $plugin_caps;
+}
