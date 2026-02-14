@@ -93,50 +93,116 @@ class TimeGrowExpenseController{
             if (!is_wp_error($upload_result)) {
                 $gemini_data = null;
 
-                // 2. Analyze with AI (if enabled and this is a new expense)
+                // 2. Analyze with AI (if user approved and AI is properly configured)
                 $settings = get_option('aragrow_timegrow_ai_settings', []);
-                $enable_analysis = $settings['enable_auto_analysis'] ?? false;
+                $user_approved = isset($_POST['approve_ai_analysis']) && $_POST['approve_ai_analysis'] == '1';
                 $confidence_threshold = $settings['confidence_threshold'] ?? 0.7;
 
-                if ($enable_analysis && $id != 0) {
-                    try {
-                        $analyzer = new TimeGrowGeminiReceiptAnalyzer();
-                        $analysis = $analyzer->analyze_receipt($upload_result['url']);
+                // Validate AI configuration
+                $ai_configured = !empty($settings['ai_api_key']) && !empty($settings['ai_provider']);
 
-                        // 3. If analysis successful and meets confidence threshold, update expense data
+                if ($user_approved && $id == 0) {
+                    // Check if AI is properly configured
+                    if (!$ai_configured) {
+                        echo '<div class="notice notice-warning is-dismissible"><p><strong>⚠ AI Analysis Skipped:</strong> AI is not properly configured. Please configure your AI provider in <a href="' . admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-settings&tab=ai') . '">Settings → AI Provider</a>. Your expense has been saved without AI analysis.</p></div>';
+                    } else {
+                        // AI is configured, proceed with analysis
+                        try {
+                            $analyzer = TimeGrowReceiptAnalyzerFactory::create();
+                            $analysis = $analyzer->analyze_receipt($upload_result['url']);
+
+                        // 3. If analysis successful and meets confidence threshold, intelligently update expense data
                         if (!is_wp_error($analysis) && isset($analysis['confidence']) && $analysis['confidence'] >= $confidence_threshold) {
-                            // Prepare updated expense data
+                            // Prepare updated expense data - only populate empty fields
                             $updated_data = [];
+                            $warnings = [];
+                            $populated_fields = [];
 
-                            // Only update fields if they have values from Gemini
+                            // Check each field: only populate if empty, warn if mismatch
+
+                            // Amount
                             if (!empty($analysis['amount'])) {
-                                $updated_data['amount'] = floatval($analysis['amount']);
-                            }
-                            if (!empty($analysis['expense_date'])) {
-                                $updated_data['expense_date'] = sanitize_text_field($analysis['expense_date']);
-                            }
-                            if (!empty($analysis['expense_name'])) {
-                                $updated_data['expense_name'] = sanitize_text_field($analysis['expense_name']);
-                            }
-                            if (!empty($analysis['category'])) {
-                                // Convert category slug to ID
-                                $category_model = new TimeGrowExpenseCategoryModel();
-                                $category = $category_model->get_by_slug(sanitize_text_field($analysis['category']));
-                                if ($category) {
-                                    $updated_data['expense_category_id'] = $category->ID;
+                                $ai_amount = floatval($analysis['amount']);
+                                $user_amount = floatval($data['amount'] ?? 0);
+
+                                if ($user_amount == 0 || empty($data['amount'])) {
+                                    $updated_data['amount'] = $ai_amount;
+                                    $populated_fields[] = 'Amount ($' . number_format($ai_amount, 2) . ')';
+                                } elseif (abs($user_amount - $ai_amount) > 0.01) {
+                                    $warnings[] = 'Amount mismatch: You entered $' . number_format($user_amount, 2) . ', but receipt shows $' . number_format($ai_amount, 2);
                                 }
                             }
-                            if (!empty($analysis['expense_description'])) {
-                                $updated_data['expense_description'] = sanitize_text_field($analysis['expense_description']);
-                            }
-                            if (isset($analysis['assigned_to'])) {
-                                $updated_data['assigned_to'] = sanitize_text_field($analysis['assigned_to']);
-                            }
-                            if (isset($analysis['assigned_to_id'])) {
-                                $updated_data['assigned_to_id'] = intval($analysis['assigned_to_id']);
+
+                            // Expense Date
+                            if (!empty($analysis['expense_date'])) {
+                                $ai_date = sanitize_text_field($analysis['expense_date']);
+                                $user_date = sanitize_text_field($data['expense_date'] ?? '');
+
+                                if (empty($user_date)) {
+                                    $updated_data['expense_date'] = $ai_date;
+                                    $populated_fields[] = 'Date (' . $ai_date . ')';
+                                } elseif ($user_date !== $ai_date) {
+                                    $warnings[] = 'Date mismatch: You entered ' . $user_date . ', but receipt shows ' . $ai_date;
+                                }
                             }
 
-                            // Update expense record with Gemini-extracted data
+                            // Expense Name (Vendor)
+                            if (!empty($analysis['expense_name'])) {
+                                $ai_name = sanitize_text_field($analysis['expense_name']);
+                                $user_name = sanitize_text_field($data['expense_name'] ?? '');
+
+                                if (empty($user_name)) {
+                                    $updated_data['expense_name'] = $ai_name;
+                                    $populated_fields[] = 'Vendor (' . $ai_name . ')';
+                                } elseif (stripos($user_name, $ai_name) === false && stripos($ai_name, $user_name) === false) {
+                                    $warnings[] = 'Vendor mismatch: You entered "' . $user_name . '", but receipt shows "' . $ai_name . '"';
+                                }
+                            }
+
+                            // Category
+                            if (!empty($analysis['category'])) {
+                                $category_model = new TimeGrowExpenseCategoryModel();
+                                $ai_category = $category_model->get_by_slug(sanitize_text_field($analysis['category']));
+                                $user_category_id = intval($data['expense_category_id'] ?? 0);
+
+                                if ($ai_category) {
+                                    if ($user_category_id == 0 || empty($data['expense_category_id'])) {
+                                        $updated_data['expense_category_id'] = $ai_category->ID;
+                                        $populated_fields[] = 'Category (' . $ai_category->name . ')';
+                                    } elseif ($user_category_id != $ai_category->ID) {
+                                        $user_category = $category_model->get_by_id($user_category_id);
+                                        if ($user_category) {
+                                            $warnings[] = 'Category mismatch: You selected "' . $user_category->name . '", but AI suggests "' . $ai_category->name . '"';
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Description
+                            if (!empty($analysis['expense_description'])) {
+                                $ai_description = sanitize_text_field($analysis['expense_description']);
+                                $user_description = sanitize_text_field($data['expense_description'] ?? '');
+
+                                if (empty($user_description)) {
+                                    $updated_data['expense_description'] = $ai_description;
+                                    $populated_fields[] = 'Description';
+                                }
+                                // No warning for description mismatches - user's description may be more detailed
+                            }
+
+                            // Assignment (Client/Project) - only populate if general
+                            if (isset($analysis['assigned_to']) && $analysis['assigned_to'] !== 'general') {
+                                $user_assigned_to = sanitize_text_field($data['assigned_to'] ?? 'general');
+
+                                if ($user_assigned_to === 'general') {
+                                    $updated_data['assigned_to'] = sanitize_text_field($analysis['assigned_to']);
+                                    $updated_data['assigned_to_id'] = intval($analysis['assigned_to_id'] ?? 0);
+                                    $populated_fields[] = ucfirst($analysis['assigned_to']) . ' Assignment';
+                                }
+                                // No warning for assignment mismatches - user knows best
+                            }
+
+                            // Update expense record with AI-extracted data (only empty fields)
                             if (!empty($updated_data)) {
                                 $updated_data['updated_at'] = current_time('mysql');
 
@@ -145,7 +211,7 @@ class TimeGrowExpenseController{
                                 foreach (array_keys($updated_data) as $key) {
                                     if ($key == 'amount') {
                                         $update_format[] = '%f';
-                                    } elseif ($key == 'assigned_to_id') {
+                                    } elseif (in_array($key, ['expense_category_id', 'assigned_to_id'])) {
                                         $update_format[] = '%d';
                                     } else {
                                         $update_format[] = '%s';
@@ -153,19 +219,34 @@ class TimeGrowExpenseController{
                                 }
 
                                 $this->expense_model->update($id, $updated_data, $update_format);
-                                echo '<div class="notice notice-success is-dismissible"><p>Receipt analyzed with AI! Expense data has been auto-populated. (Confidence: ' . round($analysis['confidence'] * 100) . '%)</p></div>';
+
+                                // Show success message with populated fields
+                                $populated_msg = 'AI auto-populated: ' . implode(', ', $populated_fields);
+                                echo '<div class="notice notice-success is-dismissible"><p><strong>✓ Receipt analyzed successfully!</strong><br>' . esc_html($populated_msg) . '<br>Confidence: ' . round($analysis['confidence'] * 100) . '%</p></div>';
+                            } else {
+                                echo '<div class="notice notice-info is-dismissible"><p><strong>Receipt analyzed.</strong> All fields already filled. AI confidence: ' . round($analysis['confidence'] * 100) . '%</p></div>';
                             }
 
-                            // Store Gemini data for receipt record
+                            // Show warnings for mismatches
+                            if (!empty($warnings)) {
+                                echo '<div class="notice notice-warning is-dismissible"><p><strong>⚠ Potential data mismatches detected:</strong><br>';
+                                foreach ($warnings as $warning) {
+                                    echo '• ' . esc_html($warning) . '<br>';
+                                }
+                                echo 'Please verify your entries against the uploaded receipt.</p></div>';
+                            }
+
+                            // Store AI data for receipt record
                             $gemini_data = $analysis;
                         } elseif (is_wp_error($analysis)) {
                             echo '<div class="notice notice-warning is-dismissible"><p>AI analysis unavailable: ' . esc_html($analysis->get_error_message()) . ' Please enter details manually.</p></div>';
                         } elseif (isset($analysis['confidence']) && $analysis['confidence'] < $confidence_threshold) {
                             echo '<div class="notice notice-warning is-dismissible"><p>AI analysis confidence too low (' . round($analysis['confidence'] * 100) . '%). Please verify and enter details manually.</p></div>';
                         }
-                    } catch (Exception $e) {
-                        error_log('Gemini analysis exception: ' . $e->getMessage());
-                        echo '<div class="notice notice-warning is-dismissible"><p>AI analysis failed. Please enter details manually.</p></div>';
+                        } catch (Exception $e) {
+                            error_log('AI analysis exception: ' . $e->getMessage());
+                            echo '<div class="notice notice-warning is-dismissible"><p><strong>⚠ AI Analysis Failed:</strong> ' . esc_html($e->getMessage()) . ' Your expense has been saved without AI analysis.</p></div>';
+                        }
                     }
                 }
 

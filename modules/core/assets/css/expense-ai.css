@@ -1,0 +1,230 @@
+/* AI-powered Expense Analysis Styles */
+
+/* Loading State */
+#ai-analysis-loading {
+    border-left: 4px solid #667eea;
+    background: linear-gradient(90deg, rgba(102, 126, 234, 0.05) 0%, rgba(255, 255, 255, 0) 100%);
+}
+
+#ai-analysis-loading .spinner {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23667eea' d='M12 2a10 10 0 1 0 10 10h-2a8 8 0 1 1-8-8z'/%3E%3C/svg%3E");
+}
+
+/* Confidence Badges */
+.confidence-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-left: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.confidence-badge.badge-success {
+    background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.confidence-badge.badge-warning {
+    background: linear-gradient(135deg, #fff3cd 0%, #ffeeba 100%);
+    color: #856404;
+    border: 1px solid #ffeeba;
+}
+
+.confidence-badge.badge-error {
+    background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+/* Receipt List - AI Analysis Info */
+.receipt-ai-info {
+    margin-top: 10px;
+    padding: 10px;
+    background: #f8fafc;
+    border-left: 3px solid #667eea;
+    border-radius: 4px;
+}
+
+.receipt-ai-info p {
+    margin: 5px 0;
+    font-size: 13px;
+    color: #64748b;
+}
+
+.receipt-ai-info strong {
+    color: #1e293b;
+}
+
+/* Re-analyze Button */
+.reanalyze-receipt {
+    margin-top: 10px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.reanalyze-receipt:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.reanalyze-receipt:disabled {
+    background: #cbd5e1;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.reanalyze-receipt .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    vertical-align: middle;
+    margin-right: 4px;
+}
+
+/* AI Provider Badge in Receipts */
+.ai-provider-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    font-size: 11px;
+    color: #64748b;
+    margin-left: 8px;
+}
+
+.ai-provider-badge .dashicons {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+}
+
+.ai-provider-badge.gemini {
+    border-color: #4285f4;
+    color: #1a73e8;
+}
+
+.ai-provider-badge.openai {
+    border-color: #10a37f;
+    color: #0d9373;
+}
+
+.ai-provider-badge.claude {
+    border-color: #d97757;
+    color: #c4613d;
+}
+
+/* Analysis Success/Error Messages */
+.ai-analysis-result {
+    margin: 15px 0;
+    padding: 12px 15px;
+    border-radius: 6px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.ai-analysis-result.success {
+    background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+    border-left: 4px solid #28a745;
+}
+
+.ai-analysis-result.error {
+    background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+    border-left: 4px solid #dc3545;
+}
+
+.ai-analysis-result.warning {
+    background: linear-gradient(135deg, #fff3cd 0%, #ffeeba 100%);
+    border-left: 4px solid #ffc107;
+}
+
+.ai-analysis-result .dashicons {
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.ai-analysis-result p {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+/* File Upload Area Enhancement */
+#file-dropzone.ai-enabled {
+    border: 2px dashed #667eea;
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.03) 0%, rgba(118, 75, 162, 0.03) 100%);
+}
+
+#file-dropzone.ai-enabled::after {
+    content: "✨ AI-powered analysis enabled";
+    display: block;
+    margin-top: 10px;
+    font-size: 12px;
+    color: #667eea;
+    font-weight: 600;
+}
+
+/* Bulk Upload Progress */
+.bulk-upload-progress {
+    margin: 20px 0;
+    padding: 15px;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+}
+
+.bulk-upload-progress .progress-bar {
+    width: 100%;
+    height: 8px;
+    background: #f1f5f9;
+    border-radius: 4px;
+    overflow: hidden;
+    margin: 10px 0;
+}
+
+.bulk-upload-progress .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+    transition: width 0.3s ease;
+}
+
+.bulk-upload-progress .progress-text {
+    font-size: 13px;
+    color: #64748b;
+    margin-top: 5px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .confidence-badge {
+        display: block;
+        margin: 10px 0 0 0;
+        text-align: center;
+    }
+
+    .ai-provider-badge {
+        display: block;
+        margin: 10px 0;
+        justify-content: center;
+    }
+
+    .reanalyze-receipt {
+        width: 100%;
+        text-align: center;
+    }
+}

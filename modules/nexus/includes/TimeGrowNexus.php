@@ -530,10 +530,11 @@ class TimeGrowNexus{
                 $plugin_version
             );
         } elseif ($hook == "admin_page_timegrow-nexus-settings" || $hook == "timegrow_page_timegrow-nexus-settings") {
-            // Modern style already enqueued above
+            // Modern style already enqueued above (line 431)
+            // Enqueue forms.css for .timegrow-page wrapper styles (shared from core module)
             wp_enqueue_style(
-                'timegrow-nexus-settings-style',
-                TIMEGROW_NEXUS_BASE_URI . 'assets/css/settings.css',
+                'timegrow-forms-style',
+                TIMEGROW_CORE_BASE_URI . 'assets/css/forms.css',
                 [],
                 $plugin_version
             );

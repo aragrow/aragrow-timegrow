@@ -13,6 +13,30 @@ class TimeGrowSettings {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         add_action('admin_menu', [$this, 'register_settings_page']);
         add_action('admin_init', [$this, 'register_settings']);
+        add_action('admin_enqueue_scripts', [$this, 'enqueue_settings_styles']);
+    }
+
+    /**
+     * Enqueue settings page styles
+     */
+    public function enqueue_settings_styles($hook) {
+        // Only load on settings page
+        if ($hook !== 'timegrow_page_' . TIMEGROW_PARENT_MENU . '-settings') {
+            return;
+        }
+
+        wp_enqueue_style(
+            'timegrow-modern-style',
+            plugin_dir_url(__FILE__) . '../assets/css/timegrow-modern.css',
+            [],
+            '1.0.0'
+        );
+        wp_enqueue_style(
+            'timegrow-forms-style',
+            plugin_dir_url(__FILE__) . '../assets/css/forms.css',
+            [],
+            '1.0.0'
+        );
     }
 
     /**
@@ -48,7 +72,7 @@ class TimeGrowSettings {
 
         add_settings_section(
             'general_settings_section',
-            'General Settings',
+            '',
             [$this, 'render_general_section_info'],
             'aragrow-timegrow-settings-general'
         );
@@ -81,7 +105,7 @@ class TimeGrowSettings {
 
         add_settings_section(
             'ai_provider_section',
-            'AI Provider Configuration',
+            '',
             [$this, 'render_ai_provider_section_info'],
             'aragrow-timegrow-settings-ai'
         );
@@ -251,7 +275,7 @@ class TimeGrowSettings {
     }
 
     /**
-     * Render settings page with tabs
+     * Render settings page with modern card-based design
      */
     public function render_settings_page() {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
@@ -260,63 +284,337 @@ class TimeGrowSettings {
             wp_die(__('You do not have sufficient permissions to access this page.'));
         }
 
-        $active_tab = isset($_GET['tab']) ? $_GET['tab'] : 'general';
+        $active_tab = isset($_GET['tab']) ? $_GET['tab'] : 'overview';
+
+        if ($active_tab === 'overview') {
+            $this->render_overview_page();
+        } elseif ($active_tab === 'general') {
+            $this->render_general_settings_form();
+        } elseif ($active_tab === 'ai') {
+            $this->render_ai_settings_form();
+        }
+    }
+
+    /**
+     * Render overview page with setting cards
+     */
+    private function render_overview_page() {
+        $ai_settings = get_option($this->ai_option_name, []);
+        $has_ai_configured = !empty($ai_settings['ai_api_key']);
+        $paypal_plugin_active = class_exists('Aragrow_WC_PayPal_Auto_Invoicer');
         ?>
-        <div class="wrap">
-            <h1>TimeGrow Settings</h1>
+        <div class="wrap timegrow-page">
+            <!-- Modern Header -->
+            <div class="timegrow-modern-header">
+                <div class="timegrow-header-content">
+                    <h1>TimeGrow Settings</h1>
+                    <p class="subtitle">Configure your time tracking, expenses, integrations, and AI automation</p>
+                </div>
+                <div class="timegrow-header-illustration">
+                    <span class="dashicons dashicons-admin-settings"></span>
+                </div>
+            </div>
 
-            <h2 class="nav-tab-wrapper">
-                <a href="?page=<?php echo TIMEGROW_PARENT_MENU; ?>-settings&tab=general"
-                   class="nav-tab <?php echo $active_tab == 'general' ? 'nav-tab-active' : ''; ?>">
-                    General
+            <!-- Settings Cards -->
+            <div class="timegrow-cards-container">
+                <!-- General Settings Card -->
+                <a href="?page=<?php echo TIMEGROW_PARENT_MENU; ?>-settings&tab=general" class="timegrow-card">
+                    <div class="timegrow-card-header">
+                        <div class="timegrow-icon timegrow-icon-primary">
+                            <span class="dashicons dashicons-admin-generic"></span>
+                        </div>
+                        <div class="timegrow-card-title">
+                            <h2>General Settings</h2>
+                            <span class="timegrow-badge timegrow-badge-primary">Core</span>
+                        </div>
+                    </div>
+                    <div class="timegrow-card-body">
+                        <p class="timegrow-card-description">
+                            Configure timezone, currency, and other global settings for your TimeGrow installation.
+                        </p>
+                        <div class="timegrow-features">
+                            <div class="timegrow-feature-badge">
+                                <span class="dashicons dashicons-clock"></span>
+                                <span>Timezone Configuration</span>
+                            </div>
+                            <div class="timegrow-feature-badge">
+                                <span class="dashicons dashicons-money-alt"></span>
+                                <span>Currency Settings</span>
+                            </div>
+                        </div>
+                        <div class="timegrow-card-footer">
+                            <span class="timegrow-action-link">
+                                Configure General Settings
+                                <span class="dashicons dashicons-arrow-right-alt"></span>
+                            </span>
+                        </div>
+                    </div>
                 </a>
-                <a href="?page=<?php echo TIMEGROW_PARENT_MENU; ?>-settings&tab=ai"
-                   class="nav-tab <?php echo $active_tab == 'ai' ? 'nav-tab-active' : ''; ?>">
-                    AI Provider
+
+                <!-- AI Provider Settings Card -->
+                <a href="?page=<?php echo TIMEGROW_PARENT_MENU; ?>-settings&tab=ai" class="timegrow-card">
+                    <div class="timegrow-card-header">
+                        <div class="timegrow-icon <?php echo $has_ai_configured ? 'timegrow-icon-primary' : 'timegrow-icon-disabled'; ?>">
+                            <span class="dashicons dashicons-analytics"></span>
+                        </div>
+                        <div class="timegrow-card-title">
+                            <h2>AI Receipt Analysis</h2>
+                            <span class="timegrow-badge <?php echo $has_ai_configured ? 'timegrow-badge-success' : 'timegrow-badge-inactive'; ?>">
+                                <?php echo $has_ai_configured ? 'Configured' : 'Not Configured'; ?>
+                            </span>
+                        </div>
+                    </div>
+                    <div class="timegrow-card-body">
+                        <p class="timegrow-card-description">
+                            Configure AI-powered automatic receipt analysis. Upload receipt images and let AI extract expense data automatically.
+                        </p>
+                        <div class="timegrow-features">
+                            <div class="timegrow-feature-badge">
+                                <span class="dashicons dashicons-google"></span>
+                                <span>Google Gemini</span>
+                            </div>
+                            <div class="timegrow-feature-badge">
+                                <span class="dashicons dashicons-welcome-learn-more"></span>
+                                <span>OpenAI GPT-4</span>
+                            </div>
+                            <div class="timegrow-feature-badge">
+                                <span class="dashicons dashicons-superhero"></span>
+                                <span>Claude AI</span>
+                            </div>
+                            <div class="timegrow-feature-badge">
+                                <span class="dashicons dashicons-yes-alt"></span>
+                                <span>Auto-Populate Fields</span>
+                            </div>
+                        </div>
+                        <?php if (!$has_ai_configured): ?>
+                        <div class="timegrow-info-box">
+                            <span class="dashicons dashicons-info"></span>
+                            <p><strong>Setup Required:</strong> Add your API key to enable automatic receipt analysis.</p>
+                        </div>
+                        <?php endif; ?>
+                        <div class="timegrow-card-footer">
+                            <span class="timegrow-action-link">
+                                <?php echo $has_ai_configured ? 'Manage AI Settings' : 'Setup AI Analysis'; ?>
+                                <span class="dashicons dashicons-arrow-right-alt"></span>
+                            </span>
+                        </div>
+                    </div>
                 </a>
-            </h2>
 
-            <?php if ($active_tab == 'general'): ?>
-                <form method="post" action="options.php">
-                    <?php
-                    settings_fields('aragrow_timegrow_general_settings_group');
-                    do_settings_sections('aragrow-timegrow-settings-general');
-                    submit_button();
-                    ?>
-                </form>
-            <?php elseif ($active_tab == 'ai'): ?>
-                <form method="post" action="options.php" id="ai-settings-form">
-                    <?php
-                    settings_fields('aragrow_timegrow_ai_settings_group');
-                    do_settings_sections('aragrow-timegrow-settings-ai');
-                    submit_button();
-                    ?>
-                </form>
+                <!-- WooCommerce Integration Card -->
+                <a href="<?php echo esc_url(admin_url('options-general.php?page=woocommerce-integration')); ?>" class="timegrow-card">
+                    <div class="timegrow-card-header">
+                        <div class="timegrow-icon timegrow-icon-woocommerce">
+                            <span class="dashicons dashicons-cart"></span>
+                        </div>
+                        <div class="timegrow-card-title">
+                            <h2>WooCommerce Integration</h2>
+                            <span class="timegrow-badge timegrow-badge-primary">Integration</span>
+                        </div>
+                    </div>
+                    <div class="timegrow-card-body">
+                        <p class="timegrow-card-description">
+                            Sync time tracking data with WooCommerce for seamless invoicing, client management, and product integration.
+                        </p>
+                        <div class="timegrow-features">
+                            <div class="timegrow-feature-badge">
+                                <span class="dashicons dashicons-groups"></span>
+                                <span>Client Sync</span>
+                            </div>
+                            <div class="timegrow-feature-badge">
+                                <span class="dashicons dashicons-media-document"></span>
+                                <span>Invoice Sync</span>
+                            </div>
+                            <div class="timegrow-feature-badge">
+                                <span class="dashicons dashicons-products"></span>
+                                <span>Product Sync</span>
+                            </div>
+                        </div>
+                        <div class="timegrow-card-footer">
+                            <span class="timegrow-action-link">
+                                Configure WooCommerce
+                                <span class="dashicons dashicons-arrow-right-alt"></span>
+                            </span>
+                        </div>
+                    </div>
+                </a>
 
-                <script type="text/javascript">
-                jQuery(document).ready(function($) {
-                    // Update model dropdown when provider changes
-                    $('#ai_provider').on('change', function() {
-                        var provider = $(this).val();
-                        var models = <?php echo json_encode(array_map(function($p) { return $p['models']; }, $this->get_ai_providers())); ?>;
+                <!-- PayPal Integration Card -->
+                <?php if ($paypal_plugin_active): ?>
+                <a href="<?php echo esc_url(admin_url('options-general.php?page=paypal-integration')); ?>" class="timegrow-card">
+                    <div class="timegrow-card-header">
+                        <div class="timegrow-icon timegrow-icon-paypal">
+                            <span class="dashicons dashicons-money-alt"></span>
+                        </div>
+                        <div class="timegrow-card-title">
+                            <h2>PayPal Integration</h2>
+                            <span class="timegrow-badge timegrow-badge-success">Active</span>
+                        </div>
+                    </div>
+                    <div class="timegrow-card-body">
+                        <p class="timegrow-card-description">
+                            Configure PayPal API credentials and automatic invoice generation settings.
+                        </p>
+                        <div class="timegrow-features">
+                            <div class="timegrow-feature-badge">
+                                <span class="dashicons dashicons-money-alt"></span>
+                                <span>Auto Invoicing</span>
+                            </div>
+                            <div class="timegrow-feature-badge">
+                                <span class="dashicons dashicons-admin-network"></span>
+                                <span>API Integration</span>
+                            </div>
+                            <div class="timegrow-feature-badge">
+                                <span class="dashicons dashicons-email"></span>
+                                <span>Email Delivery</span>
+                            </div>
+                        </div>
+                        <div class="timegrow-card-footer">
+                            <span class="timegrow-action-link">
+                                Manage PayPal
+                                <span class="dashicons dashicons-arrow-right-alt"></span>
+                            </span>
+                        </div>
+                    </div>
+                </a>
+                <?php else: ?>
+                <div class="timegrow-card disabled">
+                    <div class="timegrow-card-header">
+                        <div class="timegrow-icon timegrow-icon-disabled">
+                            <span class="dashicons dashicons-money-alt"></span>
+                        </div>
+                        <div class="timegrow-card-title">
+                            <h2>PayPal Integration</h2>
+                            <span class="timegrow-badge timegrow-badge-inactive">Not Loaded</span>
+                        </div>
+                    </div>
+                    <div class="timegrow-card-body">
+                        <p class="timegrow-card-description">
+                            PayPal module is included but not currently loaded.
+                        </p>
+                        <div class="timegrow-info-box">
+                            <span class="dashicons dashicons-info"></span>
+                            <p><strong>Module Info:</strong> The PayPal Auto Invoicer module is part of TimeGrow. If you're seeing this message, the module may not have loaded properly.</p>
+                        </div>
+                    </div>
+                </div>
+                <?php endif; ?>
+            </div>
 
-                        var modelSelect = $('#ai_model');
-                        modelSelect.empty();
+            <!-- Help Section -->
+            <div class="timegrow-help-section">
+                <div class="timegrow-help-icon">
+                    <span class="dashicons dashicons-sos"></span>
+                </div>
+                <div class="timegrow-help-content">
+                    <h3>Need Help?</h3>
+                    <p>Check out our documentation or contact support for assistance with TimeGrow settings.</p>
+                </div>
+                <div class="timegrow-help-links">
+                    <a href="#" class="timegrow-help-link" target="_blank">
+                        <span class="dashicons dashicons-book"></span>
+                        Documentation
+                    </a>
+                    <a href="#" class="timegrow-help-link" target="_blank">
+                        <span class="dashicons dashicons-email"></span>
+                        Contact Support
+                    </a>
+                </div>
+            </div>
+        </div>
+        <?php
+    }
 
-                        $.each(models[provider], function(value, label) {
-                            modelSelect.append($('<option>', {
-                                value: value,
-                                text: label
-                            }));
-                        });
+    /**
+     * Render general settings form
+     */
+    private function render_general_settings_form() {
+        ?>
+        <div class="wrap timegrow-page">
+            <!-- Modern Header -->
+            <div class="timegrow-modern-header">
+                <div class="timegrow-header-content">
+                    <h1>General Settings</h1>
+                    <p class="subtitle">Configure timezone, currency, and other global settings</p>
+                </div>
+                <div class="timegrow-header-illustration">
+                    <span class="dashicons dashicons-admin-generic"></span>
+                </div>
+            </div>
 
-                        // Update docs link
-                        var docsUrls = <?php echo json_encode(array_map(function($p) { return $p['docs_url']; }, $this->get_ai_providers())); ?>;
-                        $('#api-docs-link').attr('href', docsUrls[provider]);
+            <form method="post" action="options.php">
+                <?php
+                settings_fields('aragrow_timegrow_general_settings_group');
+                do_settings_sections('aragrow-timegrow-settings-general');
+                ?>
+
+                <div class="timegrow-footer">
+                    <?php submit_button(__('Save Settings', 'timegrow'), 'primary large', 'submit', false); ?>
+                    <a href="?page=<?php echo TIMEGROW_PARENT_MENU; ?>-settings" class="button button-secondary large">
+                        <span class="dashicons dashicons-arrow-left-alt"></span>
+                        <?php esc_html_e('Back to Settings', 'timegrow'); ?>
+                    </a>
+                </div>
+            </form>
+        </div>
+        <?php
+    }
+
+    /**
+     * Render AI settings form
+     */
+    private function render_ai_settings_form() {
+        ?>
+        <div class="wrap timegrow-page">
+            <!-- Modern Header -->
+            <div class="timegrow-modern-header">
+                <div class="timegrow-header-content">
+                    <h1>AI Receipt Analysis</h1>
+                    <p class="subtitle">Configure AI-powered automatic receipt analysis</p>
+                </div>
+                <div class="timegrow-header-illustration">
+                    <span class="dashicons dashicons-analytics"></span>
+                </div>
+            </div>
+
+            <form method="post" action="options.php" id="ai-settings-form">
+                <?php
+                settings_fields('aragrow_timegrow_ai_settings_group');
+                do_settings_sections('aragrow-timegrow-settings-ai');
+                ?>
+
+                <div class="timegrow-footer">
+                    <?php submit_button(__('Save AI Settings', 'timegrow'), 'primary large', 'submit', false); ?>
+                    <a href="?page=<?php echo TIMEGROW_PARENT_MENU; ?>-settings" class="button button-secondary large">
+                        <span class="dashicons dashicons-arrow-left-alt"></span>
+                        <?php esc_html_e('Back to Settings', 'timegrow'); ?>
+                    </a>
+                </div>
+            </form>
+
+            <script type="text/javascript">
+            jQuery(document).ready(function($) {
+                // Update model dropdown when provider changes
+                $('#ai_provider').on('change', function() {
+                    var provider = $(this).val();
+                    var models = <?php echo json_encode(array_map(function($p) { return $p['models']; }, $this->get_ai_providers())); ?>;
+
+                    var modelSelect = $('#ai_model');
+                    modelSelect.empty();
+
+                    $.each(models[provider], function(value, label) {
+                        modelSelect.append($('<option>', {
+                            value: value,
+                            text: label
+                        }));
                     });
+
+                    // Update docs link
+                    var docsUrls = <?php echo json_encode(array_map(function($p) { return $p['docs_url']; }, $this->get_ai_providers())); ?>;
+                    $('#api-docs-link').attr('href', docsUrls[provider]);
                 });
-                </script>
-            <?php endif; ?>
+            });
+            </script>
         </div>
         <?php
     }
@@ -326,7 +624,7 @@ class TimeGrowSettings {
     // ========================================
 
     public function render_general_section_info() {
-        echo '<p>Configure general TimeGrow settings.</p>';
+        // Section info is now in the modern header, no additional text needed
     }
 
     public function render_timezone_field() {
@@ -366,7 +664,7 @@ class TimeGrowSettings {
     // ========================================
 
     public function render_ai_provider_section_info() {
-        echo '<p>Configure AI provider for automatic receipt analysis. When enabled, uploaded receipt images will be automatically analyzed to extract expense data.</p>';
+        // Section info is now in the modern header, no additional text needed
     }
 
     public function render_ai_provider_field() {
@@ -431,13 +729,14 @@ class TimeGrowSettings {
         $options = get_option($this->ai_option_name, ['enable_auto_analysis' => true]);
         $checked = isset($options['enable_auto_analysis']) && $options['enable_auto_analysis'];
         ?>
-        <label>
+        <label class="timegrow-toggle-switch">
             <input type="checkbox"
                    name="<?php echo esc_attr($this->ai_option_name); ?>[enable_auto_analysis]"
                    value="1"
                    <?php checked($checked, true); ?>>
-            Automatically analyze receipts when uploaded
+            <span class="timegrow-toggle-slider"></span>
         </label>
+        <span style="margin-left: 10px;">Automatically analyze receipts when uploaded</span>
         <p class="description">When enabled, receipt images will be sent to your selected AI provider for automatic data extraction.</p>
         <?php
     }

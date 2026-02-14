@@ -39,6 +39,8 @@ jQuery(document).ready(function($) {
         if (files.length > 0) {
             fileInput.prop('files', files);
             status.text(`File selected: ${files[0].name}`);
+            // Trigger change event to show AI approval
+            fileInput.trigger('change');
         }
     });
 
@@ -46,6 +48,43 @@ jQuery(document).ready(function($) {
     fileInput.on('change', function() {
         if (this.files.length > 0) {
             status.text(`File selected: ${this.files[0].name}`);
+
+            // Show AI analysis approval if AI is configured
+            var aiEnabled = $('#ai_analysis_enabled').length > 0 && $('#ai_analysis_enabled').val() === '1';
+            if (aiEnabled) {
+                $('#ai-analysis-approval').slideDown(300);
+                // Auto-check the box for convenience (user can uncheck if they don't want AI)
+                $('#approve_ai_analysis').prop('checked', true);
+            }
+        } else {
+            // Hide AI analysis approval if no file selected
+            $('#ai-analysis-approval').slideUp(300);
+            $('#approve_ai_analysis').prop('checked', false);
+        }
+    });
+
+    // Show AI analysis loading indicator
+    function showAIAnalysisLoading() {
+        // Remove any existing loading notices
+        $('#ai-analysis-loading').remove();
+
+        const loadingHtml = `
+            <div id="ai-analysis-loading" class="notice notice-info" style="margin: 20px 0; padding: 15px; display: flex; align-items: center;">
+                <span class="spinner is-active" style="float: none; margin: 0 10px 0 0;"></span>
+                <span style="font-weight: 500;">Analyzing receipt with AI... This may take a few seconds.</span>
+            </div>
+        `;
+        $('.wrap h1').first().after(loadingHtml);
+    }
+
+    // Show AI analysis loading on form submit if file is attached AND user approved
+    $('form[name="expense_form"]').on('submit', function(e) {
+        if (fileInput[0] && fileInput[0].files && fileInput[0].files.length > 0) {
+            // Check if AI analysis is approved by user
+            var aiApproved = $('#approve_ai_analysis').is(':checked');
+            if (aiApproved) {
+                showAIAnalysisLoading();
+            }
         }
     });
 

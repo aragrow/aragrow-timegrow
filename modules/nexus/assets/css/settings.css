@@ -1,13 +1,13 @@
-/* TimeGrow Nexus Settings - Modern Design */
+/* TimeGrow Settings - Modern Design */
 
-.timegrow-settings-modern {
+.timegrow-modern-wrapper {
     max-width: 1400px;
     margin: 20px 0;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
 }
 
 /* Header Section */
-.timegrow-settings-header {
+.timegrow-modern-header {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
     padding: 40px;
@@ -21,7 +21,7 @@
     overflow: hidden;
 }
 
-.timegrow-settings-header::before {
+.timegrow-modern-header::before {
     content: '';
     position: absolute;
     top: -50%;
@@ -32,12 +32,12 @@
     border-radius: 50%;
 }
 
-.header-content {
+.timegrow-header-content {
     position: relative;
     z-index: 1;
 }
 
-.timegrow-settings-header h1 {
+.timegrow-modern-header h1 {
     margin: 0 0 10px 0;
     font-size: 36px;
     font-weight: 700;
@@ -45,27 +45,27 @@
     text-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-.timegrow-settings-header .subtitle {
+.timegrow-modern-header .subtitle {
     margin: 0;
     font-size: 16px;
     opacity: 0.95;
     font-weight: 400;
 }
 
-.header-illustration {
+.timegrow-header-illustration {
     position: relative;
     z-index: 1;
 }
 
-.header-illustration .dashicons {
+.timegrow-header-illustration .dashicons {
     font-size: 120px;
     width: 120px;
     height: 120px;
     opacity: 0.3;
 }
 
-/* Settings Cards Container */
-.settings-cards-container {
+/* Cards Container */
+.timegrow-cards-container {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
     gap: 30px;
@@ -73,13 +73,13 @@
 }
 
 @media (max-width: 1024px) {
-    .settings-cards-container {
+    .timegrow-cards-container {
         grid-template-columns: 1fr;
     }
 }
 
-/* Settings Card */
-.settings-card {
+/* Card */
+.timegrow-card {
     background: white;
     border-radius: 12px;
     box-shadow: 0 4px 20px rgba(0,0,0,0.08);
@@ -91,20 +91,20 @@
     color: inherit;
 }
 
-.settings-card:hover {
+.timegrow-card:hover {
     transform: translateY(-4px);
     box-shadow: 0 12px 28px rgba(0,0,0,0.12);
     border-color: #667eea;
 }
 
-.settings-card.disabled-card {
+.timegrow-card.disabled {
     opacity: 0.6;
     pointer-events: none;
     background: linear-gradient(135deg, #f6f8fb 0%, #ffffff 100%);
 }
 
 /* Card Header */
-.settings-card-header {
+.timegrow-card-header {
     padding: 25px;
     border-bottom: 1px solid #f0f0f1;
     display: flex;
@@ -112,7 +112,7 @@
     gap: 15px;
 }
 
-.settings-icon {
+.timegrow-icon {
     width: 60px;
     height: 60px;
     border-radius: 12px;
@@ -123,39 +123,44 @@
     flex-shrink: 0;
 }
 
-.general-icon {
+.timegrow-icon-general {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
 }
 
-.paypal-icon {
+.timegrow-icon-woocommerce {
+    background: linear-gradient(135deg, #96588a 0%, #7c3876 100%);
+    color: white;
+}
+
+.timegrow-icon-paypal {
     background: linear-gradient(135deg, #0070ba 0%, #1546a0 100%);
     color: white;
 }
 
-.paypal-icon-disabled {
+.timegrow-icon-disabled {
     background: linear-gradient(135deg, #cbd5e1 0%, #94a3b8 100%);
     color: white;
 }
 
-.settings-icon .dashicons {
+.timegrow-icon .dashicons {
     font-size: 32px;
     width: 32px;
     height: 32px;
 }
 
-.settings-title {
+.timegrow-card-title {
     flex: 1;
 }
 
-.settings-title h2 {
+.timegrow-card-title h2 {
     margin: 0 0 5px 0;
     font-size: 22px;
     font-weight: 600;
     color: #1e293b;
 }
 
-.settings-badge {
+.timegrow-badge {
     display: inline-block;
     padding: 4px 12px;
     border-radius: 20px;
@@ -165,42 +170,42 @@
     letter-spacing: 0.5px;
 }
 
-.badge-primary {
+.timegrow-badge-primary {
     background: #d1ecf1;
     color: #0c5460;
 }
 
-.badge-success {
+.timegrow-badge-success {
     background: #d4edda;
     color: #155724;
 }
 
-.badge-inactive {
+.timegrow-badge-inactive {
     background: #f8d7da;
     color: #721c24;
 }
 
 /* Card Body */
-.settings-card-body {
+.timegrow-card-body {
     padding: 25px;
 }
 
-.settings-description {
+.timegrow-card-description {
     margin: 0 0 25px 0;
     font-size: 15px;
     line-height: 1.6;
     color: #64748b;
 }
 
-/* Settings Features */
-.settings-features {
+/* Features */
+.timegrow-features {
     display: flex;
     flex-wrap: wrap;
     gap: 12px;
     margin-bottom: 20px;
 }
 
-.feature-badge {
+.timegrow-feature-badge {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -213,12 +218,12 @@
     transition: all 0.2s;
 }
 
-.feature-badge:hover {
+.timegrow-feature-badge:hover {
     background: #f1f5f9;
     border-color: #cbd5e1;
 }
 
-.feature-badge .dashicons {
+.timegrow-feature-badge .dashicons {
     font-size: 16px;
     width: 16px;
     height: 16px;
@@ -226,13 +231,13 @@
 }
 
 /* Card Footer */
-.card-footer {
+.timegrow-card-footer {
     margin-top: 20px;
     padding-top: 20px;
     border-top: 1px solid #f0f0f1;
 }
 
-.action-link {
+.timegrow-action-link {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -242,19 +247,19 @@
     transition: all 0.2s;
 }
 
-.action-link .dashicons {
+.timegrow-action-link .dashicons {
     font-size: 18px;
     width: 18px;
     height: 18px;
     transition: transform 0.2s;
 }
 
-.settings-card:hover .action-link .dashicons {
+.timegrow-card:hover .timegrow-action-link .dashicons {
     transform: translateX(4px);
 }
 
-/* Install Notice */
-.install-notice {
+/* Info Box */
+.timegrow-info-box {
     display: flex;
     align-items: flex-start;
     gap: 12px;
@@ -262,9 +267,10 @@
     background: rgba(102, 126, 234, 0.05);
     border-radius: 8px;
     border-left: 3px solid #667eea;
+    margin-bottom: 20px;
 }
 
-.install-notice .dashicons {
+.timegrow-info-box .dashicons {
     font-size: 20px;
     width: 20px;
     height: 20px;
@@ -273,14 +279,14 @@
     margin-top: 2px;
 }
 
-.install-notice p {
+.timegrow-info-box p {
     margin: 0;
     font-size: 13px;
     color: #475569;
 }
 
 /* Help Section */
-.settings-help-section {
+.timegrow-help-section {
     display: flex;
     align-items: center;
     gap: 20px;
@@ -291,7 +297,7 @@
     margin-bottom: 30px;
 }
 
-.help-icon {
+.timegrow-help-icon {
     width: 60px;
     height: 60px;
     border-radius: 12px;
@@ -302,37 +308,37 @@
     flex-shrink: 0;
 }
 
-.help-icon .dashicons {
+.timegrow-help-icon .dashicons {
     font-size: 32px;
     width: 32px;
     height: 32px;
     color: white;
 }
 
-.help-content {
+.timegrow-help-content {
     flex: 1;
 }
 
-.help-content h3 {
+.timegrow-help-content h3 {
     margin: 0 0 8px 0;
     font-size: 20px;
     font-weight: 600;
     color: #1e293b;
 }
 
-.help-content p {
+.timegrow-help-content p {
     margin: 0;
     font-size: 14px;
     color: #64748b;
     line-height: 1.5;
 }
 
-.help-links {
+.timegrow-help-links {
     display: flex;
     gap: 12px;
 }
 
-.help-link {
+.timegrow-help-link {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -347,21 +353,21 @@
     transition: all 0.2s;
 }
 
-.help-link:hover {
+.timegrow-help-link:hover {
     background: #667eea;
     color: white;
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
 }
 
-.help-link .dashicons {
+.timegrow-help-link .dashicons {
     font-size: 18px;
     width: 18px;
     height: 18px;
 }
 
 /* Footer */
-.settings-footer {
+.timegrow-footer {
     display: flex;
     gap: 15px;
     align-items: center;
@@ -371,7 +377,7 @@
     border: 1px solid #e2e8f0;
 }
 
-.settings-footer .button {
+.timegrow-footer .button {
     margin: 0;
     padding: 12px 32px;
     font-size: 15px;
@@ -384,20 +390,20 @@
     gap: 8px;
 }
 
-.settings-footer .button-secondary {
+.timegrow-footer .button-secondary {
     background: white;
     border-color: #cbd5e1;
     color: #64748b;
 }
 
-.settings-footer .button-secondary:hover {
+.timegrow-footer .button-secondary:hover {
     background: #f8fafc;
     border-color: #94a3b8;
     color: #475569;
     transform: translateY(-2px);
 }
 
-.settings-footer .button .dashicons {
+.timegrow-footer .button .dashicons {
     font-size: 18px;
     width: 18px;
     height: 18px;
@@ -405,47 +411,47 @@
 
 /* Responsive Design */
 @media (max-width: 768px) {
-    .timegrow-settings-header {
+    .timegrow-modern-header {
         padding: 30px 20px;
         flex-direction: column;
         text-align: center;
     }
 
-    .timegrow-settings-header h1 {
+    .timegrow-modern-header h1 {
         font-size: 28px;
     }
 
-    .header-illustration .dashicons {
+    .timegrow-header-illustration .dashicons {
         font-size: 80px;
         width: 80px;
         height: 80px;
     }
 
-    .settings-cards-container {
+    .timegrow-cards-container {
         grid-template-columns: 1fr;
         gap: 20px;
     }
 
-    .settings-help-section {
+    .timegrow-help-section {
         flex-direction: column;
         text-align: center;
     }
 
-    .help-links {
+    .timegrow-help-links {
         flex-direction: column;
         width: 100%;
     }
 
-    .help-link {
+    .timegrow-help-link {
         justify-content: center;
     }
 
-    .settings-footer {
+    .timegrow-footer {
         flex-direction: column;
         align-items: stretch;
     }
 
-    .settings-footer .button {
+    .timegrow-footer .button {
         width: 100%;
         text-align: center;
         justify-content: center;
@@ -464,15 +470,15 @@
     }
 }
 
-.settings-card {
+.timegrow-card {
     animation: fadeInUp 0.5s ease-out;
 }
 
-.settings-card:nth-child(2) {
+.timegrow-card:nth-child(2) {
     animation-delay: 0.1s;
 }
 
-.settings-help-section {
+.timegrow-help-section {
     animation: fadeInUp 0.5s ease-out;
     animation-delay: 0.2s;
 }

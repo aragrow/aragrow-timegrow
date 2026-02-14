@@ -328,6 +328,7 @@
 .timegrow-page .form-table input[type="url"],
 .timegrow-page .form-table input[type="tel"],
 .timegrow-page .form-table input[type="number"],
+.timegrow-page .form-table input[type="password"],
 .timegrow-page .form-table select,
 .timegrow-page .form-table textarea {
     width: 100%;
@@ -345,6 +346,7 @@
 .timegrow-page .form-table input[type="url"]:focus,
 .timegrow-page .form-table input[type="tel"]:focus,
 .timegrow-page .form-table input[type="number"]:focus,
+.timegrow-page .form-table input[type="password"]:focus,
 .timegrow-page .form-table select:focus,
 .timegrow-page .form-table textarea:focus {
     border-color: #667eea;

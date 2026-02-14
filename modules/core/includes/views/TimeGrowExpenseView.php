@@ -165,10 +165,16 @@ class TimeGrowExpenseView {
                 </div>
             </div>
         
-            <form id="timeflies-expense-form" class="wp-core-ui" method="POST" enctype="multipart/form-data">
+            <form id="timeflies-expense-form" name="expense_form" class="wp-core-ui" method="POST" enctype="multipart/form-data">
                 <input type="hidden" name="expense_id" value="0" />
                 <input type="hidden" name="add_item" value="1" />
-                <?php wp_nonce_field('timegrow_expense_nonce', 'timegrow_expense_nonce_field'); ?>
+                <?php
+                wp_nonce_field('timegrow_expense_nonce', 'timegrow_expense_nonce_field');
+                // Add AI analysis status for JavaScript
+                $ai_settings = get_option('aragrow_timegrow_ai_settings', []);
+                $ai_enabled = ($ai_settings['enable_auto_analysis'] ?? false) && !empty($ai_settings['ai_api_key']);
+                ?>
+                <input type="hidden" id="ai_analysis_enabled" value="<?php echo $ai_enabled ? '1' : '0'; ?>" />
         
                 <div class="metabox-holder columns-2">
                     <div class="postbox-container">
@@ -262,6 +268,29 @@ class TimeGrowExpenseView {
                                                 });
                                             </script>
                                             <p id="file-upload-status"></p>
+
+                                            <!-- AI Analysis Approval -->
+                                            <div id="ai-analysis-approval" style="display: none; margin-top: 15px; padding: 15px; background: #f0f6fc; border-left: 4px solid #667eea; border-radius: 4px;">
+                                                <label style="display: flex; align-items: center; cursor: pointer;">
+                                                    <input type="checkbox" name="approve_ai_analysis" id="approve_ai_analysis" value="1" style="margin-right: 10px;">
+                                                    <span style="font-weight: 600; color: #1e293b;">
+                                                        <span class="dashicons dashicons-analytics" style="color: #667eea; margin-right: 5px;"></span>
+                                                        Analyze this receipt with AI to auto-populate expense fields
+                                                    </span>
+                                                </label>
+                                                <p style="margin: 10px 0 0 28px; font-size: 13px; color: #64748b;">
+                                                    AI will extract amount, date, vendor, category, and description from your receipt image.
+                                                    <?php
+                                                    $ai_settings = get_option('aragrow_timegrow_ai_settings', []);
+                                                    $provider_name = 'AI';
+                                                    if (!empty($ai_settings['ai_provider'])) {
+                                                        $providers = ['google_gemini' => 'Google Gemini', 'openai' => 'OpenAI GPT-4', 'anthropic' => 'Anthropic Claude'];
+                                                        $provider_name = $providers[$ai_settings['ai_provider']] ?? 'AI';
+                                                    }
+                                                    echo '<br><strong>Provider:</strong> ' . esc_html($provider_name);
+                                                    ?>
+                                                </p>
+                                            </div>
                                         </td>
                                 </tr>
                                 </table>

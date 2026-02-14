@@ -4,7 +4,13 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-class TimeGrowGeminiReceiptAnalyzer implements TimeGrowReceiptAnalyzerInterface {
+/**
+ * Anthropic Claude Vision Receipt Analyzer
+ *
+ * Analyzes receipt images using Claude 3.5 Sonnet or Claude 3 Opus
+ * Extracts expense data including amount, date, vendor, category
+ */
+class TimeGrowClaudeReceiptAnalyzer implements TimeGrowReceiptAnalyzerInterface {
 
     private $api_key;
     private $model;
@@ -13,11 +19,11 @@ class TimeGrowGeminiReceiptAnalyzer implements TimeGrowReceiptAnalyzerInterface 
     public function __construct() {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
 
-        // Load settings from new AI settings option
+        // Load settings
         $this->settings = get_option('aragrow_timegrow_ai_settings', [
             'ai_api_key' => '',
-            'ai_provider' => 'google_gemini',
-            'ai_model' => 'gemini-1.5-flash',
+            'ai_provider' => 'anthropic',
+            'ai_model' => 'claude-3-5-sonnet-20241022',
             'enable_auto_analysis' => true,
             'confidence_threshold' => 0.7,
         ]);
@@ -36,7 +42,7 @@ class TimeGrowGeminiReceiptAnalyzer implements TimeGrowReceiptAnalyzerInterface 
             $this->api_key = ARAGROW_AI_API_KEY;
         }
 
-        $this->model = $this->settings['ai_model'] ?? 'gemini-1.5-flash';
+        $this->model = $this->settings['ai_model'] ?? 'claude-3-5-sonnet-20241022';
     }
 
     /**
@@ -51,13 +57,13 @@ class TimeGrowGeminiReceiptAnalyzer implements TimeGrowReceiptAnalyzerInterface 
 
         // Check if API key is configured
         if (empty($this->api_key)) {
-            return new WP_Error('no_api_key', __('Google Gemini API key is not configured.', 'aragrow-timegrow'));
+            return new WP_Error('no_api_key', __('Anthropic API key is not configured.', 'aragrow-timegrow'));
         }
 
         // Check rate limiting if Voice AI Security class is available
         if (class_exists('\AraGrow\VoiceAI\Security')) {
             $user_id = get_current_user_id();
-            if (!\AraGrow\VoiceAI\Security::check_rate_limit('gemini_analysis_' . $user_id)) {
+            if (!\AraGrow\VoiceAI\Security::check_rate_limit('claude_analysis_' . $user_id)) {
                 return new WP_Error('rate_limit', __('Too many receipt analysis requests. Please try again later.', 'aragrow-timegrow'));
             }
         }
@@ -71,12 +77,12 @@ class TimeGrowGeminiReceiptAnalyzer implements TimeGrowReceiptAnalyzerInterface 
         // Get extraction prompt
         $prompt = $this->get_extraction_prompt();
 
-        // Call Gemini Vision API
-        $api_response = $this->call_gemini_vision_api($image_data, $prompt);
+        // Call Claude Vision API
+        $api_response = $this->call_claude_vision_api($image_data, $prompt);
         if (is_wp_error($api_response)) {
             // Log the error if Security class available
             if (class_exists('\AraGrow\VoiceAI\Security')) {
-                \AraGrow\VoiceAI\Security::log_security_event('gemini_analysis_failed', [
+                \AraGrow\VoiceAI\Security::log_security_event('claude_analysis_failed', [
                     'error' => $api_response->get_error_message(),
                     'image_url' => $image_url,
                 ]);
@@ -85,7 +91,7 @@ class TimeGrowGeminiReceiptAnalyzer implements TimeGrowReceiptAnalyzerInterface 
         }
 
         // Parse response and extract structured data
-        $parsed_data = $this->parse_gemini_response($api_response);
+        $parsed_data = $this->parse_claude_response($api_response);
         if (is_wp_error($parsed_data)) {
             return $parsed_data;
         }
@@ -100,36 +106,48 @@ class TimeGrowGeminiReceiptAnalyzer implements TimeGrowReceiptAnalyzerInterface 
     }
 
     /**
-     * Call Google Gemini Vision API
+     * Call Anthropic Claude Vision API
      *
-     * @param array $image_data Image data with mime_type and base64 content
+     * @param array $image_data Image data with base64 and media type
      * @param string $prompt Extraction prompt
      * @return array|WP_Error API response or error
      */
-    private function call_gemini_vision_api($image_data, $prompt) {
+    private function call_claude_vision_api($image_data, $prompt) {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
 
-        $api_url = 'https://generativelanguage.googleapis.com/v1beta/models/' . $this->model . ':generateContent';
+        $api_url = 'https://api.anthropic.com/v1/messages';
 
         // Build request body
         $request_body = [
-            'contents' => [[
-                'parts' => [
-                    ['text' => $prompt],
-                    [
-                        'inline_data' => [
-                            'mime_type' => $image_data['mime_type'],
-                            'data' => $image_data['base64_data']
+            'model' => $this->model,
+            'max_tokens' => 1024,
+            'messages' => [
+                [
+                    'role' => 'user',
+                    'content' => [
+                        [
+                            'type' => 'image',
+                            'source' => [
+                                'type' => 'base64',
+                                'media_type' => $image_data['media_type'],
+                                'data' => $image_data['base64_data']
+                            ]
+                        ],
+                        [
+                            'type' => 'text',
+                            'text' => $prompt
                         ]
                     ]
                 ]
-            ]]
+            ]
         ];
 
         // Make API request
-        $response = wp_remote_post($api_url . '?key=' . $this->api_key, [
+        $response = wp_remote_post($api_url, [
             'headers' => [
                 'Content-Type' => 'application/json',
+                'x-api-key' => $this->api_key,
+                'anthropic-version' => '2023-06-01',
             ],
             'body' => wp_json_encode($request_body),
             'timeout' => 30,
@@ -147,7 +165,7 @@ class TimeGrowGeminiReceiptAnalyzer implements TimeGrowReceiptAnalyzerInterface 
         if ($status_code !== 200) {
             $error_data = json_decode($body, true);
             $error_message = $error_data['error']['message'] ?? 'Unknown API error';
-            return new WP_Error('gemini_api_error', sprintf(__('Gemini API error (code %d): %s', 'aragrow-timegrow'), $status_code, $error_message));
+            return new WP_Error('claude_api_error', sprintf(__('Claude API error (code %d): %s', 'aragrow-timegrow'), $status_code, $error_message));
         }
 
         return json_decode($body, true);
@@ -185,13 +203,13 @@ class TimeGrowGeminiReceiptAnalyzer implements TimeGrowReceiptAnalyzerInterface 
         $base64_data = base64_encode($image_content);
 
         return [
-            'mime_type' => $mime_type,
+            'media_type' => $mime_type,
             'base64_data' => $base64_data
         ];
     }
 
     /**
-     * Get the extraction prompt for Gemini
+     * Get the extraction prompt (shared across all analyzers)
      *
      * @return string Prompt text
      */
@@ -274,30 +292,30 @@ IMPORTANT:
     }
 
     /**
-     * Parse Gemini API response and extract structured data
+     * Parse Claude API response and extract structured data
      *
      * @param array $response API response
      * @return array|WP_Error Parsed data or error
      */
-    private function parse_gemini_response($response) {
+    private function parse_claude_response($response) {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
 
         // Extract text from response
-        if (!isset($response['candidates'][0]['content']['parts'][0]['text'])) {
-            return new WP_Error('invalid_response', __('Invalid response from Gemini API.', 'aragrow-timegrow'));
+        if (!isset($response['content'][0]['text'])) {
+            return new WP_Error('invalid_response', __('Invalid response from Claude API.', 'aragrow-timegrow'));
         }
 
-        $gemini_text = $response['candidates'][0]['content']['parts'][0]['text'];
+        $claude_text = $response['content'][0]['text'];
 
         // Remove markdown code blocks if present
-        $gemini_text = preg_replace('/```json\s*|\s*```/', '', $gemini_text);
-        $gemini_text = trim($gemini_text);
+        $claude_text = preg_replace('/```json\s*|\s*```/', '', $claude_text);
+        $claude_text = trim($claude_text);
 
         // Parse JSON
-        $extracted_data = json_decode($gemini_text, true);
+        $extracted_data = json_decode($claude_text, true);
 
         if (json_last_error() !== JSON_ERROR_NONE) {
-            return new WP_Error('json_parse_error', sprintf(__('Failed to parse Gemini response: %s', 'aragrow-timegrow'), json_last_error_msg()));
+            return new WP_Error('json_parse_error', sprintf(__('Failed to parse Claude response: %s', 'aragrow-timegrow'), json_last_error_msg()));
         }
 
         // Map to expense fields
@@ -310,7 +328,7 @@ IMPORTANT:
             'confidence' => floatval($extracted_data['confidence'] ?? 0),
             'client_pattern' => $extracted_data['client_pattern'] ?? null,
             'project_pattern' => $extracted_data['project_pattern'] ?? null,
-            'raw_gemini_response' => $gemini_text,
+            'raw_claude_response' => $claude_text,
         ];
 
         return $expense_data;
@@ -319,7 +337,7 @@ IMPORTANT:
     /**
      * Process CLIENT: and PROJECT: patterns from extracted data
      *
-     * @param array $parsed_data Parsed data from Gemini
+     * @param array $parsed_data Parsed data from Claude
      * @return array Assignment data (assigned_to, assigned_to_id)
      */
     private function process_assignment_patterns($parsed_data) {
@@ -407,9 +425,9 @@ IMPORTANT:
     }
 
     /**
-     * Map Gemini category to TimeGrow expense category slug
+     * Map category to TimeGrow expense category slug
      *
-     * @param string $category_text Category from Gemini
+     * @param string $category_text Category from Claude
      * @return string Mapped category slug
      */
     private function map_category_to_expense_type($category_text) {
