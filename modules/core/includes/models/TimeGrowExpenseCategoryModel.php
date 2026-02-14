@@ -408,6 +408,9 @@ class TimeGrowExpenseCategoryModel {
      * Render category select options for expense forms
      */
     public function render_category_select_options($selected_category_id = null, $include_inactive = false) {
+        // Add default "Select Expense Category" option
+        echo '<option value="">Select Expense Category</option>';
+
         $hierarchical_categories = $this->get_hierarchical($include_inactive ? null : true);
 
         $this->render_category_options_recursive($hierarchical_categories, $selected_category_id);

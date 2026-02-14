@@ -170,14 +170,54 @@ class TimeGrowExpenseView {
                 <input type="hidden" name="add_item" value="1" />
                 <?php
                 wp_nonce_field('timegrow_expense_nonce', 'timegrow_expense_nonce_field');
-                // Add AI analysis status for JavaScript
-                $ai_settings = get_option('aragrow_timegrow_ai_settings', []);
+                // Add AI analysis status for JavaScript - use new database table
+                $ai_settings = class_exists('TimeGrowSettings') ? TimeGrowSettings::get_active_ai_config() : [];
                 $ai_enabled = ($ai_settings['enable_auto_analysis'] ?? false) && !empty($ai_settings['ai_api_key']);
                 ?>
                 <input type="hidden" id="ai_analysis_enabled" value="<?php echo $ai_enabled ? '1' : '0'; ?>" />
         
                 <div class="metabox-holder columns-2">
                     <div class="postbox-container">
+                        <div class="postbox">
+                            <h3 class="hndle"><span>Receipts</span></h3>
+                            <div class="inside">
+                                <table class="form-table">
+                                <tr>
+                                    <th scope="row"><label for="file_upload">Upload File</label></th>
+                                    <td>
+                                            <div id="file-dropzone" class="file-dropzone-div" style="border: 2px dashed #007cba; border-radius: 8px; padding: 20px; text-align: center; cursor: pointer; transition: background-color 0.3s ease;">
+                                                <p style="margin: 0; font-size: 16px; color: #555;">Drag and drop a file here or <span style="color: #007cba; text-decoration: underline;">click to upload</span>.</p>
+                                                <input type="file" name="file_upload" id="file_upload" style="display: none;" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx">
+                                            </div>
+                                            <p id="file-upload-status"></p>
+
+                                            <!-- AI Analysis Approval -->
+                                            <div id="ai-analysis-approval" style="display: none; margin-top: 15px; padding: 15px; background: #f0f6fc; border-left: 4px solid #667eea; border-radius: 4px;">
+                                                <label style="display: flex; align-items: center; cursor: pointer;">
+                                                    <input type="checkbox" name="approve_ai_analysis" id="approve_ai_analysis" value="1" style="margin-right: 10px;">
+                                                    <span style="font-weight: 600; color: #1e293b;">
+                                                        <span class="dashicons dashicons-analytics" style="color: #667eea; margin-right: 5px;"></span>
+                                                        Analyze this receipt with AI to auto-populate expense fields
+                                                    </span>
+                                                </label>
+                                                <p style="margin: 10px 0 0 28px; font-size: 13px; color: #64748b;">
+                                                    AI will extract amount, date, vendor, category, and description from your receipt image.
+                                                    <?php
+                                                    $ai_settings = get_option('aragrow_timegrow_ai_settings', []);
+                                                    $provider_name = 'AI';
+                                                    if (!empty($ai_settings['ai_provider'])) {
+                                                        $providers = ['google_gemini' => 'Google Gemini', 'openai' => 'OpenAI GPT-4', 'anthropic' => 'Anthropic Claude'];
+                                                        $provider_name = $providers[$ai_settings['ai_provider']] ?? 'AI';
+                                                    }
+                                                    echo '<br><strong>Provider:</strong> ' . esc_html($provider_name);
+                                                    ?>
+                                                </p>
+                                            </div>
+                                        </td>
+                                </tr>
+                                </table>
+                            </div>
+                        </div>
                         <div class="postbox">
                             <h3 class="hndle"><span>Expense Information</span></h3>
                             <div class="inside">
@@ -244,58 +284,6 @@ class TimeGrowExpenseView {
                                 </table>
                             </div>
                         </div>
-                        <div class="postbox">
-                            <h3 class="hndle"><span>Receipts</span></h3>
-                            <div class="inside">
-                                <table class="form-table">
-                                <tr>
-                                    <th scope="row"><label for="file_upload">Upload File</label></th>
-                                    <td>
-                                            <div id="file-dropzone" class="file-dropzone-div" style="border: 2px dashed #007cba; border-radius: 8px; padding: 20px; text-align: center; cursor: pointer; transition: background-color 0.3s ease;">
-                                                <p style="margin: 0; font-size: 16px; color: #555;">Drag and drop a file here or <span style="color: #007cba; text-decoration: underline;">click to upload</span>.</p>
-                                                <input type="file" name="file_upload" id="file_upload" style="display: none;" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx">
-                                            </div>
-                                            <script>
-                                                document.getElementById('file-dropzone').addEventListener('click', function() {
-                                                    document.getElementById('file_upload').click();
-                                                });
-
-                                                document.getElementById('file_upload').addEventListener('change', function(event) {
-                                                    const fileName = event.target.files[0]?.name || 'No file selected';
-                                                    const statusElement = document.getElementById('file-upload-status');
-                                                    statusElement.textContent = `Selected file: ${fileName}`;
-                                                    statusElement.style.color = '#007cba';
-                                                });
-                                            </script>
-                                            <p id="file-upload-status"></p>
-
-                                            <!-- AI Analysis Approval -->
-                                            <div id="ai-analysis-approval" style="display: none; margin-top: 15px; padding: 15px; background: #f0f6fc; border-left: 4px solid #667eea; border-radius: 4px;">
-                                                <label style="display: flex; align-items: center; cursor: pointer;">
-                                                    <input type="checkbox" name="approve_ai_analysis" id="approve_ai_analysis" value="1" style="margin-right: 10px;">
-                                                    <span style="font-weight: 600; color: #1e293b;">
-                                                        <span class="dashicons dashicons-analytics" style="color: #667eea; margin-right: 5px;"></span>
-                                                        Analyze this receipt with AI to auto-populate expense fields
-                                                    </span>
-                                                </label>
-                                                <p style="margin: 10px 0 0 28px; font-size: 13px; color: #64748b;">
-                                                    AI will extract amount, date, vendor, category, and description from your receipt image.
-                                                    <?php
-                                                    $ai_settings = get_option('aragrow_timegrow_ai_settings', []);
-                                                    $provider_name = 'AI';
-                                                    if (!empty($ai_settings['ai_provider'])) {
-                                                        $providers = ['google_gemini' => 'Google Gemini', 'openai' => 'OpenAI GPT-4', 'anthropic' => 'Anthropic Claude'];
-                                                        $provider_name = $providers[$ai_settings['ai_provider']] ?? 'AI';
-                                                    }
-                                                    echo '<br><strong>Provider:</strong> ' . esc_html($provider_name);
-                                                    ?>
-                                                </p>
-                                            </div>
-                                        </td>
-                                </tr>
-                                </table>
-                            </div>
-                        </div>           
                     </div>
                 </div>
                 <br clear="all" />
@@ -405,18 +393,6 @@ class TimeGrowExpenseView {
                                                 <p style="margin: 0; font-size: 16px; color: #555;">Drag and drop a file here or <span style="color: #007cba; text-decoration: underline;">click to upload</span>.</p>
                                                 <input type="file" name="file_upload" id="file_upload" style="display: none;" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx">
                                             </div>
-                                            <script>
-                                                document.getElementById('file-dropzone').addEventListener('click', function() {
-                                                    document.getElementById('file_upload').click();
-                                                });
-
-                                                document.getElementById('file_upload').addEventListener('change', function(event) {
-                                                    const fileName = event.target.files[0]?.name || 'No file selected';
-                                                    const statusElement = document.getElementById('file-upload-status');
-                                                    statusElement.textContent = `Selected file: ${fileName}`;
-                                                    statusElement.style.color = '#007cba';
-                                                });
-                                            </script>
                                             <p id="file-upload-status"></p>
                                         </td>
                                     </tr>
