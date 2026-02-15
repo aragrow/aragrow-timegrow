@@ -203,14 +203,19 @@ class TimeGrowExpenseView {
                                                 <p style="margin: 10px 0 0 28px; font-size: 13px; color: #64748b;">
                                                     AI will extract amount, date, vendor, category, and description from your receipt image.
                                                     <?php
-                                                    $ai_settings = get_option('aragrow_timegrow_ai_settings', []);
+                                                    $ai_settings = class_exists('TimeGrowSettings') ? TimeGrowSettings::get_active_ai_config() : get_option('aragrow_timegrow_ai_settings', []);
                                                     $provider_name = 'AI';
                                                     if (!empty($ai_settings['ai_provider'])) {
                                                         $providers = ['google_gemini' => 'Google Gemini', 'openai' => 'OpenAI GPT-4', 'anthropic' => 'Anthropic Claude'];
                                                         $provider_name = $providers[$ai_settings['ai_provider']] ?? 'AI';
                                                     }
+                                                    $model_name = $ai_settings['ai_model'] ?? '';
                                                     echo '<br><strong>Provider:</strong> ' . esc_html($provider_name);
+                                                    if (!empty($model_name)) {
+                                                        echo ' | <strong>Model:</strong> ' . esc_html($model_name);
+                                                    }
                                                     ?>
+                                                    <span id="ai-token-usage" style="display: none;"></span>
                                                 </p>
                                             </div>
                                         </td>

@@ -234,6 +234,12 @@ jQuery(document).ready(function($) {
             });
         }, 1000);
 
+        // Update token usage display if available
+        if (data.token_usage && data.token_usage.total_tokens) {
+            const tokenHtml = ' | <strong>Tokens Used:</strong> ' + data.token_usage.total_tokens;
+            $('#ai-token-usage').html(tokenHtml).show();
+        }
+
         // Remove any old results
         $('#ai-analysis-loading').remove();
         $('#ai-analysis-result').remove();

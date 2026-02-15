@@ -160,6 +160,8 @@ class TimeGrow_Ajax_Handler {
                 'assigned_to' => sanitize_text_field($analysis['assigned_to'] ?? 'general'),
                 'assigned_to_id' => intval($analysis['assigned_to_id'] ?? 0),
                 'confidence' => $confidence,
+                'token_usage' => $analysis['token_usage'] ?? null,
+                'model_used' => $analysis['model_used'] ?? null,
                 'file_url' => $upload_result['url'],
                 'file_path' => $upload_result['path'],
                 'message' => sprintf('Receipt analyzed with %d%% confidence', round($confidence * 100))

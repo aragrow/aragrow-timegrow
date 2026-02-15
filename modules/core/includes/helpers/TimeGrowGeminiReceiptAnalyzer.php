@@ -217,7 +217,17 @@ class TimeGrowGeminiReceiptAnalyzer implements TimeGrowReceiptAnalyzerInterface 
             return new WP_Error('gemini_api_error', sprintf(__('Gemini API error (code %d): %s', 'aragrow-timegrow'), $status_code, $error_message));
         }
 
-        return json_decode($body, true);
+        $api_response = json_decode($body, true);
+
+        // Log usage metadata if available
+        if(WP_DEBUG && isset($api_response['usageMetadata'])) {
+            error_log('=== TOKEN USAGE ===');
+            error_log('Prompt tokens: ' . ($api_response['usageMetadata']['promptTokenCount'] ?? 0));
+            error_log('Response tokens: ' . ($api_response['usageMetadata']['candidatesTokenCount'] ?? 0));
+            error_log('Total tokens: ' . ($api_response['usageMetadata']['totalTokenCount'] ?? 0));
+        }
+
+        return $api_response;
     }
 
     /**
@@ -378,6 +388,16 @@ OTHER IMPORTANT RULES:
             }
         }
 
+        // Extract token usage if available
+        $token_usage = null;
+        if (isset($response['usageMetadata'])) {
+            $token_usage = [
+                'prompt_tokens' => $response['usageMetadata']['promptTokenCount'] ?? 0,
+                'completion_tokens' => $response['usageMetadata']['candidatesTokenCount'] ?? 0,
+                'total_tokens' => $response['usageMetadata']['totalTokenCount'] ?? 0,
+            ];
+        }
+
         // Map to expense fields
         $expense_data = [
             'amount' => floatval($extracted_data['amount'] ?? 0),
@@ -389,6 +409,8 @@ OTHER IMPORTANT RULES:
             'client_pattern' => $extracted_data['client_pattern'] ?? null,
             'project_pattern' => $extracted_data['project_pattern'] ?? null,
             'raw_gemini_response' => $gemini_text,
+            'token_usage' => $token_usage,
+            'model_used' => $this->model,
         ];
 
         if(WP_DEBUG) {
@@ -483,6 +505,56 @@ OTHER IMPORTANT RULES:
         $output .= "- Square, Stripe → credit_card_fees";
 
         return $output;
+    }
+
+    /**
+     * Get IRS-specific guidance for expense categories
+     * Based on IRS Schedule C instructions and Publication 535
+     *
+     * @param string $slug Category slug
+     * @return string IRS guidance description
+     */
+    private function get_irs_category_guidance($slug) {
+        $guidance = [
+            // Part II - Main Business Expenses
+            'advertising' => 'Marketing costs to promote your business including ads, business cards, flyers, website costs, social media promotion',
+            'car_truck_expenses' => 'Vehicle expenses for business use: gas, oil, repairs, insurance, depreciation, lease payments (keep mileage log)',
+            'commissions_fees' => 'Commissions and fees paid to non-employees for services, reported on Form 1099-MISC',
+            'contract_labor' => 'Payments to independent contractors and freelancers (reported on Form 1099-NEC if $600+)',
+            'depletion' => 'Recovery of natural resource costs (minerals, timber, oil, gas wells)',
+            'depreciation' => 'Section 179 deduction for equipment, computers, furniture, machinery purchased for business',
+            'employee_benefit_programs' => 'Health insurance, life insurance, dependent care for employees (not owner)',
+            'insurance' => 'Business insurance premiums: liability, malpractice, workers compensation, property insurance',
+            'interest_mortgage' => 'Mortgage interest on business property and buildings',
+            'interest_other' => 'Interest on business loans, credit cards, lines of credit used for business',
+            'legal_professional' => 'Attorney fees, CPA services, tax preparation, business consultants, professional advisors',
+            'office_expense' => 'Office supplies, stationery, printer paper, ink, pens, software subscriptions under $2,500',
+            'pension_profit_sharing' => 'Employer contributions to employee retirement plans (SEP, SIMPLE, 401k)',
+            'rent_vehicles' => 'Rental or lease payments for business vehicles, equipment, machinery',
+            'rent_property' => 'Rent for office space, warehouse, retail location, storage units',
+            'repairs_maintenance' => 'Repairs and maintenance that keep property in working condition (not improvements)',
+            'supplies' => 'Materials and supplies consumed in business operations, inventory items',
+            'taxes_licenses' => 'Business licenses, permits, property taxes, payroll taxes, sales tax paid',
+            'travel' => 'Business travel: airfare, hotels, rental cars, taxis (meals are separate category)',
+            'meals' => 'Business meals with clients or while traveling (50% deductible, keep receipts and business purpose)',
+            'utilities' => 'Electricity, gas, water, phone, internet for business premises',
+            'wages' => 'Salaries and wages paid to employees (not owner), subject to payroll taxes',
+
+            // Part V - Other Expenses
+            'online_web_fees' => 'Domain registration, web hosting, website platforms, online services, SaaS subscriptions',
+            'business_telephone' => 'Business phone lines, mobile phone business portion, VoIP services',
+            'education_training' => 'Courses, seminars, workshops, certifications to maintain or improve business skills',
+            'membership_dues' => 'Professional associations, trade organizations, chamber of commerce, business clubs',
+            'books_publications' => 'Professional journals, trade magazines, business books, research materials',
+            'photography_stock' => 'Stock photos, business photography, product images, professional headshots',
+            'marketing_materials' => 'Brochures, promotional items, branded merchandise, trade show materials',
+            'shipping_postage' => 'Postage, shipping, delivery services, courier fees, freight charges',
+            'bank_fees' => 'Business bank account fees, check fees, wire transfer fees, overdraft charges',
+            'credit_card_fees' => 'Merchant processing fees, payment gateway fees, transaction charges',
+            'other' => 'Other ordinary and necessary business expenses not fitting other categories'
+        ];
+
+        return $guidance[$slug] ?? '';
     }
 
     /**
