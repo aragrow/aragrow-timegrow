@@ -82,7 +82,7 @@ class TimeGrowNexusController{
         elseif ($screen == 'manual')
             $this->view_manual->display($user, $member_id, $this->projects, $this->list);
         elseif ($screen == 'expenses')
-            $this->view_expense->display($user, $member_id, $this->projects);
+            $this->view_expense->display($user, $this->projects);
         elseif ($screen == 'reports')
             $this->view_report->display($user, $this->reports);
         elseif ($screen == 'areport') {

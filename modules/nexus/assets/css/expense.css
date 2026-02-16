@@ -369,3 +369,21 @@
 #expense-project-selector {
     display: none !important;
 }
+
+/* Mobile responsive styles */
+@media (max-width: 782px) {
+    /* Hide project tiles on mobile */
+    #project-tiles-container {
+        display: none !important;
+    }
+
+    /* Full width form on mobile */
+    .timegrow-expense-container {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 15px !important;
+        box-shadow: none !important;
+        border-radius: 0 !important;
+    }
+}
