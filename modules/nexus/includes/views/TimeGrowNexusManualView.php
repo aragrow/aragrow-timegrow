@@ -67,7 +67,6 @@ class TimeGrowNexusManualView {
                         echo "Member ID: " . esc_html($member_id) . "\n";
                         echo "Projects Count: " . esc_html(count($projects)) . "\n";
                         echo "Entries Count: " . esc_html(count($list)) . "\n";
-                        echo "Is Administrator: " . (current_user_can('administrator') ? 'Yes' : 'No') . "\n";
                         if (isset($GLOBALS['wpdb']->last_query)) {
                             echo "\nLast Query:\n" . esc_html($GLOBALS['wpdb']->last_query);
                         }

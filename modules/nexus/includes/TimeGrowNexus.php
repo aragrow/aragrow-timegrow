@@ -576,7 +576,6 @@ class TimeGrowNexus{
         if ( $screen == 'clock' or $screen == 'manual' or $screen == 'expenses' ) {
             $team_member_model = new TimeGrowTeamMemberModel();
             if (current_user_can('administrator') ) {
-                print('<h2 class=""><p>Administrator Access</p></h2>');
                 // User is an administrator
                 $projects = $team_member_model->get_projects_for_member(-1); // -1 for admin means all projects
                 $list = $model->select(); // -1 for admin means all projects

@@ -217,8 +217,8 @@
 }
 .form-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); /* Responsive form fields */
-    gap: 20px;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); /* Responsive form fields */
+    gap: 15px;
 }
 .form-group {
     display: flex;
@@ -370,20 +370,134 @@
     display: none !important;
 }
 
+/* Button Styles */
+.timegrow-button {
+    padding: 15px 35px;
+    font-size: 1.05em;
+    font-weight: 600;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    outline: none;
+    color: #fff;
+    transition: opacity 0.3s ease, transform 0.2s ease-out, box-shadow 0.3s ease-out;
+}
+
+.timegrow-button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -150%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+        110deg,
+        transparent 30%,
+        rgba(255, 255, 255, 0.35) 50%,
+        transparent 70%
+    );
+    transition: left 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    opacity: 0;
+}
+
+.timegrow-button.active {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0,0,0,0.08);
+    transform: translateY(0);
+}
+
+.timegrow-button.active:not(:disabled):hover,
+.timegrow-button.active:not(:disabled):focus {
+    transform: translateY(-4px) scale(1.02);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15), 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.timegrow-button.active:not(:disabled):hover::before,
+.timegrow-button.active:not(:disabled):focus::before {
+    left: 50%;
+    opacity: 1;
+}
+
+.timegrow-button.active:not(:disabled):active {
+    transform: translateY(-1px) scale(0.99);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.12);
+}
+
+.timegrow-button.disabled {
+    background-image: none;
+    background-color: #e9ecef;
+    color: #adb5bd;
+    cursor: not-allowed;
+    opacity: 0.75;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    transform: none !important;
+}
+
+.timegrow-button.disabled::before {
+    display: none;
+}
+
+.timegrow-button.active:not(:disabled):focus-visible {
+    outline: 2px solid rgba(0, 115, 170, 0.7);
+    outline-offset: 3px;
+}
+
+/* Desktop: Ensure container doesn't get too wide */
+@media (min-width: 783px) {
+    .timegrow-nexus-container {
+        max-width: 600px !important;
+    }
+}
+
 /* Mobile responsive styles */
 @media (max-width: 782px) {
+    /* Remove WordPress admin spacing on mobile */
+    #wpcontent {
+        padding-left: 0 !important;
+    }
+
+    .timegrow-modern-wrapper {
+        margin: 0 !important;
+    }
+
     /* Hide project tiles on mobile */
     #project-tiles-container {
         display: none !important;
     }
 
     /* Full width form on mobile */
-    .timegrow-expense-container {
+    .timegrow-nexus-container {
         width: 100% !important;
         max-width: 100% !important;
         margin: 0 !important;
         padding: 15px !important;
         box-shadow: none !important;
         border-radius: 0 !important;
+    }
+
+    /* Make header more compact on mobile - hide icon, reduce padding */
+    .timegrow-modern-header {
+        padding: 20px !important;
+        margin-bottom: 15px !important;
+        flex-direction: column !important;
+        text-align: center !important;
+        border-radius: 0 !important;
+    }
+
+    .timegrow-header-illustration {
+        display: none !important;
+    }
+
+    .timegrow-modern-header h1 {
+        font-size: 24px !important;
+        margin-bottom: 8px !important;
+    }
+
+    .timegrow-modern-header .subtitle {
+        font-size: 14px !important;
     }
 }

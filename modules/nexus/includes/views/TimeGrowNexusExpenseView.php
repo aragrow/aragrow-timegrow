@@ -57,7 +57,6 @@ class TimeGrowNexusExpenseView {
                         echo "User ID: " . esc_html($user->ID) . "\n";
                         echo "User Name: " . esc_html($user->display_name) . "\n";
                         echo "Projects Count: " . esc_html(count($projects)) . "\n";
-                        echo "Is Administrator: " . (current_user_can('administrator') ? 'Yes' : 'No') . "\n";
                         if (isset($GLOBALS['wpdb']->last_query)) {
                             echo "\nLast Query:\n" . esc_html($GLOBALS['wpdb']->last_query);
                         }
@@ -77,33 +76,42 @@ class TimeGrowNexusExpenseView {
                     <?php endforeach; ?>
                 </div>
             </div>
-            <div class="wrap timegrow-page-container timegrow-expense-recorder-page">
 
-                <div id="timegrow-expense-recorder" class="timegrow-expense-container">
+            <div class="timegrow-nexus-container">
+                <form id="expense-form">
+                    <input type="hidden" id="expense_id" name="expense_id">
+                    <input type="hidden" name="action" value="save_expense">
+                    <input type="hidden" name="member_id" value="<?php echo $user->ID ?>" />
 
+                            <!-- Receipt Upload - Moved to top -->
+                            <div class="receipt-upload-stage">
+                                <h2><?php esc_html_e('Attach Receipts (Optional)', 'timegrow'); ?></h2>
+                                <div id="receipt-drop-zone" class="receipt-drop-area">
+                                    <span class="dashicons dashicons-cloud-upload"></span>
+                                    <p>Drag & drop receipt files here, or click to select files.</p>
+                                    <small>(Max 5MB per file. Allowed: JPG, PNG, PDF)</small>
+                                </div>
+                                <input type="file" id="receipt-file-input" multiple hidden accept="image/*,.pdf">
+                                <div id="receipt-preview-area" class="receipt-preview-list">
+                                    <!-- JS will populate this with previews of uploaded/selected files -->
+                                </div>
+                            </div>
 
-                    <!-- Stage 2: Expense Details Form -->
-                    <div class="expense-form-stage">
-                        <h2>3. Expense Details</h2>
-                        <form id="expense-form">
-                            <input type="hidden" id="expense_id" name="expense_id">
-                            <input type="hidden" name="action" value="save_expense">
-                            <input type="hidden" name="member_id" value="<?php echo $user->ID ?>" />
-                            <!-- Project Drop Section -->
-                            <!-- Inside your <form id="expense-form"> in TimeGrowNexusExpenseView.php -->
+                            <!-- Project Assignment -->
                             <div id="expense-project-drop-section" class="timegrow-drop-section">
-                                <p class="drop-zone-text"><?php esc_html_e('Assign to Project (Optional - Drag Project Below)', 'timegrow'); ?></p>
-                                <div id="expense-drop-zone-display" class="selected-item-display" style="min-height: 60px; /* Ensure space */ display: block; /* Make it always visible */ text-align: center;">
-                                    <!-- This will be populated by JS -->
+                                <p class="drop-zone-text"><?php esc_html_e('Assign to Project (Optional)', 'timegrow'); ?></p>
+                                <div id="expense-drop-zone-display" class="selected-item-display" style="min-height: 60px; display: block; text-align: center;">
                                     <span class="project-drop-placeholder"><?php esc_html_e('Drop Project Here', 'timegrow'); ?></span>
                                     <div class="selected-project-details" style="display:none;">
                                         <!-- JS will fill this: Project selected: Project Name (ID) <br/> Description -->
                                     </div>
                                     <button type="button" id="clear-dropped-project-btn" class="clear-selection-btn" style="display:none; margin-top: 5px;">Clear Project</button>
                                 </div>
-                                <!-- Hidden input to store the selected project ID -->
                                 <input type="hidden" id="selected-expense-project-id" name="expense_project_id">
                             </div>
+
+                            <!-- Expense Details -->
+                            <h2><?php esc_html_e('Expense Details', 'timegrow'); ?></h2>
                             <div class="form-grid">
                                 <div class="form-group">
                                     <label for="expense-date">Date of Expense <span class="required">*</span></label>
@@ -136,7 +144,6 @@ class TimeGrowNexusExpenseView {
                                         <option value="EUR">EUR (€)</option>
                                         <option value="GBP">GBP (£)</option>
                                         <option value="CAD">CAD (C$)</option>
-                                        <!-- Add more common currencies -->
                                     </select>
                                 </div>
 
@@ -157,32 +164,15 @@ class TimeGrowNexusExpenseView {
                                 </div>
                             </div>
 
-
-                            <!-- Stage 3: Receipt Upload -->
-                            <div class="receipt-upload-stage"> <!-- You had this -->
-                                <h2>4. Attach Receipts (Optional)</h2>
-                                <div id="receipt-drop-zone" class="receipt-drop-area">
-                                    <span class="dashicons dashicons-cloud-upload"></span>
-                                    <p>Drag & drop receipt files here, or click to select files.</p>
-                                    <!-- INPUT IS HIDDEN AND OUTSIDE THE CLICKABLE PROMPT'S DIRECT FLOW -->
-                                    <small>(Max 5MB per file. Allowed: JPG, PNG, PDF)</small>
-                                </div>
-                                <input type="file" id="receipt-file-input" multiple hidden accept="image/*,.pdf">
-                                <div id="receipt-preview-area" class="receipt-preview-list"> <!-- ADD THIS IF MISSING -->
-                                    <!-- JS will populate this with previews of uploaded/selected files -->
-                                </div>
-                            </div>
-
                             <div class="form-actions">
                                 <button type="submit" id="save-expense-btn" class="timegrow-button active">Save Expense</button>
                                 <button type="button" id="clear-expense-form-btn" class="timegrow-button disabled">Clear Form</button>
                             </div>
                             <div id="expense-form-message" class="form-message" style="display:none;"></div>
-                        </form>
-                    </div>
-                </div>
+                </form>
             </div>
-        
+        </div>
+
         <?php
     }
 

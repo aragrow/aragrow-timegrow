@@ -224,6 +224,15 @@
 
 /* Mobile responsive styles */
 @media (max-width: 782px) {
+    /* Remove WordPress admin spacing on mobile */
+    #wpcontent {
+        padding-left: 0 !important;
+    }
+
+    .timegrow-modern-wrapper {
+        margin: 0 !important;
+    }
+
     /* Hide project tiles on mobile */
     #project-tiles-container {
         display: none !important;
@@ -237,5 +246,27 @@
         padding: 15px !important;
         box-shadow: none !important;
         border-radius: 0 !important;
+    }
+
+    /* Make header more compact on mobile - hide icon, reduce padding */
+    .timegrow-modern-header {
+        padding: 20px !important;
+        margin-bottom: 15px !important;
+        flex-direction: column !important;
+        text-align: center !important;
+        border-radius: 0 !important;
+    }
+
+    .timegrow-header-illustration {
+        display: none !important;
+    }
+
+    .timegrow-modern-header h1 {
+        font-size: 24px !important;
+        margin-bottom: 8px !important;
+    }
+
+    .timegrow-modern-header .subtitle {
+        font-size: 14px !important;
     }
 }
