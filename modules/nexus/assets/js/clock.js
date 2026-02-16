@@ -7,14 +7,156 @@ jQuery(document).ready(function($) {
   const $timegrowCurrentDate = $('#timegrow-current-date');
   const $timegrowCurrentTime = $('#timegrow-current-time');
 
-  // Make project tiles draggable
-  $('.timegrow-project-tile').attr('draggable', true);
+  // Detect if device is mobile/touch
+  const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
 
-  $('.timegrow-project-tile').on('dragstart', function (e) {
-    e.originalEvent.dataTransfer.setData('project-id', $(this).data('project-id'));
-    e.originalEvent.dataTransfer.setData('name', $(this).data('project-name'));
-    e.originalEvent.dataTransfer.setData('desc', $(this).data('project-desc'));
-  });
+  // Create dropdown for mobile users
+  createProjectDropdown();
+
+  // Enable drag and drop on desktop
+  if (!isTouchDevice) {
+    enableDragAndDrop();
+  }
+
+  /**
+   * Create searchable dropdown for project selection
+   */
+  function createProjectDropdown() {
+    // Collect all projects from tiles
+    const projects = [];
+    $('.timegrow-project-tile').each(function() {
+      projects.push({
+        id: $(this).data('project-id'),
+        name: $(this).data('project-name'),
+        desc: $(this).data('project-desc')
+      });
+    });
+
+    // Only create if there are projects and dropdown doesn't exist
+    if (projects.length === 0 || $('#clock-project-selector').length > 0) {
+      return;
+    }
+
+    // Sort alphabetically
+    projects.sort((a, b) => a.name.localeCompare(b.name));
+
+    // Create dropdown wrapper
+    const $wrapper = $('<div id="clock-project-selector-wrapper" style="margin-bottom: 20px;"></div>');
+    const $label = $('<label for="clock-project-search" style="display: block; margin-bottom: 8px; font-weight: 600; font-size: 15px;">Select Project</label>');
+    const $searchInput = $('<input type="text" id="clock-project-search" placeholder="Search projects..." style="width: 100%; min-height: 50px; padding: 12px; font-size: 16px; border: 2px solid #ddd; border-radius: 8px; margin-bottom: 10px; box-sizing: border-box;" />');
+    const $datalist = $('<datalist id="clock-projects-datalist"></datalist>');
+    const $select = $('<select id="clock-project-selector" style="width: 100%; min-height: 50px; padding: 12px; font-size: 16px; border: 2px solid #ddd; border-radius: 8px; box-sizing: border-box;"></select>');
+
+    // Add options
+    $select.append('<option value="">-- Choose a Project --</option>');
+    projects.forEach(function(project) {
+      $select.append(`<option value="${project.id}">${project.name}</option>`);
+      $datalist.append(`<option value="${project.name}" data-id="${project.id}">${project.name}</option>`);
+    });
+
+    $searchInput.attr('list', 'clock-projects-datalist');
+
+    // Assemble
+    $wrapper.append($label).append($searchInput).append($datalist).append($select);
+
+    // Insert before drop zone or at start of form
+    if ($('#drop-zone').length > 0) {
+      $('#drop-zone').before($wrapper);
+    } else {
+      $('#timegrow-nexus-entry-form').prepend($wrapper);
+    }
+
+    // Handle search input
+    $searchInput.on('input change', function() {
+      const searchValue = $(this).val();
+      const selectedProject = projects.find(p => p.name === searchValue);
+      if (selectedProject) {
+        $select.val(selectedProject.id).trigger('change');
+        $(this).blur();
+      }
+    });
+
+    // Handle selection - sync with dropdown
+    $select.on('change', function() {
+      const projectId = $(this).val();
+      if (projectId) {
+        const selectedProject = projects.find(p => p.id == projectId);
+        $searchInput.val(selectedProject.name);
+      } else {
+        $searchInput.val('');
+      }
+    });
+
+    // Handle selection - update form state
+    $select.on('change', function() {
+      const projectId = $(this).val();
+
+      if (projectId) {
+        const selectedProject = projects.find(p => p.id == projectId);
+
+        // Update hidden field
+        $('#project_id').val(projectId);
+
+        // Update drop zone with green styling (same as manual entry)
+        if ($('#drop-zone').length > 0) {
+          $('#drop-zone')
+            .html(`✓ Project Selected: <strong>${selectedProject.name}</strong>`)
+            .css('color', '#46b450')
+            .css('background-color', '#e8f5e9')
+            .css('border-color', '#46b450');
+        }
+
+        // Fade out project tiles to indicate selection
+        $('.timegrow-project-tile').css('opacity', 0.5);
+
+        // Enable clock in button
+        updateButtonState();
+      } else {
+        // Reset if no selection
+        $('#project_id').val('');
+
+        if ($('#drop-zone').length > 0) {
+          $('#drop-zone')
+            .html('Drop Project Here')
+            .css('color', '')
+            .css('background-color', '')
+            .css('border-color', '');
+        }
+
+        $('.timegrow-project-tile').css('opacity', 1);
+
+        // Disable clock in button
+        $clockInButton.prop('disabled', true).removeClass('active').addClass('disabled');
+      }
+    });
+
+    // Hide select on mobile
+    if (isTouchDevice) {
+      $select.hide();
+    }
+  }
+
+  /**
+   * Enable drag and drop for desktop
+   */
+  function enableDragAndDrop() {
+    $('.timegrow-project-tile').attr('draggable', true);
+
+    $('.timegrow-project-tile').on('dragstart', function (e) {
+      e.originalEvent.dataTransfer.setData('project-id', $(this).data('project-id'));
+      e.originalEvent.dataTransfer.setData('name', $(this).data('project-name'));
+      e.originalEvent.dataTransfer.setData('desc', $(this).data('project-desc'));
+    });
+
+    // Also allow click to select
+    $('.timegrow-project-tile').on('click', function(e) {
+      e.preventDefault();
+      const projectId = $(this).data('project-id');
+      if (projectId) {
+        $('#clock-project-selector').val(projectId).trigger('change');
+      }
+    });
+  }
 
   $('#drop-zone')
     .on('dragover', function (e) {
@@ -29,13 +171,10 @@ jQuery(document).ready(function($) {
       e.preventDefault();
       const projectId = e.originalEvent.dataTransfer.getData('project-id');
       const projectName = e.originalEvent.dataTransfer.getData('name');
-      const projectDesc = e.originalEvent.dataTransfer.getData('desc');
-      if (projectId) {
-        $('#project_id').val(projectId);
-        $(this).html(`Project selected: ${projectName} (${projectId}) <br /> ${projectDesc}`).css('color', '#28a745');
 
-      $('.timegrow-project-tile').css('opacity', .5);
-        updateButtonState();
+      if (projectId) {
+        // Update dropdown to match (this will trigger all the styling updates)
+        $('#clock-project-selector').val(projectId).trigger('change');
       }
       $(this).removeClass('dragging-over');
     });

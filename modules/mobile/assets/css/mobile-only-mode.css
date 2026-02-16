@@ -726,3 +726,116 @@ body {
         padding: 15px;
     }
 }
+
+/* ===== CLOCK IN/OUT PAGE MOBILE OPTIMIZATION ===== */
+
+/* Full width layout on mobile */
+.timegrow-clock-layout {
+    max-width: 100% !important;
+    padding: 0 !important;
+}
+
+.timegrow-clock-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 15px !important;
+}
+
+/* Hide project tiles on mobile - use dropdown instead */
+@media (max-width: 782px) {
+    .timegrow-projects-column {
+        display: none !important;
+    }
+
+    /* Make clock column full width */
+    .timegrow-clock-column {
+        width: 100% !important;
+        max-width: 100% !important;
+        padding: 0 10px !important;
+    }
+}
+
+/* Optimize clock buttons for mobile */
+.timegrow-clock-btn,
+#clock-in-btn,
+#clock-out-btn {
+    width: 100% !important;
+    min-height: 60px !important;
+    font-size: 18px !important;
+    font-weight: 700 !important;
+    border-radius: 8px !important;
+    margin: 10px 0 !important;
+}
+
+/* Clock status display */
+.timegrow-status-display,
+.timegrow-clock-status {
+    padding: 20px !important;
+    border-radius: 8px !important;
+    margin: 15px 0 !important;
+}
+
+/* ===== EXPENSES PAGE MOBILE OPTIMIZATION ===== */
+
+/* Full width expense form */
+.timegrow-expense-form-container,
+.timegrow-expense-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 15px !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+}
+
+/* Expense form fields */
+.timegrow-expense-form input[type="text"],
+.timegrow-expense-form input[type="number"],
+.timegrow-expense-form input[type="date"],
+.timegrow-expense-form select,
+.timegrow-expense-form textarea {
+    width: 100% !important;
+    min-height: 50px !important;
+    padding: 12px !important;
+    font-size: 16px !important;
+    border: 2px solid #ddd !important;
+    border-radius: 8px !important;
+    box-sizing: border-box !important;
+}
+
+/* Receipt upload button */
+.timegrow-expense-form input[type="file"],
+.expense-receipt-upload {
+    width: 100% !important;
+    min-height: 50px !important;
+    padding: 12px !important;
+    font-size: 16px !important;
+}
+
+/* Expense submit button */
+.timegrow-expense-submit,
+.timegrow-expense-form button[type="submit"] {
+    width: 100% !important;
+    min-height: 54px !important;
+    font-size: 18px !important;
+    font-weight: 700 !important;
+    border-radius: 8px !important;
+    margin-top: 20px !important;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    color: white !important;
+    border: none !important;
+}
+
+/* Expense list on mobile */
+@media (max-width: 782px) {
+    .timegrow-expense-list,
+    .expense-entries {
+        padding: 0 10px !important;
+    }
+
+    .timegrow-expense-item {
+        margin-bottom: 15px !important;
+        padding: 15px !important;
+        border-radius: 8px !important;
+        border: 1px solid #ddd !important;
+    }
+}
