@@ -74,6 +74,13 @@ if ( file_exists( TIMEGROW_MODULES_DIR . 'paypal-invoicer/aragrow-wc-paypal-auto
     require_once TIMEGROW_MODULES_DIR . 'paypal-invoicer/aragrow-wc-paypal-auto-invoicer.php';
 }
 
+/**
+ * Load Mobile Access Module (PIN-based mobile-only access)
+ */
+if ( file_exists( TIMEGROW_MODULES_DIR . 'mobile/aragrow-timegrow-mobile.php' ) ) {
+    require_once TIMEGROW_MODULES_DIR . 'mobile/aragrow-timegrow-mobile.php';
+}
+
 // ==============================================
 // PLUGIN ACTIVATION & CAPABILITIES
 // ==============================================

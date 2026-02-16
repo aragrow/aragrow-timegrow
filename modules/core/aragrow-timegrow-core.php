@@ -82,6 +82,10 @@ function timegrow_core_module_activate() {
     (new TimeGrowTeamMemberModel())->initialize();
     (new TimeGrowTimeEntryModel())->initialize();
 
+    // Initialize AI configuration table
+    $ai_config_model = new TimeGrowAIConfigModel();
+    $ai_config_model->create_table();
+
     // Initialize expense categories and populate with defaults
     $expense_category_model = new TimeGrowExpenseCategoryModel();
     $expense_category_model->initialize();

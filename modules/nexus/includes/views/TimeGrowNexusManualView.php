@@ -54,6 +54,29 @@ class TimeGrowNexusManualView {
                 </div>
             </div>
 
+            <?php settings_errors('timegrow_manual_messages'); ?>
+
+            <?php if (WP_DEBUG): ?>
+            <!-- SQL Debug Panel -->
+            <div class="timegrow-debug-panel">
+                <details>
+                    <summary>🔍 Debug Info</summary>
+                    <div class="timegrow-debug-content">
+                        <pre><?php
+                        echo "User ID: " . esc_html($user->ID) . "\n";
+                        echo "Member ID: " . esc_html($member_id) . "\n";
+                        echo "Projects Count: " . esc_html(count($projects)) . "\n";
+                        echo "Entries Count: " . esc_html(count($list)) . "\n";
+                        echo "Is Administrator: " . (current_user_can('administrator') ? 'Yes' : 'No') . "\n";
+                        if (isset($GLOBALS['wpdb']->last_query)) {
+                            echo "\nLast Query:\n" . esc_html($GLOBALS['wpdb']->last_query);
+                        }
+                        ?></pre>
+                    </div>
+                </details>
+            </div><!-- .timegrow-debug-panel -->
+            <?php endif; ?>
+
             <h3><?php esc_html_e('Drag and Drop a Project to Enter Time', 'timegrow'); ?></h3>
             <div id="project-tiles-container" class="timegrow-project-tiles" style="float:left">
                 <div class="project-list-container">
@@ -68,8 +91,7 @@ class TimeGrowNexusManualView {
 
 
 
-            <div class="timegrow-nexus-container"  style="float:left">    
-                <?php settings_errors('timegrow_manual_messages'); ?> 
+            <div class="timegrow-nexus-container"  style="float:left">
                 <!-- Manual Entry Form -->
                     <form id="timegrow-nexus-entry-form" class="wp-core-ui" method="POST" enctype="multipart/form-data">
                     <input type="hidden" name="time_entry_id" value="0">

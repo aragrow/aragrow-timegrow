@@ -23,6 +23,12 @@ class TimeGrowNexusReportView {
             return;
         }
 
+        // Check if user is in mobile session - show simplified dashboard
+        if (isset($_COOKIE['timegrow_mobile_session'])) {
+            $this->display_mobile_dashboard();
+            return;
+        }
+
         // Group reports by category
         $grouped_reports = [
             'Personal Productivity' => [],
@@ -175,5 +181,196 @@ class TimeGrowNexusReportView {
         // No specific JS needed for this static display unless you add filters/search
         // If you were to add JS for filtering, you'd localize data here.
         // wp_localize_script('timegrow-reports-js', 'timegrowReportsData', ['reports' => $reports, /* other data */]);
+    }
+
+    /**
+     * Display simplified mobile dashboard
+     * Shows only Enter Time and Enter Expenses links
+     */
+    private function display_mobile_dashboard() {
+        $has_time_tracking = current_user_can('access_mobile_time_tracking');
+        $has_expenses = current_user_can('access_mobile_expenses');
+        ?>
+        <div class="wrap timegrow-mobile-dashboard">
+            <h1><?php esc_html_e('Dashboard', 'timegrow'); ?></h1>
+
+            <div class="timegrow-mobile-dashboard-grid">
+                <?php if ($has_time_tracking) : ?>
+                    <a href="<?php echo esc_url(admin_url('admin.php?page=timegrow-nexus-clock')); ?>" class="timegrow-mobile-dashboard-card">
+                        <div class="timegrow-mobile-dashboard-icon">
+                            <span class="dashicons dashicons-clock"></span>
+                        </div>
+                        <h2><?php esc_html_e('Enter Time', 'timegrow'); ?></h2>
+                        <p><?php esc_html_e('Clock in/out or add manual time entries', 'timegrow'); ?></p>
+                        <span class="timegrow-mobile-dashboard-arrow">
+                            <span class="dashicons dashicons-arrow-right-alt2"></span>
+                        </span>
+                    </a>
+                <?php endif; ?>
+
+                <?php if ($has_expenses) : ?>
+                    <a href="<?php echo esc_url(admin_url('admin.php?page=timegrow-nexus-expenses')); ?>" class="timegrow-mobile-dashboard-card">
+                        <div class="timegrow-mobile-dashboard-icon">
+                            <span class="dashicons dashicons-money-alt"></span>
+                        </div>
+                        <h2><?php esc_html_e('Enter Expenses', 'timegrow'); ?></h2>
+                        <p><?php esc_html_e('Record expenses and upload receipts', 'timegrow'); ?></p>
+                        <span class="timegrow-mobile-dashboard-arrow">
+                            <span class="dashicons dashicons-arrow-right-alt2"></span>
+                        </span>
+                    </a>
+                <?php endif; ?>
+            </div>
+
+            <?php if (!$has_time_tracking && !$has_expenses) : ?>
+                <div class="timegrow-notice timegrow-notice-warning">
+                    <span class="dashicons dashicons-warning"></span>
+                    <div>
+                        <strong><?php esc_html_e('No Access Granted', 'timegrow'); ?></strong>
+                        <p><?php esc_html_e('You do not have permission to access any features. Please contact your administrator.', 'timegrow'); ?></p>
+                    </div>
+                </div>
+            <?php endif; ?>
+        </div>
+
+        <style>
+            .timegrow-mobile-dashboard {
+                padding: 20px;
+                max-width: 100%;
+            }
+
+            .timegrow-mobile-dashboard h1 {
+                font-size: 28px;
+                font-weight: 600;
+                margin-bottom: 24px;
+                color: #1d2327;
+            }
+
+            .timegrow-mobile-dashboard-grid {
+                display: grid;
+                grid-template-columns: 1fr;
+                gap: 16px;
+                max-width: 600px;
+            }
+
+            .timegrow-mobile-dashboard-card {
+                display: block;
+                background: white;
+                border: 2px solid #e0e0e0;
+                border-radius: 12px;
+                padding: 24px;
+                text-decoration: none;
+                color: #1d2327;
+                transition: all 0.3s;
+                position: relative;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            }
+
+            .timegrow-mobile-dashboard-card:hover {
+                border-color: #2271b1;
+                box-shadow: 0 4px 12px rgba(34, 113, 177, 0.15);
+                transform: translateY(-2px);
+            }
+
+            .timegrow-mobile-dashboard-icon {
+                width: 60px;
+                height: 60px;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                border-radius: 12px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin-bottom: 16px;
+            }
+
+            .timegrow-mobile-dashboard-icon .dashicons {
+                font-size: 32px;
+                width: 32px;
+                height: 32px;
+                color: white;
+            }
+
+            .timegrow-mobile-dashboard-card h2 {
+                font-size: 20px;
+                font-weight: 600;
+                margin: 0 0 8px 0;
+                color: #1d2327;
+            }
+
+            .timegrow-mobile-dashboard-card p {
+                font-size: 14px;
+                color: #666;
+                margin: 0;
+                line-height: 1.5;
+            }
+
+            .timegrow-mobile-dashboard-arrow {
+                position: absolute;
+                top: 24px;
+                right: 24px;
+                width: 32px;
+                height: 32px;
+                background: #f6f7f7;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: all 0.3s;
+            }
+
+            .timegrow-mobile-dashboard-card:hover .timegrow-mobile-dashboard-arrow {
+                background: #2271b1;
+            }
+
+            .timegrow-mobile-dashboard-arrow .dashicons {
+                font-size: 20px;
+                width: 20px;
+                height: 20px;
+                color: #666;
+            }
+
+            .timegrow-mobile-dashboard-card:hover .timegrow-mobile-dashboard-arrow .dashicons {
+                color: white;
+            }
+
+            .timegrow-notice {
+                display: flex;
+                gap: 12px;
+                padding: 16px;
+                border-left: 4px solid #dba617;
+                background: #fcf8e3;
+                border-radius: 4px;
+                margin-top: 20px;
+            }
+
+            .timegrow-notice .dashicons {
+                flex-shrink: 0;
+                color: #dba617;
+                font-size: 20px;
+                width: 20px;
+                height: 20px;
+            }
+
+            .timegrow-notice strong {
+                display: block;
+                margin-bottom: 4px;
+            }
+
+            .timegrow-notice p {
+                margin: 0;
+            }
+
+            /* Mobile optimizations */
+            @media (max-width: 782px) {
+                .timegrow-mobile-dashboard {
+                    padding: 16px;
+                }
+
+                .timegrow-mobile-dashboard-card {
+                    padding: 20px;
+                }
+            }
+        </style>
+        <?php
     }
 }

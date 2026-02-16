@@ -1,0 +1,46 @@
+/* Expense Form Styles */
+
+/* File Dropzone */
+#file-dropzone {
+    border: 2px dashed #ccc;
+    border-radius: 8px;
+    padding: 30px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: #fafafa;
+}
+
+#file-dropzone:hover {
+    border-color: #2271b1;
+    background: #f0f6fc;
+}
+
+#file-dropzone.drag-over {
+    border-color: #007cba;
+    background: #e7f5ff;
+}
+
+#file-upload-status {
+    margin-top: 10px;
+    font-size: 13px;
+    color: #666;
+}
+
+/* AI-populated field indicators */
+.ai-populated {
+    background-color: #e7f5ff !important;
+    border-left: 3px solid #2271b1 !important;
+    transition: all 0.3s ease;
+}
+
+/* Expense form enhancements */
+.expense-form-section {
+    margin-bottom: 20px;
+}
+
+.expense-form-section h3 {
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #e0e0e0;
+}

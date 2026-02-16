@@ -46,6 +46,26 @@ class TimeGrowNexusExpenseView {
             </div>
 
             <?php settings_errors('timegrow_expense_messages'); ?>
+
+            <?php if (WP_DEBUG): ?>
+            <!-- SQL Debug Panel -->
+            <div class="timegrow-debug-panel">
+                <details>
+                    <summary>🔍 Debug Info</summary>
+                    <div class="timegrow-debug-content">
+                        <pre><?php
+                        echo "User ID: " . esc_html($user->ID) . "\n";
+                        echo "User Name: " . esc_html($user->display_name) . "\n";
+                        echo "Projects Count: " . esc_html(count($projects)) . "\n";
+                        echo "Is Administrator: " . (current_user_can('administrator') ? 'Yes' : 'No') . "\n";
+                        if (isset($GLOBALS['wpdb']->last_query)) {
+                            echo "\nLast Query:\n" . esc_html($GLOBALS['wpdb']->last_query);
+                        }
+                        ?></pre>
+                    </div>
+                </details>
+            </div><!-- .timegrow-debug-panel -->
+            <?php endif; ?>
             <!-- Client Tiles (conditionally shown when clocked out) -->
             <div id="project-tiles-container" class="timegrow-project-tiles">          
                 <div class="project-list-container">                            

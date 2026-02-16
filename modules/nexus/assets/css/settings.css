@@ -482,3 +482,57 @@
     animation: fadeInUp 0.5s ease-out;
     animation-delay: 0.2s;
 }
+
+/* Debug Panel */
+.timegrow-debug-panel {
+    background: #fff3cd;
+    border: 2px solid #ffc107;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 25px;
+    box-shadow: 0 2px 8px rgba(255, 193, 7, 0.1);
+}
+
+.timegrow-debug-panel details {
+    cursor: pointer;
+}
+
+.timegrow-debug-panel summary {
+    font-weight: 600;
+    font-size: 14px;
+    color: #856404;
+    user-select: none;
+    padding: 8px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.timegrow-debug-panel summary:hover {
+    color: #533f03;
+}
+
+.timegrow-debug-panel summary::marker {
+    color: #856404;
+}
+
+.timegrow-debug-content {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #ffeaa7;
+}
+
+.timegrow-debug-content pre {
+    background: #fffbea;
+    border: 1px solid #ffeaa7;
+    border-radius: 4px;
+    padding: 12px;
+    margin: 0;
+    font-size: 12px;
+    font-family: 'Courier New', Courier, monospace;
+    color: #856404;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    line-height: 1.5;
+}

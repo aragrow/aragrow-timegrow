@@ -277,7 +277,7 @@ class TimeGrowTeamMemberModel {
 
     public function get_team_member_clock_status($id) {
         $sql = $this->wpdb->prepare(
-                "SELECT e.ID, e.clock_in_date, e.clock_out_date, p.name as project_name 
+                "SELECT e.ID, e.clock_in_date, e.clock_out_date, p.name as project_name
                     FROM {$this->table_name5} e
                     LEFT OUTER JOIN {$this->table_name4} p ON e.project_id = p.ID
                     WHERE member_id = %d
@@ -289,8 +289,13 @@ class TimeGrowTeamMemberModel {
 
         $result = $this->wpdb->get_results($sql);
         $item = $result[0];
-        var_dump($this->wpdb->last_query);
-        var_dump($this->wpdb->last_result);
+
+        // Prepare debug data
+        $debug_data = [
+            'query' => $this->wpdb->last_query,
+            'result_count' => count($result),
+        ];
+
         if (!empty($result)) {
             if (empty($item->clock_out_date) && !empty($item->clock_in_date)) {
 
@@ -299,17 +304,20 @@ class TimeGrowTeamMemberModel {
                     'clockInTimestamp' => strtotime($item->clock_in_date),
                     'entryId' => $item->ID,
                     'cloked_project' => $item->project_name,
+                    '_debug' => $debug_data,
                 ];
                 // You may need to join with project table to get project name if needed
-        
+
             } else {
                 return [ // Example: Clocked OUT
                     'status' => 'clocked_out',
+                    '_debug' => $debug_data,
                 ];
             }
         } else {
             return [ // Example: Clocked OUT
                 'status' => 'clocked_out',
+                '_debug' => $debug_data,
             ];
         }
 

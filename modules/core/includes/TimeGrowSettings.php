@@ -8,12 +8,32 @@ class TimeGrowSettings {
 
     private $general_option_name = 'aragrow_timegrow_general_settings';
     private $ai_option_name = 'aragrow_timegrow_ai_settings';
+    private $ai_configs_option_name = 'aragrow_timegrow_ai_configurations';
+    private $ai_form_temp_option_name = 'aragrow_timegrow_ai_form_temp'; // Temporary form data (cleared unless editing)
 
     public function __construct() {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
         add_action('admin_menu', [$this, 'register_settings_page']);
         add_action('admin_init', [$this, 'register_settings']);
+        add_action('admin_init', [$this, 'handle_config_actions']);
+        add_action('admin_init', [$this, 'handle_form_submission']);
         add_action('admin_enqueue_scripts', [$this, 'enqueue_settings_styles']);
+
+        // Create AI config table if it doesn't exist
+        if (class_exists('TimeGrowAIConfigModel')) {
+            $model = new TimeGrowAIConfigModel();
+            $model->create_table();
+            if(WP_DEBUG) error_log('AI config table check/creation completed');
+        }
+
+        // One-time cleanup of old options (will only run once)
+        if (!get_option('timegrow_ai_options_cleaned')) {
+            if (class_exists('TimeGrowAIConfigModel')) {
+                TimeGrowAIConfigModel::cleanup_old_options();
+                update_option('timegrow_ai_options_cleaned', true);
+                if(WP_DEBUG) error_log('AI options cleanup completed');
+            }
+        }
     }
 
     /**
@@ -137,6 +157,24 @@ class TimeGrowSettings {
             'ai_provider_section'
         );
 
+        // Set as active configuration
+        add_settings_field(
+            'is_active_config',
+            'Active Configuration',
+            [$this, 'render_is_active_config_field'],
+            'aragrow-timegrow-settings-ai',
+            'ai_provider_section'
+        );
+
+        // Configuration name
+        add_settings_field(
+            'config_name',
+            'Configuration Name',
+            [$this, 'render_config_name_field'],
+            'aragrow-timegrow-settings-ai',
+            'ai_provider_section'
+        );
+
         // Enable auto-analysis
         add_settings_field(
             'enable_auto_analysis',
@@ -163,12 +201,8 @@ class TimeGrowSettings {
         return [
             'google_gemini' => [
                 'name' => 'Google Gemini',
-                'models' => [
-                    'gemini-1.5-flash' => 'Gemini 1.5 Flash (Faster, Cheaper)',
-                    'gemini-1.5-pro' => 'Gemini 1.5 Pro (More Accurate)',
-                    'gemini-2.0-flash-exp' => 'Gemini 2.0 Flash (Experimental)',
-                ],
-                'api_url' => 'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent',
+                'models' => TimeGrowGeminiReceiptAnalyzer::get_model_options(),
+                'api_url' => 'https://generativelanguage.googleapis.com/v1/models/{model}:generateContent',
                 'docs_url' => 'https://aistudio.google.com/apikey',
             ],
             'openai' => [
@@ -225,8 +259,56 @@ class TimeGrowSettings {
     public function sanitize_ai_settings($input) {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
 
+        // Check if this is an actual form submission or just WordPress retrieving the option
+        $is_form_submission = isset($_POST['submit']) || isset($_POST['option_page']);
+
+        // Check if this is a programmatic update (from our config actions like load/activate/clear)
+        $is_programmatic_update = is_array($input) && !empty($input) && !$is_form_submission;
+
+        if(WP_DEBUG) {
+            error_log('Is form submission: ' . ($is_form_submission ? 'YES' : 'NO'));
+            error_log('Is programmatic update: ' . ($is_programmatic_update ? 'YES' : 'NO'));
+        }
+
+        // If not a form submission AND not a programmatic update, just return input as-is
+        if (!$is_form_submission && !$is_programmatic_update) {
+            if(WP_DEBUG) error_log('Not a form submission or programmatic update - returning input as-is');
+            return $input;
+        }
+
+        // If it's a programmatic update (load/activate/clear), return the input without processing
+        if ($is_programmatic_update) {
+            if(WP_DEBUG) error_log('Programmatic update - returning input without creating new config');
+            return $input;
+        }
+
         $sanitized = [];
         $providers = $this->get_ai_providers();
+
+        // Preserve existing config_id if updating
+        $existing = get_option($this->ai_option_name, []);
+        if(WP_DEBUG) {
+            error_log('Existing option has config_id: ' . (isset($existing['config_id']) ? $existing['config_id'] : 'NONE'));
+            error_log('Input has config_id: ' . (isset($input['config_id']) ? $input['config_id'] : 'NONE'));
+        }
+
+        // Check if config_id is in the input (hidden field) OR in the existing option
+        if (isset($input['config_id']) && !empty($input['config_id'])) {
+            // Config ID from hidden form field (preferred)
+            $sanitized['config_id'] = sanitize_text_field($input['config_id']);
+            if(WP_DEBUG) error_log('Using config_id from input: ' . $sanitized['config_id']);
+        } elseif (isset($existing['config_id'])) {
+            // Config ID from existing option (fallback)
+            $sanitized['config_id'] = $existing['config_id'];
+            if(WP_DEBUG) error_log('Preserving config_id from existing: ' . $existing['config_id']);
+        } else {
+            if(WP_DEBUG) error_log('No config_id found - will create new configuration');
+        }
+
+        // Configuration name
+        $sanitized['config_name'] = isset($input['config_name']) && !empty($input['config_name'])
+            ? sanitize_text_field($input['config_name'])
+            : 'Default Configuration';
 
         // AI Provider
         if (isset($input['ai_provider']) && array_key_exists($input['ai_provider'], $providers)) {
@@ -245,19 +327,41 @@ class TimeGrowSettings {
         }
 
         // API Key - encrypt if Voice AI Security class is available
+        $api_key_updated = false;
         if (isset($input['ai_api_key'])) {
             $api_key = sanitize_text_field($input['ai_api_key']);
             if (!empty($api_key)) {
                 if (class_exists('\AraGrow\VoiceAI\Security')) {
-                    $sanitized['ai_api_key'] = \AraGrow\VoiceAI\Security::encrypt($api_key);
+                    // Check if this looks like it's already encrypted (base64 encoded, not starting with expected API key prefix)
+                    // Google Gemini keys start with "AIza", OpenAI with "sk-", Anthropic with "sk-ant-"
+                    $is_already_encrypted = !preg_match('/^(AIza|sk-|sk-ant-)/', $api_key);
+
+                    if ($is_already_encrypted) {
+                        // Already encrypted, don't encrypt again
+                        $sanitized['ai_api_key'] = $api_key;
+                        if(WP_DEBUG) error_log('API key appears already encrypted, skipping encryption');
+                    } else {
+                        // Plain text key, encrypt it
+                        $sanitized['ai_api_key'] = \AraGrow\VoiceAI\Security::encrypt($api_key);
+                        $api_key_updated = true;
+                        if(WP_DEBUG) error_log('Encrypting new API key');
+                    }
                 } else {
                     $sanitized['ai_api_key'] = $api_key;
+                    $api_key_updated = true;
                 }
             } else {
-                // Keep existing value if empty
-                $existing = get_option($this->ai_option_name, []);
+                // Field is empty - keep existing encrypted value if it exists
                 $sanitized['ai_api_key'] = $existing['ai_api_key'] ?? '';
             }
+        } else {
+            // Field not in input - keep existing value
+            $sanitized['ai_api_key'] = $existing['ai_api_key'] ?? '';
+        }
+
+        // Store flag to show API key saved banner
+        if ($api_key_updated) {
+            set_transient('timegrow_api_key_saved', true, 30);
         }
 
         // Enable auto-analysis
@@ -271,7 +375,335 @@ class TimeGrowSettings {
             $sanitized['confidence_threshold'] = 0.7;
         }
 
-        return $sanitized;
+        // Is active configuration
+        $is_active = isset($input['is_active_config']) && $input['is_active_config'];
+        $sanitized['is_active_config'] = $is_active;
+
+        // Save or update configuration
+        $this->save_configuration($sanitized, $is_active);
+
+        // After saving, clear the form by returning empty defaults
+        // This ensures the form is empty after save
+        $cleared_form = [
+            'ai_provider' => 'google_gemini',
+            'ai_model' => 'gemini-2.0-flash-exp',
+            'ai_api_key' => '',
+            'enable_auto_analysis' => false,
+            'confidence_threshold' => 0.7,
+            'config_name' => '',
+            'is_active_config' => false,
+        ];
+
+        if(WP_DEBUG) error_log('Clearing form after save');
+
+        return $cleared_form;
+    }
+
+    /**
+     * Save or update configuration
+     *
+     * @param array $config Configuration data
+     * @param bool $is_active Whether this should be the active config
+     */
+    private function save_configuration($config, $is_active) {
+        $configs = get_option($this->ai_configs_option_name, []);
+
+        // If this is an update (has config_id), update existing
+        if (isset($config['config_id']) && isset($configs[$config['config_id']])) {
+            $config_id = $config['config_id'];
+            if(WP_DEBUG) error_log('Updating existing config: ' . $config_id);
+
+            // If setting as active, deactivate all others
+            if ($is_active) {
+                foreach ($configs as &$existing_config) {
+                    $existing_config['is_active_config'] = false;
+                }
+            }
+
+            // Update the config
+            $config['is_active_config'] = $is_active;
+            $configs[$config_id] = $config;
+        } else {
+            // Creating new config
+            $config['config_id'] = uniqid('ai_config_');
+            if(WP_DEBUG) error_log('Creating new config with ID: ' . $config['config_id']);
+
+            // If setting as active, deactivate all others
+            if ($is_active) {
+                foreach ($configs as &$existing_config) {
+                    $existing_config['is_active_config'] = false;
+                }
+            }
+
+            $config['is_active_config'] = $is_active;
+            $configs[$config['config_id']] = $config;
+        }
+
+        update_option($this->ai_configs_option_name, $configs);
+        if(WP_DEBUG) error_log('Saved configurations, total count: ' . count($configs));
+    }
+
+    /**
+     * Get active AI configuration
+     * Static method that can be called from anywhere
+     */
+    public static function get_active_ai_config() {
+        // Use the new table-based model
+        if (class_exists('TimeGrowAIConfigModel')) {
+            $model = new TimeGrowAIConfigModel();
+            $active = $model->get_active();
+
+            if ($active) {
+                // Convert database format to expected format
+                $active['is_active_config'] = (bool)$active['is_active'];
+                $active['enable_auto_analysis'] = (bool)$active['enable_auto_analysis'];
+                return $active;
+            }
+        }
+
+        // Fallback if no active config found
+        return [
+            'ai_api_key' => '',
+            'ai_provider' => 'google_gemini',
+            'ai_model' => 'gemini-2.0-flash-exp',
+            'enable_auto_analysis' => true,
+            'confidence_threshold' => 0.7,
+            'config_name' => 'Default Configuration',
+            'is_active_config' => true,
+        ];
+    }
+
+    /**
+     * Get form data (either from editing transient or empty defaults)
+     */
+    private function get_form_data() {
+        // Check if we're editing a configuration
+        $editing_data = get_transient('timegrow_editing_config_' . get_current_user_id());
+
+        if ($editing_data && isset($_GET['loaded']) && isset($_GET['edit_id'])) {
+            return $editing_data;
+        }
+
+        // Return empty defaults (no provider/model selected)
+        return [
+            'config_name' => '',
+            'ai_provider' => '',
+            'ai_model' => '',
+            'ai_api_key' => '',
+            'enable_auto_analysis' => false,
+            'confidence_threshold' => 0.7,
+            'is_active' => false,
+        ];
+    }
+
+    /**
+     * Get all AI configurations
+     */
+    public static function get_all_ai_configs() {
+        // Use the new table-based model
+        if (class_exists('TimeGrowAIConfigModel')) {
+            $model = new TimeGrowAIConfigModel();
+            $configs = $model->get_all();
+
+            // Convert database array format to match expected format
+            if ($configs) {
+                $formatted = [];
+                foreach ($configs as $config) {
+                    $formatted[$config['id']] = $config;
+                    $formatted[$config['id']]['is_active_config'] = (bool)$config['is_active'];
+                    $formatted[$config['id']]['enable_auto_analysis'] = (bool)$config['enable_auto_analysis'];
+                }
+                return $formatted;
+            }
+        }
+
+        return [];
+    }
+
+    /**
+     * Handle form submission to save AI configuration
+     */
+    public function handle_form_submission() {
+        // Check if this is our form submission
+        if (!isset($_POST['timegrow_ai_config_nonce'])) {
+            return;
+        }
+
+        if(WP_DEBUG) error_log('=== AI CONFIG FORM SUBMISSION DETECTED ===');
+
+        // Verify nonce
+        if (!wp_verify_nonce($_POST['timegrow_ai_config_nonce'], 'timegrow_save_ai_config')) {
+            if(WP_DEBUG) error_log('Nonce verification failed');
+            wp_die('Security check failed');
+        }
+
+        // Check permissions
+        if (!current_user_can(TIMEGROW_OWNER_CAP)) {
+            if(WP_DEBUG) error_log('Insufficient permissions');
+            wp_die('Insufficient permissions');
+        }
+
+        if(WP_DEBUG) error_log('Processing AI config form submission');
+
+        // Get form data
+        $provider = sanitize_text_field($_POST[$this->ai_option_name]['ai_provider'] ?? '');
+        $model = sanitize_text_field($_POST[$this->ai_option_name]['ai_model'] ?? '');
+
+        // Validate required fields
+        if (empty($provider)) {
+            wp_redirect(admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-settings&tab=ai&error=missing_provider'));
+            exit;
+        }
+
+        if (empty($model)) {
+            wp_redirect(admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-settings&tab=ai&error=missing_model'));
+            exit;
+        }
+
+        $config_data = [
+            'config_name' => sanitize_text_field($_POST[$this->ai_option_name]['config_name'] ?? 'Default Configuration'),
+            'ai_provider' => $provider,
+            'ai_model' => $model,
+            'enable_auto_analysis' => isset($_POST[$this->ai_option_name]['enable_auto_analysis']),
+            'confidence_threshold' => floatval($_POST[$this->ai_option_name]['confidence_threshold'] ?? 0.7),
+            'is_active' => isset($_POST[$this->ai_option_name]['is_active_config']),
+        ];
+
+        if(WP_DEBUG) error_log('Config data: ' . print_r($config_data, true));
+
+        // Handle API key - only update if a new one is provided
+        $api_key = sanitize_text_field($_POST[$this->ai_option_name]['ai_api_key'] ?? '');
+        if (!empty($api_key)) {
+            // Encrypt the API key
+            if (class_exists('\AraGrow\VoiceAI\Security')) {
+                $config_data['ai_api_key'] = \AraGrow\VoiceAI\Security::encrypt($api_key);
+                if(WP_DEBUG) error_log('API key encrypted');
+            } else {
+                $config_data['ai_api_key'] = $api_key;
+            }
+        }
+
+        // Check if we're updating or creating
+        $config_id = isset($_POST[$this->ai_option_name]['config_id']) ? intval($_POST[$this->ai_option_name]['config_id']) : 0;
+
+        $model = new TimeGrowAIConfigModel();
+
+        if ($config_id > 0) {
+            // Update existing configuration
+            // If no new API key provided, get the existing one
+            if (empty($api_key)) {
+                $existing = $model->get_by_id($config_id);
+                if ($existing) {
+                    $config_data['ai_api_key'] = $existing['ai_api_key'];
+                }
+            }
+
+            $model->update($config_id, $config_data);
+            if(WP_DEBUG) error_log('Updated config ID: ' . $config_id);
+
+            // Clear the editing transient
+            delete_transient('timegrow_editing_config_' . get_current_user_id());
+
+            wp_redirect(admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-settings&tab=ai&updated=1'));
+        } else {
+            // Create new configuration
+            // API key is required for new configs
+            if (empty($api_key)) {
+                wp_redirect(admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-settings&tab=ai&error=missing_api_key'));
+                exit;
+            }
+
+            $new_id = $model->create($config_data);
+            if(WP_DEBUG) error_log('Created new config ID: ' . $new_id);
+
+            // Clear the editing transient
+            delete_transient('timegrow_editing_config_' . get_current_user_id());
+
+            wp_redirect(admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-settings&tab=ai&created=1'));
+        }
+        exit;
+    }
+
+    /**
+     * Handle configuration actions (activate, load, delete, clear)
+     */
+    public function handle_config_actions() {
+        if (!isset($_GET['page']) || $_GET['page'] !== TIMEGROW_PARENT_MENU . '-settings') {
+            return;
+        }
+
+        if (!isset($_GET['tab']) || $_GET['tab'] !== 'ai') {
+            return;
+        }
+
+        if (!isset($_GET['action'])) {
+            return;
+        }
+
+        if (!current_user_can(TIMEGROW_OWNER_CAP)) {
+            wp_die('Insufficient permissions');
+        }
+
+        $action = $_GET['action'];
+        if(WP_DEBUG) error_log('Config action: ' . $action);
+
+        // Handle clear action (doesn't need config_id)
+        if ($action === 'clear') {
+            // Clear the editing transient
+            delete_transient('timegrow_editing_config_' . get_current_user_id());
+            if(WP_DEBUG) error_log('Form cleared - transient deleted');
+
+            wp_redirect(admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-settings&tab=ai'));
+            exit;
+        }
+
+        // Other actions require config_id
+        if (!isset($_GET['config_id'])) {
+            if(WP_DEBUG) error_log('No config_id provided');
+            return;
+        }
+
+        $config_id = intval($_GET['config_id']);
+        if(WP_DEBUG) error_log('Config ID: ' . $config_id);
+
+        $model = new TimeGrowAIConfigModel();
+        $config = $model->get_by_id($config_id);
+
+        if (!$config) {
+            if(WP_DEBUG) error_log('Config ID not found in database');
+            return;
+        }
+
+        if(WP_DEBUG) error_log('Config found, proceeding with action: ' . $action);
+
+        switch ($action) {
+            case 'activate':
+                $model->set_active($config_id);
+                if(WP_DEBUG) error_log('Activated config ID: ' . $config_id);
+
+                wp_redirect(admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-settings&tab=ai&activated=1&t=' . time()));
+                exit;
+                break;
+
+            case 'load':
+                // Store the config data in a transient for form population
+                set_transient('timegrow_editing_config_' . get_current_user_id(), $config, 300);
+                if(WP_DEBUG) error_log('Loading config ID ' . $config_id . ' for editing');
+
+                wp_redirect(admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-settings&tab=ai&loaded=1&edit_id=' . $config_id . '&t=' . time()));
+                exit;
+                break;
+
+            case 'delete':
+                if(WP_DEBUG) error_log('Deleting config: ' . $config_id);
+
+                $model->delete($config_id);
+
+                if(WP_DEBUG) error_log('Config deleted from database');
+                wp_redirect(admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-settings&tab=ai&deleted=1&t=' . time()));
+                exit;
+                break;
+        }
     }
 
     /**
@@ -299,7 +731,8 @@ class TimeGrowSettings {
      * Render overview page with setting cards
      */
     private function render_overview_page() {
-        $ai_settings = get_option($this->ai_option_name, []);
+        // Check AI configuration from new database table
+        $ai_settings = self::get_active_ai_config();
         $has_ai_configured = !empty($ai_settings['ai_api_key']);
         $paypal_plugin_active = class_exists('Aragrow_WC_PayPal_Auto_Invoicer');
         ?>
@@ -564,6 +997,24 @@ class TimeGrowSettings {
      * Render AI settings form
      */
     private function render_ai_settings_form() {
+        $all_configs = self::get_all_ai_configs();
+        $active_config = self::get_active_ai_config();
+
+        // Clear the form temp data on normal page load (not when coming from edit/load action)
+        $is_loading_for_edit = isset($_GET['loaded']) && $_GET['loaded'] == '1';
+        if (!$is_loading_for_edit) {
+            // Delete the temp option to ensure form is empty by default
+            delete_option($this->ai_form_temp_option_name);
+            if(WP_DEBUG) error_log('Form temp data cleared on page load (not editing)');
+        }
+
+        if(WP_DEBUG) {
+            error_log('=== RENDERING AI SETTINGS FORM ===');
+            error_log('Total configs to display: ' . count($all_configs));
+            foreach($all_configs as $id => $cfg) {
+                error_log('  - ' . $id . ': ' . ($cfg['config_name'] ?? 'Unnamed'));
+            }
+        }
         ?>
         <div class="wrap timegrow-page">
             <!-- Modern Header -->
@@ -577,23 +1028,244 @@ class TimeGrowSettings {
                 </div>
             </div>
 
-            <form method="post" action="options.php" id="ai-settings-form">
-                <?php
-                settings_fields('aragrow_timegrow_ai_settings_group');
-                do_settings_sections('aragrow-timegrow-settings-ai');
-                ?>
+            <!-- Success/Error Messages -->
+            <?php if (get_transient('timegrow_api_key_saved')): ?>
+                <div class="notice notice-success is-dismissible">
+                    <p><strong>API Key Encrypted and Saved!</strong> Your API key has been securely encrypted and saved to the database.</p>
+                </div>
+                <?php delete_transient('timegrow_api_key_saved'); ?>
+            <?php endif; ?>
+
+            <?php if (isset($_GET['activated'])): ?>
+                <div class="notice notice-success is-dismissible">
+                    <p><strong>Configuration activated successfully!</strong> This configuration is now active and will be used for receipt analysis.</p>
+                </div>
+            <?php endif; ?>
+
+            <?php if (isset($_GET['loaded'])): ?>
+                <div class="notice notice-info is-dismissible">
+                    <p><strong>Configuration loaded!</strong> Make your changes and save to update this configuration. Note: The API key is not loaded for security - leave blank to keep existing key, or enter a new one to update it.</p>
+                </div>
+            <?php endif; ?>
+
+            <?php if (isset($_GET['deleted'])): ?>
+                <div class="notice notice-success is-dismissible">
+                    <p><strong>Configuration deleted successfully!</strong></p>
+                </div>
+            <?php endif; ?>
+
+            <?php if (isset($_GET['created'])): ?>
+                <div class="notice notice-success is-dismissible">
+                    <p><strong>Configuration created successfully!</strong> Your AI configuration has been saved.</p>
+                </div>
+            <?php endif; ?>
+
+            <?php if (isset($_GET['updated'])): ?>
+                <div class="notice notice-success is-dismissible">
+                    <p><strong>Configuration updated successfully!</strong> Your changes have been saved.</p>
+                </div>
+            <?php endif; ?>
+
+            <?php if (isset($_GET['error'])): ?>
+                <?php if ($_GET['error'] === 'missing_api_key'): ?>
+                    <div class="notice notice-error is-dismissible">
+                        <p><strong>Error:</strong> API key is required for new configurations.</p>
+                    </div>
+                <?php elseif ($_GET['error'] === 'missing_provider'): ?>
+                    <div class="notice notice-error is-dismissible">
+                        <p><strong>Error:</strong> Please select an AI provider.</p>
+                    </div>
+                <?php elseif ($_GET['error'] === 'missing_model'): ?>
+                    <div class="notice notice-error is-dismissible">
+                        <p><strong>Error:</strong> Please select an AI model.</p>
+                    </div>
+                <?php endif; ?>
+            <?php endif; ?>
+
+            <!-- Saved Configurations -->
+            <div class="postbox" style="margin-bottom: 20px;">
+                <h2 class="hndle" style="padding: 15px; display: flex; justify-content: space-between; align-items: center;">
+                    <span>
+                        Saved AI Configurations
+                        <?php if(WP_DEBUG): ?>
+                            <small style="font-weight: normal; color: #d63638; margin-left: 10px;">
+                                [DEBUG: <?php echo count($all_configs); ?> configs in DB]
+                            </small>
+                        <?php endif; ?>
+                    </span>
+                    <button type="button" id="timegrow-show-config-form" class="button button-primary">
+                        <span class="dashicons dashicons-plus-alt" style="margin-top: 3px;"></span>
+                        Create New Configuration
+                    </button>
+                </h2>
+                <div class="inside">
+                    <?php if (empty($all_configs)): ?>
+                        <p style="padding: 15px; margin: 0; color: #666;">
+                            No configurations saved yet. Use the form below to create your first AI configuration.
+                        </p>
+                    <?php else: ?>
+                    <table class="wp-list-table widefat fixed striped">
+                        <thead>
+                            <tr>
+                                <th>Configuration Name</th>
+                                <th>Provider</th>
+                                <th>Model</th>
+                                <th>Status</th>
+                                <th>Auto-Analysis</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($all_configs as $config_id => $config): ?>
+                            <tr>
+                                <td><strong><?php echo esc_html($config['config_name'] ?? 'Unnamed Config'); ?></strong></td>
+                                <td><?php echo esc_html($this->get_ai_providers()[$config['ai_provider']]['name'] ?? $config['ai_provider']); ?></td>
+                                <td><?php echo esc_html($config['ai_model'] ?? 'N/A'); ?></td>
+                                <td>
+                                    <?php if ($config['is_active_config'] ?? false): ?>
+                                        <span class="timegrow-badge timegrow-badge-success">Active</span>
+                                    <?php else: ?>
+                                        <span class="timegrow-badge timegrow-badge-inactive">Inactive</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <?php if ($config['enable_auto_analysis'] ?? false): ?>
+                                        <span class="dashicons dashicons-yes-alt" style="color: #00a32a;"></span> Enabled
+                                    <?php else: ?>
+                                        <span class="dashicons dashicons-dismiss" style="color: #d63638;"></span> Disabled
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <?php if (!($config['is_active_config'] ?? false)): ?>
+                                        <a href="?page=<?php echo TIMEGROW_PARENT_MENU; ?>-settings&tab=ai&action=activate&config_id=<?php echo esc_attr($config_id); ?>"
+                                           class="button button-small">
+                                            Activate
+                                        </a>
+                                    <?php endif; ?>
+                                    <a href="?page=<?php echo TIMEGROW_PARENT_MENU; ?>-settings&tab=ai&action=load&config_id=<?php echo esc_attr($config_id); ?>"
+                                       class="button button-small">
+                                        Edit
+                                    </a>
+                                    <a href="?page=<?php echo TIMEGROW_PARENT_MENU; ?>-settings&tab=ai&action=delete&config_id=<?php echo esc_attr($config_id); ?>"
+                                       class="button button-small button-link-delete"
+                                       onclick="console.log('Delete clicked for config:', '<?php echo esc_js($config_id); ?>'); return confirm('Are you sure you want to delete this configuration?');">
+                                        Delete
+                                    </a>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                    <?php endif; ?>
+                </div>
+            </div>
+
+            <!-- Debug Console Logging -->
+            <?php if (WP_DEBUG):
+                $current_form_values = get_option($this->ai_option_name, []);
+                $has_config_id = !empty($current_form_values['config_id']);
+            ?>
+            <script>
+                console.log('=== AI Settings Page Loaded ===');
+                console.log('Total configurations displayed:', <?php echo count($all_configs); ?>);
+                console.log('Configurations:', <?php echo json_encode(array_map(function($cfg) {
+                    return [
+                        'name' => $cfg['config_name'] ?? 'Unnamed',
+                        'provider' => $cfg['ai_provider'] ?? 'N/A',
+                        'model' => $cfg['ai_model'] ?? 'N/A',
+                        'is_active' => $cfg['is_active_config'] ?? false
+                    ];
+                }, $all_configs)); ?>);
+                console.log('URL Parameters:', window.location.search);
+                console.log('Form State:', <?php echo $has_config_id ? '"EDITING - Config ID: ' . esc_js($current_form_values['config_id']) . '"' : '"EMPTY - Ready for new config"'; ?>);
+                console.log('Form Values:', <?php echo json_encode([
+                    'config_name' => $current_form_values['config_name'] ?? '',
+                    'provider' => $current_form_values['ai_provider'] ?? 'google_gemini',
+                    'model' => $current_form_values['ai_model'] ?? '',
+                    'has_api_key' => !empty($current_form_values['ai_api_key'])
+                ]); ?>);
+            </script>
+            <?php endif; ?>
+
+            <!-- Configuration Form (hidden by default) -->
+            <div id="timegrow-config-form-container" style="display: none;">
+            <div class="postbox" style="margin-bottom: 20px;">
+                <h2 class="hndle" style="padding: 15px; display: flex; justify-content: space-between; align-items: center;">
+                    <span id="timegrow-form-title">AI Configuration Form</span>
+                    <button type="button" id="timegrow-hide-config-form" class="button button-secondary">
+                        <span class="dashicons dashicons-no-alt" style="margin-top: 3px;"></span>
+                        Cancel
+                    </button>
+                </h2>
+                <div class="inside" style="padding: 15px;">
+
+            <form method="post" action="" id="ai-settings-form">
+                <?php wp_nonce_field('timegrow_save_ai_config', 'timegrow_ai_config_nonce'); ?>
+                <?php do_settings_sections('aragrow-timegrow-settings-ai'); ?>
 
                 <div class="timegrow-footer">
-                    <?php submit_button(__('Save AI Settings', 'timegrow'), 'primary large', 'submit', false); ?>
-                    <a href="?page=<?php echo TIMEGROW_PARENT_MENU; ?>-settings" class="button button-secondary large">
-                        <span class="dashicons dashicons-arrow-left-alt"></span>
-                        <?php esc_html_e('Back to Settings', 'timegrow'); ?>
-                    </a>
+                    <?php submit_button(__('Save Configuration', 'timegrow'), 'primary large', 'submit', false); ?>
+                    <button type="button" id="timegrow-cancel-form" class="button button-secondary large">
+                        <span class="dashicons dashicons-no-alt"></span>
+                        <?php esc_html_e('Cancel', 'timegrow'); ?>
+                    </button>
                 </div>
             </form>
 
+                </div><!-- .inside -->
+            </div><!-- .postbox -->
+            </div><!-- #timegrow-config-form-container -->
+
+            <div class="timegrow-footer" style="margin-top: 20px;">
+                <a href="?page=<?php echo TIMEGROW_PARENT_MENU; ?>-settings" class="button button-secondary large">
+                    <span class="dashicons dashicons-arrow-left-alt"></span>
+                    <?php esc_html_e('Back to Settings', 'timegrow'); ?>
+                </a>
+            </div>
+
             <script type="text/javascript">
             jQuery(document).ready(function($) {
+                var $formContainer = $('#timegrow-config-form-container');
+                var $formTitle = $('#timegrow-form-title');
+
+                // Show form for new configuration
+                $('#timegrow-show-config-form').on('click', function() {
+                    console.log('Show config form clicked');
+                    $formTitle.text('Create New Configuration');
+                    // Make API key required for new configs
+                    $('#ai_api_key').prop('required', true);
+                    $formContainer.slideDown(300);
+                    console.log('Form container display after slideDown:', $formContainer.css('display'));
+                    $('html, body').animate({
+                        scrollTop: $formContainer.offset().top - 50
+                    }, 500);
+                });
+
+                // Hide form buttons
+                $('#timegrow-hide-config-form, #timegrow-cancel-form').on('click', function() {
+                    $formContainer.slideUp(300);
+                    // Clear form by redirecting to the page without parameters
+                    setTimeout(function() {
+                        window.location.href = '?page=<?php echo TIMEGROW_PARENT_MENU; ?>-settings&tab=ai&action=clear';
+                    }, 300);
+                });
+
+                // Show form if we're loading a config for editing
+                <?php if (isset($_GET['loaded']) && $_GET['loaded'] == '1'): ?>
+                $formTitle.text('Edit Configuration');
+                // API key is optional when editing (keep existing if blank)
+                $('#ai_api_key').prop('required', false);
+                $formContainer.show();
+                $('html, body').animate({
+                    scrollTop: $formContainer.offset().top - 50
+                }, 500);
+                <?php endif; ?>
+
+                // Hide form after successful save
+                <?php if (isset($_GET['created']) || isset($_GET['updated'])): ?>
+                $formContainer.hide();
+                <?php endif; ?>
+
                 // Update model dropdown when provider changes
                 $('#ai_provider').on('change', function() {
                     var provider = $(this).val();
@@ -601,6 +1273,12 @@ class TimeGrowSettings {
 
                     var modelSelect = $('#ai_model');
                     modelSelect.empty();
+
+                    // Add placeholder option
+                    modelSelect.append($('<option>', {
+                        value: '',
+                        text: '-- Select a Model --'
+                    }));
 
                     $.each(models[provider], function(value, label) {
                         modelSelect.append($('<option>', {
@@ -612,6 +1290,39 @@ class TimeGrowSettings {
                     // Update docs link
                     var docsUrls = <?php echo json_encode(array_map(function($p) { return $p['docs_url']; }, $this->get_ai_providers())); ?>;
                     $('#api-docs-link').attr('href', docsUrls[provider]);
+                });
+
+                // Form validation before submit
+                $('#ai-settings-form').on('submit', function(e) {
+                    var provider = $('#ai_provider').val();
+                    var model = $('#ai_model').val();
+                    var apiKey = $('#ai_api_key').val();
+                    var isEditing = $('input[name="<?php echo esc_js($this->ai_option_name); ?>[config_id]"]').length > 0;
+
+                    // Check required fields
+                    if (!provider) {
+                        e.preventDefault();
+                        alert('Please select an AI provider.');
+                        $('#ai_provider').focus();
+                        return false;
+                    }
+
+                    if (!model) {
+                        e.preventDefault();
+                        alert('Please select an AI model.');
+                        $('#ai_model').focus();
+                        return false;
+                    }
+
+                    // API key is required for new configs
+                    if (!isEditing && !apiKey) {
+                        e.preventDefault();
+                        alert('Please enter an API key. This is required for new configurations.');
+                        $('#ai_api_key').focus();
+                        return false;
+                    }
+
+                    return true;
                 });
             });
             </script>
@@ -668,56 +1379,60 @@ class TimeGrowSettings {
     }
 
     public function render_ai_provider_field() {
-        $options = get_option($this->ai_option_name, ['ai_provider' => 'google_gemini']);
-        $provider = $options['ai_provider'] ?? 'google_gemini';
+        $form_data = $this->get_form_data();
+        $provider = $form_data['ai_provider'] ?? '';
         $providers = $this->get_ai_providers();
         ?>
-        <select name="<?php echo esc_attr($this->ai_option_name); ?>[ai_provider]" id="ai_provider" class="regular-text">
+        <select name="<?php echo esc_attr($this->ai_option_name); ?>[ai_provider]" id="ai_provider" class="regular-text" required>
+            <option value="">-- Select a Provider --</option>
             <?php foreach ($providers as $key => $data): ?>
                 <option value="<?php echo esc_attr($key); ?>" <?php selected($provider, $key); ?>>
                     <?php echo esc_html($data['name']); ?>
                 </option>
             <?php endforeach; ?>
         </select>
-        <p class="description">Choose which AI provider to use for receipt analysis.</p>
+        <p class="description">Choose which AI provider to use for receipt analysis. <strong style="color: #d63638;">*Required</strong></p>
         <?php
     }
 
     public function render_ai_model_field() {
-        $options = get_option($this->ai_option_name, ['ai_provider' => 'google_gemini', 'ai_model' => 'gemini-1.5-flash']);
-        $provider = $options['ai_provider'] ?? 'google_gemini';
-        $model = $options['ai_model'] ?? 'gemini-1.5-flash';
+        $form_data = $this->get_form_data();
+        $provider = $form_data['ai_provider'] ?? '';
+        $model = $form_data['ai_model'] ?? '';
         $providers = $this->get_ai_providers();
-        $models = $providers[$provider]['models'];
+        $models = !empty($provider) ? ($providers[$provider]['models'] ?? []) : [];
         ?>
-        <select name="<?php echo esc_attr($this->ai_option_name); ?>[ai_model]" id="ai_model" class="regular-text">
+        <select name="<?php echo esc_attr($this->ai_option_name); ?>[ai_model]" id="ai_model" class="regular-text" required>
+            <option value="">-- Select a Model --</option>
             <?php foreach ($models as $key => $label): ?>
                 <option value="<?php echo esc_attr($key); ?>" <?php selected($model, $key); ?>>
                     <?php echo esc_html($label); ?>
                 </option>
             <?php endforeach; ?>
         </select>
-        <p class="description">Choose which model to use for receipt analysis.</p>
+        <p class="description">Choose which model to use for receipt analysis. <strong style="color: #d63638;">*Required</strong></p>
         <?php
     }
 
     public function render_ai_api_key_field() {
-        $options = get_option($this->ai_option_name, []);
-        $provider = $options['ai_provider'] ?? 'google_gemini';
-        $has_key = !empty($options['ai_api_key']);
+        $form_data = $this->get_form_data();
+        $provider = $form_data['ai_provider'] ?? 'google_gemini';
+        $has_key = !empty($form_data['ai_api_key']);
         $providers = $this->get_ai_providers();
         $docs_url = $providers[$provider]['docs_url'];
         ?>
         <input type="password"
                name="<?php echo esc_attr($this->ai_option_name); ?>[ai_api_key]"
+               id="ai_api_key"
                value=""
                placeholder="<?php echo $has_key ? '••••••••••••••••' : 'Enter your API key'; ?>"
-               class="regular-text">
+               class="regular-text"
+               <?php echo !$has_key ? 'required' : ''; ?>>
         <p class="description">
             <?php if ($has_key): ?>
-                API key is configured and encrypted. Leave blank to keep current key.
+                <strong style="color: #00a32a;">✓ API key is configured and encrypted.</strong> Leave blank to keep current key, or enter a new key to update it.
             <?php else: ?>
-                Enter your API key. It will be stored encrypted.
+                Enter your API key. It will be securely encrypted and stored. <strong style="color: #d63638;">*Required</strong>
             <?php endif; ?>
             <br>
             <strong>Get your API key:</strong> <a href="<?php echo esc_url($docs_url); ?>" target="_blank" id="api-docs-link">API Key Documentation</a>
@@ -725,9 +1440,46 @@ class TimeGrowSettings {
         <?php
     }
 
+    public function render_is_active_config_field() {
+        $form_data = $this->get_form_data();
+        $is_active = isset($form_data['is_active']) && $form_data['is_active'];
+        ?>
+        <label class="timegrow-toggle-switch">
+            <input type="checkbox"
+                   name="<?php echo esc_attr($this->ai_option_name); ?>[is_active_config]"
+                   value="1"
+                   <?php checked($is_active, true); ?>>
+            <span class="timegrow-toggle-slider"></span>
+        </label>
+        <span style="margin-left: 10px; font-weight: 600; color: #2271b1;">Set as Active Configuration</span>
+        <p class="description">When enabled, this will be the active AI configuration used for receipt analysis. Only one configuration can be active at a time.</p>
+        <?php
+    }
+
+    public function render_config_name_field() {
+        $form_data = $this->get_form_data();
+        $config_name = $form_data['config_name'] ?? '';
+        $config_id = $form_data['id'] ?? ($_GET['edit_id'] ?? '');
+        ?>
+        <!-- Hidden field to preserve config_id when editing -->
+        <?php if (!empty($config_id)): ?>
+        <input type="hidden"
+               name="<?php echo esc_attr($this->ai_option_name); ?>[config_id]"
+               value="<?php echo esc_attr($config_id); ?>">
+        <?php endif; ?>
+
+        <input type="text"
+               name="<?php echo esc_attr($this->ai_option_name); ?>[config_name]"
+               value="<?php echo esc_attr($config_name); ?>"
+               placeholder="e.g., Production Config, Testing Config"
+               class="regular-text">
+        <p class="description">Give this configuration a descriptive name to identify it later (e.g., "Production", "Backup", "Testing").</p>
+        <?php
+    }
+
     public function render_enable_auto_analysis_field() {
-        $options = get_option($this->ai_option_name, ['enable_auto_analysis' => true]);
-        $checked = isset($options['enable_auto_analysis']) && $options['enable_auto_analysis'];
+        $form_data = $this->get_form_data();
+        $checked = isset($form_data['enable_auto_analysis']) && $form_data['enable_auto_analysis'];
         ?>
         <label class="timegrow-toggle-switch">
             <input type="checkbox"
@@ -742,8 +1494,8 @@ class TimeGrowSettings {
     }
 
     public function render_confidence_threshold_field() {
-        $options = get_option($this->ai_option_name, ['confidence_threshold' => 0.7]);
-        $threshold = $options['confidence_threshold'] ?? 0.7;
+        $form_data = $this->get_form_data();
+        $threshold = $form_data['confidence_threshold'] ?? 0.7;
         ?>
         <input type="number"
                name="<?php echo esc_attr($this->ai_option_name); ?>[confidence_threshold]"

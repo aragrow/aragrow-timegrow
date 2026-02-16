@@ -179,6 +179,106 @@
     font-weight: 600;
 }
 
+/* Real-time AI Analysis Progress Bar */
+#ai-progress-bar {
+    margin-top: 15px;
+    padding: 15px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+#ai-progress-bar .progress-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+#ai-progress-bar .spinner {
+    margin: 0 10px 0 0;
+    flex-shrink: 0;
+}
+
+#ai-progress-bar .progress-title {
+    font-weight: 600;
+    color: #2271b1;
+    font-size: 14px;
+}
+
+#ai-progress-bar .progress-bar-container {
+    width: 100%;
+    background-color: #f0f0f1;
+    border-radius: 4px;
+    overflow: hidden;
+    height: 8px;
+    position: relative;
+}
+
+#ai-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #2271b1, #72aee6);
+    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+}
+
+#ai-progress-fill::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+#ai-progress-text {
+    font-size: 12px;
+    color: #666;
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+#ai-progress-text::before {
+    content: '●';
+    display: inline-block;
+    animation: pulse 1s infinite;
+    color: #2271b1;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.3;
+    }
+}
+
 /* Bulk Upload Progress */
 .bulk-upload-progress {
     margin: 20px 0;

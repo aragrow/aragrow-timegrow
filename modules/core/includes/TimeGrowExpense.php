@@ -72,6 +72,8 @@ class TimeGrowExpense {
         $expense_pages = [
             'admin_page_' . TIMEGROW_PARENT_MENU . '-expenses',
             'admin_page_' . TIMEGROW_PARENT_MENU . '-expenses-list',
+            'admin_page_' . TIMEGROW_PARENT_MENU . '-expense-add',
+            'admin_page_' . TIMEGROW_PARENT_MENU . '-expense-edit',
         ];
 
         if (!in_array($hook, $expense_pages)) {
@@ -89,6 +91,15 @@ class TimeGrowExpense {
             [
                 'list_url' => admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-expenses-list'),
                 'nonce' => wp_create_nonce('timeflies_expense_nonce') // Pass the nonce to JS
+            ]
+        );
+        // Localize AJAX data for real-time receipt analysis
+        wp_localize_script(
+            'timeflies-expenses-script',
+            'timegrow_ajax',
+            [
+                'ajax_url' => admin_url('admin-ajax.php'),
+                'nonce' => wp_create_nonce('timegrow_ajax_nonce')
             ]
         );
     }
