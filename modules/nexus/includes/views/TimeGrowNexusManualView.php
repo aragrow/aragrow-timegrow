@@ -77,7 +77,6 @@ class TimeGrowNexusManualView {
             </div><!-- .timegrow-debug-panel -->
             <?php endif; ?>
 
-            <h3><?php esc_html_e('Drag and Drop a Project to Enter Time', 'timegrow'); ?></h3>
             <div id="project-tiles-container" class="timegrow-project-tiles" style="float:left">
                 <div class="project-list-container">
                     <?php foreach ($projects as $project) : ?>
