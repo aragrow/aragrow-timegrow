@@ -293,9 +293,22 @@ body {
     border-radius: 0 !important;
 }
 
-/* Hide the entire project tiles section - we'll use dropdown instead */
-.timegrow-manual-page-container #project-tiles-container {
-    display: none !important;
+/* Show dropdown on all devices, hide tiles on mobile only */
+@media (max-width: 782px) {
+    .timegrow-manual-page-container #project-tiles-container {
+        display: none !important;
+    }
+}
+
+/* Make desktop tiles clickable */
+.timegrow-manual-page-container .timegrow-project-tile {
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+}
+
+.timegrow-manual-page-container .timegrow-project-tile:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
 }
 
 /* Hide drop zone - replaced with dropdown */
@@ -316,6 +329,34 @@ body {
     color: #333;
 }
 
+/* Search input styling */
+.timegrow-manual-page-container #project-search {
+    width: 100% !important;
+    min-height: 50px !important;
+    padding: 12px 16px !important;
+    font-size: 16px !important;
+    border: 2px solid #ddd !important;
+    border-radius: 8px !important;
+    background: white !important;
+    color: #333 !important;
+    box-sizing: border-box !important;
+    margin-bottom: 10px !important;
+}
+
+.timegrow-manual-page-container #project-search:focus {
+    outline: none !important;
+    border-color: #667eea !important;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1) !important;
+}
+
+/* Hide the select on mobile (use search only) */
+@media (max-width: 782px) {
+    .timegrow-manual-page-container #mobile-project-selector {
+        display: none !important;
+    }
+}
+
+/* Desktop select styling */
 .timegrow-manual-page-container #mobile-project-selector {
     width: 100% !important;
     min-height: 50px !important;
@@ -430,12 +471,18 @@ body {
     display: none; /* Hide illustration on mobile */
 }
 
-/* Section heading */
+/* Section heading - hide on mobile */
 .timegrow-manual-page-container > h3 {
     font-size: 18px !important;
     margin: 20px 0 12px 0;
     padding: 0 15px;
     font-weight: 600;
+}
+
+@media (max-width: 782px) {
+    .timegrow-manual-page-container > h3 {
+        display: none !important;
+    }
 }
 
 /* Existing entries section */

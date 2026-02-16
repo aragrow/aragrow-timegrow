@@ -7,30 +7,18 @@ jQuery(document).ready(function($) {
   // Detect if device is mobile/touch
   const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
 
-  // Create mobile dropdown if on touch device
-  if (isTouchDevice) {
-    createMobileProjectDropdown();
-  } else {
-    // Desktop: Make project tiles draggable
-    $('.timegrow-project-tile').attr('draggable', true);
+  // Always create dropdown for better UX
+  createProjectDropdown();
 
-    // Desktop drag handlers
-    $('.timegrow-project-tile').on('dragstart', function (e) {
-      e.originalEvent.dataTransfer.setData('project-id', $(this).data('project-id'));
-      e.originalEvent.dataTransfer.setData('name', $(this).data('project-name'));
-      e.originalEvent.dataTransfer.setData('desc', $(this).data('project-desc'));
-      $(this).addClass('dragging');
-    });
-
-    $('.timegrow-project-tile').on('dragend', function (e) {
-      $(this).removeClass('dragging');
-    });
+  // Also enable drag and drop on desktop
+  if (!isTouchDevice) {
+    enableDragAndDrop();
   }
 
   /**
-   * Create mobile-friendly dropdown for project selection
+   * Create dropdown for project selection (works on all devices)
    */
-  function createMobileProjectDropdown() {
+  function createProjectDropdown() {
     // Collect all projects from tiles
     const projects = [];
     $('.timegrow-project-tile').each(function() {
@@ -44,22 +32,54 @@ jQuery(document).ready(function($) {
     // Sort projects alphabetically by name
     projects.sort((a, b) => a.name.localeCompare(b.name));
 
-    // Create dropdown wrapper
+    // Create dropdown wrapper with search
     const $wrapper = $('<div id="mobile-project-selector-wrapper"></div>');
     const $label = $('<label for="mobile-project-selector">Select Project</label>');
+
+    // Add search input
+    const $searchInput = $('<input type="text" id="project-search" placeholder="Search projects..." />');
+
+    // Create datalist for native autocomplete
+    const $datalist = $('<datalist id="projects-datalist"></datalist>');
     const $select = $('<select id="mobile-project-selector"></select>');
 
     // Add default option
     $select.append('<option value="">-- Choose a Project --</option>');
 
-    // Add project options
+    // Add project options to both select and datalist
     projects.forEach(function(project) {
       $select.append(`<option value="${project.id}">${project.name}</option>`);
+      $datalist.append(`<option value="${project.name}" data-id="${project.id}">${project.name}</option>`);
     });
 
+    // Link search to datalist
+    $searchInput.attr('list', 'projects-datalist');
+
     // Assemble and insert before form
-    $wrapper.append($label).append($select);
+    $wrapper.append($label).append($searchInput).append($datalist).append($select);
     $('#timegrow-nexus-entry-form').prepend($wrapper);
+
+    // Handle search input selection
+    $searchInput.on('input change', function() {
+      const searchValue = $(this).val();
+      const selectedProject = projects.find(p => p.name === searchValue);
+
+      if (selectedProject) {
+        $select.val(selectedProject.id).trigger('change');
+        $(this).blur(); // Hide keyboard on mobile
+      }
+    });
+
+    // Handle direct select change
+    $select.on('change', function() {
+      const projectId = $(this).val();
+      if (projectId) {
+        const selectedProject = projects.find(p => p.id == projectId);
+        $searchInput.val(selectedProject.name);
+      } else {
+        $searchInput.val('');
+      }
+    });
 
     // Handle selection
     $select.on('change', function() {
@@ -71,6 +91,13 @@ jQuery(document).ready(function($) {
         // Update hidden field
         $('#project_id').val(projectId);
 
+        // Update drop zone to show selection
+        $('#drop-zone')
+          .html(`✓ Project Selected: <strong>${selectedProject.name}</strong>`)
+          .css('color', '#46b450')
+          .css('background-color', '#e8f5e9')
+          .css('border-color', '#46b450');
+
         // Enable submit button
         updateButtonState();
 
@@ -80,7 +107,45 @@ jQuery(document).ready(function($) {
       } else {
         // Reset if no selection
         $('#project_id').val('');
+        $('#drop-zone')
+          .html('Drop Project Here')
+          .css('color', '')
+          .css('background-color', '')
+          .css('border-color', '');
         $clockButton.removeClass('active').addClass('disabled');
+      }
+    });
+  }
+
+  /**
+   * Enable drag and drop for desktop users
+   */
+  function enableDragAndDrop() {
+    // Make project tiles draggable
+    $('.timegrow-project-tile').attr('draggable', true);
+
+    // Desktop drag handlers
+    $('.timegrow-project-tile').on('dragstart', function (e) {
+      e.originalEvent.dataTransfer.setData('project-id', $(this).data('project-id'));
+      e.originalEvent.dataTransfer.setData('name', $(this).data('project-name'));
+      e.originalEvent.dataTransfer.setData('desc', $(this).data('project-desc'));
+      $(this).addClass('dragging');
+    });
+
+    $('.timegrow-project-tile').on('dragend', function (e) {
+      $(this).removeClass('dragging');
+    });
+
+    // Also allow click to select on desktop
+    $('.timegrow-project-tile').on('click', function(e) {
+      e.preventDefault();
+
+      const projectId = $(this).data('project-id');
+      const projectName = $(this).data('project-name');
+
+      if (projectId) {
+        // Update dropdown to match selection
+        $('#mobile-project-selector').val(projectId).trigger('change');
       }
     });
   }
