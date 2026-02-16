@@ -1,0 +1,269 @@
+/**
+ * TimeGrow Mobile-Only Mode Styles
+ *
+ * Optimized styling for mobile-only users
+ *
+ * @package TimeGrow
+ * @subpackage Mobile
+ * @since 2.1.0
+ */
+
+/* Hide admin bar completely */
+#wpadminbar {
+    display: none !important;
+}
+
+html {
+    margin-top: 0 !important;
+}
+
+/* Simplify WordPress admin interface */
+#wpbody-content {
+    padding-bottom: 20px;
+}
+
+/* Hide unnecessary UI elements */
+.wrap > h1 .page-title-action,
+.wrap > .wp-heading-inline + .page-title-action,
+.subsubsub,
+.tablenav,
+.search-box,
+.view-switch,
+.displaying-num {
+    display: none !important;
+}
+
+/* Make buttons touch-friendly */
+.button,
+input[type="submit"],
+input[type="button"],
+.btn {
+    min-height: 44px !important;
+    padding: 10px 20px !important;
+    font-size: 16px !important;
+}
+
+/* Larger form inputs */
+input[type="text"],
+input[type="email"],
+input[type="number"],
+input[type="tel"],
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"],
+select,
+textarea {
+    min-height: 44px !important;
+    font-size: 16px !important;
+    padding: 10px !important;
+}
+
+/* Mobile Header with Hamburger */
+.timegrow-mobile-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 50px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    display: flex;
+    align-items: center;
+    padding: 0 15px;
+    z-index: 10000;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.timegrow-mobile-hamburger {
+    background: transparent;
+    border: none;
+    color: white;
+    cursor: pointer;
+    padding: 8px;
+    margin-right: 15px;
+    transition: transform 0.3s;
+}
+
+.timegrow-mobile-hamburger.active {
+    transform: rotate(90deg);
+}
+
+.timegrow-mobile-hamburger .dashicons {
+    font-size: 28px;
+    width: 28px;
+    height: 28px;
+}
+
+.timegrow-mobile-title {
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+/* Slide-out Menu */
+.timegrow-mobile-menu {
+    position: fixed;
+    top: 50px;
+    left: -280px;
+    width: 280px;
+    height: calc(100vh - 50px);
+    background: white;
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+    z-index: 9999;
+    transition: left 0.3s ease-in-out;
+    overflow-y: auto;
+}
+
+.timegrow-mobile-menu.open {
+    left: 0;
+}
+
+.timegrow-mobile-menu-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.timegrow-mobile-menu-item {
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.timegrow-mobile-menu-item.active {
+    background: #f0f6fc;
+}
+
+.timegrow-mobile-menu-item a {
+    display: flex;
+    align-items: center;
+    padding: 18px 20px;
+    text-decoration: none;
+    color: #333;
+    font-size: 16px;
+    font-weight: 500;
+    transition: background 0.2s;
+}
+
+.timegrow-mobile-menu-item a:hover {
+    background: #f6f7f7;
+}
+
+.timegrow-mobile-menu-item.active a {
+    color: #2271b1;
+}
+
+.timegrow-mobile-menu-item .dashicons {
+    font-size: 24px;
+    width: 24px;
+    height: 24px;
+    margin-right: 15px;
+}
+
+/* Menu overlay when open */
+.timegrow-mobile-menu.open::after {
+    content: '';
+    position: fixed;
+    top: 50px;
+    left: 280px;
+    width: calc(100vw - 280px);
+    height: calc(100vh - 50px);
+    background: rgba(0, 0, 0, 0.3);
+    z-index: -1;
+}
+
+/* Simplify table display on mobile */
+@media (max-width: 782px) {
+    .wp-list-table {
+        font-size: 14px;
+    }
+
+    .wp-list-table th,
+    .wp-list-table td {
+        padding: 12px 8px;
+    }
+
+    /* Stack table actions */
+    .row-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 8px;
+    }
+
+    .row-actions span {
+        display: block;
+    }
+}
+
+/* High contrast for outdoor visibility */
+body {
+    font-size: 16px;
+    line-height: 1.5;
+}
+
+.wrap h1,
+.wrap h2 {
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 16px;
+}
+
+/* Improve readability */
+.wrap {
+    padding: 16px;
+}
+
+/* Large tap targets for common actions */
+.timegrow-clock-btn,
+.timegrow-submit-btn {
+    min-height: 54px !important;
+    font-size: 18px !important;
+    font-weight: 600 !important;
+}
+
+/* Optimize spacing */
+.form-table th,
+.form-table td {
+    padding: 16px 10px;
+}
+
+/* Hide breadcrumbs and help text */
+.breadcrumbs,
+.contextual-help-tabs,
+.screen-meta-toggle {
+    display: none !important;
+}
+
+/* Simplify notices */
+.notice {
+    margin: 16px 0;
+    padding: 12px;
+    border-left-width: 4px;
+}
+
+/* Optimize for portrait orientation */
+@media (orientation: portrait) {
+    .wrap {
+        max-width: 100%;
+    }
+
+    .wp-list-table {
+        overflow-x: auto;
+    }
+}
+
+/* Hide sidebar if present */
+#adminmenuwrap,
+#adminmenu {
+    display: none !important;
+}
+
+#wpcontent {
+    margin-left: 0 !important;
+    padding-left: 0 !important;
+}
+
+/* Full width content */
+.wrap {
+    margin-right: 0;
+    margin-left: 0;
+}
