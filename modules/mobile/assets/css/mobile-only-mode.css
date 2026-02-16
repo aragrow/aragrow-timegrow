@@ -281,103 +281,53 @@ body {
     border-radius: 8px !important;
 }
 
-/* Project tiles full width and no float */
-.timegrow-manual-page-container #project-tiles-container,
-.timegrow-manual-page-container #project-tiles-container.timegrow-project-tiles {
-    width: 100% !important;
-    float: none !important;
-    margin-bottom: 20px !important;
-    padding: 10px !important;
-    background: transparent !important;
+/* Hide the entire project tiles section - we'll use dropdown instead */
+.timegrow-manual-page-container #project-tiles-container {
+    display: none !important;
 }
 
-/* Make project tiles stack vertically - override grid */
-.timegrow-manual-page-container .project-list-container {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 8px !important;
-    width: 100% !important;
-    grid-template-columns: none !important;
+/* Hide drop zone - replaced with dropdown */
+.timegrow-manual-page-container #project-drop-section {
+    display: none !important;
 }
 
-/* Individual project tile styling for mobile - compact list style */
-.timegrow-manual-page-container .timegrow-project-tile {
+/* Project dropdown selector for mobile */
+.timegrow-manual-page-container #mobile-project-selector-wrapper {
+    margin-bottom: 20px;
+}
+
+.timegrow-manual-page-container #mobile-project-selector-wrapper label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    font-size: 15px;
+    color: #333;
+}
+
+.timegrow-manual-page-container #mobile-project-selector {
     width: 100% !important;
-    max-width: 100% !important;
-    padding: 14px 16px !important;
-    margin: 0 !important;
+    min-height: 50px !important;
+    padding: 12px 16px !important;
+    font-size: 16px !important;
+    border: 2px solid #ddd !important;
     border-radius: 8px !important;
     background: white !important;
     color: #333 !important;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+    box-sizing: border-box !important;
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    background-image: url('data:image/svg+xml;charset=UTF-8,%3Csvg xmlns="http://www.w3.org/2000/svg" width="12" height="8" viewBox="0 0 12 8"%3E%3Cpath fill="%23333" d="M6 8L0 0h12z"/%3E%3C/svg%3E') !important;
+    background-repeat: no-repeat !important;
+    background-position: right 16px center !important;
+    background-size: 12px !important;
+    padding-right: 40px !important;
     cursor: pointer !important;
-    transition: all 0.2s ease !important;
-    touch-action: manipulation !important;
-    border: 2px solid #e0e0e0 !important;
-    display: flex !important;
-    flex-direction: row !important;
-    align-items: center !important;
-    justify-content: space-between !important;
-    text-align: left !important;
-    min-height: 60px !important;
 }
 
-.timegrow-manual-page-container .timegrow-project-tile:hover,
-.timegrow-manual-page-container .timegrow-project-tile:focus-within {
-    transform: none !important;
-    box-shadow: 0 2px 6px rgba(102, 126, 234, 0.2) !important;
+.timegrow-manual-page-container #mobile-project-selector:focus {
+    outline: none !important;
     border-color: #667eea !important;
-}
-
-.timegrow-manual-page-container .timegrow-project-tile:active {
-    transform: scale(0.99) !important;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) !important;
-}
-
-.timegrow-manual-page-container .timegrow-project-tile h3 {
-    margin: 0 !important;
-    padding: 0 !important;
-    font-size: 15px !important;
-    font-weight: 600 !important;
-    color: #333 !important;
-    text-align: left !important;
-    line-height: 1.4 !important;
-    flex: 1 !important;
-    padding-right: 12px !important;
-}
-
-.timegrow-manual-page-container .timegrow-project-tile p {
-    display: none !important; /* Hide description to save space */
-}
-
-/* Hide any pseudo-elements from desktop styling */
-.timegrow-manual-page-container .timegrow-project-tile::before {
-    display: none !important;
-}
-
-/* Hide project logo placeholder if present */
-.timegrow-manual-page-container .timegrow-project-tile .project-logo-placeholder {
-    display: none !important;
-}
-
-/* Hide contact info if present */
-.timegrow-manual-page-container .timegrow-project-tile .project-contact-info {
-    display: none !important;
-}
-
-/* Drop zone optimization for mobile */
-.timegrow-manual-page-container .timegrow-drop-zone {
-    min-height: 80px !important;
-    height: auto !important;
-    padding: 20px;
-    font-size: 16px !important;
-    border-width: 3px !important;
-    margin: 10px 0;
-}
-
-.timegrow-manual-page-container .drop-zone-text {
-    font-size: 15px !important;
-    margin-bottom: 8px;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1) !important;
 }
 
 /* Form field optimization */
@@ -574,17 +524,17 @@ body {
         position: relative;
     }
 
-    /* Chevron icon to indicate tap */
+    /* Chevron icon to indicate tap - iOS style */
     .timegrow-manual-page-container .timegrow-project-tile::after {
         content: '›' !important;
         display: flex !important;
         align-items: center;
         justify-content: center;
-        font-size: 24px !important;
-        font-weight: normal !important;
-        color: #999 !important;
-        width: 30px !important;
-        height: 30px !important;
+        font-size: 20px !important;
+        font-weight: 300 !important;
+        color: #c7c7cc !important;
+        width: 20px !important;
+        height: 20px !important;
         flex-shrink: 0 !important;
         background: transparent !important;
         border-radius: 0 !important;
@@ -595,24 +545,25 @@ body {
         letter-spacing: normal !important;
     }
 
-    /* Selected project state - green with checkmark */
+    /* Selected project state - subtle green tint */
     .timegrow-manual-page-container .timegrow-project-tile.selected {
         opacity: 1 !important;
-        box-shadow: 0 2px 8px rgba(70, 180, 80, 0.3) !important;
+        box-shadow: none !important;
         transform: none !important;
-        border: 2px solid #46b450 !important;
-        background: #f0f9f4 !important;
+        border-bottom: 1px solid #e5e5e5 !important;
+        background: #f0fdf4 !important;
     }
 
     .timegrow-manual-page-container .timegrow-project-tile.selected h3 {
-        color: #2d8a3e !important;
+        color: #16a34a !important;
+        font-weight: 500 !important;
     }
 
     .timegrow-manual-page-container .timegrow-project-tile.selected::after {
         content: '✓' !important;
-        color: #46b450 !important;
-        font-size: 22px !important;
-        font-weight: bold !important;
+        color: #16a34a !important;
+        font-size: 18px !important;
+        font-weight: 600 !important;
     }
 
     .timegrow-manual-page-container .timegrow-project-tile.selected::before {

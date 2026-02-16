@@ -7,54 +7,80 @@ jQuery(document).ready(function($) {
   // Detect if device is mobile/touch
   const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
 
-  // Make project tiles draggable (for desktop)
-  $('.timegrow-project-tile').attr('draggable', true);
-
-  // Desktop drag handlers
-  $('.timegrow-project-tile').on('dragstart', function (e) {
-    e.originalEvent.dataTransfer.setData('project-id', $(this).data('project-id'));
-    e.originalEvent.dataTransfer.setData('name', $(this).data('project-name'));
-    e.originalEvent.dataTransfer.setData('desc', $(this).data('project-desc'));
-    $(this).addClass('dragging');
-  });
-
-  $('.timegrow-project-tile').on('dragend', function (e) {
-    $(this).removeClass('dragging');
-  });
-
-  // Mobile tap-to-select handler
+  // Create mobile dropdown if on touch device
   if (isTouchDevice) {
-    $('.timegrow-project-tile').on('click touchend', function(e) {
-      e.preventDefault();
-      e.stopPropagation();
+    createMobileProjectDropdown();
+  } else {
+    // Desktop: Make project tiles draggable
+    $('.timegrow-project-tile').attr('draggable', true);
 
-      const projectId = $(this).data('project-id');
-      const projectName = $(this).data('project-name');
-      const projectDesc = $(this).data('project-desc');
+    // Desktop drag handlers
+    $('.timegrow-project-tile').on('dragstart', function (e) {
+      e.originalEvent.dataTransfer.setData('project-id', $(this).data('project-id'));
+      e.originalEvent.dataTransfer.setData('name', $(this).data('project-name'));
+      e.originalEvent.dataTransfer.setData('desc', $(this).data('project-desc'));
+      $(this).addClass('dragging');
+    });
+
+    $('.timegrow-project-tile').on('dragend', function (e) {
+      $(this).removeClass('dragging');
+    });
+  }
+
+  /**
+   * Create mobile-friendly dropdown for project selection
+   */
+  function createMobileProjectDropdown() {
+    // Collect all projects from tiles
+    const projects = [];
+    $('.timegrow-project-tile').each(function() {
+      projects.push({
+        id: $(this).data('project-id'),
+        name: $(this).data('project-name'),
+        desc: $(this).data('project-desc')
+      });
+    });
+
+    // Sort projects alphabetically by name
+    projects.sort((a, b) => a.name.localeCompare(b.name));
+
+    // Create dropdown wrapper
+    const $wrapper = $('<div id="mobile-project-selector-wrapper"></div>');
+    const $label = $('<label for="mobile-project-selector">Select Project</label>');
+    const $select = $('<select id="mobile-project-selector"></select>');
+
+    // Add default option
+    $select.append('<option value="">-- Choose a Project --</option>');
+
+    // Add project options
+    projects.forEach(function(project) {
+      $select.append(`<option value="${project.id}">${project.name}</option>`);
+    });
+
+    // Assemble and insert before form
+    $wrapper.append($label).append($select);
+    $('#timegrow-nexus-entry-form').prepend($wrapper);
+
+    // Handle selection
+    $select.on('change', function() {
+      const projectId = $(this).val();
 
       if (projectId) {
-        // Visual feedback
-        $('.timegrow-project-tile').removeClass('selected').css('opacity', 0.5);
-        $(this).addClass('selected').css('opacity', 1);
+        const selectedProject = projects.find(p => p.id == projectId);
 
-        // Update form
+        // Update hidden field
         $('#project_id').val(projectId);
-        $('#drop-zone')
-          .html(`✓ Project Selected: <strong>${projectName}</strong><br><small>${projectDesc}</small>`)
-          .css('color', '#46b450')
-          .css('background-color', '#e8f5e9')
-          .css('border-color', '#46b450');
 
+        // Enable submit button
         updateButtonState();
 
         // Check if billable
         const objectId = $('#nexus-manual_billable');
         checkIsBillable(projectId, objectId);
-
-        // Smooth scroll to form
-        $('html, body').animate({
-          scrollTop: $('#timegrow-nexus-entry-form').offset().top - 20
-        }, 300);
+      } else {
+        // Reset if no selection
+        $('#project_id').val('');
+        $clockButton.removeClass('active').addClass('disabled');
       }
     });
   }
