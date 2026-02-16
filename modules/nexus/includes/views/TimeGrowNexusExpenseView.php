@@ -66,8 +66,8 @@ class TimeGrowNexusExpenseView {
                 </details>
             </div><!-- .timegrow-debug-panel -->
             <?php endif; ?>
-            <!-- Client Tiles (conditionally shown when clocked out) -->
-            <div id="project-tiles-container" class="timegrow-project-tiles">          
+            <!-- Project Tiles (hidden but needed for dropdown data source) -->
+            <div id="project-tiles-container" class="timegrow-project-tiles" style="display:none">          
                 <div class="project-list-container">                            
                     <?php foreach ($projects as $project) : ?>
                     <div class="timegrow-project-tile" draggable="true" data-project-id="<?php echo esc_attr($project->ID); ?>" data-project-name="<?php echo esc_attr($project->name) ?>" data-project-desc="<?php echo esc_attr($project->description) ?>">
