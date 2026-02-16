@@ -5,9 +5,6 @@ jQuery(document).ready(function($) {
     // Detect if device is mobile/touch
     const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
 
-    // Create searchable dropdown
-    createProjectDropdown();
-
     // --- DOM Elements ---
     const $projectTiles = $('.timegrow-project-tile');
     const $expenseProjectDropDisplay = $('#expense-drop-zone-display'); // Updated ID
@@ -136,6 +133,9 @@ jQuery(document).ready(function($) {
             });
         }
     }
+
+    // Create searchable dropdown (call after all variables are defined)
+    createProjectDropdown();
 
     // --- Project Tile Drag/Drop Logic ---
     $projectTiles.attr('draggable', true);
