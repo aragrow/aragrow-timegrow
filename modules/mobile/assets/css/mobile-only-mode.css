@@ -267,3 +267,435 @@ body {
     margin-right: 0;
     margin-left: 0;
 }
+
+/* ===== MANUAL ENTRY PAGE MOBILE OPTIMIZATION ===== */
+
+/* Make manual entry container full width on mobile */
+.timegrow-manual-page-container .timegrow-nexus-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 15px 0 !important;
+    padding: 20px !important;
+    float: none !important;
+    box-shadow: none !important;
+    border-radius: 8px !important;
+}
+
+/* Project tiles full width and no float */
+.timegrow-manual-page-container #project-tiles-container,
+.timegrow-manual-page-container #project-tiles-container.timegrow-project-tiles {
+    width: 100% !important;
+    float: none !important;
+    margin-bottom: 20px !important;
+    padding: 10px !important;
+    background: transparent !important;
+}
+
+/* Make project tiles stack vertically - override grid */
+.timegrow-manual-page-container .project-list-container {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    width: 100% !important;
+    grid-template-columns: none !important;
+}
+
+/* Individual project tile styling for mobile - compact list style */
+.timegrow-manual-page-container .timegrow-project-tile {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 14px 16px !important;
+    margin: 0 !important;
+    border-radius: 8px !important;
+    background: white !important;
+    color: #333 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    touch-action: manipulation !important;
+    border: 2px solid #e0e0e0 !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    text-align: left !important;
+    min-height: 60px !important;
+}
+
+.timegrow-manual-page-container .timegrow-project-tile:hover,
+.timegrow-manual-page-container .timegrow-project-tile:focus-within {
+    transform: none !important;
+    box-shadow: 0 2px 6px rgba(102, 126, 234, 0.2) !important;
+    border-color: #667eea !important;
+}
+
+.timegrow-manual-page-container .timegrow-project-tile:active {
+    transform: scale(0.99) !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) !important;
+}
+
+.timegrow-manual-page-container .timegrow-project-tile h3 {
+    margin: 0 !important;
+    padding: 0 !important;
+    font-size: 15px !important;
+    font-weight: 600 !important;
+    color: #333 !important;
+    text-align: left !important;
+    line-height: 1.4 !important;
+    flex: 1 !important;
+    padding-right: 12px !important;
+}
+
+.timegrow-manual-page-container .timegrow-project-tile p {
+    display: none !important; /* Hide description to save space */
+}
+
+/* Hide any pseudo-elements from desktop styling */
+.timegrow-manual-page-container .timegrow-project-tile::before {
+    display: none !important;
+}
+
+/* Hide project logo placeholder if present */
+.timegrow-manual-page-container .timegrow-project-tile .project-logo-placeholder {
+    display: none !important;
+}
+
+/* Hide contact info if present */
+.timegrow-manual-page-container .timegrow-project-tile .project-contact-info {
+    display: none !important;
+}
+
+/* Drop zone optimization for mobile */
+.timegrow-manual-page-container .timegrow-drop-zone {
+    min-height: 80px !important;
+    height: auto !important;
+    padding: 20px;
+    font-size: 16px !important;
+    border-width: 3px !important;
+    margin: 10px 0;
+}
+
+.timegrow-manual-page-container .drop-zone-text {
+    font-size: 15px !important;
+    margin-bottom: 8px;
+}
+
+/* Form field optimization */
+.timegrow-manual-page-container #timegrow-nexus-entry-form label {
+    display: block;
+    margin: 20px 0 8px 0;
+    font-weight: 600;
+    font-size: 15px;
+    color: #333;
+}
+
+.timegrow-manual-page-container #timegrow-nexus-entry-form input[type="date"],
+.timegrow-manual-page-container #timegrow-nexus-entry-form select,
+.timegrow-manual-page-container #timegrow-nexus-entry-form textarea {
+    width: 100% !important;
+    min-height: 48px !important;
+    padding: 12px !important;
+    font-size: 16px !important;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    box-sizing: border-box;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.timegrow-manual-page-container #timegrow-nexus-entry-form textarea {
+    min-height: 100px !important;
+    resize: vertical;
+}
+
+/* Checkbox styling for mobile */
+.timegrow-manual-page-container #timegrow-nexus-entry-form input[type="checkbox"] {
+    width: 24px !important;
+    height: 24px !important;
+    margin-right: 10px;
+    cursor: pointer;
+}
+
+/* Submit button full width and prominent */
+.timegrow-manual-page-container #timegrow-submit {
+    width: 100% !important;
+    min-height: 54px !important;
+    font-size: 18px !important;
+    font-weight: 700 !important;
+    border-radius: 8px !important;
+    margin-top: 20px !important;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.timegrow-manual-page-container #timegrow-submit:not(.disabled):active {
+    transform: scale(0.98);
+}
+
+.timegrow-manual-page-container #timegrow-submit.disabled {
+    background: #ccc !important;
+    color: #666 !important;
+    box-shadow: none !important;
+}
+
+/* Hide page title on mobile to save space */
+.timegrow-manual-page-container .timegrow-modern-header {
+    padding: 15px;
+    margin-bottom: 15px;
+}
+
+.timegrow-manual-page-container .timegrow-modern-header h1 {
+    font-size: 22px !important;
+    margin: 0 0 5px 0;
+}
+
+.timegrow-manual-page-container .timegrow-modern-header .subtitle {
+    font-size: 14px;
+    color: #666;
+}
+
+.timegrow-manual-page-container .timegrow-header-illustration {
+    display: none; /* Hide illustration on mobile */
+}
+
+/* Section heading */
+.timegrow-manual-page-container > h3 {
+    font-size: 18px !important;
+    margin: 20px 0 12px 0;
+    padding: 0 15px;
+    font-weight: 600;
+}
+
+/* Existing entries section */
+.timegrow-manual-page-container h2 {
+    font-size: 20px !important;
+    margin: 30px 0 12px 0;
+    padding: 0 15px;
+}
+
+.timegrow-manual-page-container .time-entries {
+    padding: 0 15px;
+    margin-top: 20px;
+}
+
+/* Make table responsive */
+.timegrow-manual-page-container .time-entries table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.timegrow-manual-page-container .time-entries th,
+.timegrow-manual-page-container .time-entries td {
+    padding: 12px 8px;
+    text-align: left;
+    border: 1px solid #ddd;
+}
+
+.timegrow-manual-page-container .time-entries th {
+    background: #f5f5f5;
+    font-weight: 600;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Filter form */
+.timegrow-manual-page-container .filter-form {
+    margin: 15px 0 !important;
+}
+
+.timegrow-manual-page-container .filter-form select {
+    min-height: 44px !important;
+    padding: 10px !important;
+    font-size: 16px !important;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    width: 100%;
+    max-width: 300px;
+}
+
+/* Pagination */
+.timegrow-manual-page-container .pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+    margin: 20px 0;
+    padding: 15px;
+}
+
+.timegrow-manual-page-container .pagination a {
+    padding: 10px 16px;
+    background: #667eea;
+    color: white;
+    text-decoration: none;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 14px;
+    transition: background 0.2s;
+}
+
+.timegrow-manual-page-container .pagination a:active {
+    background: #5568d3;
+}
+
+.timegrow-manual-page-container .pagination span {
+    font-weight: 600;
+    color: #333;
+}
+
+/* Clear floats */
+.timegrow-manual-page-container::after {
+    content: '';
+    display: table;
+    clear: both;
+}
+
+/* Improve drag visual feedback on mobile */
+.timegrow-manual-page-container .timegrow-project-tile.dragging {
+    opacity: 0.5;
+    transform: scale(1.05);
+}
+
+.timegrow-manual-page-container .timegrow-drop-zone.dragging-over {
+    background-color: #e8f5e9 !important;
+    border-color: #46b450 !important;
+    color: #46b450 !important;
+    border-width: 3px !important;
+}
+
+/* Tap to select project alternative for mobile */
+@media (max-width: 782px) {
+    .timegrow-manual-page-container .timegrow-project-tile {
+        position: relative;
+    }
+
+    /* Chevron icon to indicate tap */
+    .timegrow-manual-page-container .timegrow-project-tile::after {
+        content: '›' !important;
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px !important;
+        font-weight: normal !important;
+        color: #999 !important;
+        width: 30px !important;
+        height: 30px !important;
+        flex-shrink: 0 !important;
+        background: transparent !important;
+        border-radius: 0 !important;
+        padding: 0 !important;
+        position: static !important;
+        transform: none !important;
+        text-transform: none !important;
+        letter-spacing: normal !important;
+    }
+
+    /* Selected project state - green with checkmark */
+    .timegrow-manual-page-container .timegrow-project-tile.selected {
+        opacity: 1 !important;
+        box-shadow: 0 2px 8px rgba(70, 180, 80, 0.3) !important;
+        transform: none !important;
+        border: 2px solid #46b450 !important;
+        background: #f0f9f4 !important;
+    }
+
+    .timegrow-manual-page-container .timegrow-project-tile.selected h3 {
+        color: #2d8a3e !important;
+    }
+
+    .timegrow-manual-page-container .timegrow-project-tile.selected::after {
+        content: '✓' !important;
+        color: #46b450 !important;
+        font-size: 22px !important;
+        font-weight: bold !important;
+    }
+
+    .timegrow-manual-page-container .timegrow-project-tile.selected::before {
+        display: none !important;
+    }
+
+    /* Ensure full width and proper spacing on mobile */
+    .timegrow-manual-page-container {
+        padding: 0 !important;
+    }
+
+    .timegrow-manual-page-container .wrap {
+        padding: 10px !important;
+    }
+
+    /* Hide duplicate drop zone if present */
+    .timegrow-manual-page-container #project-drop-section:nth-of-type(2) {
+        display: none !important;
+    }
+}
+
+/* Extra small screens (phones in portrait) */
+@media (max-width: 480px) {
+    .timegrow-manual-page-container .timegrow-modern-header h1 {
+        font-size: 20px !important;
+    }
+
+    .timegrow-manual-page-container .timegrow-modern-header .subtitle {
+        font-size: 13px;
+    }
+
+    .timegrow-manual-page-container .timegrow-project-tile {
+        padding: 14px !important;
+    }
+
+    .timegrow-manual-page-container .timegrow-project-tile h3 {
+        font-size: 16px;
+    }
+
+    .timegrow-manual-page-container .timegrow-project-tile p {
+        font-size: 13px;
+    }
+
+    .timegrow-manual-page-container .timegrow-nexus-container {
+        padding: 16px !important;
+    }
+
+    .timegrow-manual-page-container #timegrow-nexus-entry-form label {
+        font-size: 14px;
+    }
+
+    /* Smaller table text on very small screens */
+    .timegrow-manual-page-container .time-entries table {
+        font-size: 13px;
+    }
+
+    .timegrow-manual-page-container .time-entries th,
+    .timegrow-manual-page-container .time-entries td {
+        padding: 10px 6px;
+    }
+}
+
+/* Landscape orientation optimizations */
+@media (max-width: 782px) and (orientation: landscape) {
+    .timegrow-manual-page-container .timegrow-modern-header {
+        padding: 10px;
+    }
+
+    .timegrow-manual-page-container .timegrow-modern-header h1 {
+        font-size: 18px !important;
+        margin: 0;
+    }
+
+    .timegrow-manual-page-container .timegrow-modern-header .subtitle {
+        display: none; /* Hide subtitle in landscape to save space */
+    }
+
+    .timegrow-manual-page-container .timegrow-project-tile {
+        padding: 12px !important;
+    }
+
+    .timegrow-manual-page-container .timegrow-drop-zone {
+        min-height: 60px !important;
+        padding: 15px;
+    }
+}

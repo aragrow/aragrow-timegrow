@@ -4,14 +4,60 @@ jQuery(document).ready(function($) {
   const $clockButton = $('#timegrow-submit');
   const $isBillable = $('#nexus-manual_billable');
 
-  // Make project tiles draggable
+  // Detect if device is mobile/touch
+  const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+
+  // Make project tiles draggable (for desktop)
   $('.timegrow-project-tile').attr('draggable', true);
 
+  // Desktop drag handlers
   $('.timegrow-project-tile').on('dragstart', function (e) {
     e.originalEvent.dataTransfer.setData('project-id', $(this).data('project-id'));
     e.originalEvent.dataTransfer.setData('name', $(this).data('project-name'));
     e.originalEvent.dataTransfer.setData('desc', $(this).data('project-desc'));
+    $(this).addClass('dragging');
   });
+
+  $('.timegrow-project-tile').on('dragend', function (e) {
+    $(this).removeClass('dragging');
+  });
+
+  // Mobile tap-to-select handler
+  if (isTouchDevice) {
+    $('.timegrow-project-tile').on('click touchend', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const projectId = $(this).data('project-id');
+      const projectName = $(this).data('project-name');
+      const projectDesc = $(this).data('project-desc');
+
+      if (projectId) {
+        // Visual feedback
+        $('.timegrow-project-tile').removeClass('selected').css('opacity', 0.5);
+        $(this).addClass('selected').css('opacity', 1);
+
+        // Update form
+        $('#project_id').val(projectId);
+        $('#drop-zone')
+          .html(`✓ Project Selected: <strong>${projectName}</strong><br><small>${projectDesc}</small>`)
+          .css('color', '#46b450')
+          .css('background-color', '#e8f5e9')
+          .css('border-color', '#46b450');
+
+        updateButtonState();
+
+        // Check if billable
+        const objectId = $('#nexus-manual_billable');
+        checkIsBillable(projectId, objectId);
+
+        // Smooth scroll to form
+        $('html, body').animate({
+          scrollTop: $('#timegrow-nexus-entry-form').offset().top - 20
+        }, 300);
+      }
+    });
+  }
 
   $('#drop-zone')
     .on('dragover', function (e) {
