@@ -55,8 +55,8 @@ jQuery(document).ready(function($) {
     // Link search to datalist
     $searchInput.attr('list', 'projects-datalist');
 
-    // Assemble and insert before form
-    $wrapper.append($label).append($searchInput).append($datalist).append($select);
+    // Assemble and insert before form (hide the select dropdown, keep for data management)
+    $wrapper.append($label).append($searchInput).append($datalist).append($select.hide());
     $('#timegrow-nexus-entry-form').prepend($wrapper);
 
     // Handle search input selection
@@ -108,7 +108,7 @@ jQuery(document).ready(function($) {
         // Reset if no selection
         $('#project_id').val('');
         $('#drop-zone')
-          .html('Drop Project Here')
+          .html('No Project Selected')
           .css('color', '')
           .css('background-color', '')
           .css('border-color', '');

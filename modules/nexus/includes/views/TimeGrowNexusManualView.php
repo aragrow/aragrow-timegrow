@@ -77,20 +77,19 @@ class TimeGrowNexusManualView {
             </div><!-- .timegrow-debug-panel -->
             <?php endif; ?>
 
-            <div id="project-tiles-container" class="timegrow-project-tiles" style="float:left">
+            <!-- Project Tiles (hidden but needed for dropdown data source) -->
+            <div id="project-tiles-container" class="timegrow-project-tiles" style="display:none">
                 <div class="project-list-container">
                     <?php foreach ($projects as $project) : ?>
                     <div class="timegrow-project-tile" draggable="true" data-project-id="<?php echo esc_attr($project->ID); ?>" data-project-name="<?php echo esc_attr($project->name)?>" data-project-desc="<?php echo esc_attr($project->description) ?>">
                         <h3><?php echo esc_html($project->name); ?></h3>
-                        <p><?php echo esc_html($project->description); ?></p>    
+                        <p><?php echo esc_html($project->description); ?></p>
                     </div>
                     <?php endforeach; ?>
                 </div>
             </div>
 
-
-
-            <div class="timegrow-nexus-container"  style="float:left">
+            <div class="timegrow-nexus-container">
                 <!-- Manual Entry Form -->
                     <form id="timegrow-nexus-entry-form" class="wp-core-ui" method="POST" enctype="multipart/form-data">
                     <input type="hidden" name="time_entry_id" value="0">
@@ -100,15 +99,10 @@ class TimeGrowNexusManualView {
                     <input type="hidden" id="project_id" name="project_id" value="0" />
                     <input type="hidden" name="entry_type" value="MAN" />
                     <?php wp_nonce_field('timegrow_time_nexus_nonce', 'timegrow_time_nexus_nonce_field'); ?>
-                    <!-- Project Drop Section -->
+
+                    <!-- Project Selection Feedback -->
                     <div id="project-drop-section" class="timegrow-drop-section">
-                        <p class="drop-zone-text"><?php esc_html_e('Drop a Project here to assign', 'timegrow'); ?></p>
-                        <div id="drop-zone" class="timegrow-drop-zone"><?php esc_html_e('Drop Project Here', 'timegrow'); ?></div>
-                    </div>
-                    <!-- Drop Zone Section (conditionally shown) -->
-                    <div id="project-drop-section" class="timegrow-drop-section" style="display: none;">
-                        <p class="drop-zone-text">Drop a project here</p>
-                        <div id="drop-zone" class="timegrow-drop-zone"></div>
+                        <div id="drop-zone" class="timegrow-drop-zone"><?php esc_html_e('No Project Selected', 'timegrow'); ?></div>
                     </div>
 
                     <?php

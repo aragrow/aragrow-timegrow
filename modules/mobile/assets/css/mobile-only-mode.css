@@ -293,12 +293,8 @@ body {
     border-radius: 0 !important;
 }
 
-/* Show dropdown on all devices, hide tiles on mobile only */
-@media (max-width: 782px) {
-    .timegrow-manual-page-container #project-tiles-container {
-        display: none !important;
-    }
-}
+/* Show both dropdown and tiles on all devices (manual page works same on mobile/desktop) */
+/* Tiles are visible and clickable on mobile and desktop */
 
 /* Make desktop tiles clickable */
 .timegrow-manual-page-container .timegrow-project-tile {
@@ -349,32 +345,9 @@ body {
     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1) !important;
 }
 
-/* Hide the select on mobile (use search only) */
-@media (max-width: 782px) {
-    .timegrow-manual-page-container #mobile-project-selector {
-        display: none !important;
-    }
-}
-
-/* Desktop select styling */
+/* Hide the select dropdown on all devices (use search input only) */
 .timegrow-manual-page-container #mobile-project-selector {
-    width: 100% !important;
-    min-height: 50px !important;
-    padding: 12px 16px !important;
-    font-size: 16px !important;
-    border: 2px solid #ddd !important;
-    border-radius: 8px !important;
-    background: white !important;
-    color: #333 !important;
-    box-sizing: border-box !important;
-    -webkit-appearance: none !important;
-    appearance: none !important;
-    background-image: url('data:image/svg+xml;charset=UTF-8,%3Csvg xmlns="http://www.w3.org/2000/svg" width="12" height="8" viewBox="0 0 12 8"%3E%3Cpath fill="%23333" d="M6 8L0 0h12z"/%3E%3C/svg%3E') !important;
-    background-repeat: no-repeat !important;
-    background-position: right 16px center !important;
-    background-size: 12px !important;
-    padding-right: 40px !important;
-    cursor: pointer !important;
+    display: none !important;
 }
 
 .timegrow-manual-page-container #mobile-project-selector:focus {
