@@ -56,8 +56,8 @@ jQuery(document).ready(function($) {
 
     $searchInput.attr('list', 'clock-projects-datalist');
 
-    // Assemble
-    $wrapper.append($label).append($searchInput).append($datalist).append($select);
+    // Assemble (hide the select dropdown, keep for data management)
+    $wrapper.append($label).append($searchInput).append($datalist).append($select.hide());
 
     // Insert before drop zone or at start of form
     if ($('#drop-zone').length > 0) {

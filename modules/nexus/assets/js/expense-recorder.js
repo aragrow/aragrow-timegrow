@@ -2,6 +2,12 @@
 jQuery(document).ready(function($) {
     console.log('Expense Recorder JS Initializing...');
 
+    // Detect if device is mobile/touch
+    const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+
+    // Create searchable dropdown
+    createProjectDropdown();
+
     // --- DOM Elements ---
     const $projectTiles = $('.timegrow-project-tile');
     const $expenseProjectDropDisplay = $('#expense-drop-zone-display'); // Updated ID
@@ -14,6 +20,122 @@ jQuery(document).ready(function($) {
 
     // --- State Variables ---
     let selectedProjectIdForExpense = null; // To store the ID of the dropped project for the expense
+
+    /**
+     * Create searchable dropdown for project selection
+     */
+    function createProjectDropdown() {
+        // Collect all projects from tiles
+        const projects = [];
+        $('.timegrow-project-tile').each(function() {
+            projects.push({
+                id: $(this).data('project-id'),
+                name: $(this).data('project-name'),
+                desc: $(this).data('project-desc')
+            });
+        });
+
+        // Only create if there are projects
+        if (projects.length === 0) {
+            return;
+        }
+
+        // Sort alphabetically
+        projects.sort((a, b) => a.name.localeCompare(b.name));
+
+        // Create dropdown wrapper
+        const $wrapper = $('<div id="expense-project-selector-wrapper" style="margin-bottom: 20px;"></div>');
+        const $label = $('<label for="expense-project-search" style="display: block; margin-bottom: 8px; font-weight: 600; font-size: 15px;">Select Project (Optional)</label>');
+        const $searchInput = $('<input type="text" id="expense-project-search" placeholder="Search projects..." style="width: 100%; min-height: 50px; padding: 12px; font-size: 16px; border: 2px solid #ddd; border-radius: 8px; margin-bottom: 10px; box-sizing: border-box;" />');
+        const $datalist = $('<datalist id="expense-projects-datalist"></datalist>');
+        const $select = $('<select id="expense-project-selector" style="width: 100%; min-height: 50px; padding: 12px; font-size: 16px; border: 2px solid #ddd; border-radius: 8px; box-sizing: border-box;"></select>');
+
+        // Add options
+        $select.append('<option value="">-- Choose a Project (Optional) --</option>');
+        projects.forEach(function(project) {
+            $select.append(`<option value="${project.id}">${project.name}</option>`);
+            $datalist.append(`<option value="${project.name}" data-id="${project.id}">${project.name}</option>`);
+        });
+
+        $searchInput.attr('list', 'expense-projects-datalist');
+
+        // Assemble (hide the select dropdown, keep for data management)
+        $wrapper.append($label).append($searchInput).append($datalist).append($select.hide());
+
+        // Insert before expense project drop section
+        if ($('#expense-project-drop-section').length > 0) {
+            $('#expense-project-drop-section').before($wrapper);
+        } else {
+            $('#expense-form').prepend($wrapper);
+        }
+
+        // Handle search input
+        $searchInput.on('input change', function() {
+            const searchValue = $(this).val();
+            const selectedProject = projects.find(p => p.name === searchValue);
+            if (selectedProject) {
+                $select.val(selectedProject.id).trigger('change');
+                $(this).blur();
+            }
+        });
+
+        // Handle selection - sync with dropdown
+        $select.on('change', function() {
+            const projectId = $(this).val();
+            if (projectId) {
+                const selectedProject = projects.find(p => p.id == projectId);
+                $searchInput.val(selectedProject.name);
+            } else {
+                $searchInput.val('');
+            }
+        });
+
+        // Handle selection - update form state
+        $select.on('change', function() {
+            const projectId = $(this).val();
+
+            if (projectId) {
+                const selectedProject = projects.find(p => p.id == projectId);
+
+                selectedProjectIdForExpense = projectId;
+                $selectedExpenseProjectIdInput.val(projectId);
+
+                $projectDropPlaceholder.hide();
+                $selectedProjectDetailsDiv
+                    .html(`✓ Project Selected: <strong>${selectedProject.name}</strong>`)
+                    .css('color', '#46b450')
+                    .show();
+                $clearDroppedProjectBtn.show();
+
+                $expenseProjectDropDisplay.addClass('has-project');
+                $('.timegrow-project-tile').css('opacity', 0.6);
+            } else {
+                // Reset if no selection
+                selectedProjectIdForExpense = null;
+                $selectedExpenseProjectIdInput.val('');
+
+                $selectedProjectDetailsDiv.html('').hide();
+                $projectDropPlaceholder.show();
+                $clearDroppedProjectBtn.hide();
+
+                $expenseProjectDropDisplay.removeClass('has-project');
+                $('.timegrow-project-tile').css('opacity', 1);
+            }
+        });
+
+        // Also allow click to select on tiles
+        if (!isTouchDevice) {
+            $('.timegrow-project-tile').on('click', function(e) {
+                if (!selectedProjectIdForExpense) {
+                    e.preventDefault();
+                    const projectId = $(this).data('project-id');
+                    if (projectId) {
+                        $select.val(projectId).trigger('change');
+                    }
+                }
+            });
+        }
+    }
 
     // --- Project Tile Drag/Drop Logic ---
     $projectTiles.attr('draggable', true);
@@ -82,6 +204,10 @@ jQuery(document).ready(function($) {
 
         $expenseProjectDropDisplay.removeClass('has-project'); // Remove selected state styling
         $projectTiles.css('opacity', 1).attr('draggable', true); // Re-enable project tiles for dragging
+
+        // Clear dropdown selection
+        $('#expense-project-selector').val('');
+        $('#expense-project-search').val('');
     });
 
 
