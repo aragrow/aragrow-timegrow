@@ -57,6 +57,11 @@ class TimeGrowMobileAccessControl {
             return;
         }
 
+        // Admins can access both pages freely
+        if (current_user_can('administrator')) {
+            return;
+        }
+
         // Get user's time entry method preference
         $user_id = get_current_user_id();
         $time_entry_method = get_user_meta($user_id, 'timegrow_time_entry_method', true);

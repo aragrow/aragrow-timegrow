@@ -467,7 +467,7 @@ class TimeGrowNexus{
                 $plugin_version,
                 true // Load in footer
             );
-            wp_enqueue_style('timeflies-nexus-client-bc-style', TIMEGROW_NEXUS_BASE_URI . 'assets/css/nexus_project_bc.css', [], $plugin_version);
+            wp_enqueue_style('timegrow-clock-style', TIMEGROW_NEXUS_BASE_URI . 'assets/css/clock.css', [], $plugin_version);
             wp_localize_script(
                 'timegrow-nexus-manual',
                 'timegrow_nexus_list',
@@ -581,7 +581,9 @@ class TimeGrowNexus{
                 $list = $model->select(); // -1 for admin means all projects
             } else {
                 // User is not an administrator, get projects for the current user
-                $projects = $team_member_model->get_projects_for_member(get_current_user_id());
+                $member = $team_member_model->get_by_user_id(get_current_user_id());
+                $member_id = $member ? $member->ID : 0;
+                $projects = $team_member_model->get_projects_for_member($member_id);
                 $list = $model->select(get_current_user_id()); // Get entries for the current user
             }
         } elseif ( $screen == 'reports' ) {

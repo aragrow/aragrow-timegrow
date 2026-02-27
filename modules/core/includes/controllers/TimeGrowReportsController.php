@@ -3231,6 +3231,7 @@ class TimeGrowReportsController {
         $time_entry_table = $wpdb->prefix . TIMEGROW_PREFIX . 'time_entry_tracker';
         $project_table = $wpdb->prefix . TIMEGROW_PREFIX . 'project_tracker';
         $expense_table = $wpdb->prefix . TIMEGROW_PREFIX . 'expense_tracker';
+        $company_table = $wpdb->prefix . TIMEGROW_PREFIX . 'company_tracker';
         $client_table = $wpdb->prefix . 'users';
 
         // Get all clients for filter dropdown
@@ -3272,6 +3273,18 @@ class TimeGrowReportsController {
                         THEN TIMESTAMPDIFF(SECOND, te.clock_in_date, te.clock_out_date) / 3600
                         ELSE 0
                     END) as billable_hours,
+                    SUM(CASE
+                        WHEN te.billable = 1 AND te.hours IS NOT NULL AND te.hours > 0 THEN te.hours * COALESCE(
+                            NULLIF(p.default_flat_fee, 0),
+                            (SELECT NULLIF(ct.default_flat_fee, 0) FROM {$company_table} ct WHERE ct.ID = 1 LIMIT 1),
+                            75)
+                        WHEN te.billable = 1 AND te.clock_in_date IS NOT NULL AND te.clock_out_date IS NOT NULL
+                        THEN (TIMESTAMPDIFF(SECOND, te.clock_in_date, te.clock_out_date) / 3600) * COALESCE(
+                            NULLIF(p.default_flat_fee, 0),
+                            (SELECT NULLIF(ct.default_flat_fee, 0) FROM {$company_table} ct WHERE ct.ID = 1 LIMIT 1),
+                            75)
+                        ELSE 0
+                    END) as billed_amount,
                     (SELECT COUNT(*) FROM {$expense_table} e
                      INNER JOIN {$project_table} p2 ON e.assigned_to = 'project' AND e.assigned_to_id = p2.ID
                      WHERE p2.client_id = c.ID";
@@ -3342,6 +3355,7 @@ class TimeGrowReportsController {
         // Calculate grand totals
         $grand_total_hours = 0;
         $grand_billable_hours = 0;
+        $grand_billed_amount = 0;
         $grand_total_expenses = 0;
         $grand_project_count = 0;
         $grand_time_entries = 0;
@@ -3350,6 +3364,7 @@ class TimeGrowReportsController {
         foreach ($results as $row) {
             $grand_total_hours += floatval($row->total_hours);
             $grand_billable_hours += floatval($row->billable_hours);
+            $grand_billed_amount += floatval($row->billed_amount);
             $grand_total_expenses += floatval($row->total_expenses);
             $grand_project_count += intval($row->project_count);
             $grand_time_entries += intval($row->time_entry_count);
@@ -3424,6 +3439,11 @@ class TimeGrowReportsController {
                     <p style="font-size: 28px; font-weight: bold; margin: 0;"><?php echo number_format($grand_billable_hours, 2); ?></p>
                 </div>
 
+                <div class="summary-card" style="background: #e0f7fa; padding: 20px; border-radius: 5px; text-align: center;">
+                    <h3 style="margin: 0 0 10px 0; color: #00695c;">Total Billed Amount</h3>
+                    <p style="font-size: 28px; font-weight: bold; margin: 0;">$<?php echo number_format($grand_billed_amount, 2); ?></p>
+                </div>
+
                 <div class="summary-card" style="background: #fff3e0; padding: 20px; border-radius: 5px; text-align: center;">
                     <h3 style="margin: 0 0 10px 0; color: #e65100;">Total Expenses</h3>
                     <p style="font-size: 28px; font-weight: bold; margin: 0;">$<?php echo number_format($grand_total_expenses, 2); ?></p>
@@ -3450,6 +3470,7 @@ class TimeGrowReportsController {
                             <th style="width: 80px; text-align: right;">Projects</th>
                             <th style="width: 100px; text-align: right;">Total Hours</th>
                             <th style="width: 100px; text-align: right;">Billable</th>
+                            <th style="width: 120px; text-align: right;">Amount Billed</th>
                             <th style="width: 100px; text-align: right;">Non-Billable</th>
                             <th style="width: 100px; text-align: right;">Expenses</th>
                             <th style="width: 120px; text-align: right;">Expense $</th>
@@ -3477,6 +3498,7 @@ class TimeGrowReportsController {
                                 <td style="text-align: right;"><?php echo intval($row->project_count); ?></td>
                                 <td style="text-align: right; font-weight: bold;"><?php echo number_format($row->total_hours, 2); ?></td>
                                 <td style="text-align: right; color: #2e7d32;"><?php echo number_format($row->billable_hours, 2); ?></td>
+                                <td style="text-align: right; font-weight: bold; color: #00695c;">$<?php echo number_format($row->billed_amount, 2); ?></td>
                                 <td style="text-align: right; color: #999;"><?php echo number_format($non_billable, 2); ?></td>
                                 <td style="text-align: right;"><?php echo intval($row->expense_count); ?></td>
                                 <td style="text-align: right; font-weight: bold; color: #e65100;">$<?php echo number_format($row->total_expenses, 2); ?></td>
@@ -3496,6 +3518,7 @@ class TimeGrowReportsController {
                             <td style="text-align: right; font-size: 16px;"><?php echo $grand_project_count; ?></td>
                             <td style="text-align: right; font-size: 16px;"><?php echo number_format($grand_total_hours, 2); ?></td>
                             <td style="text-align: right; font-size: 16px;"><?php echo number_format($grand_billable_hours, 2); ?></td>
+                            <td style="text-align: right; font-size: 16px; color: #00695c;">$<?php echo number_format($grand_billed_amount, 2); ?></td>
                             <td style="text-align: right; font-size: 16px;"><?php echo number_format($grand_total_hours - $grand_billable_hours, 2); ?></td>
                             <td style="text-align: right; font-size: 16px;"><?php echo $grand_expense_count; ?></td>
                             <td style="text-align: right; font-size: 16px; color: #e65100;">$<?php echo number_format($grand_total_expenses, 2); ?></td>

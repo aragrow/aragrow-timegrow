@@ -76,62 +76,96 @@ class TimeGrowNexusManualView {
             </div><!-- .timegrow-debug-panel -->
             <?php endif; ?>
 
-            <!-- Project Tiles (hidden but needed for dropdown data source) -->
-            <div id="project-tiles-container" class="timegrow-project-tiles" style="display:none">
-                <div class="project-list-container">
-                    <?php foreach ($projects as $project) : ?>
-                    <div class="timegrow-project-tile" draggable="true" data-project-id="<?php echo esc_attr($project->ID); ?>" data-project-name="<?php echo esc_attr($project->name)?>" data-project-desc="<?php echo esc_attr($project->description) ?>">
-                        <h3><?php echo esc_html($project->name); ?></h3>
-                        <p><?php echo esc_html($project->description); ?></p>
-                    </div>
-                    <?php endforeach; ?>
-                </div>
-            </div>
+            <div class="timegrow-manual-layout">
+                <div class="timegrow-manual-grid <?php echo !empty($projects) ? 'has-projects' : 'no-projects'; ?>">
 
-            <div class="timegrow-nexus-container">
-                <!-- Manual Entry Form -->
-                    <form id="timegrow-nexus-entry-form" class="wp-core-ui" method="POST" enctype="multipart/form-data">
-                    <input type="hidden" name="time_entry_id" value="0">
-                    <input type="hidden" name="action" value="save_time_entry">
-                    <input type="hidden" name="add_item" value="1">
-                    <input type="hidden" name="member_id" value="<?php echo $member_id ?>" />
-                    <input type="hidden" id="project_id" name="project_id" value="0" />
-                    <input type="hidden" name="entry_type" value="MAN" />
-                    <?php wp_nonce_field('timegrow_time_nexus_nonce', 'timegrow_time_nexus_nonce_field'); ?>
+                    <!-- Left Column: Project Tiles -->
+                    <?php if (!empty($projects)) : ?>
+                    <div class="timegrow-projects-column">
+                        <div class="timegrow-section">
+                            <h2 class="timegrow-section-title">
+                                <span class="dashicons dashicons-portfolio"></span>
+                                <?php esc_html_e('Available Projects', 'timegrow'); ?>
+                            </h2>
+                            <p class="timegrow-section-description">
+                                <?php esc_html_e('Drag a project to the entry form, or use the search below', 'timegrow'); ?>
+                            </p>
+                            <div id="project-tiles-container" class="timegrow-project-tiles-scrollable">
+                                <?php foreach ($projects as $project) : ?>
+                                <div class="timegrow-project-tile" draggable="true"
+                                     data-project-id="<?php echo esc_attr($project->ID); ?>"
+                                     data-project-name="<?php echo esc_attr($project->name); ?>"
+                                     data-project-desc="<?php echo esc_attr($project->description); ?>">
+                                    <div class="timegrow-project-tile-header">
+                                        <span class="dashicons dashicons-move"></span>
+                                        <h3><?php echo esc_html($project->name); ?></h3>
+                                    </div>
+                                    <p class="timegrow-project-tile-desc"><?php echo esc_html($project->description); ?></p>
+                                </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                    </div><!-- .timegrow-projects-column -->
+                    <?php endif; ?>
 
-                    <!-- Project Selection Feedback -->
-                    <div id="project-drop-section" class="timegrow-drop-section">
-                        <div id="drop-zone" class="timegrow-drop-zone"><?php esc_html_e('No Project Selected', 'timegrow'); ?></div>
-                    </div>
+                    <!-- Right Column: Entry Form -->
+                    <div class="timegrow-manual-column">
+                        <div class="timegrow-section">
+                            <h2 class="timegrow-section-title">
+                                <span class="dashicons dashicons-edit-page"></span>
+                                <?php esc_html_e('Time Entry', 'timegrow'); ?>
+                            </h2>
 
-                    <?php
-                    $date_format = get_option('date_format', 'Y-m-d');
-                    ?>
-                    <label for="manual-datetime"><?php esc_html_e('Select Date:', 'timegrow'); ?></label>
-                    <input type="date" id="manual-datetime" name="date" value="<?php echo esc_attr(date($date_format)); ?>" required>
+                            <div class="timegrow-nexus-container">
+                                <form id="timegrow-nexus-entry-form" class="wp-core-ui" method="POST" enctype="multipart/form-data">
+                                    <input type="hidden" name="time_entry_id" value="0">
+                                    <input type="hidden" name="action" value="save_time_entry">
+                                    <input type="hidden" name="add_item" value="1">
+                                    <input type="hidden" name="member_id" value="<?php echo $member_id ?>" />
+                                    <input type="hidden" id="project_id" name="project_id" value="0" />
+                                    <input type="hidden" name="entry_type" value="MAN" />
+                                    <?php wp_nonce_field('timegrow_time_nexus_nonce', 'timegrow_time_nexus_nonce_field'); ?>
 
-                    <label for="manual-hours"><?php esc_html_e('Hours Worked:', 'timegrow'); ?></label>
-                    <select id="manual-hours" name="hours">
-                        <?php foreach ($hour_options as $opt): ?>
-                            <option value="<?php echo esc_attr($opt['value']); ?>">
-                                <?php echo esc_html($opt['label']); ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
+                                    <!-- Project Selection Feedback -->
+                                    <div id="project-drop-section" class="timegrow-drop-section">
+                                        <div id="drop-zone" class="timegrow-drop-zone">
+                                            <span class="dashicons dashicons-download"></span>
+                                            <p><?php esc_html_e('Drop Project Here or Search Below', 'timegrow'); ?></p>
+                                        </div>
+                                    </div>
 
-                    <label for="description">Description</label></th>
-                    <textarea id="description" name="description" class="large-text" rows="5"></textarea>
+                                    <?php $date_format = get_option('date_format', 'Y-m-d'); ?>
+                                    <label for="manual-datetime"><?php esc_html_e('Select Date:', 'timegrow'); ?></label>
+                                    <input type="date" id="manual-datetime" name="date" value="<?php echo esc_attr(date($date_format)); ?>" required>
 
-                    <label for="manual-hours"><?php esc_html_e('Billable:', 'timegrow'); ?></label>
-                    <input type="checkbox" id="nexus-manual_billable" name="billable" value="1" checked class="check">
+                                    <label for="manual-hours"><?php esc_html_e('Hours Worked:', 'timegrow'); ?></label>
+                                    <select id="manual-hours" name="hours">
+                                        <?php foreach ($hour_options as $opt): ?>
+                                            <option value="<?php echo esc_attr($opt['value']); ?>">
+                                                <?php echo esc_html($opt['label']); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
 
-                    <br /><br />
-                    <button type="submit" class="timegrow-button disabled" id="timegrow-submit">
-                        <?php esc_html_e('Submit Entry', 'timegrow'); ?>
-                    </button>
-        
-                </form>
-            </div>
+                                    <label for="description"><?php esc_html_e('Description:', 'timegrow'); ?></label>
+                                    <textarea id="description" name="description" class="large-text" rows="5"></textarea>
+
+                                    <label for="nexus-manual_billable"><?php esc_html_e('Billable:', 'timegrow'); ?></label>
+                                    <input type="checkbox" id="nexus-manual_billable" name="billable" value="1" checked class="check">
+
+                                    <div class="timegrow-actions">
+                                        <button type="submit" class="timegrow-button disabled" id="timegrow-submit">
+                                            <?php esc_html_e('Submit Entry', 'timegrow'); ?>
+                                        </button>
+                                    </div>
+                                </form>
+                            </div><!-- .timegrow-nexus-container -->
+
+                        </div><!-- .timegrow-section -->
+                    </div><!-- .timegrow-manual-column -->
+
+                </div><!-- .timegrow-manual-grid -->
+            </div><!-- .timegrow-manual-layout -->
 
             <?php
             // Pass data to JS
