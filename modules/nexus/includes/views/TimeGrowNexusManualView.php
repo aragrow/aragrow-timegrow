@@ -210,6 +210,7 @@ class TimeGrowNexusManualView {
         <p><?php esc_html_e('You can edit or delete entries by clicking on them.', 'timegrow'); ?></p>
         <div class="time-entries">
             <form method="get" class="filter-form" style="margin-bottom: 1rem;" action="">
+                <input type="hidden" name="page" value="<?php echo esc_attr(TIMEGROW_PARENT_MENU . '-nexus-manual'); ?>">
                 <select name="project" onchange="this.form.submit()">
                     <option value="">All Projects</option>
                     <?php foreach ($projects as $project): ?>
@@ -245,11 +246,11 @@ class TimeGrowNexusManualView {
             <!-- Pagination -->
             <div class="pagination" style="margin-top: 1rem;">
                 <?php if ($page > 1): ?>
-                    <a href="<?= build_query(['page' => $page - 1]) ?>">« Prev</a>
+                    <a href="<?= build_entry_query(['page' => $page - 1]) ?>">« Prev</a>
                 <?php endif; ?>
                 <span>Page <?= $page ?> of <?= $total_pages ?></span>
                 <?php if ($page < $total_pages): ?>
-                    <a href="<?= build_query(['page' => $page + 1]) ?>">Next »</a>
+                    <a href="<?= build_entry_query(['page' => $page + 1]) ?>">Next »</a>
                 <?php endif; ?>
             </div>
         </div>
