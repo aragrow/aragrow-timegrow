@@ -68,7 +68,7 @@ In the order editor, on an hours invoice:
 - Each line has an Hours box in place of the Quantity box. **The quantity stays 1.** The hours live on the line in `_timegrow_project_hours`, and the line total is hours x rate.
 - **A line is repriced only when its hours change.** It keeps its own rate (subtotal / stored hours), so saving the order for any other reason (status, notes) never changes its totals, and a later rate change never reprices an old invoice. A line with no rate yet uses the project, client, then company rate.
 - Any discount ratio on the line is kept. Taxes and order totals are recalculated, and an order note is added.
-- The customer order page shows "3.75 hrs" in place of "x 1". WooCommerce emails still show the quantity (1).
+- The customer order page and WooCommerce emails show "3.75 hrs" in place of the quantity.
 
 Stored data:
 
@@ -120,7 +120,7 @@ Settings page: **Settings > PayPal Integration**, stored in the `wc_pp_auto_invo
 |---|---|
 | Send orders to PayPal | On/off switch. When off, setting an order to Send Invoice to PayPal only adds an order note. On by default. |
 | Environment | Sandbox or Live. |
-| Client ID, Client Secret | PayPal REST credentials. Stored encrypted with AES-256-CBC. |
+| Client ID, Client Secret | PayPal REST credentials. Stored encrypted with AES-256-CBC. The page shows only the last 8 characters; click **Update** next to a field to replace it. Saving without Update keeps the saved value. |
 | Send behavior | "Create & Send invoice" or "Create only". |
 | Merchant email | Optional. |
 
@@ -157,7 +157,6 @@ Orders created before this change used 10-minute units, so their PayPal invoices
 
 - The module README says invoices go out when an order is Completed. The code uses the Send Invoice to PayPal status.
 - PayPal totals can differ from the order by a few cents when the rate is total / hours with a discount or an odd rate.
-- WooCommerce emails show the line quantity (1) on hours invoices, not the hours.
 
 ## Related files
 
