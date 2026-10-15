@@ -30,7 +30,6 @@ class TimeGrowProject{
             function() { // Define a closure
                 $this->tracker_mvc_admin_page( 'list' ); // Call the tracker_mvc method, passing the parameter
             },
-            'dashicons-money-alt',
         );
 
         add_submenu_page(

@@ -31,7 +31,6 @@ class TimeGrowReport {
                 wp_redirect(admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-nexus-reports'));
                 exit;
             },
-            'dashicons-money-alt',
         );
 
         add_submenu_page(
