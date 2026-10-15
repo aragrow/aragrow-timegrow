@@ -100,7 +100,7 @@ class TimeGrowNexusController{
 
         if (!isset($_POST['timegrow_time_nexus_nonce_field']) || 
             !wp_verify_nonce($_POST['timegrow_time_nexus_nonce_field'], 'timegrow_time_nexus_nonce')) {
-            wp_die(__('Nonce verification failed.', 'text-domain'));
+            wp_die(__('Nonce verification failed.', 'timegrow'));
         }
         
         $current_date = current_time('mysql');
@@ -172,7 +172,7 @@ class TimeGrowNexusController{
     
         if (!isset($_POST['timegrow_time_nexus_nonce_field']) || 
             !wp_verify_nonce($_POST['timegrow_expense_nexus_nonce_field'], 'timegrow_expense_nexus_nonce')) {
-            wp_die(__('Nonce verification failed.', 'text-domain'));
+            wp_die(__('Nonce verification failed.', 'timegrow'));
         }
         
         $current_date = current_time('mysql');

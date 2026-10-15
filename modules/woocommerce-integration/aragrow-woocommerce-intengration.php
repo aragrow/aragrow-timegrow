@@ -192,7 +192,7 @@ class Aragrow_WOO_Integration_Plugins
         timegrow_log('Adding manual payment meta box to screen: ' . $screen);
         add_meta_box(
             'manual_payment_meta_box',
-            __('Manual Payment Details', 'textdomain'),
+            __('Manual Payment Details', 'timegrow'),
             [ $this, 'render_manual_payment_meta_box' ],
             $screen,
             'side',
@@ -219,15 +219,15 @@ class Aragrow_WOO_Integration_Plugins
         echo '<div class="manual-payment-fields">';
         
         // Payment Date
-        echo '<p><label for="payment_date">' . __('Payment Date:', 'textdomain') . '</label>';
+        echo '<p><label for="payment_date">' . __('Payment Date:', 'timegrow') . '</label>';
         echo '<input type="date" id="payment_date" name="payment_date" value="' . esc_attr($payment_date) . '" /></p>';
         
         // Payment Amount
-        echo '<p><label for="payment_amount">' . __('Amount:', 'textdomain') . '</label>';
+        echo '<p><label for="payment_amount">' . __('Amount:', 'timegrow') . '</label>';
         echo '<input type="number" step="0.01" id="payment_amount" name="payment_amount" value="' . esc_attr($payment_amount) . '" /></p>';
         
         // Payment Type
-        echo '<p><label for="payment_type">' . __('Type:', 'textdomain') . '</label>';
+        echo '<p><label for="payment_type">' . __('Type:', 'timegrow') . '</label>';
         echo '<select id="payment_type" name="payment_type">';
         echo '<option value="ACH"' . selected($payment_type, 'ACH', false) . '>ACH</option>';
         echo '<option value="Transference"' . selected($payment_type, 'Transference', false) . '>Transference</option>';
@@ -238,7 +238,7 @@ class Aragrow_WOO_Integration_Plugins
         echo '</select></p>';
 
         // Payment Transaction Id
-        echo '<p><label for="payment_trans_id">' . __('Transaction Id:', 'textdomain') . '</label>';
+        echo '<p><label for="payment_trans_id">' . __('Transaction Id:', 'timegrow') . '</label>';
         echo '<input type="text" id="payment_trans_id" name="payment_trans_id" value="' . esc_attr($payment_trans_id) . '" /></p>';
 
         echo '</div>';

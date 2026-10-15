@@ -84,19 +84,19 @@ class TimeGrowGeminiReceiptAnalyzer implements TimeGrowReceiptAnalyzerInterface 
 
         // Check if API key is configured
         if (empty($this->api_key)) {
-            return new WP_Error('no_api_key', __('Google Gemini API key is not configured.', 'aragrow-timegrow'));
+            return new WP_Error('no_api_key', __('Google Gemini API key is not configured.', 'timegrow'));
         }
 
         // TimeGrow's own cap on paid AI calls (works without the Voice AI plugin)
         if (!TimeGrowReceiptAnalyzerFactory::rate_limit_ok(get_current_user_id())) {
-            return new WP_Error('rate_limit', __('Too many receipt analysis requests. Please try again later.', 'aragrow-timegrow'));
+            return new WP_Error('rate_limit', __('Too many receipt analysis requests. Please try again later.', 'timegrow'));
         }
 
         // Check rate limiting if Voice AI Security class is available
         if (class_exists('\AraGrow\VoiceAI\Security')) {
             $user_id = get_current_user_id();
             if (!\AraGrow\VoiceAI\Security::check_rate_limit('gemini_analysis_' . $user_id)) {
-                return new WP_Error('rate_limit', __('Too many receipt analysis requests. Please try again later.', 'aragrow-timegrow'));
+                return new WP_Error('rate_limit', __('Too many receipt analysis requests. Please try again later.', 'timegrow'));
             }
         }
 
@@ -213,7 +213,7 @@ class TimeGrowGeminiReceiptAnalyzer implements TimeGrowReceiptAnalyzerInterface 
                 timegrow_log('Full error data: ' . print_r($error_data, true));
             }
 
-            return new WP_Error('gemini_api_error', sprintf(__('Gemini API error (code %d): %s', 'aragrow-timegrow'), $status_code, $error_message));
+            return new WP_Error('gemini_api_error', sprintf(__('Gemini API error (code %d): %s', 'timegrow'), $status_code, $error_message));
         }
 
         $api_response = json_decode($body, true);
@@ -254,7 +254,7 @@ class TimeGrowGeminiReceiptAnalyzer implements TimeGrowReceiptAnalyzerInterface 
         // Validate mime type
         $allowed_mime_types = ['image/jpeg', 'image/png', 'image/jpg'];
         if (!in_array($mime_type, $allowed_mime_types)) {
-            return new WP_Error('invalid_mime_type', sprintf(__('Unsupported image type: %s. Only JPEG and PNG are supported.', 'aragrow-timegrow'), $mime_type));
+            return new WP_Error('invalid_mime_type', sprintf(__('Unsupported image type: %s. Only JPEG and PNG are supported.', 'timegrow'), $mime_type));
         }
 
         // Convert to base64
@@ -336,7 +336,7 @@ OTHER IMPORTANT RULES:
         if (!isset($response['candidates'][0]['content']['parts'][0]['text'])) {
             timegrow_log('=== GEMINI RESPONSE ERROR ===');
             timegrow_log('Full response: ' . print_r($response, true));
-            return new WP_Error('invalid_response', __('Invalid response from Gemini API.', 'aragrow-timegrow'));
+            return new WP_Error('invalid_response', __('Invalid response from Gemini API.', 'timegrow'));
         }
 
         $gemini_text = $response['candidates'][0]['content']['parts'][0]['text'];
@@ -366,7 +366,7 @@ OTHER IMPORTANT RULES:
                 timegrow_log('Error: ' . json_last_error_msg());
                 timegrow_log('Failed to parse: ' . $gemini_text);
             }
-            return new WP_Error('json_parse_error', sprintf(__('Failed to parse Gemini response: %s', 'aragrow-timegrow'), json_last_error_msg()));
+            return new WP_Error('json_parse_error', sprintf(__('Failed to parse Gemini response: %s', 'timegrow'), json_last_error_msg()));
         }
 
         if(timegrow_debug()) {
@@ -725,7 +725,7 @@ OTHER IMPORTANT RULES:
 
         // Check if API key is configured
         if (empty($this->api_key)) {
-            return new WP_Error('no_api_key', __('Google Gemini API key is not configured.', 'aragrow-timegrow'));
+            return new WP_Error('no_api_key', __('Google Gemini API key is not configured.', 'timegrow'));
         }
 
         $api_url = 'https://generativelanguage.googleapis.com/v1/models';
@@ -750,13 +750,13 @@ OTHER IMPORTANT RULES:
         if ($status_code !== 200) {
             $error_data = json_decode($body, true);
             $error_message = $error_data['error']['message'] ?? 'Unknown API error';
-            return new WP_Error('gemini_api_error', sprintf(__('Gemini API error (code %d): %s', 'aragrow-timegrow'), $status_code, $error_message));
+            return new WP_Error('gemini_api_error', sprintf(__('Gemini API error (code %d): %s', 'timegrow'), $status_code, $error_message));
         }
 
         $data = json_decode($body, true);
 
         if (!isset($data['models']) || !is_array($data['models'])) {
-            return new WP_Error('invalid_response', __('Invalid response from Gemini API.', 'aragrow-timegrow'));
+            return new WP_Error('invalid_response', __('Invalid response from Gemini API.', 'timegrow'));
         }
 
         // Filter models that support generateContent

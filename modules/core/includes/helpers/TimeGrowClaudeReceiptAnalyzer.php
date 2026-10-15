@@ -57,19 +57,19 @@ class TimeGrowClaudeReceiptAnalyzer implements TimeGrowReceiptAnalyzerInterface 
 
         // Check if API key is configured
         if (empty($this->api_key)) {
-            return new WP_Error('no_api_key', __('Anthropic API key is not configured.', 'aragrow-timegrow'));
+            return new WP_Error('no_api_key', __('Anthropic API key is not configured.', 'timegrow'));
         }
 
         // TimeGrow's own cap on paid AI calls (works without the Voice AI plugin)
         if (!TimeGrowReceiptAnalyzerFactory::rate_limit_ok(get_current_user_id())) {
-            return new WP_Error('rate_limit', __('Too many receipt analysis requests. Please try again later.', 'aragrow-timegrow'));
+            return new WP_Error('rate_limit', __('Too many receipt analysis requests. Please try again later.', 'timegrow'));
         }
 
         // Check rate limiting if Voice AI Security class is available
         if (class_exists('\AraGrow\VoiceAI\Security')) {
             $user_id = get_current_user_id();
             if (!\AraGrow\VoiceAI\Security::check_rate_limit('claude_analysis_' . $user_id)) {
-                return new WP_Error('rate_limit', __('Too many receipt analysis requests. Please try again later.', 'aragrow-timegrow'));
+                return new WP_Error('rate_limit', __('Too many receipt analysis requests. Please try again later.', 'timegrow'));
             }
         }
 
@@ -170,7 +170,7 @@ class TimeGrowClaudeReceiptAnalyzer implements TimeGrowReceiptAnalyzerInterface 
         if ($status_code !== 200) {
             $error_data = json_decode($body, true);
             $error_message = $error_data['error']['message'] ?? 'Unknown API error';
-            return new WP_Error('claude_api_error', sprintf(__('Claude API error (code %d): %s', 'aragrow-timegrow'), $status_code, $error_message));
+            return new WP_Error('claude_api_error', sprintf(__('Claude API error (code %d): %s', 'timegrow'), $status_code, $error_message));
         }
 
         return json_decode($body, true);
@@ -201,7 +201,7 @@ class TimeGrowClaudeReceiptAnalyzer implements TimeGrowReceiptAnalyzerInterface 
         // Validate mime type
         $allowed_mime_types = ['image/jpeg', 'image/png', 'image/jpg'];
         if (!in_array($mime_type, $allowed_mime_types)) {
-            return new WP_Error('invalid_mime_type', sprintf(__('Unsupported image type: %s. Only JPEG and PNG are supported.', 'aragrow-timegrow'), $mime_type));
+            return new WP_Error('invalid_mime_type', sprintf(__('Unsupported image type: %s. Only JPEG and PNG are supported.', 'timegrow'), $mime_type));
         }
 
         // Convert to base64
@@ -307,7 +307,7 @@ IMPORTANT:
 
         // Extract text from response
         if (!isset($response['content'][0]['text'])) {
-            return new WP_Error('invalid_response', __('Invalid response from Claude API.', 'aragrow-timegrow'));
+            return new WP_Error('invalid_response', __('Invalid response from Claude API.', 'timegrow'));
         }
 
         $claude_text = $response['content'][0]['text'];
@@ -320,7 +320,7 @@ IMPORTANT:
         $extracted_data = json_decode($claude_text, true);
 
         if (json_last_error() !== JSON_ERROR_NONE) {
-            return new WP_Error('json_parse_error', sprintf(__('Failed to parse Claude response: %s', 'aragrow-timegrow'), json_last_error_msg()));
+            return new WP_Error('json_parse_error', sprintf(__('Failed to parse Claude response: %s', 'timegrow'), json_last_error_msg()));
         }
 
         // Map to expense fields

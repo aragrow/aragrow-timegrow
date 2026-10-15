@@ -30,7 +30,7 @@ class TimeGrowExpenseController{
         
         if (!isset($_POST['timegrow_expense_nonce_field']) || 
             !wp_verify_nonce($_POST['timegrow_expense_nonce_field'], 'timegrow_expense_nonce')) {
-            wp_die(__('Nonce verification failed.', 'text-domain'));
+            wp_die(__('Nonce verification failed.', 'timegrow'));
         }
 
         if (!isset($_POST['expense_id'])) return; 

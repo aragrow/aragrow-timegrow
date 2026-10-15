@@ -191,10 +191,10 @@ function my_plugin_add_custom_user_profile_fields( $user ) {
     $is_checked = ! empty( $can_access ) && $can_access == '1';
 
     ?>
-    <h3><?php _e( 'API Access Settings', 'your-plugin-textdomain' ); ?></h3>
+    <h3><?php _e( 'API Access Settings', 'timegrow' ); ?></h3>
     <table class="form-table">
         <tr>
-            <th><label for="can_access_users_me_api"><?php _e( 'Allow /users/me Access', 'your-plugin-textdomain' ); ?></label></th>
+            <th><label for="can_access_users_me_api"><?php _e( 'Allow /users/me Access', 'timegrow' ); ?></label></th>
             <td>
                 <input
                     type="checkbox"
@@ -203,7 +203,7 @@ function my_plugin_add_custom_user_profile_fields( $user ) {
                     value="1" <?php /* Value when checked */ ?>
                     <?php checked( $is_checked ); /* WordPress helper to output 'checked="checked"' if true */ ?>
                 />
-                <span class="description"><?php _e( 'Allow this user to authenticate and access their data via the /wp/v2/users/me REST API endpoint using methods like JWT.', 'your-plugin-textdomain' ); ?></span>
+                <span class="description"><?php _e( 'Allow this user to authenticate and access their data via the /wp/v2/users/me REST API endpoint using methods like JWT.', 'timegrow' ); ?></span>
             </td>
         </tr>
     </table>

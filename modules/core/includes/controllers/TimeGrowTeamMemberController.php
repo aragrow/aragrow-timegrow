@@ -34,7 +34,7 @@ class TimeGrowTeamMemberController{
         
         if (!isset($_POST['timegrow_team_member_nonce_field']) || 
             !wp_verify_nonce($_POST['timegrow_team_member_nonce_field'], 'timegrow_team_member_nonce')) {
-            wp_die(__('Nonce verification failed.', 'text-domain'));
+            wp_die(__('Nonce verification failed.', 'timegrow'));
         }
 
         if (!isset($_POST['team_member_id'])) return; 

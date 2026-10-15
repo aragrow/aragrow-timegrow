@@ -1,12 +1,14 @@
 <?php
 /**
  * Plugin Name: Aragrow - TimeGrow
- * Plugin URI: https://example.com/aragrow-timegrow
+ * Plugin URI: https://aragrow.me/wp-plugins/timegrow/
  * Description: A comprehensive time tracking plugin for managing projects, team members, invoicing with AI-powered receipt analysis, WooCommerce integration, PayPal auto-invoicing, and REST API endpoints.
- * Version: 2.1.1
+ * Version: 2.2.0
  * Author: David Arago - ARAGROW, LLC
  * Author URI: https://aragrow.me/wp-plugins/timegrow/
  * License: GPL2
+ * Text Domain: timegrow
+ * Domain Path: /languages
  */
 
 if (!defined('ABSPATH')) {
@@ -18,7 +20,7 @@ if (!defined('ABSPATH')) {
 // ==============================================
 
 defined( 'TIMEGROW' ) or define( 'TIMEGROW', 'TimeGrow' );
-defined( 'TIMEGROW_VERSION' ) or define( 'TIMEGROW_VERSION', '2.0.0' );
+defined( 'TIMEGROW_VERSION' ) or define( 'TIMEGROW_VERSION', '2.2.0' );
 defined( 'TIMEGROW_PREFIX' ) or define( 'TIMEGROW_PREFIX', strtolower(TIMEGROW). '_' );
 defined( 'TIMEGROW_BASE_DIR' ) or define( 'ARAGROW_TIMEGROW_BASE_DIR', plugin_dir_path( __FILE__ ) );
 defined( 'TIMEGROW_BASE_URI' ) or define( 'ARAGROW_TIMEGROW_BASE_URI', plugin_dir_url( __FILE__ ) );
@@ -71,6 +73,11 @@ if ( ! function_exists( 'timegrow_company_default_rate' ) ) {
         return (float) $wpdb->get_var( "SELECT default_flat_fee FROM {$table} ORDER BY ID LIMIT 1" );
     }
 }
+
+// Translations for the 'timegrow' text domain (languages/ folder)
+add_action( 'init', function() {
+    load_plugin_textdomain( 'timegrow', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
+} );
 
 // Backward compatibility constants
 defined( 'TIMEGROW_INCLUDES_DIR' ) or define( 'TIMEGROW_INCLUDES_DIR', TIMEGROW_MODULES_DIR.'core/includes/' );

@@ -28,7 +28,7 @@ class TimeGrowProjectController{
 
         if (!isset($_POST['timegrow_project_nonce_field']) || 
             !wp_verify_nonce($_POST['timegrow_project_nonce_field'], 'timegrow_project_nonce')) {
-            wp_die(__('Nonce verification failed.', 'text-domain'));
+            wp_die(__('Nonce verification failed.', 'timegrow'));
         }
 
         if (!isset($_POST['project_id'])) return; 
