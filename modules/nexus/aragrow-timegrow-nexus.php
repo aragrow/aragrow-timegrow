@@ -21,7 +21,7 @@ if (!defined('TIMEGROW_NEXUS_BASE_DIR')) {
 }
 
 // Debug: Log the paths (helpful for troubleshooting CSS/JS loading issues)
-if (WP_DEBUG) {
+if (timegrow_debug()) {
     timegrow_log('TIMEGROW_NEXUS_BASE_DIR: ' . TIMEGROW_NEXUS_BASE_DIR);
     timegrow_log('TIMEGROW_NEXUS_BASE_URI: ' . TIMEGROW_NEXUS_BASE_URI);
 }

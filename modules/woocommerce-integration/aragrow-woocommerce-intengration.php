@@ -289,7 +289,7 @@ class Aragrow_WOO_Integration_Plugins
                 }
 
                 // Log validation failure
-                if (WP_DEBUG) {
+                if (timegrow_debug()) {
                     timegrow_log('Manual payment validation failed for Order #' . $order_id . ': ' . implode(' | ', $errors));
                 }
 
@@ -865,7 +865,7 @@ class Aragrow_WOO_Integration_Plugins
 
         $order->save();
 
-        if(WP_DEBUG) {
+        if(timegrow_debug()) {
             timegrow_log('Auto-recorded full payment for order #' . $order_id . ': $' . $order->get_total());
         }
     }
@@ -895,7 +895,7 @@ class Aragrow_WOO_Integration_Plugins
                 });
             }
 
-            if(WP_DEBUG) {
+            if(timegrow_debug()) {
                 timegrow_log('WARNING: Order #' . $order_id . ' marked as partial_paid but no payment amount set');
             }
             return;
@@ -922,7 +922,7 @@ class Aragrow_WOO_Integration_Plugins
             $order->save();
         }
 
-        if(WP_DEBUG) {
+        if(timegrow_debug()) {
             timegrow_log('Validated partial payment for order #' . $order_id . ': $' . $payment_amount . ' of $' . $order_total);
         }
     }

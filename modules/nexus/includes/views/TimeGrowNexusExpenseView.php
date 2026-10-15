@@ -47,7 +47,7 @@ class TimeGrowNexusExpenseView {
 
             <?php settings_errors('timegrow_expense_messages'); ?>
 
-            <?php if (WP_DEBUG): ?>
+            <?php if (timegrow_debug()): ?>
             <!-- SQL Debug Panel -->
             <div class="timegrow-debug-panel">
                 <details>

@@ -16,7 +16,7 @@ class TimeGrowGeminiReceiptAnalyzer implements TimeGrowReceiptAnalyzerInterface 
         // Load active configuration from settings
         if (class_exists('TimeGrowSettings')) {
             $this->settings = TimeGrowSettings::get_active_ai_config();
-            if(WP_DEBUG) {
+            if(timegrow_debug()) {
                 timegrow_log('=== ACTIVE CONFIG DEBUG ===');
                 timegrow_log('Config name: ' . ($this->settings['config_name'] ?? 'Not set'));
                 timegrow_log('Is active: ' . (isset($this->settings['is_active_config']) ? ($this->settings['is_active_config'] ? 'YES' : 'NO') : 'Not set'));
@@ -39,7 +39,7 @@ class TimeGrowGeminiReceiptAnalyzer implements TimeGrowReceiptAnalyzerInterface 
         // Decrypt API key if Voice AI Security class is available
         if (class_exists('\AraGrow\VoiceAI\Security')) {
             $encrypted_key = $this->settings['ai_api_key'] ?? '';
-            if(WP_DEBUG) {
+            if(timegrow_debug()) {
                 timegrow_log('=== API KEY DECRYPTION ===');
                 timegrow_log('Encrypted key present: ' . (!empty($encrypted_key) ? 'YES' : 'NO'));
                 timegrow_log('Encrypted key length: ' . strlen($encrypted_key));
@@ -49,7 +49,7 @@ class TimeGrowGeminiReceiptAnalyzer implements TimeGrowReceiptAnalyzerInterface 
                 ? \AraGrow\VoiceAI\Security::decrypt($encrypted_key)
                 : '';
 
-            if(WP_DEBUG) {
+            if(timegrow_debug()) {
                 timegrow_log('Decryption successful: ' . (!empty($this->api_key) ? 'YES' : 'NO'));
                 timegrow_log('Decrypted key length: ' . strlen($this->api_key));
             }
@@ -65,7 +65,7 @@ class TimeGrowGeminiReceiptAnalyzer implements TimeGrowReceiptAnalyzerInterface 
         }
 
         $this->model = $this->settings['ai_model'] ?? 'gemini-2.0-flash-exp';
-        if(WP_DEBUG) {
+        if(timegrow_debug()) {
             timegrow_log('=== FINAL CONFIG ===');
             timegrow_log('Using model: ' . $this->model);
             timegrow_log('API key configured: ' . (!empty($this->api_key) ? 'YES' : 'NO'));
@@ -109,7 +109,7 @@ class TimeGrowGeminiReceiptAnalyzer implements TimeGrowReceiptAnalyzerInterface 
         // Get extraction prompt
         $prompt = $this->get_extraction_prompt();
 
-        if(WP_DEBUG) {
+        if(timegrow_debug()) {
             timegrow_log('Prompt length: ' . strlen($prompt) . ' characters');
             timegrow_log('Prompt preview (first 500 chars): ' . substr($prompt, 0, 500));
         }
@@ -154,7 +154,7 @@ class TimeGrowGeminiReceiptAnalyzer implements TimeGrowReceiptAnalyzerInterface 
 
         $api_url = 'https://generativelanguage.googleapis.com/v1/models/' . $this->model . ':generateContent';
 
-        if(WP_DEBUG) {
+        if(timegrow_debug()) {
             timegrow_log('=== GEMINI API CALL ===');
             timegrow_log('API URL: ' . $api_url);
             timegrow_log('API Key present: ' . (!empty($this->api_key) ? 'YES' : 'NO'));
@@ -197,7 +197,7 @@ class TimeGrowGeminiReceiptAnalyzer implements TimeGrowReceiptAnalyzerInterface 
         $status_code = wp_remote_retrieve_response_code($response);
         $body = wp_remote_retrieve_body($response);
 
-        if(WP_DEBUG) {
+        if(timegrow_debug()) {
             timegrow_log('=== API RESPONSE ===');
             timegrow_log('Status code: ' . $status_code);
             if($status_code !== 200) {
@@ -209,7 +209,7 @@ class TimeGrowGeminiReceiptAnalyzer implements TimeGrowReceiptAnalyzerInterface 
             $error_data = json_decode($body, true);
             $error_message = $error_data['error']['message'] ?? 'Unknown API error';
 
-            if(WP_DEBUG) {
+            if(timegrow_debug()) {
                 timegrow_log('Full error data: ' . print_r($error_data, true));
             }
 
@@ -219,7 +219,7 @@ class TimeGrowGeminiReceiptAnalyzer implements TimeGrowReceiptAnalyzerInterface 
         $api_response = json_decode($body, true);
 
         // Log usage metadata if available
-        if(WP_DEBUG && isset($api_response['usageMetadata'])) {
+        if(timegrow_debug() && isset($api_response['usageMetadata'])) {
             timegrow_log('=== TOKEN USAGE ===');
             timegrow_log('Prompt tokens: ' . ($api_response['usageMetadata']['promptTokenCount'] ?? 0));
             timegrow_log('Response tokens: ' . ($api_response['usageMetadata']['candidatesTokenCount'] ?? 0));
@@ -342,7 +342,7 @@ OTHER IMPORTANT RULES:
         $gemini_text = $response['candidates'][0]['content']['parts'][0]['text'];
 
         // Log the raw LLM response for evaluation
-        if(WP_DEBUG) {
+        if(timegrow_debug()) {
             timegrow_log('=== RAW GEMINI LLM RESPONSE ===');
             timegrow_log('Response text: ' . $gemini_text);
             timegrow_log('Response length: ' . strlen($gemini_text) . ' characters');
@@ -352,7 +352,7 @@ OTHER IMPORTANT RULES:
         $gemini_text = preg_replace('/```json\s*|\s*```/', '', $gemini_text);
         $gemini_text = trim($gemini_text);
 
-        if(WP_DEBUG) {
+        if(timegrow_debug()) {
             timegrow_log('=== CLEANED GEMINI RESPONSE ===');
             timegrow_log('Cleaned text: ' . $gemini_text);
         }
@@ -361,7 +361,7 @@ OTHER IMPORTANT RULES:
         $extracted_data = json_decode($gemini_text, true);
 
         if (json_last_error() !== JSON_ERROR_NONE) {
-            if(WP_DEBUG) {
+            if(timegrow_debug()) {
                 timegrow_log('=== JSON PARSE ERROR ===');
                 timegrow_log('Error: ' . json_last_error_msg());
                 timegrow_log('Failed to parse: ' . $gemini_text);
@@ -369,7 +369,7 @@ OTHER IMPORTANT RULES:
             return new WP_Error('json_parse_error', sprintf(__('Failed to parse Gemini response: %s', 'aragrow-timegrow'), json_last_error_msg()));
         }
 
-        if(WP_DEBUG) {
+        if(timegrow_debug()) {
             timegrow_log('=== PARSED GEMINI DATA ===');
             timegrow_log('Extracted data: ' . print_r($extracted_data, true));
         }
@@ -412,7 +412,7 @@ OTHER IMPORTANT RULES:
             'model_used' => $this->model,
         ];
 
-        if(WP_DEBUG) {
+        if(timegrow_debug()) {
             timegrow_log('=== FINAL EXPENSE DATA ===');
             timegrow_log('Amount: ' . $expense_data['amount']);
             timegrow_log('Date: ' . $expense_data['expense_date']);

@@ -592,8 +592,8 @@ class TimeGrowReportsController {
         $invoices = $this->get_yearly_invoices($selected_year);
         $invoices_sql = $wpdb->last_query;
 
-        // Display SQL Debug (only when WP_DEBUG is enabled)
-        if (WP_DEBUG): ?>
+        // Display SQL Debug (only when timegrow_debug() is enabled)
+        if (timegrow_debug()): ?>
             <div class="debug-info" style="background: #f8f9fa; border: 2px solid #0073aa; padding: 20px; margin: 20px 0; border-radius: 5px;">
                 <h3 style="margin-top: 0; color: #0073aa;">📊 SQL Queries</h3>
 
@@ -1621,7 +1621,7 @@ class TimeGrowReportsController {
         $monthly_data = $this->get_monthly_pnl_data($selected_year);
 
         // Debug output
-        if (WP_DEBUG):
+        if (timegrow_debug()):
             $orders_table = $wpdb->prefix . 'wc_orders';
             $ordermeta_table = $wpdb->prefix . 'wc_orders_meta';
             $expense_table = $wpdb->prefix . TIMEGROW_PREFIX . 'expense_tracker';
@@ -2106,9 +2106,9 @@ class TimeGrowReportsController {
             $grand_entry_count += intval($row->entry_count);
         }
 
-        // Display the SQL Query (only when WP_DEBUG is enabled)
+        // Display the SQL Query (only when timegrow_debug() is enabled)
         ?>
-            <?php if (WP_DEBUG): ?>
+            <?php if (timegrow_debug()): ?>
             <div style="background: #f8f9fa; border: 2px solid #0073aa; padding: 20px; margin: 20px 0; border-radius: 5px;">
                 <h3 style="margin-top: 0; color: #0073aa;">📊 SQL Query</h3>
                 <pre style="background: #fff; padding: 15px; border: 1px solid #ddd; overflow-x: auto; font-size: 12px; line-height: 1.5;"><?php echo esc_html($final_sql); ?></pre>
@@ -2353,9 +2353,9 @@ class TimeGrowReportsController {
             }
         }
 
-        // Display the SQL Query (only when WP_DEBUG is enabled)
+        // Display the SQL Query (only when timegrow_debug() is enabled)
         ?>
-            <?php if (WP_DEBUG): ?>
+            <?php if (timegrow_debug()): ?>
             <div style="background: #f8f9fa; border: 2px solid #0073aa; padding: 20px; margin: 20px 0; border-radius: 5px;">
                 <h3 style="margin-top: 0; color: #0073aa;">📊 SQL Query</h3>
                 <pre style="background: #fff; padding: 15px; border: 1px solid #ddd; overflow-x: auto; font-size: 12px; line-height: 1.5;"><?php echo esc_html($final_sql); ?></pre>
@@ -2632,9 +2632,9 @@ class TimeGrowReportsController {
             $by_assigned_to[$expense->assigned_to] += $amount;
         }
 
-        // Display the SQL Query (only when WP_DEBUG is enabled)
+        // Display the SQL Query (only when timegrow_debug() is enabled)
         ?>
-            <?php if (WP_DEBUG): ?>
+            <?php if (timegrow_debug()): ?>
             <div style="background: #f8f9fa; border: 2px solid #0073aa; padding: 20px; margin: 20px 0; border-radius: 5px;">
                 <h3 style="margin-top: 0; color: #0073aa;">📊 SQL Query</h3>
                 <pre style="background: #fff; padding: 15px; border: 1px solid #ddd; overflow-x: auto; font-size: 12px; line-height: 1.5;"><?php echo esc_html($final_sql); ?></pre>
@@ -2926,9 +2926,9 @@ class TimeGrowReportsController {
         // Sort by_month
         ksort($by_month);
 
-        // Display the SQL Query (only when WP_DEBUG is enabled)
+        // Display the SQL Query (only when timegrow_debug() is enabled)
         ?>
-            <?php if (WP_DEBUG): ?>
+            <?php if (timegrow_debug()): ?>
             <div style="background: #f8f9fa; border: 2px solid #0073aa; padding: 20px; margin: 20px 0; border-radius: 5px;">
                 <h3 style="margin-top: 0; color: #0073aa;">📊 SQL Query</h3>
                 <pre style="background: #fff; padding: 15px; border: 1px solid #ddd; overflow-x: auto; font-size: 12px; line-height: 1.5;"><?php echo esc_html($final_sql); ?></pre>
@@ -3389,7 +3389,7 @@ class TimeGrowReportsController {
         // Count total clients in wp_users (all users flagged as clients)
         $all_clients_total = count($all_clients);
 
-        // Display diagnostics panel (always visible to admins, not gated by WP_DEBUG)
+        // Display diagnostics panel (always visible to admins, not gated by timegrow_debug())
         ?>
         <details style="background: #fff8e1; border: 2px solid #f9a825; padding: 15px; margin: 0 0 20px 0; border-radius: 5px;">
             <summary style="cursor: pointer; font-weight: bold; color: #f57f17; font-size: 14px;">&#128269; Report Diagnostics (click to expand)</summary>
@@ -3413,7 +3413,7 @@ class TimeGrowReportsController {
                 <br><span style="color:red;"><strong>DB Error:</strong> <?php echo esc_html($wpdb->last_error); ?></span>
                 <?php endif; ?>
             </div>
-            <?php if (WP_DEBUG): ?>
+            <?php if (timegrow_debug()): ?>
             <div style="margin-top: 12px;">
                 <strong>SQL:</strong>
                 <pre style="background: #fff; padding: 10px; border: 1px solid #ddd; overflow-x: auto; font-size: 11px; line-height: 1.4; margin: 5px 0 0 0;"><?php echo esc_html($final_sql); ?></pre>
@@ -3738,8 +3738,8 @@ class TimeGrowReportsController {
                     <?php endif; ?>
                 </div>
 
-                <!-- SQL Debug (only when WP_DEBUG is enabled) -->
-                <?php if (WP_DEBUG): ?>
+                <!-- SQL Debug (only when timegrow_debug() is enabled) -->
+                <?php if (timegrow_debug()): ?>
                 <div style="background: #f8f9fa; border: 2px solid #0073aa; padding: 20px; margin: 20px 0; border-radius: 5px;">
                     <h3 style="margin-top: 0; color: #0073aa;">📊 SQL Queries - Client Activity Detail</h3>
 

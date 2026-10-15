@@ -276,7 +276,7 @@ class TimeGrowSettings {
         // Check if this is a programmatic update (from our config actions like load/activate/clear)
         $is_programmatic_update = is_array($input) && !empty($input) && !$is_form_submission;
 
-        if(WP_DEBUG) {
+        if(timegrow_debug()) {
             timegrow_log('Is form submission: ' . ($is_form_submission ? 'YES' : 'NO'));
             timegrow_log('Is programmatic update: ' . ($is_programmatic_update ? 'YES' : 'NO'));
         }
@@ -298,7 +298,7 @@ class TimeGrowSettings {
 
         // Preserve existing config_id if updating
         $existing = get_option($this->ai_option_name, []);
-        if(WP_DEBUG) {
+        if(timegrow_debug()) {
             timegrow_log('Existing option has config_id: ' . (isset($existing['config_id']) ? $existing['config_id'] : 'NONE'));
             timegrow_log('Input has config_id: ' . (isset($input['config_id']) ? $input['config_id'] : 'NONE'));
         }
@@ -1019,7 +1019,7 @@ class TimeGrowSettings {
             timegrow_log('Form temp data cleared on page load (not editing)');
         }
 
-        if(WP_DEBUG) {
+        if(timegrow_debug()) {
             timegrow_log('=== RENDERING AI SETTINGS FORM ===');
             timegrow_log('Total configs to display: ' . count($all_configs));
             foreach($all_configs as $id => $cfg) {
@@ -1098,7 +1098,7 @@ class TimeGrowSettings {
                 <h2 class="hndle" style="padding: 15px; display: flex; justify-content: space-between; align-items: center;">
                     <span>
                         Saved AI Configurations
-                        <?php if(WP_DEBUG): ?>
+                        <?php if(timegrow_debug()): ?>
                             <small style="font-weight: normal; color: #d63638; margin-left: 10px;">
                                 [DEBUG: <?php echo count($all_configs); ?> configs in DB]
                             </small>
@@ -1172,7 +1172,7 @@ class TimeGrowSettings {
             </div>
 
             <!-- Debug Console Logging -->
-            <?php if (WP_DEBUG):
+            <?php if (timegrow_debug()):
                 $current_form_values = get_option($this->ai_option_name, []);
                 $has_config_id = !empty($current_form_values['config_id']);
             ?>

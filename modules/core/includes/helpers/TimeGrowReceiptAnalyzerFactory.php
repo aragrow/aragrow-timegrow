@@ -50,7 +50,7 @@ class TimeGrowReceiptAnalyzerFactory {
         // Get active configuration from the new database table
         if (class_exists('TimeGrowSettings')) {
             $settings = TimeGrowSettings::get_active_ai_config();
-            if(WP_DEBUG) {
+            if(timegrow_debug()) {
                 timegrow_log('=== FACTORY CONFIG DEBUG ===');
                 timegrow_log('Factory using active config from database: ' . ($settings['config_name'] ?? 'Unknown'));
                 timegrow_log('Provider: ' . ($settings['ai_provider'] ?? 'Not set'));

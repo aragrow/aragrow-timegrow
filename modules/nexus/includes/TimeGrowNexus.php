@@ -8,7 +8,7 @@ if (!defined('ABSPATH')) {
 class TimeGrowNexus{
 
     public function __construct() {
-        if(WP_DEBUG) {
+        if(timegrow_debug()) {
             timegrow_log(__CLASS__.'::'.__FUNCTION__);
             timegrow_log('Registering admin_enqueue_scripts hook');
         }
@@ -19,7 +19,7 @@ class TimeGrowNexus{
         add_action('wp_ajax_save_time_entry', array($this, 'save_time_entry'));
         add_action('admin_enqueue_scripts', array($this, 'enqueue_scripts_styles'));
 
-        if(WP_DEBUG) {
+        if(timegrow_debug()) {
             timegrow_log('admin_enqueue_scripts hook registered');
         }
     }
@@ -418,7 +418,7 @@ class TimeGrowNexus{
     }
 
     public function enqueue_scripts_styles($hook) {
-        if(WP_DEBUG) {
+        if(timegrow_debug()) {
             timegrow_log(__CLASS__.'::'.__FUNCTION__);
             timegrow_log('Hook: ' . $hook);
             timegrow_log('TIMEGROW_NEXUS_BASE_URI: ' . TIMEGROW_NEXUS_BASE_URI);
@@ -672,7 +672,7 @@ class TimeGrowNexus{
                 } catch (Exception $e) {
                     $message_text = 'Error processing time entries: ' . $e->getMessage();
                     echo '<div class="notice notice-error"><p>' . $message_text . '</p></div>';
-                    if (WP_DEBUG) {
+                    if (timegrow_debug()) {
                         echo '<pre style="background: #f5f5f5; padding: 10px; border: 1px solid #ddd; overflow: auto;">';
                         echo esc_html($e->getTraceAsString());
                         echo '</pre>';

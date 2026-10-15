@@ -56,7 +56,7 @@ class TimeGrowNexusManualView {
 
             <?php settings_errors('timegrow_manual_messages'); ?>
 
-            <?php if (WP_DEBUG): ?>
+            <?php if (timegrow_debug()): ?>
             <!-- SQL Debug Panel -->
             <div class="timegrow-debug-panel">
                 <details>

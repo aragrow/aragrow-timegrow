@@ -195,7 +195,7 @@ class TimeGrowIntegration{
     }
 
     public function enqueue_scripts_styles($hook) {
-        if(WP_DEBUG) {
+        if(timegrow_debug()) {
             timegrow_log(__CLASS__.'::'.__FUNCTION__);
             timegrow_log('Hook: ' . $hook);
         }

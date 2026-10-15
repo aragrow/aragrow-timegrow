@@ -149,7 +149,7 @@ class TimeGrowTeamMemberController{
     private function update_team_member_projects($team_member_id, $project_ids) {
         timegrow_log('Exc: Timeflies_Team_Members_Admin.update_team_member_projects()');
 
-        if(WP_DEBUG) {
+        if(timegrow_debug()) {
             timegrow_log('Team Member Project Data');
             timegrow_log(print_r($project_ids,true));
         }

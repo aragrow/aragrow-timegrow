@@ -37,13 +37,23 @@ defined( 'TIMEGROW_TEAM_MEMBER_MENU' ) or define( 'TIMEGROW_TEAM_MEMBER_MENU', T
  *     define( 'TIMEGROW_DEBUG', true );
  * Never pass secrets, tokens, keys or passwords to this function.
  */
+/**
+ * True when TimeGrow debug mode is on (TIMEGROW_DEBUG in wp-config.php).
+ * Controls debug logging and the on-screen debug panels (SQL, raw data) in reports and views.
+ */
+if ( ! function_exists( 'timegrow_debug' ) ) {
+    function timegrow_debug() {
+        return defined( 'TIMEGROW_DEBUG' ) && TIMEGROW_DEBUG;
+    }
+}
+
 if ( ! function_exists( 'timegrow_log' ) ) {
     function timegrow_log( $message ) {
         if ( ! is_string( $message ) ) {
             $message = print_r( $message, true );
         }
         $is_error = (bool) preg_match( '/error|fail|exception|invalid/i', $message );
-        if ( ! $is_error && ! ( defined( 'TIMEGROW_DEBUG' ) && TIMEGROW_DEBUG ) ) {
+        if ( ! $is_error && ! timegrow_debug() ) {
             return;
         }
         error_log( '[TimeGrow] ' . $message );

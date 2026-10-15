@@ -55,7 +55,7 @@ class TimeGrowNexusClockView {
 
             <?php settings_errors('timegrow_clock_messages'); ?>
 
-            <?php if (WP_DEBUG && !empty($current_clock_status['_debug']['query'])): ?>
+            <?php if (timegrow_debug() && !empty($current_clock_status['_debug']['query'])): ?>
             <!-- SQL Debug Panel -->
             <div class="timegrow-debug-panel">
                 <details>
