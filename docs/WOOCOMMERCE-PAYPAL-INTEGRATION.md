@@ -109,7 +109,7 @@ A **Manual Payment Details** box sits in the side column of the order editor. It
 - **Hours, not units.** Each project becomes one line. The hours worked (two decimals) go in `_timegrow_project_hours` and the quantity is 1. The line subtotal and total are hours x hourly rate. Earlier versions rounded up to 10-minute units and priced each unit at one sixth of the rate. That is gone.
 - **Rate.** Project, then client (user meta), then company, then 75 as a last resort. The client step now reads the profile field. It used to read an unused column on the users table, so it was always 0.
 - **Markers.** New orders get `_timekeeping_invoice` and `_timegrow_qty_unit = hours`. This is the only place an order becomes an hours invoice. Each line gets `_timegrow_project_hours` and a message such as "3.75 hrs. At a rate of 75 per hour."
-- **Appending.** Entries are added to an existing Pending order for the client only if that order already carries the `hours` marker. Otherwise a new order is created.
+- **Appending.** Entries are added to an existing Pending order for the client only if that order carries the `hours` marker and has not been issued yet (no PDF invoice number, no PayPal invoice ID). Otherwise a new order is created.
 - It creates the project's product if it does not exist, adds the customer note "Time entries for client ID: N", and sets the order to Processing.
 
 ## PayPal auto invoicer

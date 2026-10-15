@@ -93,6 +93,11 @@ class TimeGrowWooOrderCreator {
                 'limit' => -1 // Get all orders
             ]);
 
+            // Skip invoices already issued (PDF invoice number or PayPal invoice): never add time to those
+            $order = array_values(array_filter($order, function($candidate) {
+                return !$candidate->get_meta('_wcpdf_invoice_number') && !$candidate->get_meta('_paypal_invoice_id');
+            }));
+
             if (!empty($order)) {
                 // If an order already exists, use it
                 $order = $order[0]; // Get the first order
