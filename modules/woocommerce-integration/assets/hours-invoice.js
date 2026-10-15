@@ -1,22 +1,17 @@
 /**
- * Hours invoices: replace the Quantity box with the Project Hours box on each order line.
- * Typing hours updates the hidden Quantity box and fires its change event, so
- * WooCommerce recalculates the line total and taxes from the unit rate.
+ * Hours invoices: each order line shows an Hours box instead of the Quantity box.
+ * The hours are saved on the line and the quantity stays 1. Typing hours updates the
+ * line subtotal and total from the rate (project, client, then company rate).
  */
 jQuery(function ($) {
     var $flag = $('#timekeeping_invoice');
     if (!$flag.length) return;
 
-    // Orders built from time entries count quantity in 10 minute units: leave them alone
+    // Old orders built from time entries count quantity in 10 minute units: leave them alone
     if (window.timegrowHoursInvoice && window.timegrowHoursInvoice.enabled === false) return;
 
     function qtyBox($row) {
         return $row.find('td.quantity input[name^="order_item_qty"]');
-    }
-
-    function rateFor($row) {
-        var rates = (window.timegrowHoursInvoice && window.timegrowHoursInvoice.rates) || {};
-        return parseFloat(rates[$row.data('order_item_id')]) || 0;
     }
 
     function money(amount) {
@@ -30,17 +25,32 @@ jQuery(function ($) {
         });
     }
 
+    // Rate for a line: the server rate, else the rate the line already carries
+    function rateFor($row, hours) {
+        var rates = (window.timegrowHoursInvoice && window.timegrowHoursInvoice.rates) || {};
+        var rate = parseFloat(rates[$row.data('order_item_id')]) || 0;
+        if (rate > 0) return rate;
+        if ($row.data('rate0') === undefined) {
+            var sub = parseFloat($row.find('input.line_subtotal').val()) || 0;
+            $row.data('rate0', hours > 0 ? sub / hours : 0);
+        }
+        return $row.data('rate0');
+    }
+
+    function hoursOf($row) {
+        return parseFloat($row.find('.timegrow-line-hours input[name^="timegrow_line_hours"]').val()) || 0;
+    }
+
     function apply() {
         var on = $flag.is(':checked');
 
-        // Column headers and the "x" in front of the quantity
+        // Column headers
         var $qtyHead = $('#woocommerce-order-items th.quantity');
         if (!$qtyHead.data('orig')) $qtyHead.data('orig', $qtyHead.text());
         $qtyHead.text(on ? 'Hours' : $qtyHead.data('orig'));
         var $priceHead = $('#woocommerce-order-items th.item_cost');
         if (!$priceHead.data('orig')) $priceHead.data('orig', $priceHead.text());
         $priceHead.text(on ? 'Rate' : $priceHead.data('orig'));
-        $('#woocommerce-order-items td.quantity .view .times').toggle(!on);
 
         $('#woocommerce-order-items tr.item').each(function () {
             var $row = $(this);
@@ -48,43 +58,53 @@ jQuery(function ($) {
             var $qty = qtyBox($row);
             if (!$wrap.length || !$qty.length) return;
 
-            var $input = $wrap.find('input');
-            var rate = rateFor($row);
-            if (on && rate > 0 && window.accounting) {
-                $row.find('td.item_cost .view').html(money(rate));
-            }
+            var hours = hoursOf($row);
+            var $view = $row.find('td.quantity .view');
             var $editCell = $row.find('td.quantity .edit');
 
             if (on) {
                 if (!$wrap.data('home')) $wrap.data('home', $wrap.parent());
+                if (!$view.data('orig')) $view.data('orig', $view.html());
+
                 $wrap.appendTo($editCell);
-                $qty.hide();
                 $wrap.find('.description').hide();
-                // Hours field starts from the current quantity and drives it
-                $input.val(parseFloat($qty.val() || 0).toFixed(2));
-            } else if ($wrap.data('home')) {
-                $wrap.appendTo($wrap.data('home'));
-                $wrap.find('.description').show();
+                if (!$wrap.find('.timegrow-hours-mode').length) {
+                    $wrap.append('<input type="hidden" class="timegrow-hours-mode" name="timegrow_hours_mode[' + $row.data('order_item_id') + ']" value="1">');
+                }
+
+                // Quantity stays 1 on an hours invoice; the hours are billed from the Hours box
+                $qty.hide().val(1);
+                $view.text(hours.toFixed(2));
+
+                var rate = rateFor($row, hours);
+                if (rate > 0 && window.accounting) $row.find('td.item_cost .view').html(money(rate));
+            } else {
+                $wrap.find('.timegrow-hours-mode').remove();
+                if ($wrap.data('home')) {
+                    $wrap.appendTo($wrap.data('home'));
+                    $wrap.find('.description').show();
+                }
+                if ($view.data('orig')) $view.html($view.data('orig'));
+                // Give the line its hours back as a normal quantity
+                if ($qty.is(':hidden') && hours > 0) $qty.val(hours);
                 $qty.show();
             }
         });
     }
 
-    // Hours field drives the Quantity box and WooCommerce's own recalculation
-    $(document).on('input change', '.timegrow-line-hours input', function () {
+    // Typing hours prices the line; the server saves hours and sets the quantity to 0
+    $(document).on('input change', '.timegrow-line-hours input[name^="timegrow_line_hours"]', function () {
         if (!$flag.is(':checked')) return;
         var $row = $(this).closest('tr.item');
         var hours = parseFloat($(this).val());
         if (isNaN(hours) || hours < 0) return;
-        var $qty = qtyBox($row);
-        $qty.val(hours).trigger('change'); // WooCommerce rescales the line from the old rate
 
-        // Then price the line from the project or default rate
-        var rate = rateFor($row);
+        var rate = rateFor($row, hours);
         if (rate > 0) {
             var amount = (Math.round(rate * hours * 100) / 100).toString();
             $row.find('input.line_subtotal, input.line_total').val(amount);
         }
+        $row.find('td.quantity .view').text(hours.toFixed(2));
     });
 
     $flag.on('change', apply);
