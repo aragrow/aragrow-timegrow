@@ -85,8 +85,20 @@ jQuery(function ($) {
     });
 
     $flag.on('change', apply);
-    // WooCommerce replaces the item rows after a save or reload, so re-apply
-    $(document.body).on('wc_order_items_reloaded', apply);
-    $(document).on('items_saved', apply);
+    // WooCommerce redraws the item rows after a save, recalculate or reload without a
+    // reliable event, so watch the items box and re-apply when the rows are replaced.
+    var box = document.getElementById('woocommerce-order-items');
+    if (box && window.MutationObserver) {
+        var timer = null;
+        var observer = new MutationObserver(function () {
+            clearTimeout(timer);
+            timer = setTimeout(function () {
+                observer.disconnect();   // avoid reacting to our own changes
+                apply();
+                observer.observe(box, { childList: true, subtree: true });
+            }, 50);
+        });
+        observer.observe(box, { childList: true, subtree: true });
+    }
     apply();
 });
