@@ -152,6 +152,27 @@ PayPal's invoicing API has no separate "create customer" call. The recipient on 
 
 Phone numbers are not sent. PayPal needs them split into country code and number.
 
+### When the client pays
+
+Code: `modules/paypal-invoicer/includes/class-paypal-payment-sync.php`. Three ways in, one sync step:
+
+| How | When | Setup |
+|---|---|---|
+| **Webhook** | Within seconds of the payment | In the PayPal developer dashboard, add a webhook for `https://your-site/wp-json/timegrow/v1/paypal-webhook` with the events `INVOICING.INVOICE.PAID`, `INVOICING.INVOICE.CANCELLED` and `INVOICING.INVOICE.REFUNDED`. Paste its Webhook ID in Settings > PayPal Integration. Needs a public HTTPS site. |
+| **Scheduled check** | Every hour, twice a day, or daily (default) | Settings > PayPal Integration > **Check for payments**. Checks up to 50 orders in Invoice Sent to PayPal, Invoice Draft in PayPal or Partial Paid. WP-Cron runs on site visits; on a quiet site, add a real server cron job that loads `wp-cron.php`. |
+| **Check PayPal status** button | On demand | The **PayPal Invoice** box on the order shows the invoice ID, the last PayPal status, and the button. |
+
+The sync step always reads the invoice from PayPal's API (a webhook message is never trusted on its own; its signature is also verified with PayPal first), then:
+
+| PayPal status | Order |
+|---|---|
+| PAID, MARKED_AS_PAID | Payment date, amount, transaction ID and type "PayPal" are recorded, then the order moves to **Invoice Paid** (the client gets the paid email). |
+| PARTIALLY_PAID | Amount paid so far is recorded, order moves to **Partial Paid**. |
+| CANCELLED, REFUNDED, PARTIALLY_REFUNDED, MARKED_AS_REFUNDED | Order note only; the status is left for you to decide. |
+| Anything else (DRAFT, SENT, UNPAID, ...) | Nothing changes. |
+
+Each check saves `_paypal_invoice_status` and `_paypal_last_checked` on the order, so the same payment or note is never applied twice.
+
 ### Quantity and rate sent to PayPal
 
 Hours invoice lines have a quantity of 1 and their hours in `_timegrow_project_hours`. The module sends those hours as the PayPal quantity, with the line total divided by the hours as the unit rate. So 3.75 hours at 75.00 goes to PayPal as 3.75 x 75.00. Every other line sends its plain quantity. There is no unit conversion.
