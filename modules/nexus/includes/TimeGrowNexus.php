@@ -109,7 +109,7 @@ class TimeGrowNexus{
         );
 
         add_submenu_page(
-            null,
+            TIMEGROW_PARENT_MENU, // shown in the menu: the hub that links to every settings area
             'Settings',
             'Settings',
             'access_nexus_settings',

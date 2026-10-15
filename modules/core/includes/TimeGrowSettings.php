@@ -68,7 +68,7 @@ class TimeGrowSettings {
         add_submenu_page(
             TIMEGROW_PARENT_MENU,
             'TimeGrow Settings',
-            'Settings',
+            'General & AI', // the Nexus "Settings" item is the hub for all settings
             TIMEGROW_OWNER_CAP,
             TIMEGROW_PARENT_MENU . '-settings',
             [$this, 'render_settings_page']
