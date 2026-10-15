@@ -82,6 +82,14 @@ class TimeGrowIntegration{
                 'woocommerce-integration',
                 'timegrow_wc_section'
             );
+
+            add_settings_field(
+                'wc_decimal_quantities',
+                'Allow decimal quantities',
+                [ $this, 'wc_decimal_quantities_callback' ],
+                'woocommerce-integration',
+                'timegrow_wc_section'
+            );
         }
     }
     // Section description
@@ -134,6 +142,19 @@ class TimeGrowIntegration{
         <?php
     }
 
+    function wc_decimal_quantities_callback() {
+        $value = Aragrow_TimeGrow_Decimal_Quantities::is_enabled() ? 1 : 0;
+        ?>
+        <label>
+            <input type="checkbox" name="timegrow_integration_settings[wc_decimal_quantities]" value="1"
+                <?php checked(1, $value); ?>
+                <?php echo !class_exists('WooCommerce') ? 'disabled' : ''; ?>>
+            Allow decimal quantities, such as 3.75 hours, on order lines
+        </label>
+        <p class="description">Removes WooCommerce's whole-number rounding. This applies to all products, including stock amounts.</p>
+        <?php
+    }
+
     // Sanitization callback
     function sanitize_integration_settings($input) {
         $output = array();
@@ -141,6 +162,7 @@ class TimeGrowIntegration{
         $output['wc_clients'] = isset($input['wc_clients']) && $input['wc_clients'] ? 1 : 0;
         $output['wc_invoices'] = isset($input['wc_invoices']) && $input['wc_invoices'] ? 1 : 0;
         $output['wc_products'] = isset($input['wc_products']) && $input['wc_products'] ? 1 : 0;
+        $output['wc_decimal_quantities'] = isset($input['wc_decimal_quantities']) && $input['wc_decimal_quantities'] ? 1 : 0;
         return $output;
     }
 

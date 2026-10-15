@@ -15,6 +15,9 @@ if (!defined('ABSPATH')) {
 }
 use Automattic\WooCommerce\Internal\DataStores\Orders\CustomOrdersTableController;
 
+require_once __DIR__ . '/includes/class-decimal-quantities.php';
+Aragrow_TimeGrow_Decimal_Quantities::init();
+
 class Aragrow_WOO_Integration_Plugins
 {
 
@@ -521,8 +524,6 @@ class Aragrow_WOO_Integration_Plugins
                 $item->set_subtotal($new_subtotal);
                 $item->set_total(round($new_subtotal * $ratio, wc_get_price_decimals()));
                 $item->set_quantity($hours);
-                // Keep the Float Quantities plugin in sync
-                $item->update_meta_data('_precise_quantity', number_format($hours, 2, '.', ''));
                 $changed = true;
             }
             $item->save();
