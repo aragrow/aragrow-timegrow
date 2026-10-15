@@ -42,6 +42,10 @@ class Aragrow_WOO_Integration_Plugins
         add_action('edit_user_profile_update', [ $this, 'ein_ssn_save_user_field' ]); // Admin
 
         add_action('woocommerce_process_shop_order_meta', [ $this, 'save_timekeeping_invoice_field' ]);
+        // Per-line Project Hours input, applied to the quantity after the order items are saved
+        add_action('woocommerce_after_order_itemmeta', [ $this, 'render_line_project_hours_input' ], 20, 3);
+        add_action('woocommerce_process_shop_order_meta', [ $this, 'apply_project_hours_to_order_lines' ], 30);
+        add_action('admin_enqueue_scripts', [ $this, 'enqueue_hours_invoice_script' ]);
 
         // Mostrar el campo en la lista de usuarios
         add_filter('manage_users_columns', [ $this, 'ein_ssn_add_user_column' ]);
@@ -390,6 +394,144 @@ class Aragrow_WOO_Integration_Plugins
 
         $is_timekeeping = isset($_POST['timekeeping_invoice']) ? 'yes' : 'no';
         update_post_meta($order_id, '_timekeeping_invoice', $is_timekeeping);
+    }
+
+    /**
+     * Load the hours invoice script on the order edit screen.
+     */
+    public function enqueue_hours_invoice_script($hook) {
+        $screen = get_current_screen();
+        if (!$screen || !in_array($screen->id, ['woocommerce_page_wc-orders', 'shop_order'], true)) return;
+
+        wp_enqueue_script(
+            'timegrow-hours-invoice',
+            plugin_dir_url(__FILE__) . 'assets/hours-invoice.js',
+            ['jquery'],
+            filemtime(__DIR__ . '/assets/hours-invoice.js'),
+            true
+        );
+
+        // Rate per order line (project rate, else default rate), keyed by line item ID
+        $order_id = isset($_GET['id']) ? absint($_GET['id']) : (isset($_GET['post']) ? absint($_GET['post']) : 0);
+        $order    = $order_id ? wc_get_order($order_id) : false;
+        $rates    = [];
+        if ($order) {
+            foreach ($order->get_items('line_item') as $item_id => $item) {
+                $rate = $this->get_hours_rate($item->get_product_id(), $order->get_customer_id());
+                if ($rate > 0) $rates[$item_id] = $rate;
+            }
+        }
+        wp_localize_script('timegrow-hours-invoice', 'timegrowHoursInvoice', ['rates' => (object) $rates]);
+    }
+
+    /**
+     * Hourly rate for an order line, in this order:
+     * 1. the project's rate
+     * 2. the client's (user) default rate
+     * 3. the company default rate
+     * Returns 0 when none is set.
+     *
+     * @param int $product_id  Product on the order line (linked to a project).
+     * @param int $customer_id Order customer, used when no project matches the product.
+     */
+    public function get_hours_rate($product_id, $customer_id = 0) {
+        global $wpdb;
+
+        $project_table = $wpdb->prefix . TIMEGROW_PREFIX . 'project_tracker';
+        $company_table = $wpdb->prefix . TIMEGROW_PREFIX . 'company_tracker';
+
+        $project = $wpdb->get_row($wpdb->prepare(
+            "SELECT client_id, default_flat_fee FROM {$project_table} WHERE product_id = %d ORDER BY ID LIMIT 1",
+            (int) $product_id
+        ));
+
+        // 1. Project rate
+        if ($project && (float) $project->default_flat_fee > 0) return (float) $project->default_flat_fee;
+
+        // 2. Client rate
+        $client_id = $project && $project->client_id ? (int) $project->client_id : (int) $customer_id;
+        if ($client_id) {
+            $client_rate = (float) get_user_meta($client_id, 'timegrow_default_flat_fee', true);
+            if ($client_rate > 0) return $client_rate;
+        }
+
+        // 3. Company rate
+        return (float) $wpdb->get_var("SELECT default_flat_fee FROM {$company_table} WHERE ID = 1 AND default_flat_fee > 0");
+    }
+
+    /**
+     * Project Hours input under each line item in the admin order editor.
+     * The value is stored on the line as _timegrow_project_hours.
+     */
+    public function render_line_project_hours_input($item_id, $item, $product) {
+        if (!is_admin() || !($item instanceof WC_Order_Item_Product)) return;
+
+        $hours = $item->get_meta('_timegrow_project_hours');
+        if ($hours === '') $hours = $item->get_quantity();
+
+        printf(
+            '<div class="timegrow-line-hours" style="margin-top:6px;"><label><strong>%s</strong> <input type="number" step="0.01" min="0" style="width:90px;" name="timegrow_line_hours[%d]" value="%s"></label> <span class="description">%s</span></div>',
+            esc_html__('Hours:', 'timegrow'),
+            (int) $item_id,
+            esc_attr(number_format((float) $hours, 2, '.', '')),
+            esc_html__('Used as the quantity when "Is Hours Invoice?" is checked.', 'timegrow')
+        );
+    }
+
+    /**
+     * On an hours invoice, set each line's quantity to its own Project Hours value.
+     * Keeps each line's unit rate, then recalculates line and order totals.
+     */
+    public function apply_project_hours_to_order_lines($order_id) {
+        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+
+        // Always remember the entered hours per line, even when the box is unchecked
+        if (empty($_POST['timegrow_line_hours']) || !is_array($_POST['timegrow_line_hours'])) return;
+
+        $order = wc_get_order($order_id);
+        if (!$order) return;
+
+        $is_hours_invoice = isset($_POST['timekeeping_invoice']);
+        $posted = wp_unslash($_POST['timegrow_line_hours']);
+        $changed = false;
+
+        foreach ($order->get_items('line_item') as $item_id => $item) {
+            if (!isset($posted[$item_id]) || !is_numeric($posted[$item_id])) continue;
+
+            $hours = round((float) $posted[$item_id], 2);
+            if ($hours <= 0) continue;
+
+            $item->update_meta_data('_timegrow_project_hours', number_format($hours, 2, '.', ''));
+
+            $old_qty = (float) $item->get_quantity();
+            if ($is_hours_invoice && $old_qty > 0) {
+                // Rate: project rate, then default rate, else the line's current rate
+                $rate = $this->get_hours_rate($item->get_product_id(), $order->get_customer_id());
+                if ($rate <= 0) $rate = (float) $item->get_subtotal() / $old_qty;
+
+                $old_subtotal = (float) $item->get_subtotal();
+                $ratio = $old_subtotal > 0 ? (float) $item->get_total() / $old_subtotal : 1; // keep any discount
+                $new_subtotal = round($rate * $hours, wc_get_price_decimals());
+
+                if (abs($old_qty - $hours) < 0.00001 && abs($old_subtotal - $new_subtotal) < 0.005) {
+                    $item->save();
+                    continue;
+                }
+
+                $item->set_subtotal($new_subtotal);
+                $item->set_total(round($new_subtotal * $ratio, wc_get_price_decimals()));
+                $item->set_quantity($hours);
+                // Keep the Float Quantities plugin in sync
+                $item->update_meta_data('_precise_quantity', number_format($hours, 2, '.', ''));
+                $changed = true;
+            }
+            $item->save();
+        }
+
+        if ($changed) {
+            $order->calculate_totals(true);
+            $order->add_order_note('Line hours and totals set from each line\'s hours and rate.');
+        }
     }
 
     public function custom_aragrow_time_invoice_table_headers($headers, $document) {
