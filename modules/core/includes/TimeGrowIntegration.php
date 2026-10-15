@@ -310,6 +310,21 @@ class TimeGrowIntegration{
                                         <p><?php esc_html_e('Link TimeGrow projects to WooCommerce products', 'timegrow'); ?></p>
                                     </div>
                                 </div>
+
+                                <div class="timegrow-feature-item">
+                                    <label class="timegrow-toggle-switch">
+                                        <input type="checkbox"
+                                               name="timegrow_integration_settings[wc_decimal_quantities]"
+                                               value="1"
+                                               <?php checked(true, Aragrow_TimeGrow_Decimal_Quantities::is_enabled()); ?>
+                                               <?php echo !$wc_installed ? 'disabled' : ''; ?>>
+                                        <span class="timegrow-toggle-slider"></span>
+                                    </label>
+                                    <div class="timegrow-feature-info">
+                                        <strong><?php esc_html_e('Decimal Quantities', 'timegrow'); ?></strong>
+                                        <p><?php esc_html_e('Allow quantities such as 3.75 on order lines (applies to all products and stock)', 'timegrow'); ?></p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
