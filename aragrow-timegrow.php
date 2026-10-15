@@ -188,3 +188,29 @@ function timegrow_publishpress_capabilities($plugin_caps) {
 
     return $plugin_caps;
 }
+
+/**
+ * Set the admin page title for hidden TimeGrow pages.
+ *
+ * Submenu pages registered with a null parent leave the global $title empty,
+ * which triggers a strip_tags() deprecation in wp-admin/admin-header.php.
+ */
+add_action( 'admin_init', function() {
+    global $title, $submenu;
+
+    $page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : '';
+    if ( ! empty( $title ) || strpos( $page, TIMEGROW_PARENT_MENU ) !== 0 ) {
+        return;
+    }
+
+    foreach ( (array) $submenu as $items ) {
+        foreach ( (array) $items as $item ) {
+            if ( isset( $item[2], $item[3] ) && $item[2] === $page ) {
+                $title = $item[3];
+                return;
+            }
+        }
+    }
+
+    $title = 'TimeGrow';
+} );
