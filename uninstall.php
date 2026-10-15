@@ -19,6 +19,8 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 function timegrow_uninstall_site() {
     global $wpdb;
 
+    wp_clear_scheduled_hook( 'timegrow_paypal_sync' ); // always, even when data is kept
+
     $settings = get_option( 'aragrow_timegrow_general_settings', [] );
     if ( ( $settings['delete_data_on_uninstall'] ?? 'no' ) !== 'yes' ) {
         return; // opt-in only

@@ -137,6 +137,11 @@ if ( file_exists( TIMEGROW_MODULES_DIR . 'mobile/aragrow-timegrow-mobile.php' ) 
 
 register_activation_hook(__FILE__, 'timegrow_plugin_activate');
 
+// Stop the PayPal payment check when the plugin is deactivated (it is recreated on the next load)
+register_deactivation_hook(__FILE__, function() {
+    wp_clear_scheduled_hook('timegrow_paypal_sync');
+});
+
 function timegrow_plugin_activate() {
     // Trigger core module activation
     do_action('timegrow_activate');

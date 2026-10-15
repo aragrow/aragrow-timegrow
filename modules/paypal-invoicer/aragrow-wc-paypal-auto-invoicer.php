@@ -207,6 +207,8 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 		add_settings_field( 'client_secret', 'Client Secret', [ $this, 'render_text_secret' ], 'paypal-integration', 'wc_pp_section_main' );
 		add_settings_field( 'send_action', 'Invoice Delivery', [ $this, 'render_select_send' ], 'paypal-integration', 'wc_pp_section_main' );
 		add_settings_field( 'merchant_email', 'Merchant Email (optional)', [ $this, 'render_text_email' ], 'paypal-integration', 'wc_pp_section_main' );
+		add_settings_field( 'sync_interval', 'Check for payments', [ $this, 'render_select_sync_interval' ], 'paypal-integration', 'wc_pp_section_main' );
+		add_settings_field( 'webhook_id', 'Webhook ID', [ $this, 'render_text_webhook_id' ], 'paypal-integration', 'wc_pp_section_main' );
 	}
 
     public function sanitize_settings($input) {
@@ -223,6 +225,14 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
         $out['env']            = in_array($input['env'] ?? 'sandbox', ['sandbox','live'], true) ? $input['env'] : 'sandbox';
         $out['send_action']    = in_array($input['send_action'] ?? 'send', ['send','save'], true) ? $input['send_action'] : 'send';
         $out['merchant_email'] = isset($input['merchant_email']) ? sanitize_email($input['merchant_email']) : '';
+        $out['sync_interval']  = in_array($input['sync_interval'] ?? 'daily', ['hourly','twicedaily','daily'], true) ? $input['sync_interval'] : 'daily';
+        $out['webhook_id']     = isset($input['webhook_id']) ? sanitize_text_field(trim((string) $input['webhook_id'])) : '';
+
+        // A new check frequency takes effect at the next page load (the schedule is recreated)
+        $previous = get_option($this->option_key, []);
+        if (($previous['sync_interval'] ?? 'daily') !== $out['sync_interval'] && class_exists('Aragrow_TimeGrow_PayPal_Payment_Sync')) {
+            wp_clear_scheduled_hook(Aragrow_TimeGrow_PayPal_Payment_Sync::CRON_HOOK);
+        }
 
         // Credentials are encrypted. An empty or missing value means "keep the saved one"
         // (the field stays locked until Update is clicked).
@@ -245,7 +255,9 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 			'client_id'     => '',
 			'client_secret' => '',
 			'send_action'   => 'send', // send|save
-			'merchant_email'=> ''
+			'merchant_email'=> '',
+			'sync_interval' => 'daily',  // hourly|twicedaily|daily: backup check for PayPal payments
+			'webhook_id'    => '',       // from the PayPal developer dashboard, used to verify webhook messages
 		];
 		return wp_parse_args( get_option( $this->option_key, [] ), $defaults );
 	}
@@ -371,6 +383,58 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 			</div>
 		</div>
 		<?php
+	}
+
+	public function render_select_sync_interval() {
+		$settings = $this->get_settings();
+		?>
+		<select name="<?php echo esc_attr( $this->option_key ); ?>[sync_interval]">
+			<option value="hourly" <?php selected( $settings['sync_interval'], 'hourly' ); ?>><?php esc_html_e( 'Every hour', 'timegrow' ); ?></option>
+			<option value="twicedaily" <?php selected( $settings['sync_interval'], 'twicedaily' ); ?>><?php esc_html_e( 'Twice a day', 'timegrow' ); ?></option>
+			<option value="daily" <?php selected( $settings['sync_interval'], 'daily' ); ?>><?php esc_html_e( 'Once a day', 'timegrow' ); ?></option>
+		</select>
+		<p class="description"><?php esc_html_e( 'How often TimeGrow asks PayPal about open invoices and marks paid ones as Invoice Paid. With a webhook set up, payments arrive right away and this is only a backup.', 'timegrow' ); ?></p>
+		<?php
+	}
+
+	public function render_text_webhook_id() {
+		$settings = $this->get_settings();
+		$url      = class_exists( 'Aragrow_TimeGrow_PayPal_Payment_Sync' ) ? Aragrow_TimeGrow_PayPal_Payment_Sync::webhook_url() : '';
+		printf( '<input type="text" style="width: 480px" name="%s[webhook_id]" value="%s" />', esc_attr( $this->option_key ), esc_attr( $settings['webhook_id'] ) );
+		?>
+		<p class="description">
+			<?php esc_html_e( 'For instant payment updates: in the PayPal developer dashboard, add a webhook with this URL and the events INVOICING.INVOICE.PAID, INVOICING.INVOICE.CANCELLED and INVOICING.INVOICE.REFUNDED, then paste its Webhook ID here.', 'timegrow' ); ?><br>
+			<code><?php echo esc_html( $url ); ?></code>
+		</p>
+		<?php
+	}
+
+	/**
+	 * Settings, for the payment sync.
+	 */
+	public function settings() {
+		return $this->get_settings();
+	}
+
+	/**
+	 * True when a client ID and secret are saved.
+	 */
+	public function has_credentials() {
+		$settings = $this->get_settings();
+		return $settings['client_id'] !== '' && $settings['client_secret'] !== '';
+	}
+
+	private $token_cache = null;
+
+	/**
+	 * Call the PayPal API (token fetched once per request). Throws on errors.
+	 */
+	public function paypal_request( $method, $path, $payload = null ) {
+		$settings = $this->get_settings();
+		if ( $this->token_cache === null ) {
+			$this->token_cache = $this->get_oauth_token( $settings );
+		}
+		return $this->api_request( $this->token_cache, $settings, $method, $path, $payload );
 	}
 
 	public function render_select_env() {
@@ -835,6 +899,7 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 // WooCommerce loads after TimeGrow, so wait until all plugins are loaded before checking for it
 add_action( 'plugins_loaded', function() {
 	if ( class_exists( 'WooCommerce' ) ) {
-		Aragrow_WC_PayPal_Auto_Invoicer::instance();
+		require_once __DIR__ . '/includes/class-paypal-payment-sync.php';
+		( new Aragrow_TimeGrow_PayPal_Payment_Sync( Aragrow_WC_PayPal_Auto_Invoicer::instance() ) )->init();
 	}
 } );
