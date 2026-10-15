@@ -100,7 +100,7 @@ A **Manual Payment Details** box sits in the side column of the order editor. It
 
 - **EIN/SSN field** on user profiles, with a column in the Users list (`_timegrow_ein_ssn` user meta).
 - **Unpaid Invoices** dashboard widget, listing orders in the Pending payment status.
-- **PDF invoice headers** for the PDF Invoices & Packing Slips plugin. The theme template (`woocommerce/pdf/aragrow/invoice.php` in `astra-child` and `aragrow-no-front-end-theme`) reads hours from `_timegrow_project_hours` for hours lines and divides the line total by the hours for the rate. The `aragrow_time_invoice` template uses Project, Hours, Rate, Total. The `aragrow_invoice` template uses Product, Quantity, Price, Total.
+- **PDF invoice template** for the PDF Invoices & Packing Slips plugin, in `modules/woocommerce-integration/templates/pdf/aragrow/`. TimeGrow registers that folder with the PDF plugin, where it is listed as **timegrow/aragrow** (PDF Invoices > Settings > Template). Hours invoices use the headers Project, Hours, Rate, Total, with hours from `_timegrow_project_hours` and rate = line total / hours. Regular orders use Product, Quantity, Price, Total, with the plain quantity and unit price. The old theme copies in `astra-child` and `aragrow-no-front-end-theme` are no longer used.
 
 ### Time-entry order creator
 
