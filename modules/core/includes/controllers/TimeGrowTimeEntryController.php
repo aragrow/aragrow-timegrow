@@ -223,7 +223,6 @@ class TimeGrowTimeEntryController{
         timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         if ($screen != 'list' && ( isset($_POST['add_item']) || isset($_POST['edit_item']) )) {
-            var_dump('processing form');
             $this->handle_form_submission();
             $screen = 'list';
         }

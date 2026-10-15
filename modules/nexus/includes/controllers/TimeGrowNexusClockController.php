@@ -29,7 +29,6 @@ class TimeGrowNexusClockController{
         $user = wp_get_current_user();
 
         if ($screen != 'clock' && ( isset($_POST['add_item']) || isset($_POST['edit_item']) )) {
-            var_dump('processing form');
             $this->handle_form_submission();
             $screen = 'dashboard';
         }

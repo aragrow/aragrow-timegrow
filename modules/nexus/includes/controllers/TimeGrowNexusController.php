@@ -71,7 +71,6 @@ class TimeGrowNexusController{
         $member_id = $member ? $member->ID : 0;
 
         if (( isset($_POST['time_entry_id']) || isset($_POST['expense_id']) )) {
-            var_dump('processing form');
             $this->handle_form_submission();
             $screen = 'dashboard';
         }

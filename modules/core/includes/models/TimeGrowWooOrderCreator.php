@@ -66,7 +66,6 @@ class TimeGrowWooOrderCreator {
         // Start debug output buffer
         ob_start();
 
-        var_dump($time_entries);
         $order_ids = [];
         $model_project = new TimeGrowProjectModel();
 
@@ -183,8 +182,6 @@ class TimeGrowWooOrderCreator {
                     } else {
                         $clock_IN = $entry->clock_in_date;
                         $clock_OUT = $entry->clock_out_date;
-                        var_dump($clock_IN);
-                        var_dump($clock_OUT);
 
                         if (!isset($clock_IN) || !isset($clock_OUT)) continue;
 
@@ -195,7 +192,6 @@ class TimeGrowWooOrderCreator {
                         // 2. Minutes between the two times
                         $hours = ($out - $in) / 3600;       // float
           
-                        var_dump('Hours: '.$hours);
                         $product_hours += $hours;
                     }
        

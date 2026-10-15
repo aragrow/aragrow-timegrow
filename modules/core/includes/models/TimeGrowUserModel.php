@@ -67,8 +67,6 @@ class TimeGrowUserModel {
             );
 
         $result = $this->wpdb->get_results($sql);
-        var_dump($this->wpdb->last_query);
-        var_dump($result);
 
         if (!empty($result)) {
             if ($result->clock_out_date == '0000-00-00 00:00:00' && !empty($result->clock_in_date)) {

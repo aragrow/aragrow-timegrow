@@ -369,7 +369,6 @@ class TimeGrowTimeEntryView {
                 <input type="hidden" name="action" value="save_time_entry">
                 <input type="hidden" name="edit_item" value="1">
                 <?php wp_nonce_field('timegrow_time_entry_nonce', 'timegrow_time_entry_nonce_field'); ?>
-                <?php var_dump($time_entry); ?>
                 <div class="metabox-holder columns-2">
                     <div class="postbox-container">
                         <div class="postbox">

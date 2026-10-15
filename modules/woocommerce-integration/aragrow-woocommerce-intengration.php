@@ -1008,7 +1008,7 @@ class Aragrow_MyWooUnpaidInvoiceDashboardWidget {
         global $wpdb;
         timegrow_log(__CLASS__.'::'.__FUNCTION__);
         if (!function_exists('wc_get_orders')) {
-            var_dump('ERROR -> WooCommerce not loaded!. Contact your administrator.'); 
+            timegrow_log('Error: WooCommerce is not loaded, unpaid invoices skipped.');
             return $unpaid_invoices;
         }
 
