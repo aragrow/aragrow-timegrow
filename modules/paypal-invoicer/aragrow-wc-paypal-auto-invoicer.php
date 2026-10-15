@@ -23,6 +23,7 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 	private function __construct() {
 		add_action( 'admin_menu', [ $this, 'register_settings_page' ] );
 		add_action( 'admin_init', [ $this, 'register_settings' ] );
+		add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_settings_styles' ] );
 		add_action( 'woocommerce_order_status_inv_send2paypal', [ $this, 'handle_order_to_pay' ], 10, 1 );
 
                 // Register the custom order status
@@ -33,7 +34,7 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
         add_filter('wpo_wcpdf_document_is_allowed', [$this, 'enable_invoice_for_custom_inv_send2paypal_status'], 10, 2);
 		add_filter('wpo_wcpdf_document_is_allowed', [$this, 'enable_invoice_for_custom_invoice_sent2paypal_status'], 10, 2);
         // Add Email Notifications for Invoice Sent
-        add_action('woocommerce_order_status_inv_send2paypal', [$this, 'send_custom_inv_send2paypal_email_notification'], 10, 1);
+        // The customer notice is sent from handle_order_to_pay() only after PayPal sends the invoice
        // Add custom color for Invoice Paid status in admin panel
         add_action('admin_head', [$this, 'custom_invoice_paypal_admin_styles']);
 
@@ -48,6 +49,14 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 	/**
 	 * Settings page
 	 */
+	/**
+	 * Plugin styles (cards, toggle switches) on the PayPal settings page.
+	 */
+	public function enqueue_settings_styles( $hook ) {
+		if ( $hook !== 'settings_page_paypal-integration' ) return;
+		wp_enqueue_style( 'timegrow-modern-style', TIMEGROW_CORE_BASE_URI . 'assets/css/timegrow-modern.css' );
+	}
+
 	public function register_settings_page() {
 		add_options_page(
 			'PayPal Integration',
@@ -159,6 +168,7 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 			echo '<p>Provide your PayPal REST credentials. Use Sandbox while testing.</p>';
 		}, 'paypal-integration' );
 
+		add_settings_field( 'enabled', 'Send orders to PayPal', [ $this, 'render_checkbox_enabled' ], 'paypal-integration', 'wc_pp_section_main' );
 		add_settings_field( 'env', 'Environment', [ $this, 'render_select_env' ], 'paypal-integration', 'wc_pp_section_main' );
 		add_settings_field( 'client_id', 'Client ID', [ $this, 'render_text_client' ], 'paypal-integration', 'wc_pp_section_main' );
 		add_settings_field( 'client_secret', 'Client Secret', [ $this, 'render_text_secret' ], 'paypal-integration', 'wc_pp_section_main' );
@@ -170,6 +180,7 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
 
         $out = [];
+        $out['enabled']        = ! empty( $input['enabled'] ) ? 'yes' : 'no';
         $out['env']            = in_array($input['env'] ?? 'sandbox', ['sandbox','live'], true) ? $input['env'] : 'sandbox';
         $out['send_action']    = in_array($input['send_action'] ?? 'send', ['send','save'], true) ? $input['send_action'] : 'send';
         $out['merchant_email'] = isset($input['merchant_email']) ? sanitize_email($input['merchant_email']) : '';
@@ -184,6 +195,7 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 	private function get_settings() {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
 		$defaults = [
+			'enabled'       => 'yes', // yes|no; on by default so existing setups keep working
 			'env'           => 'sandbox',
 			'client_id'     => '',
 			'client_secret' => '',
@@ -292,6 +304,22 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 		<?php
 	}
 
+	public function render_checkbox_enabled() {
+		$settings = $this->get_settings();
+		?>
+		<div class="timegrow-feature-item">
+			<label class="timegrow-toggle-switch">
+				<input type="checkbox" name="<?php echo esc_attr( $this->option_key ); ?>[enabled]" value="yes" <?php checked( $settings['enabled'], 'yes' ); ?>>
+				<span class="timegrow-toggle-slider"></span>
+			</label>
+			<div class="timegrow-feature-info">
+				<strong><?php esc_html_e( 'Send orders to PayPal', 'timegrow' ); ?></strong>
+				<p><?php esc_html_e( 'Create PayPal invoices when an order is set to "Send Invoice to PayPal". When off, the status change only adds an order note.', 'timegrow' ); ?></p>
+			</div>
+		</div>
+		<?php
+	}
+
 	public function render_select_env() {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
 		$settings = $this->get_settings();
@@ -337,6 +365,11 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 		if ( ! $order ) return;
 
 		$settings = $this->get_settings();
+		if ( $settings['enabled'] !== 'yes' ) {
+			$order->add_order_note( 'PayPal invoicing is turned off (Settings > PayPal Integration). No PayPal invoice was created.' );
+			return;
+		}
+
 		try {
             error_log('Processing order #' . $order_id . ' for PayPal invoicing');
 			$token = $this->get_oauth_token( $settings );
@@ -415,66 +448,62 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 
             error_log('Order #' . $order_id . ' tax total: ' . $tax_total);
 
-			$recipient_email = $order->get_billing_email();
-			$recipient_name  = trim( $order->get_formatted_billing_full_name() );
-
-            error_log('Order #' . $order_id . ' recipient email: ' . $recipient_email);
+			// Client details for PayPal: the order's billing info, with gaps filled from the client's profile.
+			// PayPal has no separate customer API for invoices; it records the recipient as a customer.
+			$billing_info    = $this->build_recipient( $order );
+			$recipient_email = $billing_info['email_address'];
 
 			$invoice_number = $order->get_meta( '_wcpdf_invoice_number' );
-			error_log('Order #' . $order_id . ' invoice number: ' . print_r($invoice_number, true));
 
-            $invoice_payload = [
-                'detail' => [
-                    'currency_code'       => $currency,                                // Important
-                    'invoice_number'      => (string) $invoice_number,      						// Optional but useful
-                    'reference'           => (string) $order->get_id(),                // Optional
-                    'note'                => 'Thank you for your business!',
-                    'terms_and_conditions'=> 'Payment due upon receipt.',
-                ],
-                'invoicer' => array_filter([
-                    'email_address' => $settings['merchant_email'] ?: null,
-                ]),
-                'primary_recipients' => [
-                    [
-                        'billing_info' => array_filter([
-                            'email_address' => $recipient_email,
-                            'name'          => $recipient_name ? [ 'full_name' => $recipient_name ] : null,
-                            'address'       => $this->format_address_for_paypal( $order ),
-                        ]),
-                    ],
-                ],
-                'items' => $items,
-                'configuration' => [
-                    'tax_calculated_after_discount' => true,
-                    'tax_inclusive' => false,
-                ],
-            ];
+			// Reuse an invoice already created for this order (for example, when a send failed)
+			$pp_invoice_id = $order->get_meta( '_paypal_invoice_id' ) ?: get_post_meta( $order_id, '_paypal_invoice_id', true );
 
-            error_log('Order #' . $order_id . ' invoice payload prepared: ' . print_r($invoice_payload, true));
+			if ( ! $pp_invoice_id ) {
+				$invoice_payload = [
+					'detail' => [
+						'currency_code'        => $currency,
+						'invoice_number'       => (string) $invoice_number,
+						'reference'            => (string) $order->get_id(),
+						'note'                 => 'Thank you for your business!',
+						'terms_and_conditions' => 'Payment due upon receipt.',
+					],
+					'invoicer' => array_filter([
+						'email_address' => $settings['merchant_email'] ?: null,
+					]),
+					'primary_recipients' => [
+						[ 'billing_info' => $billing_info ],
+					],
+					'items' => $items,
+					'configuration' => [
+						'tax_calculated_after_discount' => true,
+						'tax_inclusive' => false,
+					],
+				];
 
-			$invoice = $this->api_request( $token, $settings, 'POST', '/v2/invoicing/invoices', $invoice_payload );
+				$invoice = $this->api_request( $token, $settings, 'POST', '/v2/invoicing/invoices', $invoice_payload );
 
-            error_log('Order #' . $order_id . ' invoice response: ' . print_r($invoice, true));
-
-
-			if ( ! empty( $invoice['href'] ) ) {
-
-				$invoice_number = '';
-				if (preg_match('#/invoices/([^/?]+)#', $invoice['href'], $m)) {
-					$invoice_number = $m[1];
+				// PayPal returns a link to the new invoice by default; the invoice ID is its last path part
+				$pp_invoice_id = $invoice['id'] ?? '';
+				if ( ! $pp_invoice_id && ! empty( $invoice['href'] ) && preg_match( '#/invoices/([^/?]+)#', $invoice['href'], $m ) ) {
+					$pp_invoice_id = $m[1];
+				}
+				if ( ! $pp_invoice_id ) {
+					throw new Exception( 'PayPal did not return an invoice ID.' );
 				}
 
-				error_log('Order #' . $order_id . ' PayPal invoice created with ID: ' . $invoice_number);
-				update_post_meta( $order_id, '_paypal_invoice_id', sanitize_text_field( $invoice_number ) );
-				$order->update_status( 'wc-inv_sent2paypal');
-				// Optionally send the invoice
-				if ( $settings['send_action'] === 'send' ) {
-					$this->api_request( $token, $settings, 'POST', sprintf( '/v2/invoicing/invoices/%s/send', rawurlencode( $invoice['id'] ) ), [ 'send_to_invoicer' => false ] );
-					$order->add_order_note( sprintf( 'PayPal invoice %s created and send to %s', $invoice_number, $recipient_email ) );
-				} else {
-					$order->add_order_note( sprintf( 'PayPal invoice %s created (not send).', $invoice_number) );
-				}
+				$order->update_meta_data( '_paypal_invoice_id', sanitize_text_field( $pp_invoice_id ) );
+				$order->save();
 			}
+
+			if ( $settings['send_action'] === 'send' ) {
+				$this->api_request( $token, $settings, 'POST', sprintf( '/v2/invoicing/invoices/%s/send', rawurlencode( $pp_invoice_id ) ), [ 'send_to_invoicer' => false ] );
+				$order->add_order_note( sprintf( 'PayPal invoice %s created and sent to %s.', $pp_invoice_id, $recipient_email ) );
+				$this->send_custom_inv_send2paypal_email_notification( $order_id );
+			} else {
+				$order->add_order_note( sprintf( 'PayPal invoice %s created as a draft (not sent).', $pp_invoice_id ) );
+			}
+
+			$order->update_status( 'wc-inv_sent2paypal' );
 
 			update_option( 'wc_pp_auto_invoicer_product_map', $pp_products_map );
 
@@ -486,19 +515,58 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 		}
 	}
 
-	private function format_address_for_paypal( $order ) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+	/**
+	 * PayPal recipient (billing_info) for an order. Each field comes from the order's billing
+	 * details first, then the client's WooCommerce customer profile, then the WordPress user.
+	 * Throws when no email can be found, since PayPal needs one to create the invoice.
+	 */
+	private function build_recipient( $order ) {
+		$customer_id = (int) $order->get_customer_id();
+		$customer    = $customer_id ? new WC_Customer( $customer_id ) : null;
+		$user        = $customer_id ? get_userdata( $customer_id ) : null;
 
-		$address = [
-			'address_line_1' => $order->get_billing_address_1(),
-			'address_line_2' => $order->get_billing_address_2(),
-			'admin_area_2'   => $order->get_billing_city(),
-			'admin_area_1'   => $order->get_billing_state(),
-			'postal_code'    => $order->get_billing_postcode(),
-			'country_code'   => $order->get_billing_country(),
-		];
-		// Remove empties
-		return array_filter( $address );
+		$pick = function( $field ) use ( $order, $customer ) {
+			$getter = 'get_billing_' . $field;
+			$value  = trim( (string) $order->$getter() );
+			if ( $value === '' && $customer ) $value = trim( (string) $customer->$getter() );
+			return $value;
+		};
+
+		$email = $pick( 'email' );
+		if ( $email === '' && $user ) $email = $user->user_email;
+		if ( ! is_email( $email ) ) {
+			throw new Exception( 'The client has no valid email address. Add one to the order billing details or the client profile.' );
+		}
+
+		$first = $pick( 'first_name' );
+		$last  = $pick( 'last_name' );
+		if ( $first === '' && $last === '' && $user ) {
+			$first = (string) $user->first_name;
+			$last  = (string) $user->last_name;
+		}
+		if ( $first !== '' || $last !== '' ) {
+			$name = array_filter( [ 'given_name' => $first, 'surname' => $last ] );
+		} else {
+			$name = $user && $user->display_name ? [ 'full_name' => $user->display_name ] : null;
+		}
+
+		$address = array_filter( [
+			'address_line_1' => $pick( 'address_1' ),
+			'address_line_2' => $pick( 'address_2' ),
+			'admin_area_2'   => $pick( 'city' ),
+			'admin_area_1'   => $pick( 'state' ),
+			'postal_code'    => $pick( 'postcode' ),
+			'country_code'   => $pick( 'country' ),
+		] );
+		// PayPal rejects an address without a country
+		if ( empty( $address['country_code'] ) ) $address = [];
+
+		return array_filter( [
+			'email_address' => $email,
+			'name'          => $name,
+			'business_name' => $pick( 'company' ) ?: null,
+			'address'       => $address ?: null,
+		] );
 	}
 
 	/**
