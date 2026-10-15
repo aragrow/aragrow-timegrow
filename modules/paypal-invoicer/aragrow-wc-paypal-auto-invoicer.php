@@ -41,7 +41,9 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 
         // Ensure your custom status appears in the wc-orders filters dropdown
         add_filter('woocommerce_admin_order_statuses', function( $statuses ) {
-            $statuses['wc-inv_send2paypal']  = _x('Send Invoice to PayPal', 'Order status', 'woocommerce');
+            if ( $this->offer_send_status() ) {
+                $statuses['wc-inv_send2paypal'] = _x('Send Invoice to PayPal', 'Order status', 'woocommerce');
+            }
             $statuses['wc-inv_draft2paypal'] = _x('Invoice Draft in PayPal', 'Order status', 'woocommerce');
             $statuses['wc-inv_sent2paypal']  = _x('Invoice Sent to PayPal', 'Order status', 'woocommerce');
             return $statuses;
@@ -103,10 +105,26 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 
     }
 
+    /**
+     * "Send Invoice to PayPal" is only offered while Send orders to PayPal is on.
+     * It stays in the list for an order that already holds it, because WooCommerce
+     * resets an order to Pending when its status is not in the list.
+     * Invoice Sent / Draft in PayPal always stay, for orders already in PayPal.
+     */
+    private function offer_send_status() {
+        if ( $this->get_settings()['enabled'] === 'yes' ) return true;
+
+        $order_id = absint( $_REQUEST['id'] ?? $_REQUEST['post'] ?? $_REQUEST['post_ID'] ?? 0 );
+        $order    = $order_id && function_exists( 'wc_get_order' ) ? wc_get_order( $order_id ) : false;
+        return $order && $order->get_status() === 'inv_send2paypal';
+    }
+
     public function add_custom_invoice_paypal_to_order_statuses($order_statuses) {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
 
-        $order_statuses['wc-inv_send2paypal'] = _x('Send Invoice to PayPal', 'Order status', 'woocommerce');
+        if ($this->offer_send_status()) {
+            $order_statuses['wc-inv_send2paypal'] = _x('Send Invoice to PayPal', 'Order status', 'woocommerce');
+        }
 		$order_statuses['wc-inv_draft2paypal'] = _x('Invoice Draft in PayPal', 'Order status', 'woocommerce');
 		$order_statuses['wc-inv_sent2paypal'] = _x('Invoice Sent to PayPal', 'Order status', 'woocommerce');	
         return $order_statuses;
@@ -426,13 +444,13 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 		$existing_id = $order->get_meta( '_paypal_invoice_id' ) ?: get_post_meta( $order_id, '_paypal_invoice_id', true );
 		if ( $existing_id ) {
 			if ( empty( $transition['from'] ) ) $previous = 'inv_sent2paypal';
-			$order->update_status( $previous, sprintf( 'Not sent: this order is already in PayPal (invoice %s). Make any changes in PayPal.', $existing_id ) );
+			$this->restore_status_quietly( $order, $previous, sprintf( 'Not sent: this order is already in PayPal (invoice %s). Make any changes in PayPal.', $existing_id ) );
 			return;
 		}
 
 		$settings = $this->get_settings();
 		if ( $settings['enabled'] !== 'yes' ) {
-			$order->add_order_note( 'PayPal invoicing is turned off (Settings > PayPal Integration). No PayPal invoice was created.' );
+			$this->restore_status_quietly( $order, $previous, 'Not sent: PayPal invoicing is turned off (Settings > PayPal Integration).' );
 			return;
 		}
 
@@ -590,9 +608,20 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 				$order->update_status( 'inv_draft2paypal', 'The invoice was created in PayPal but not sent. Send it from your PayPal account.' );
 			} else {
 				// Nothing reached PayPal: put the status back so it can simply be set again to retry
-				$order->update_status( $previous, 'Not sent to PayPal. Fix the problem above, then set the status to Send Invoice to PayPal again.' );
+				$this->restore_status_quietly( $order, $previous, 'Not sent to PayPal. Fix the problem above, then set the status to Send Invoice to PayPal again.' );
 			}
 		}
+	}
+
+	/**
+	 * Put an order back to a status without running that status's hooks again
+	 * (no repeat "invoice sent"/"invoice paid" emails, no payment recording).
+	 * Saving through the data store skips WooCommerce's status-change actions.
+	 */
+	private function restore_status_quietly( $order, $status, $note ) {
+		$order->set_status( $status );
+		$order->get_data_store()->update( $order );
+		$order->add_order_note( $note );
 	}
 
 	/**
