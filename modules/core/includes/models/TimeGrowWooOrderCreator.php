@@ -96,14 +96,11 @@ class TimeGrowWooOrderCreator {
             ]);
 
             // Skip invoices already issued (PDF invoice number or PayPal invoice): never add time to those
-            $order = array_values(array_filter($order, function($candidate) {
-                return !$candidate->get_meta('_wcpdf_invoice_number') && !$candidate->get_meta('_paypal_invoice_id');
-            }));
+            $order = self::pick_reusable_order($order);
 
-            $is_new_order = empty($order);
-            if (!empty($order)) {
+            $is_new_order = !$order;
+            if ($order) {
                 // If an order already exists, use it
-                $order = $order[0]; // Get the first order
                 print('<br />---> Order already exists for Client Id: '.$client_id);
             } else {
                 // Create a new order
@@ -149,19 +146,14 @@ class TimeGrowWooOrderCreator {
                 $woo_product = wc_get_product($product_id);
 
 
-                $rate = $model_project->get_project_rate($project_id);
-                $the_rate = $rate[0]->default_flat_fee ?? null;
-
-                if (!$rate || bccomp($the_rate, '0.00', 2) === 0) {
-                    $rate = $model_project->get_client_rate($client_id);
-                    $the_rate = $rate[0]->default_flat_fee ?? null;
-                }
-                if (!$the_rate || bccomp($the_rate, '0.00', 2) === 0){
-                    $the_rate = (string) timegrow_company_default_rate();
-                }
-                if (!$the_rate || bccomp($the_rate, '0.00', 2) === 0){
-                    $the_rate = 75;
-                }
+                // Rate order: project, client, company, then 75
+                $project_rate = $model_project->get_project_rate($project_id);
+                $client_rate  = $model_project->get_client_rate($client_id);
+                $the_rate = self::resolve_rate(
+                    $project_rate[0]->default_flat_fee ?? null,
+                    $client_rate[0]->default_flat_fee ?? null,
+                    timegrow_company_default_rate()
+                );
 
 
                 print("<br />---------> Project Rate: $the_rate\n");
@@ -171,30 +163,13 @@ class TimeGrowWooOrderCreator {
                 $work_done     = '';
 
                 foreach ($entries as $entry) {
-                    if ($entry->billable != 1) continue;
-                    if ($entry->billed != 0) continue;
+                    if (!self::is_billable($entry)) continue;
                     print("<br />------> Project Type: $entry->entry_type, Project ID: $project_id, WOO Product ID: $product_id\n");
-                    $project_id = (int) $entry->project_id;
-                    
 
-                    if ($entry->entry_type == "MAN") { 
-                        $product_hours += $entry->hours;
-                    } else {
-                        $clock_IN = $entry->clock_in_date;
-                        $clock_OUT = $entry->clock_out_date;
+                    $hours = self::entry_hours($entry);
+                    if ($hours === null) continue; // clock entry still open
+                    $product_hours += $hours;
 
-                        if (!isset($clock_IN) || !isset($clock_OUT)) continue;
-
-                       // 1. Convert to epoch seconds
-                        $in  = strtotime($clock_IN);
-                        $out = strtotime($clock_OUT);
-
-                        // 2. Minutes between the two times
-                        $hours = ($out - $in) / 3600;       // float
-          
-                        $product_hours += $hours;
-                    }
-       
                     $work_done = $entry->description;
                     $entry->billed_order_id = $order->get_id();
                 
@@ -202,9 +177,8 @@ class TimeGrowWooOrderCreator {
 
                 print('<br />---------> Product Hours: '.$product_hours);
         
-                // Quantity is the hours worked, priced at the hourly rate
-                $product_hours = round($product_hours, 2);
-                $product_total = round($product_hours * $the_rate, 2);
+                // Hours worked, priced at the hourly rate
+                list($product_hours, $product_total) = self::price_line($product_hours, $the_rate);
 
                 // Nothing billable for this project (all billed or non-billable): no line
                 if ($product_hours <= 0) {
@@ -287,4 +261,61 @@ class TimeGrowWooOrderCreator {
     }
 
     private $debug_output = '';
+
+    /**
+     * First pending hours invoice that has not been issued yet (no PDF invoice number,
+     * no PayPal invoice). Returns null when there is none, so a new order is created.
+     */
+    public static function pick_reusable_order(array $orders) {
+        foreach ($orders as $candidate) {
+            if (!$candidate->get_meta('_wcpdf_invoice_number') && !$candidate->get_meta('_paypal_invoice_id')) {
+                return $candidate;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * A time entry is billed only when it is billable and not billed yet.
+     */
+    public static function is_billable($entry) {
+        return $entry->billable == 1 && $entry->billed == 0;
+    }
+
+    /**
+     * Hours for one time entry: manual entries use their hours; clock entries use the
+     * time between clock in and clock out. Returns null for a clock entry still open.
+     */
+    public static function entry_hours($entry) {
+        if ($entry->entry_type == 'MAN') {
+            return (float) $entry->hours;
+        }
+        if (!isset($entry->clock_in_date) || !isset($entry->clock_out_date)) {
+            return null;
+        }
+        return (strtotime($entry->clock_out_date) - strtotime($entry->clock_in_date)) / 3600;
+    }
+
+    /**
+     * Hourly rate: the first of project, client and company rate that is above 0, else 75.
+     */
+    public static function resolve_rate(...$rates) {
+        foreach ($rates as $rate) {
+            if (is_numeric($rate) && (float) $rate > 0) {
+                return (float) $rate;
+            }
+        }
+        return 75.0;
+    }
+
+    /**
+     * Hours rounded to 2 decimals, and the line total: rounded hours x rate, to the cent.
+     *
+     * @return array [ float $hours, float $total ]
+     */
+    public static function price_line($hours, $rate) {
+        $hours = round((float) $hours, 2);
+        return [$hours, round($hours * (float) $rate, 2)];
+    }
+
 }
