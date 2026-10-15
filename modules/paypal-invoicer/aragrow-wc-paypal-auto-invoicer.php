@@ -343,6 +343,7 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 			$pp_products_map = get_option( 'wc_pp_auto_invoicer_product_map', [] );
 
 			$items = [];
+			$is_hours_invoice = $this->is_hours_invoice( $order );
             
 			foreach ( $order->get_items() as $item_id => $item ) {
 				$product      = $item->get_product();
@@ -352,10 +353,12 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 				$unit_amount  = $quantity > 0 ? $line_total / $quantity : $line_total;
 				$currency     = $order->get_currency();
 
-				// Quantity and unit amount are in 10 minutes increments, so divide the quantity by 6 and multiply the unit amount by 6
-				
-				$quantity = (float) round(($quantity / 6), 3);
-				$unit_amount = $unit_amount * 6;
+				// Time-entry orders count quantity in 10 minute units: divide by 6 and multiply the rate by 6.
+				// Hours invoices already store real hours and an hourly rate, so send them as they are.
+				if ( ! $is_hours_invoice ) {
+					$quantity = (float) round(($quantity / 6), 3);
+					$unit_amount = $unit_amount * 6;
+				}
 
 
 				$sku = '';
@@ -481,6 +484,15 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
             if(WP_DEBUG) error_log( 'PayPal Invoicer error: ' . $e->getMessage());
 			$order->add_order_note( 'PayPal Invoicer error: ' . $e->getMessage() );
 		}
+	}
+
+	/**
+	 * True when line quantities are real hours (set by the TimeGrow hours editor when
+	 * "Is Hours Invoice?" is saved). Orders from the time-entry order creator count
+	 * quantity in 10 minute units and do not have this marker.
+	 */
+	private function is_hours_invoice( $order ) {
+		return $order->get_meta( '_timegrow_qty_unit' ) === 'hours';
 	}
 
 	private function format_address_for_paypal( $order ) {

@@ -539,6 +539,14 @@ class Aragrow_WOO_Integration_Plugins
             $item->save();
         }
 
+        // Mark the order's quantity unit so other modules (PayPal invoicer) know quantities are real hours
+        if ($is_hours_invoice) {
+            $order->update_meta_data('_timegrow_qty_unit', 'hours');
+        } else {
+            $order->delete_meta_data('_timegrow_qty_unit');
+        }
+        $order->save_meta_data();
+
         if ($changed) {
             $order->calculate_totals(true);
             $order->add_order_note('Line hours and totals set from each line\'s hours and rate.');
