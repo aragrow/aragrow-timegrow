@@ -98,6 +98,7 @@ class TimeGrowWooOrderCreator {
                 return !$candidate->get_meta('_wcpdf_invoice_number') && !$candidate->get_meta('_paypal_invoice_id');
             }));
 
+            $is_new_order = empty($order);
             if (!empty($order)) {
                 // If an order already exists, use it
                 $order = $order[0]; // Get the first order
@@ -166,6 +167,7 @@ class TimeGrowWooOrderCreator {
 
                 $product_hours = 0;
                 $product_total = 0;
+                $work_done     = '';
 
                 foreach ($entries as $entry) {
                     if ($entry->billable != 1) continue;
@@ -206,6 +208,16 @@ class TimeGrowWooOrderCreator {
                 $product_hours = round($product_hours, 2);
                 $product_total = round($product_hours * $the_rate, 2);
 
+                // Nothing billable for this project (all billed or non-billable): no line
+                if ($product_hours <= 0) {
+                    print('<br /> -------> No billable hours, project skipped');
+                    // These entries were not billed on this order
+                    foreach ($entries as $skipped) {
+                        if (isset($skipped->billed_order_id) && $skipped->billed_order_id === $order->get_id()) unset($skipped->billed_order_id);
+                    }
+                    continue;
+                }
+
                 print('<br /> -------> Product Total Hours: '.$product_hours);
                 print('<br /> -------> Product Total: '.$product_total);
 
@@ -237,6 +249,7 @@ class TimeGrowWooOrderCreator {
                 $item->set_name($product_name);
                 $item->set_quantity(1); // hours live in _timegrow_project_hours; quantity stays 1
                 $item->add_meta_data('_timegrow_project_hours', number_format($product_hours, 2, '.', ''));
+                $item->add_meta_data('_timegrow_line_rate', wc_format_decimal($the_rate, 4));
                 $item->add_meta_data('_display_message', $product_hours . ' hrs. At a rate of '. $the_rate. ' per hour.');
                 $item->add_meta_data('_work_done', $work_done);
 
@@ -246,6 +259,13 @@ class TimeGrowWooOrderCreator {
                 $order->add_item($item);
 
             } // End loop thru time for projects
+
+            // A new order that got no lines (no billable hours for this client) is removed again
+            if ($is_new_order && count($order->get_items('line_item')) === 0) {
+                print('<br />---> No billable hours for Client Id: '.$client_id.', order not created');
+                $order->delete(true);
+                continue;
+            }
 
             $order->calculate_totals();
             $order->update_status('processing');

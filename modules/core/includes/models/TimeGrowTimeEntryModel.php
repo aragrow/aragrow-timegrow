@@ -295,6 +295,8 @@ class TimeGrowTimeEntryModel {
             if (!is_numeric($entry->ID) || $entry->ID <= 0) {
                 return new WP_Error('invalid_id', 'Invalid entry ID');
             }
+            // Only entries that went onto an order are billed (not non-billable or skipped ones)
+            if (empty($entry->billed_order_id)) continue;
             print('<br/>--->Marking entry ID: '.$entry->ID.' as billed (Order #'.$entry->billed_order_id.')');
 
             // Group entries by order for summary
