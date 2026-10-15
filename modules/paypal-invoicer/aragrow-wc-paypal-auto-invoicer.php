@@ -459,23 +459,12 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 			$pp_products_map = get_option( 'wc_pp_auto_invoicer_product_map', [] );
 
 			$items = [];
-			$is_hours_order = $order->get_meta( '_timegrow_qty_unit' ) === 'hours';
             
 			foreach ( $order->get_items() as $item_id => $item ) {
 				$product      = $item->get_product();
 				$name         = $item->get_name();
-				$quantity     = (float) $item->get_quantity();
-				$line_total   = (float) $item->get_total();
-				$unit_amount  = $quantity > 0 ? $line_total / $quantity : $line_total;
 				$currency     = $order->get_currency();
-
-				// Time invoice lines keep their hours on the line and a quantity of 1: send hours and the hourly rate.
-				// Every other line sends its plain quantity.
-				$line_hours = (float) $item->get_meta( '_timegrow_project_hours' );
-				if ( $is_hours_order && $line_hours > 0 ) {
-					$quantity    = $line_hours;
-					$unit_amount = $line_total / $line_hours;
-				}
+				list( $quantity, $unit_amount ) = $this->line_quantity_and_rate( $order, $item );
 
 				$sku = '';
 				$desc = '';
@@ -508,24 +497,7 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 
 			// Taxes & shipping as separate items (simple approach)
 			$currency = $order->get_currency();
-			$shipping_total = (float) $order->get_shipping_total();
-			if ( $shipping_total > 0 ) {
-				$items[] = [
-					'name' => 'Shipping',
-					'quantity' => '1',
-					'unit_amount' => [ 'currency_code' => $currency, 'value' => number_format( $shipping_total, 2, '.', '' ) ],
-				];
-			}
-
-
-			$tax_total = (float) $order->get_total_tax();
-			if ( $tax_total > 0 ) {
-				$items[] = [
-					'name' => 'Tax',
-					'quantity' => '1',
-					'unit_amount' => [ 'currency_code' => $currency, 'value' => number_format( $tax_total, 2, '.', '' ) ],
-				];
-			}
+			$items    = array_merge( $items, $this->build_charge_lines( $order ) );
 
 
 			// Client details for PayPal: the order's billing info, with gaps filled from the client's profile.
@@ -611,6 +583,42 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 				$this->restore_status_quietly( $order, $previous, 'Not sent to PayPal. Fix the problem above, then set the status to Send Invoice to PayPal again.' );
 			}
 		}
+	}
+
+	/**
+	 * PayPal quantity and unit amount for an order line.
+	 * Hours invoice lines keep their hours on the line (quantity 1): send hours and total / hours.
+	 * Every other line sends its plain quantity and total / quantity.
+	 *
+	 * @return array [ float $quantity, float $unit_amount ]
+	 */
+	public function line_quantity_and_rate( $order, $item ) {
+		$quantity   = (float) $item->get_quantity();
+		$line_total = (float) $item->get_total();
+		$line_hours = (float) $item->get_meta( '_timegrow_project_hours' );
+
+		if ( $order->get_meta( '_timegrow_qty_unit' ) === 'hours' && $line_hours > 0 ) {
+			return [ $line_hours, $line_total / $line_hours ];
+		}
+		return [ $quantity, $quantity > 0 ? $line_total / $quantity : $line_total ];
+	}
+
+	/**
+	 * Shipping and tax as separate PayPal lines (only when above 0).
+	 */
+	public function build_charge_lines( $order ) {
+		$currency = $order->get_currency();
+		$lines    = [];
+		foreach ( [ 'Shipping' => (float) $order->get_shipping_total(), 'Tax' => (float) $order->get_total_tax() ] as $name => $amount ) {
+			if ( $amount > 0 ) {
+				$lines[] = [
+					'name'        => $name,
+					'quantity'    => '1',
+					'unit_amount' => [ 'currency_code' => $currency, 'value' => number_format( $amount, 2, '.', '' ) ],
+				];
+			}
+		}
+		return $lines;
 	}
 
 	/**

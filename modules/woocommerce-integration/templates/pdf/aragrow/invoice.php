@@ -132,17 +132,10 @@ $manual_payment_data = [
 		<tbody>
 			<?php foreach ( $this->get_order_items() as $item_id => $item ) : ?>
 				<?php
-					// Numbers from the order item itself, not the formatted strings
-					$wc_item    = $order->get_item( $item_id );
-					$line_total = $wc_item ? (float) $wc_item->get_total() : 0;
-
-					// Hours lines keep their hours on the line (quantity stays 1): show hours and total / hours.
-					// Regular lines show their quantity and unit price.
-					$line_hours    = (float) wc_get_order_item_meta( $item_id, '_timegrow_project_hours', true );
-					$is_hours_line = $is_hours_invoice && $line_hours > 0;
-					$qty_display   = $is_hours_line ? number_format( $line_hours, 2 ) : wc_stock_amount( $item['quantity'] );
-					$quantity      = $wc_item ? (float) $wc_item->get_quantity() : (float) $item['quantity'];
-					$unit_price    = $is_hours_line ? $line_total / $line_hours : ( $quantity > 0 ? $line_total / $quantity : $line_total );
+					// Hours lines: hours and total / hours. Regular lines: quantity and unit price.
+					$line_values = Aragrow_WOO_Integration_Plugins::invoice_line_values( $order, $order->get_item( $item_id ), $item['quantity'] );
+					$qty_display = $line_values['qty_display'];
+					$unit_price  = $line_values['unit_price'];
 				?>
 				<tr class="<?php echo esc_html( $item['row_class'] ); ?>">
 					<td class="product">

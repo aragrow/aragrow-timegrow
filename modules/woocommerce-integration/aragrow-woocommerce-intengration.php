@@ -490,7 +490,7 @@ class Aragrow_WOO_Integration_Plugins
         }
 
         // 3. Company rate
-        return max(0, timegrow_company_default_rate());
+        return max(0.0, (float) timegrow_company_default_rate());
     }
 
     /**
@@ -621,6 +621,32 @@ class Aragrow_WOO_Integration_Plugins
         if ($hours === '' || !self::is_hours_invoice($item->get_order())) return $qty_html;
 
         return '<strong class="product-quantity">' . esc_html(number_format((float) $hours, 2, '.', '')) . ' hrs</strong>';
+    }
+
+    /**
+     * Numbers for one invoice line (used by the PDF template):
+     * hours lines (on an hours invoice) show the stored hours and total / hours;
+     * regular lines show their quantity and unit price.
+     *
+     * @param WC_Order           $order
+     * @param WC_Order_Item|null $item         The order item (null falls back to $fallback_qty).
+     * @param float|string       $fallback_qty Quantity from the PDF plugin's item data.
+     * @return array { qty_display: string|float, unit_price: float, is_hours_line: bool }
+     */
+    public static function invoice_line_values($order, $item, $fallback_qty = 0) {
+        $line_total    = $item ? (float) $item->get_total() : 0;
+        $quantity      = $item ? (float) $item->get_quantity() : (float) $fallback_qty;
+        $line_hours    = $item ? (float) $item->get_meta('_timegrow_project_hours') : 0;
+        $is_hours_line = self::is_hours_invoice($order) && $line_hours > 0;
+
+        if ($is_hours_line) {
+            return ['qty_display' => number_format($line_hours, 2), 'unit_price' => $line_total / $line_hours, 'is_hours_line' => true];
+        }
+        return [
+            'qty_display'   => wc_stock_amount($quantity),
+            'unit_price'    => $quantity > 0 ? $line_total / $quantity : $line_total,
+            'is_hours_line' => false,
+        ];
     }
 
     /**
