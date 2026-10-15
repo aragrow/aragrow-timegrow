@@ -156,7 +156,7 @@ class TimeGrowClaudeReceiptAnalyzer implements TimeGrowReceiptAnalyzerInterface 
             ],
             'body' => wp_json_encode($request_body),
             'timeout' => 30,
-            'sslverify' => !defined('WP_DEBUG') || !WP_DEBUG,
+            'sslverify' => true, // always verify certificates: these requests carry the API key
         ]);
 
         // Check for errors
@@ -188,7 +188,7 @@ class TimeGrowClaudeReceiptAnalyzer implements TimeGrowReceiptAnalyzerInterface 
         // Download image
         $response = wp_remote_get($image_url, [
             'timeout' => 30,
-            'sslverify' => !defined('WP_DEBUG') || !WP_DEBUG,
+            'sslverify' => true, // always verify certificates: these requests carry the API key
         ]);
 
         if (is_wp_error($response)) {
