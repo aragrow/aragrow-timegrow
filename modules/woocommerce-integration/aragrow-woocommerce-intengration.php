@@ -591,6 +591,14 @@ class Aragrow_WOO_Integration_Plugins
                 $changed = true;
             }
 
+            // Hours unchanged but the price was edited by hand: the new price sets the line's rate
+            // (compared with the rounded price the stored rate gives, so normal rounding is not an edit)
+            $stored_rate = (float) $item->get_meta('_timegrow_line_rate');
+            if (!$hours_changed && $hours > 0 && $stored_rate > 0
+                && abs((float) $item->get_subtotal() - round($stored_rate * $hours, $decimals)) >= 0.005) {
+                $item->update_meta_data('_timegrow_line_rate', wc_format_decimal((float) $item->get_subtotal() / $hours, 4));
+            }
+
             if ((float) $item->get_quantity() != 1) {
                 $item->set_quantity(1);
                 $changed = true;
