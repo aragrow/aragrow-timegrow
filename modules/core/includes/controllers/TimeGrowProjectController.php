@@ -43,7 +43,7 @@ class TimeGrowProjectController{
             'end_date' => sanitize_text_field($_POST['end_date']),
             'estimate_hours' => floatval($_POST['estimate_hours']),
             'billable' => isset($_POST['billable'])?:0,
-            'status' => isset($_POST['status'])?:0,
+            'status' => isset($_POST['status']) ? intval($_POST['status']) : 1,
             'product_id' => sanitize_text_field($_POST['product_id']),
             'updated_at' => $current_date
             
@@ -59,7 +59,7 @@ class TimeGrowProjectController{
             '%d',   // estimate hours
             '%d',   // billable (integer)
             '%d',   // status (int)
-            '%d',   // status (int)
+            '%d',   // product_id (int)
             '%s',   // updated at
         ];
 

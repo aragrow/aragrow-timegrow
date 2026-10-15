@@ -419,7 +419,7 @@ class TimeGrowProjectView {
                                         <th scope="row"><label for="status">Status</label></th>
                                         <td>
                                             <select id="status" name="status" class="regular-text">
-                                                <option value="1" selected>Active</option>
+                                                <option value="1" <?php selected("1", $project->status); ?>>Active</option>
                                                 <option value="8" <?php selected("8", $project->status); ?>>Completed</option>
                                                 <option value="5" <?php selected("5", $project->status); ?>>On Hold</option>
                                                 <option value="9" <?php selected("9", $project->status); ?>>Cancelled</option>
