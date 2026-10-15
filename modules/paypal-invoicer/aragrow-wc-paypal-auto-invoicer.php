@@ -40,7 +40,9 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 
         // Ensure your custom status appears in the wc-orders filters dropdown
         add_filter('woocommerce_admin_order_statuses', function( $statuses ) {
-            $statuses['wc-inv_send2paypal'] = _x('Invoice Sent to PayPal', 'Order status', 'woocommerce');
+            $statuses['wc-inv_send2paypal']  = _x('Send Invoice to PayPal', 'Order status', 'woocommerce');
+            $statuses['wc-inv_draft2paypal'] = _x('Invoice Draft in PayPal', 'Order status', 'woocommerce');
+            $statuses['wc-inv_sent2paypal']  = _x('Invoice Sent to PayPal', 'Order status', 'woocommerce');
             return $statuses;
         });
 
@@ -80,6 +82,15 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
             'label_count'               => _n_noop('Invoice Send to PayPal (%s)', 'Invoice Send to PayPal (%s)', 'woocommerce'),
         ));
 
+        register_post_status('wc-inv_draft2paypal', array(
+            'label'                     => _x('Invoice Draft in PayPal', 'Order status', 'woocommerce'),
+            'public'                    => true,
+            'exclude_from_search'       => false,
+            'show_in_admin_all_list'    => true,
+            'show_in_admin_status_list' => true,
+            'label_count'               => _n_noop('Invoice Draft in PayPal (%s)', 'Invoice Draft in PayPal (%s)', 'woocommerce'),
+        ));
+
         register_post_status('wc-inv_sent2paypal', array(
             'label'                     => _x('Invoice Sent to PayPal', 'Order status', 'woocommerce'),
             'public'                    => true,
@@ -95,6 +106,7 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
 
         $order_statuses['wc-inv_send2paypal'] = _x('Send Invoice to PayPal', 'Order status', 'woocommerce');
+		$order_statuses['wc-inv_draft2paypal'] = _x('Invoice Draft in PayPal', 'Order status', 'woocommerce');
 		$order_statuses['wc-inv_sent2paypal'] = _x('Invoice Sent to PayPal', 'Order status', 'woocommerce');	
         return $order_statuses;
     }       	
@@ -105,7 +117,8 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
         
         echo '<style>
             .order-status.status-inv_send2paypal { background: purple; color: #fff; }
-			.order-status.status-invoice_sent2paypal { background: purple; color: #fff; }
+			.order-status.status-inv_sent2paypal { background: purple; color: #fff; }
+			.order-status.status-inv_draft2paypal { background: #8a6d3b; color: #fff; }
         </style>';
     }
 
@@ -124,7 +137,7 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 	public function enable_invoice_for_custom_invoice_sent2paypal_status($allowed, $document) {
     if ($document->type === 'invoice') {
         $order = $document->order;
-        if ($order && $order->get_status() === 'invoice_sent2paypal') {
+        if ($order && in_array($order->get_status(), ['inv_sent2paypal', 'inv_draft2paypal'], true)) {
             $allowed = true;
         }
     }
@@ -533,7 +546,8 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 				$order->add_order_note( sprintf( 'PayPal invoice %s created as a draft (not sent).', $pp_invoice_id ) );
 			}
 
-			$order->update_status( 'wc-inv_sent2paypal' );
+			// Draft mode: the client has not received anything yet, so say so in the status
+			$order->update_status( $settings['send_action'] === 'send' ? 'wc-inv_sent2paypal' : 'wc-inv_draft2paypal' );
 
 			update_option( 'wc_pp_auto_invoicer_product_map', $pp_products_map );
 
@@ -730,4 +744,9 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
     }
 }
 
-Aragrow_WC_PayPal_Auto_Invoicer::instance();
+// WooCommerce loads after TimeGrow, so wait until all plugins are loaded before checking for it
+add_action( 'plugins_loaded', function() {
+	if ( class_exists( 'WooCommerce' ) ) {
+		Aragrow_WC_PayPal_Auto_Invoicer::instance();
+	}
+} );
