@@ -161,7 +161,7 @@ class TimeGrowProjectController{
         // Get clients for filter
         $clients = $this->model_client->select();
         foreach ($clients as $client) {
-            $filter_options['clients'][$client->ID] = $client->company_name;
+            $filter_options['clients'][$client->ID] = $client->display_name;
         }
 
         $this->view->display($projects, $filter_options, [
