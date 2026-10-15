@@ -7,6 +7,9 @@ jQuery(function ($) {
     var $flag = $('#timekeeping_invoice');
     if (!$flag.length) return;
 
+    // Orders built from time entries count quantity in 10 minute units: leave them alone
+    if (window.timegrowHoursInvoice && window.timegrowHoursInvoice.enabled === false) return;
+
     function qtyBox($row) {
         return $row.find('td.quantity input[name^="order_item_qty"]');
     }

@@ -401,6 +401,26 @@ class Aragrow_WOO_Integration_Plugins
     }
 
     /**
+     * True for orders built by the time-entry order creator. Their quantities are in
+     * 10 minute units, so the hours editor must not touch them.
+     *
+     * The creator leaves two traces: a customer note starting "Time entries for client ID"
+     * and a "_display_message" on each line ("hrs in 10 minutes increments"). The line
+     * message can be lost when an order is edited, so the note is checked too. An order
+     * already marked as hours (_timegrow_qty_unit) is treated as an hours invoice.
+     */
+    public function is_ten_minute_order($order) {
+        if (!$order || $order->get_meta('_timegrow_qty_unit') === 'hours') return false;
+
+        if (strpos((string) $order->get_customer_note(), 'Time entries for client ID') === 0) return true;
+
+        foreach ($order->get_items('line_item') as $item) {
+            if (strpos((string) $item->get_meta('_display_message'), '10 minutes increments') !== false) return true;
+        }
+        return false;
+    }
+
+    /**
      * Hide TimeGrow's internal line item meta in the admin order editor.
      */
     public function hide_internal_item_meta($hidden) {
@@ -434,7 +454,10 @@ class Aragrow_WOO_Integration_Plugins
                 if ($rate > 0) $rates[$item_id] = $rate;
             }
         }
-        wp_localize_script('timegrow-hours-invoice', 'timegrowHoursInvoice', ['rates' => (object) $rates]);
+        wp_localize_script('timegrow-hours-invoice', 'timegrowHoursInvoice', [
+            'enabled' => !$this->is_ten_minute_order($order),
+            'rates'   => (object) $rates,
+        ]);
     }
 
     /**
@@ -478,6 +501,7 @@ class Aragrow_WOO_Integration_Plugins
      */
     public function render_line_project_hours_input($item_id, $item, $product) {
         if (!is_admin() || !($item instanceof WC_Order_Item_Product)) return;
+        if ($this->is_ten_minute_order($item->get_order())) return;
 
         $hours = $item->get_meta('_timegrow_project_hours');
         if ($hours === '') $hours = $item->get_quantity();
@@ -502,7 +526,7 @@ class Aragrow_WOO_Integration_Plugins
         if (empty($_POST['timegrow_line_hours']) || !is_array($_POST['timegrow_line_hours'])) return;
 
         $order = wc_get_order($order_id);
-        if (!$order) return;
+        if (!$order || $this->is_ten_minute_order($order)) return;
 
         $is_hours_invoice = isset($_POST['timekeeping_invoice']);
         $posted = wp_unslash($_POST['timegrow_line_hours']);
