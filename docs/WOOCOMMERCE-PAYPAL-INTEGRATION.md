@@ -135,7 +135,7 @@ Settings page: **Settings > PayPal Integration**, stored in the `wc_pp_auto_invo
 5. It builds the recipient from the client (see below). Without a valid email it stops with an order note.
 6. It creates the invoice and saves the PayPal invoice ID in `_paypal_invoice_id` on the order. If the order already has an ID (for example, an earlier send failed), it reuses that invoice instead of creating a second one.
 7. With "Create & Send", it tells PayPal to send the invoice, adds a note, and emails the customer a short notice. With "Create only", it adds a note that the invoice is a draft. No customer email goes out.
-8. Only after that does the order move to **Invoice Sent to PayPal** (`wc-inv_sent2paypal`). API errors are added as order notes and the status stays where it was.
+8. Only after that does the order move on: to **Invoice Sent to PayPal** (`wc-inv_sent2paypal`) when emailed, or **Invoice Draft in PayPal** (`wc-inv_draft2paypal`) when saved as a draft. To send a draft later, switch Invoice Delivery to email and set the order to Send Invoice to PayPal again: the existing PayPal invoice is sent, not a new one. API errors are added as order notes and the status stays where it was.
 
 ### The client in PayPal
 
@@ -155,10 +155,9 @@ Orders created before this change used 10-minute units, so their PayPal invoices
 
 ## Known issues
 
-- The PDF filter and admin status color use `invoice_sent2paypal`, but the real status is `inv_sent2paypal`, so they do not apply to sent orders.
-- The settings page pre-fills the decrypted client secret in the page source.
-- The PayPal module does not check that WooCommerce is active.
 - The module README says invoices go out when an order is Completed. The code uses the Send Invoice to PayPal status.
+- PayPal totals can differ from the order by a few cents when the rate is total / hours with a discount or an odd rate.
+- WooCommerce emails show the line quantity (1) on hours invoices, not the hours.
 
 ## Related files
 
