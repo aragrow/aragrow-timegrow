@@ -55,6 +55,7 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 	public function enqueue_settings_styles( $hook ) {
 		if ( $hook !== 'settings_page_paypal-integration' ) return;
 		wp_enqueue_style( 'timegrow-modern-style', TIMEGROW_CORE_BASE_URI . 'assets/css/timegrow-modern.css' );
+		wp_enqueue_script( 'timegrow-paypal-settings', plugin_dir_url( __FILE__ ) . 'assets/paypal-settings.js', [ 'jquery' ], filemtime( __DIR__ . '/assets/paypal-settings.js' ), true );
 	}
 
 	public function register_settings_page() {
@@ -172,7 +173,7 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 		add_settings_field( 'env', 'Environment', [ $this, 'render_select_env' ], 'paypal-integration', 'wc_pp_section_main' );
 		add_settings_field( 'client_id', 'Client ID', [ $this, 'render_text_client' ], 'paypal-integration', 'wc_pp_section_main' );
 		add_settings_field( 'client_secret', 'Client Secret', [ $this, 'render_text_secret' ], 'paypal-integration', 'wc_pp_section_main' );
-		add_settings_field( 'send_action', 'Send Behavior', [ $this, 'render_select_send' ], 'paypal-integration', 'wc_pp_section_main' );
+		add_settings_field( 'send_action', 'Invoice Delivery', [ $this, 'render_select_send' ], 'paypal-integration', 'wc_pp_section_main' );
 		add_settings_field( 'merchant_email', 'Merchant Email (optional)', [ $this, 'render_text_email' ], 'paypal-integration', 'wc_pp_section_main' );
 	}
 
@@ -187,7 +188,10 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 
         // Encrypt sensitive fields if key is defined
         $out['client_id']     = isset($input['client_id']) ? $this->encrypt_data(trim((string)$input['client_id'])) : '';
-        $out['client_secret'] = isset($input['client_secret']) ? $this->encrypt_data(trim((string)$input['client_secret'])) : '';
+        // An empty or missing secret means "keep the saved one" (the field stays locked until Update is clicked)
+        $new_secret = isset($input['client_secret']) ? trim((string) $input['client_secret']) : '';
+        $saved      = get_option($this->option_key, []);
+        $out['client_secret'] = $new_secret !== '' ? $this->encrypt_data($new_secret) : ($saved['client_secret'] ?? '');
 
         return $out;
     }
@@ -273,6 +277,14 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 							</div>
 
 							<div class="timegrow-info-box">
+								<span class="dashicons dashicons-admin-users"></span>
+								<div>
+									<p><strong><?php esc_html_e('Automatic Client Creation', 'timegrow'); ?></strong></p>
+									<p><?php esc_html_e('Each invoice carries the client\'s name, email, company and address, taken from the order or the client\'s profile. PayPal adds the client to your PayPal customers when the invoice is created.', 'timegrow'); ?></p>
+								</div>
+							</div>
+
+							<div class="timegrow-info-box">
 								<span class="dashicons dashicons-email"></span>
 								<div>
 									<p><strong><?php esc_html_e('Customer Email', 'timegrow'); ?></strong></p>
@@ -335,18 +347,36 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
         $decrypted_id = $this->decrypt_data($settings['client_id']);
 		printf('<input type="text" style="width: 480px" name="%s[client_id]" value="%s" />', esc_attr($this->option_key), esc_attr($decrypted_id) );
 	}
+	/**
+	 * The saved secret is never printed. Only its last 8 characters are shown;
+	 * "Update" opens an empty field for a new secret.
+	 */
 	public function render_text_secret() {
 		$settings = $this->get_settings();
-        $decrypted_secret = $this->decrypt_data($settings['client_secret']);
-		printf('<input type="password" style="width: 480px" name="%s[client_secret]" value="%s" />', esc_attr($this->option_key), esc_attr($decrypted_secret) );
+		$secret   = $settings['client_secret'] ? (string) $this->decrypt_data( $settings['client_secret'] ) : '';
+		$name     = $this->option_key . '[client_secret]';
+
+		if ( $secret === '' ) {
+			printf( '<input type="password" style="width: 480px" name="%s" value="" autocomplete="new-password" />', esc_attr( $name ) );
+			return;
+		}
+		?>
+		<div class="timegrow-secret-field">
+			<?php // Same look as the other fields; read-only, no name, so it is never submitted ?>
+			<input type="text" class="timegrow-secret-mask" style="width: 480px" value="<?php echo esc_attr( str_repeat( "\u{2022}", 8 ) . substr( $secret, -8 ) ); ?>" readonly />
+			<input type="password" style="width: 480px" name="<?php echo esc_attr( $name ); ?>" value="" autocomplete="new-password" placeholder="<?php esc_attr_e( 'Enter the new client secret', 'timegrow' ); ?>" disabled hidden />
+			<button type="button" class="button timegrow-secret-update" data-update="<?php esc_attr_e( 'Update', 'timegrow' ); ?>" data-cancel="<?php esc_attr_e( 'Cancel', 'timegrow' ); ?>"><?php esc_html_e( 'Update', 'timegrow' ); ?></button>
+		</div>
+		<?php
 	}
 	public function render_select_send() {
 		$settings = $this->get_settings();
 		?>
 		<select name="<?php echo esc_attr( $this->option_key ); ?>[send_action]">
-			<option value="send" <?php selected( $settings['send_action'], 'send' ); ?>>Create & Send invoice</option>
-			<option value="save" <?php selected( $settings['send_action'], 'save' ); ?>>Create only (do not send)</option>
+			<option value="send" <?php selected( $settings['send_action'], 'send' ); ?>><?php esc_html_e( 'Email the invoice to the client', 'timegrow' ); ?></option>
+			<option value="save" <?php selected( $settings['send_action'], 'save' ); ?>><?php esc_html_e( 'Save as a draft in PayPal (I will send it myself)', 'timegrow' ); ?></option>
 		</select>
+		<p class="description"><?php esc_html_e( 'What happens when an order is set to "Send Invoice to PayPal". Email: PayPal emails the client the invoice with a payment link. Draft: the invoice waits in your PayPal account and the client gets nothing until you send it there.', 'timegrow' ); ?></p>
 		<?php
 	}
 	public function render_text_email() {
