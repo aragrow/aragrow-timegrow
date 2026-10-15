@@ -15,6 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 final class Aragrow_WC_PayPal_Auto_Invoicer {
 	private static $instance = null;
 	private $option_key = 'wc_pp_auto_invoicer_settings';
+	private $last_sanitized = null; // see sanitize_settings()
 
 	public static function instance() {
 		return self::$instance ?: ( self::$instance = new self() );
@@ -24,7 +25,7 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 		add_action( 'admin_menu', [ $this, 'register_settings_page' ] );
 		add_action( 'admin_init', [ $this, 'register_settings' ] );
 		add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_settings_styles' ] );
-		add_action( 'woocommerce_order_status_inv_send2paypal', [ $this, 'handle_order_to_pay' ], 10, 1 );
+		add_action( 'woocommerce_order_status_inv_send2paypal', [ $this, 'handle_order_to_pay' ], 10, 3 );
 
                 // Register the custom order status
         add_action('init', [$this, 'register_custom_invoice_paypal_status' ]);
@@ -193,6 +194,12 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
     public function sanitize_settings($input) {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
 
+        // WordPress runs this filter twice when the option is saved for the first time.
+        // The second pass gets our own output back: return it as is, or the credentials get encrypted twice.
+        if ($this->last_sanitized !== null && $input === $this->last_sanitized) {
+            return $input;
+        }
+
         $out = [];
         $out['enabled']        = ! empty( $input['enabled'] ) ? 'yes' : 'no';
         $out['env']            = in_array($input['env'] ?? 'sandbox', ['sandbox','live'], true) ? $input['env'] : 'sandbox';
@@ -206,6 +213,8 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
             $new_value  = isset($input[$key]) ? trim((string) $input[$key]) : '';
             $out[$key]  = $new_value !== '' ? $this->encrypt_data($new_value) : ($saved[$key] ?? '');
         }
+
+        $this->last_sanitized = $out;
 
         return $out;
     }
@@ -405,12 +414,21 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 	/**
 	 * Woo: when an order becomes Completed, build & send a PayPal invoice
 	 */
-	public function handle_order_to_pay( $order_id ) {
+	public function handle_order_to_pay( $order_id, $order_obj = null, $transition = [] ) {
         if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
 
 		if ( ! function_exists( 'wc_get_order' ) ) return;
 		$order = wc_get_order( $order_id );
 		if ( ! $order ) return;
+
+		// An order goes to PayPal once. If it already has a PayPal invoice, refuse and put the status back.
+		$previous    = ! empty( $transition['from'] ) && $transition['from'] !== 'inv_send2paypal' ? $transition['from'] : 'pending';
+		$existing_id = $order->get_meta( '_paypal_invoice_id' ) ?: get_post_meta( $order_id, '_paypal_invoice_id', true );
+		if ( $existing_id ) {
+			if ( empty( $transition['from'] ) ) $previous = 'inv_sent2paypal';
+			$order->update_status( $previous, sprintf( 'Not sent: this order is already in PayPal (invoice %s). Make any changes in PayPal.', $existing_id ) );
+			return;
+		}
 
 		$settings = $this->get_settings();
 		if ( $settings['enabled'] !== 'yes' ) {
@@ -497,47 +515,56 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 			$billing_info    = $this->build_recipient( $order );
 			$recipient_email = $billing_info['email_address'];
 
-			$invoice_number = $order->get_meta( '_wcpdf_invoice_number' );
+			$invoice_number = $this->get_invoice_number( $order );
 
-			// Reuse an invoice already created for this order (for example, when a send failed)
-			$pp_invoice_id = $order->get_meta( '_paypal_invoice_id' ) ?: get_post_meta( $order_id, '_paypal_invoice_id', true );
+			$invoice_payload = [
+				'detail' => [
+					'currency_code'        => $currency,
+					'reference'            => (string) $order->get_id(),
+					'note'                 => 'Thank you for your business!',
+					'terms_and_conditions' => 'Payment due upon receipt.',
+				],
+				'invoicer' => array_filter([
+					'email_address' => $settings['merchant_email'] ?: null,
+				]),
+				'primary_recipients' => [
+					[ 'billing_info' => $billing_info ],
+				],
+				'items' => $items,
+				'configuration' => [
+					'tax_calculated_after_discount' => true,
+					'tax_inclusive' => false,
+				],
+			];
 
-			if ( ! $pp_invoice_id ) {
-				$invoice_payload = [
-					'detail' => [
-						'currency_code'        => $currency,
-						'invoice_number'       => (string) $invoice_number,
-						'reference'            => (string) $order->get_id(),
-						'note'                 => 'Thank you for your business!',
-						'terms_and_conditions' => 'Payment due upon receipt.',
-					],
-					'invoicer' => array_filter([
-						'email_address' => $settings['merchant_email'] ?: null,
-					]),
-					'primary_recipients' => [
-						[ 'billing_info' => $billing_info ],
-					],
-					'items' => $items,
-					'configuration' => [
-						'tax_calculated_after_discount' => true,
-						'tax_inclusive' => false,
-					],
-				];
-
-				$invoice = $this->api_request( $token, $settings, 'POST', '/v2/invoicing/invoices', $invoice_payload );
-
-				// PayPal returns a link to the new invoice by default; the invoice ID is its last path part
-				$pp_invoice_id = $invoice['id'] ?? '';
-				if ( ! $pp_invoice_id && ! empty( $invoice['href'] ) && preg_match( '#/invoices/([^/?]+)#', $invoice['href'], $m ) ) {
-					$pp_invoice_id = $m[1];
-				}
-				if ( ! $pp_invoice_id ) {
-					throw new Exception( 'PayPal did not return an invoice ID.' );
-				}
-
-				$order->update_meta_data( '_paypal_invoice_id', sanitize_text_field( $pp_invoice_id ) );
-				$order->save();
+			// Use the PDF invoice number when there is one; otherwise PayPal assigns its own
+			if ( $invoice_number !== '' ) {
+				$invoice_payload['detail']['invoice_number'] = $invoice_number;
 			}
+
+			try {
+				$invoice = $this->api_request( $token, $settings, 'POST', '/v2/invoicing/invoices', $invoice_payload );
+			} catch ( Exception $e ) {
+				// PayPal refuses an invoice number it has seen before: let PayPal number this one instead
+				if ( $invoice_number === '' || strpos( $e->getMessage(), 'DUPLICATE_INVOICE_NUMBER' ) === false ) {
+					throw $e;
+				}
+				unset( $invoice_payload['detail']['invoice_number'] );
+				$invoice = $this->api_request( $token, $settings, 'POST', '/v2/invoicing/invoices', $invoice_payload );
+				$order->add_order_note( sprintf( 'PayPal already has an invoice numbered %s, so PayPal assigned its own number to this one.', $invoice_number ) );
+			}
+
+			// PayPal returns a link to the new invoice by default; the invoice ID is its last path part
+			$pp_invoice_id = $invoice['id'] ?? '';
+			if ( ! $pp_invoice_id && ! empty( $invoice['href'] ) && preg_match( '#/invoices/([^/?]+)#', $invoice['href'], $m ) ) {
+				$pp_invoice_id = $m[1];
+			}
+			if ( ! $pp_invoice_id ) {
+				throw new Exception( 'PayPal did not return an invoice ID.' );
+			}
+
+			$order->update_meta_data( '_paypal_invoice_id', sanitize_text_field( $pp_invoice_id ) );
+			$order->save();
 
 			if ( $settings['send_action'] === 'send' ) {
 				$this->api_request( $token, $settings, 'POST', sprintf( '/v2/invoicing/invoices/%s/send', rawurlencode( $pp_invoice_id ) ), [ 'send_to_invoicer' => false ] );
@@ -556,7 +583,31 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 		} catch ( Exception $e ) {
             if(WP_DEBUG) error_log( 'PayPal Invoicer error: ' . $e->getMessage());
 			$order->add_order_note( 'PayPal Invoicer error: ' . $e->getMessage() );
+
+			// Leave the order in a status that says where it stands, so it is never stuck on "Send Invoice to PayPal"
+			if ( $order->get_meta( '_paypal_invoice_id' ) ) {
+				// The invoice exists in PayPal but was not sent: finish it there
+				$order->update_status( 'inv_draft2paypal', 'The invoice was created in PayPal but not sent. Send it from your PayPal account.' );
+			} else {
+				// Nothing reached PayPal: put the status back so it can simply be set again to retry
+				$order->update_status( $previous, 'Not sent to PayPal. Fix the problem above, then set the status to Send Invoice to PayPal again.' );
+			}
 		}
+	}
+
+	/**
+	 * Invoice number for PayPal: the PDF Invoices number, created now if the order has none yet.
+	 * Returns '' when no number can be made, so PayPal numbers the invoice itself.
+	 */
+	private function get_invoice_number( $order ) {
+		$number = (string) $order->get_meta( '_wcpdf_invoice_number' );
+		if ( $number === '' && function_exists( 'wcpdf_get_document' ) ) {
+			$document = wcpdf_get_document( 'invoice', $order, true ); // true: create the invoice number if missing
+			if ( $document && $document->get_number() ) {
+				$number = (string) $document->get_number()->get_formatted();
+			}
+		}
+		return $number;
 	}
 
 	/**
