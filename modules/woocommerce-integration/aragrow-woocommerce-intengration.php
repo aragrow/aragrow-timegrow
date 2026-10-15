@@ -52,6 +52,7 @@ class Aragrow_WOO_Integration_Plugins
         add_filter('woocommerce_email_order_item_quantity', [ $this, 'email_hours_for_hours_lines' ], 10, 2);
         add_action('admin_enqueue_scripts', [ $this, 'enqueue_hours_invoice_script' ]);
         add_filter('woocommerce_hidden_order_itemmeta', [ $this, 'hide_internal_item_meta' ]);
+        add_filter('woocommerce_order_item_display_meta_key', [ $this, 'label_item_meta_keys' ], 10, 3);
         // PDF Invoices & Packing Slips: offer TimeGrow's own template (listed as timegrow/aragrow)
         add_filter('wpo_wcpdf_template_paths', [ $this, 'add_pdf_template_path' ]);
 
@@ -414,8 +415,17 @@ class Aragrow_WOO_Integration_Plugins
      */
     public function hide_internal_item_meta($hidden) {
         $hidden[] = '_timegrow_project_hours';
+        $hidden[] = '_timegrow_line_rate';
+        $hidden[] = '_display_message';  // creator summary; hours and rate are shown in their columns
         $hidden[] = '_precise_quantity'; // written by the old Float Quantities plugin
         return $hidden;
+    }
+
+    /**
+     * Show the time entry description as "Work done" instead of its meta key.
+     */
+    public function label_item_meta_keys($display_key, $meta, $item) {
+        return $meta->key === '_work_done' ? __('Work done', 'timegrow') : $display_key;
     }
 
     /**
@@ -490,6 +500,10 @@ class Aragrow_WOO_Integration_Plugins
      * Keeping the line's own rate means a later rate change never reprices an old invoice.
      */
     public function get_line_rate($order, $item) {
+        // Rate saved on the line when it was priced (kept even if the hours go to 0)
+        $stored = (float) $item->get_meta('_timegrow_line_rate');
+        if ($stored > 0) return $stored;
+
         $hours    = (float) $item->get_meta('_timegrow_project_hours');
         $subtotal = (float) $item->get_subtotal();
         if ($hours > 0 && $subtotal > 0) return $subtotal / $hours;
@@ -571,6 +585,7 @@ class Aragrow_WOO_Integration_Plugins
                 $new_subtotal = round($rate * $hours, $decimals);
 
                 $item->update_meta_data('_timegrow_project_hours', number_format($hours, 2, '.', ''));
+                if ($rate > 0) $item->update_meta_data('_timegrow_line_rate', wc_format_decimal($rate, 4));
                 $item->set_subtotal($new_subtotal);
                 $item->set_total(round($new_subtotal * $ratio, $decimals));
                 $changed = true;
