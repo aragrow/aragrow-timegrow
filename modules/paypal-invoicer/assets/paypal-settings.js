@@ -1,12 +1,12 @@
 /**
- * PayPal settings: the client secret is shown masked (last 8 characters only).
- * "Update" reveals an empty field for a new secret; "Cancel" keeps the saved one.
- * The field stays disabled until then, so the saved secret is not overwritten.
+ * PayPal settings: the client ID and secret are shown masked (last 8 characters only).
+ * "Update" reveals an empty field for a new value; "Cancel" keeps the saved one.
+ * The field stays disabled until then, so the saved value is not overwritten.
  */
 jQuery(function ($) {
     $(document).on('click', '.timegrow-secret-update', function () {
         var $wrap = $(this).closest('.timegrow-secret-field');
-        var $input = $wrap.find('input[type="password"]');
+        var $input = $wrap.find('.timegrow-secret-input');
         var editing = $input.prop('disabled');
 
         $input.prop('disabled', !editing).prop('hidden', !editing).val('');

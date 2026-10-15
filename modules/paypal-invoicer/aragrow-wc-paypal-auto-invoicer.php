@@ -199,12 +199,13 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
         $out['send_action']    = in_array($input['send_action'] ?? 'send', ['send','save'], true) ? $input['send_action'] : 'send';
         $out['merchant_email'] = isset($input['merchant_email']) ? sanitize_email($input['merchant_email']) : '';
 
-        // Encrypt sensitive fields if key is defined
-        $out['client_id']     = isset($input['client_id']) ? $this->encrypt_data(trim((string)$input['client_id'])) : '';
-        // An empty or missing secret means "keep the saved one" (the field stays locked until Update is clicked)
-        $new_secret = isset($input['client_secret']) ? trim((string) $input['client_secret']) : '';
-        $saved      = get_option($this->option_key, []);
-        $out['client_secret'] = $new_secret !== '' ? $this->encrypt_data($new_secret) : ($saved['client_secret'] ?? '');
+        // Credentials are encrypted. An empty or missing value means "keep the saved one"
+        // (the field stays locked until Update is clicked).
+        $saved = get_option($this->option_key, []);
+        foreach (['client_id', 'client_secret'] as $key) {
+            $new_value  = isset($input[$key]) ? trim((string) $input[$key]) : '';
+            $out[$key]  = $new_value !== '' ? $this->encrypt_data($new_value) : ($saved[$key] ?? '');
+        }
 
         return $out;
     }
@@ -356,32 +357,36 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 		<?php
 	}
 	public function render_text_client() {
-		$settings = $this->get_settings();
-        $decrypted_id = $this->decrypt_data($settings['client_id']);
-		printf('<input type="text" style="width: 480px" name="%s[client_id]" value="%s" />', esc_attr($this->option_key), esc_attr($decrypted_id) );
+		$this->render_masked_credential( 'client_id', 'text', __( 'Enter the new client ID', 'timegrow' ) );
 	}
-	/**
-	 * The saved secret is never printed. Only its last 8 characters are shown;
-	 * "Update" opens an empty field for a new secret.
-	 */
-	public function render_text_secret() {
-		$settings = $this->get_settings();
-		$secret   = $settings['client_secret'] ? (string) $this->decrypt_data( $settings['client_secret'] ) : '';
-		$name     = $this->option_key . '[client_secret]';
 
-		if ( $secret === '' ) {
-			printf( '<input type="password" style="width: 480px" name="%s" value="" autocomplete="new-password" />', esc_attr( $name ) );
+	public function render_text_secret() {
+		$this->render_masked_credential( 'client_secret', 'password', __( 'Enter the new client secret', 'timegrow' ) );
+	}
+
+	/**
+	 * A saved credential is never printed. Only its last 8 characters are shown;
+	 * "Update" opens an empty field for a new value, "Cancel" keeps the saved one.
+	 */
+	private function render_masked_credential( $key, $type, $placeholder ) {
+		$settings = $this->get_settings();
+		$value    = $settings[ $key ] ? (string) $this->decrypt_data( $settings[ $key ] ) : '';
+		$name     = $this->option_key . '[' . $key . ']';
+
+		if ( $value === '' ) {
+			printf( '<input type="%s" style="width: 480px" name="%s" value="" autocomplete="off" />', esc_attr( $type ), esc_attr( $name ) );
 			return;
 		}
 		?>
 		<div class="timegrow-secret-field">
 			<?php // Same look as the other fields; read-only, no name, so it is never submitted ?>
-			<input type="text" class="timegrow-secret-mask" style="width: 480px" value="<?php echo esc_attr( str_repeat( "\u{2022}", 8 ) . substr( $secret, -8 ) ); ?>" readonly />
-			<input type="password" style="width: 480px" name="<?php echo esc_attr( $name ); ?>" value="" autocomplete="new-password" placeholder="<?php esc_attr_e( 'Enter the new client secret', 'timegrow' ); ?>" disabled hidden />
+			<input type="text" class="timegrow-secret-mask" style="width: 480px" value="<?php echo esc_attr( str_repeat( "\u{2022}", 8 ) . substr( $value, -8 ) ); ?>" readonly />
+			<input type="<?php echo esc_attr( $type ); ?>" class="timegrow-secret-input" style="width: 480px" name="<?php echo esc_attr( $name ); ?>" value="" autocomplete="off" placeholder="<?php echo esc_attr( $placeholder ); ?>" disabled hidden />
 			<button type="button" class="button timegrow-secret-update" data-update="<?php esc_attr_e( 'Update', 'timegrow' ); ?>" data-cancel="<?php esc_attr_e( 'Cancel', 'timegrow' ); ?>"><?php esc_html_e( 'Update', 'timegrow' ); ?></button>
 		</div>
 		<?php
 	}
+
 	public function render_select_send() {
 		$settings = $this->get_settings();
 		?>
@@ -414,7 +419,6 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 		}
 
 		try {
-            error_log('Processing order #' . $order_id . ' for PayPal invoicing');
 			$token = $this->get_oauth_token( $settings );
 			$pp_products_map = get_option( 'wc_pp_auto_invoicer_product_map', [] );
 
@@ -465,7 +469,6 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 				$items[] = $pp_item;
 			}
 
-            error_log('Order #' . $order_id . ' items prepared for PayPal invoicing: ' . print_r($items, true));
 
 			// Taxes & shipping as separate items (simple approach)
 			$currency = $order->get_currency();
@@ -478,7 +481,6 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 				];
 			}
 
-            error_log('Order #' . $order_id . ' shipping total: ' . $shipping_total);
 
 			$tax_total = (float) $order->get_total_tax();
 			if ( $tax_total > 0 ) {
@@ -489,7 +491,6 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 				];
 			}
 
-            error_log('Order #' . $order_id . ' tax total: ' . $tax_total);
 
 			// Client details for PayPal: the order's billing info, with gaps filled from the client's profile.
 			// PayPal has no separate customer API for invoices; it records the recipient as a customer.
@@ -551,7 +552,6 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 
 			update_option( 'wc_pp_auto_invoicer_product_map', $pp_products_map );
 
-			error_log('Order #' . $order_id . ' PayPal invoicing completed successfully.');	
 
 		} catch ( Exception $e ) {
             if(WP_DEBUG) error_log( 'PayPal Invoicer error: ' . $e->getMessage());
