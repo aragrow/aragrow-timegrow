@@ -3268,17 +3268,23 @@ class TimeGrowReportsController {
                         ELSE 0
                     END) as total_hours,
                     SUM(CASE
-                        WHEN te.billable = 1 AND te.hours IS NOT NULL AND te.hours > 0 THEN te.hours
-                        WHEN te.billable = 1 AND te.clock_in_date IS NOT NULL AND te.clock_out_date IS NOT NULL
+                        WHEN te.billable = 1 AND te.billed = 1 AND te.hours IS NOT NULL AND te.hours > 0 THEN te.hours
+                        WHEN te.billable = 1 AND te.billed = 1 AND te.clock_in_date IS NOT NULL AND te.clock_out_date IS NOT NULL
                         THEN TIMESTAMPDIFF(SECOND, te.clock_in_date, te.clock_out_date) / 3600
                         ELSE 0
-                    END) as billable_hours,
+                    END) as billed_hours,
                     SUM(CASE
-                        WHEN te.billable = 1 AND te.hours IS NOT NULL AND te.hours > 0 THEN te.hours * COALESCE(
+                        WHEN te.billable = 1 AND (te.billed = 0 OR te.billed IS NULL) AND te.hours IS NOT NULL AND te.hours > 0 THEN te.hours
+                        WHEN te.billable = 1 AND (te.billed = 0 OR te.billed IS NULL) AND te.clock_in_date IS NOT NULL AND te.clock_out_date IS NOT NULL
+                        THEN TIMESTAMPDIFF(SECOND, te.clock_in_date, te.clock_out_date) / 3600
+                        ELSE 0
+                    END) as unbilled_hours,
+                    SUM(CASE
+                        WHEN te.billable = 1 AND te.billed = 1 AND te.hours IS NOT NULL AND te.hours > 0 THEN te.hours * COALESCE(
                             NULLIF(p.default_flat_fee, 0),
                             (SELECT NULLIF(ct.default_flat_fee, 0) FROM {$company_table} ct WHERE ct.ID = 1 LIMIT 1),
                             75)
-                        WHEN te.billable = 1 AND te.clock_in_date IS NOT NULL AND te.clock_out_date IS NOT NULL
+                        WHEN te.billable = 1 AND te.billed = 1 AND te.clock_in_date IS NOT NULL AND te.clock_out_date IS NOT NULL
                         THEN (TIMESTAMPDIFF(SECOND, te.clock_in_date, te.clock_out_date) / 3600) * COALESCE(
                             NULLIF(p.default_flat_fee, 0),
                             (SELECT NULLIF(ct.default_flat_fee, 0) FROM {$company_table} ct WHERE ct.ID = 1 LIMIT 1),
@@ -3354,7 +3360,8 @@ class TimeGrowReportsController {
 
         // Calculate grand totals
         $grand_total_hours = 0;
-        $grand_billable_hours = 0;
+        $grand_billed_hours = 0;
+        $grand_unbilled_hours = 0;
         $grand_billed_amount = 0;
         $grand_total_expenses = 0;
         $grand_project_count = 0;
@@ -3363,7 +3370,8 @@ class TimeGrowReportsController {
 
         foreach ($results as $row) {
             $grand_total_hours += floatval($row->total_hours);
-            $grand_billable_hours += floatval($row->billable_hours);
+            $grand_billed_hours += floatval($row->billed_hours);
+            $grand_unbilled_hours += floatval($row->unbilled_hours);
             $grand_billed_amount += floatval($row->billed_amount);
             $grand_total_expenses += floatval($row->total_expenses);
             $grand_project_count += intval($row->project_count);
@@ -3371,18 +3379,47 @@ class TimeGrowReportsController {
             $grand_expense_count += intval($row->expense_count);
         }
 
-        // Display the SQL Query (only when WP_DEBUG is enabled)
+        // Count total clients in wp_users that have at least one project (no activity filter)
+        $all_clients_with_projects_count = $wpdb->get_var("
+            SELECT COUNT(DISTINCT c.ID)
+            FROM {$client_table} c
+            INNER JOIN {$project_table} p ON c.ID = p.client_id
+        ");
+
+        // Count total clients in wp_users (all users flagged as clients)
+        $all_clients_total = count($all_clients);
+
+        // Display diagnostics panel (always visible to admins, not gated by WP_DEBUG)
         ?>
-            <?php if (WP_DEBUG): ?>
-            <div style="background: #f8f9fa; border: 2px solid #0073aa; padding: 20px; margin: 20px 0; border-radius: 5px;">
-                <h3 style="margin-top: 0; color: #0073aa;">📊 SQL Query</h3>
-                <pre style="background: #fff; padding: 15px; border: 1px solid #ddd; overflow-x: auto; font-size: 12px; line-height: 1.5;"><?php echo esc_html($final_sql); ?></pre>
-                <p><strong>Results:</strong> <?php echo count($results); ?> clients found</p>
+        <details style="background: #fff8e1; border: 2px solid #f9a825; padding: 15px; margin: 0 0 20px 0; border-radius: 5px;">
+            <summary style="cursor: pointer; font-weight: bold; color: #f57f17; font-size: 14px;">&#128269; Report Diagnostics (click to expand)</summary>
+            <div style="margin-top: 12px; font-size: 13px; line-height: 1.8;">
+                <strong>Active Filters:</strong><br>
+                &bull; Client filter: <?php echo $filter_client ? esc_html($filter_client) . ' (ID)' : '<em>none — all clients</em>'; ?><br>
+                &bull; Start date: <?php echo $start_date ? esc_html($start_date) : '<em>none</em>'; ?><br>
+                &bull; End date: <?php echo $end_date ? esc_html($end_date) : '<em>none</em>'; ?><br>
+                <br>
+                <strong>Counts:</strong><br>
+                &bull; Clients in dropdown (have at least 1 project): <strong><?php echo intval($all_clients_total); ?></strong><br>
+                &bull; Clients with at least 1 project (raw DB count): <strong><?php echo intval($all_clients_with_projects_count); ?></strong><br>
+                &bull; Clients in report results (hours &gt; 0 OR expenses &gt; 0): <strong><?php echo count($results); ?></strong><br>
+                <?php
+                $excluded = intval($all_clients_with_projects_count) - count($results);
+                if ($excluded > 0):
+                ?>
+                &bull; Clients excluded by HAVING (no hours &amp; no expenses): <strong style="color:#c62828;"><?php echo $excluded; ?></strong><br>
+                <?php endif; ?>
                 <?php if ($wpdb->last_error): ?>
-                    <p style="color: red;"><strong>Error:</strong> <?php echo esc_html($wpdb->last_error); ?></p>
+                <br><span style="color:red;"><strong>DB Error:</strong> <?php echo esc_html($wpdb->last_error); ?></span>
                 <?php endif; ?>
             </div>
+            <?php if (WP_DEBUG): ?>
+            <div style="margin-top: 12px;">
+                <strong>SQL:</strong>
+                <pre style="background: #fff; padding: 10px; border: 1px solid #ddd; overflow-x: auto; font-size: 11px; line-height: 1.4; margin: 5px 0 0 0;"><?php echo esc_html($final_sql); ?></pre>
+            </div>
             <?php endif; ?>
+        </details>
 
             <!-- Filters -->
             <div class="tax-report-controls" style="margin-bottom: 20px; padding: 15px; background: #f9f9f9; border: 1px solid #ddd; border-radius: 4px;">
@@ -3435,8 +3472,13 @@ class TimeGrowReportsController {
                 </div>
 
                 <div class="summary-card" style="background: #e8f5e9; padding: 20px; border-radius: 5px; text-align: center;">
-                    <h3 style="margin: 0 0 10px 0; color: #2e7d32;">Billable Hours</h3>
-                    <p style="font-size: 28px; font-weight: bold; margin: 0;"><?php echo number_format($grand_billable_hours, 2); ?></p>
+                    <h3 style="margin: 0 0 10px 0; color: #2e7d32;">Billed Hours</h3>
+                    <p style="font-size: 28px; font-weight: bold; margin: 0;"><?php echo number_format($grand_billed_hours, 2); ?></p>
+                </div>
+
+                <div class="summary-card" style="background: #fff8e1; padding: 20px; border-radius: 5px; text-align: center;">
+                    <h3 style="margin: 0 0 10px 0; color: #f57f17;">Unbilled Hours</h3>
+                    <p style="font-size: 28px; font-weight: bold; margin: 0;"><?php echo number_format($grand_unbilled_hours, 2); ?></p>
                 </div>
 
                 <div class="summary-card" style="background: #e0f7fa; padding: 20px; border-radius: 5px; text-align: center;">
@@ -3469,7 +3511,8 @@ class TimeGrowReportsController {
                             <th>Email</th>
                             <th style="width: 80px; text-align: right;">Projects</th>
                             <th style="width: 100px; text-align: right;">Total Hours</th>
-                            <th style="width: 100px; text-align: right;">Billable</th>
+                            <th style="width: 100px; text-align: right;">Billed Hrs</th>
+                            <th style="width: 110px; text-align: right;">Unbilled Hrs</th>
                             <th style="width: 120px; text-align: right;">Amount Billed</th>
                             <th style="width: 100px; text-align: right;">Non-Billable</th>
                             <th style="width: 100px; text-align: right;">Expenses</th>
@@ -3481,7 +3524,7 @@ class TimeGrowReportsController {
                     </thead>
                     <tbody>
                         <?php foreach ($results as $row) :
-                            $non_billable = floatval($row->total_hours) - floatval($row->billable_hours);
+                            $non_billable = floatval($row->total_hours) - floatval($row->billed_hours) - floatval($row->unbilled_hours);
                             // Build detail report URL - show detailed breakdown view
                             $detail_url = add_query_arg([
                                 'page' => $_GET['page'],
@@ -3497,7 +3540,8 @@ class TimeGrowReportsController {
                                 <td><?php echo esc_html($row->client_email); ?></td>
                                 <td style="text-align: right;"><?php echo intval($row->project_count); ?></td>
                                 <td style="text-align: right; font-weight: bold;"><?php echo number_format($row->total_hours, 2); ?></td>
-                                <td style="text-align: right; color: #2e7d32;"><?php echo number_format($row->billable_hours, 2); ?></td>
+                                <td style="text-align: right; color: #2e7d32;"><?php echo number_format($row->billed_hours, 2); ?></td>
+                                <td style="text-align: right; color: #f57f17; font-weight: bold;"><?php echo number_format($row->unbilled_hours, 2); ?></td>
                                 <td style="text-align: right; font-weight: bold; color: #00695c;">$<?php echo number_format($row->billed_amount, 2); ?></td>
                                 <td style="text-align: right; color: #999;"><?php echo number_format($non_billable, 2); ?></td>
                                 <td style="text-align: right;"><?php echo intval($row->expense_count); ?></td>
@@ -3517,9 +3561,10 @@ class TimeGrowReportsController {
                             <td colspan="2" style="text-align: right; padding-right: 10px;">TOTALS:</td>
                             <td style="text-align: right; font-size: 16px;"><?php echo $grand_project_count; ?></td>
                             <td style="text-align: right; font-size: 16px;"><?php echo number_format($grand_total_hours, 2); ?></td>
-                            <td style="text-align: right; font-size: 16px;"><?php echo number_format($grand_billable_hours, 2); ?></td>
+                            <td style="text-align: right; font-size: 16px; color: #2e7d32;"><?php echo number_format($grand_billed_hours, 2); ?></td>
+                            <td style="text-align: right; font-size: 16px; color: #f57f17;"><?php echo number_format($grand_unbilled_hours, 2); ?></td>
                             <td style="text-align: right; font-size: 16px; color: #00695c;">$<?php echo number_format($grand_billed_amount, 2); ?></td>
-                            <td style="text-align: right; font-size: 16px;"><?php echo number_format($grand_total_hours - $grand_billable_hours, 2); ?></td>
+                            <td style="text-align: right; font-size: 16px;"><?php echo number_format($grand_total_hours - $grand_billed_hours - $grand_unbilled_hours, 2); ?></td>
                             <td style="text-align: right; font-size: 16px;"><?php echo $grand_expense_count; ?></td>
                             <td style="text-align: right; font-size: 16px; color: #e65100;">$<?php echo number_format($grand_total_expenses, 2); ?></td>
                             <td colspan="3"></td>
@@ -3563,6 +3608,8 @@ class TimeGrowReportsController {
             return;
         }
 
+        $woo_posts_table = $wpdb->posts;
+
         // Query all time entries for this client's projects
         $time_query = "SELECT
                         te.*,
@@ -3578,10 +3625,12 @@ class TimeGrowReportsController {
                         CASE
                             WHEN te.hours IS NOT NULL AND te.hours > 0 THEN 'MANUAL'
                             ELSE 'CLOCK'
-                        END as entry_type
+                        END as entry_type,
+                        woo.post_title as woo_order_number
                     FROM {$time_entry_table} te
                     INNER JOIN {$project_table} p ON te.project_id = p.ID
                     INNER JOIN {$member_table} m ON te.member_id = m.ID
+                    LEFT JOIN {$woo_posts_table} woo ON te.billed_order_id = woo.ID AND woo.post_type = 'shop_order'
                     WHERE p.client_id = %d";
 
         $time_params = [$client_id];
@@ -3631,18 +3680,24 @@ class TimeGrowReportsController {
         $expense_final_sql = $wpdb->prepare($expense_query, $expense_params);
 
         // Calculate totals
-        $total_hours = 0;
-        $billable_hours = 0;
-        $total_expenses = 0;
+        $total_hours       = 0;
+        $billed_hours      = 0;
+        $unbilled_hours    = 0;
+        $non_billable_hours = 0;
+        $total_expenses    = 0;
 
         foreach ($time_entries as $entry) {
-            $hours = $entry->hours ?? 0;
+            $hours = floatval($entry->hours ?? 0);
             if ($entry->clock_in_date && $entry->clock_out_date && $hours == 0) {
                 $hours = (strtotime($entry->clock_out_date) - strtotime($entry->clock_in_date)) / 3600;
             }
             $total_hours += $hours;
-            if ($entry->billable) {
-                $billable_hours += $hours;
+            if ($entry->billable && $entry->billed) {
+                $billed_hours += $hours;
+            } elseif ($entry->billable && !$entry->billed) {
+                $unbilled_hours += $hours;
+            } else {
+                $non_billable_hours += $hours;
             }
         }
 
@@ -3705,22 +3760,30 @@ class TimeGrowReportsController {
                 <?php endif; ?>
 
                 <!-- Summary Cards -->
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(175px, 1fr)); gap: 15px; margin: 20px 0;">
                     <div style="background: #fff; padding: 20px; border-left: 4px solid #2271b1; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                        <div style="font-size: 14px; color: #666; margin-bottom: 5px;">Total Hours</div>
-                        <div style="font-size: 32px; font-weight: bold; color: #2271b1;"><?php echo number_format($total_hours, 2); ?></div>
+                        <div style="font-size: 13px; color: #666; margin-bottom: 5px;">Total Hours</div>
+                        <div style="font-size: 28px; font-weight: bold; color: #2271b1;"><?php echo number_format($total_hours, 2); ?></div>
                     </div>
                     <div style="background: #fff; padding: 20px; border-left: 4px solid #00a32a; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                        <div style="font-size: 14px; color: #666; margin-bottom: 5px;">Billable Hours</div>
-                        <div style="font-size: 32px; font-weight: bold; color: #00a32a;"><?php echo number_format($billable_hours, 2); ?></div>
+                        <div style="font-size: 13px; color: #666; margin-bottom: 5px;">Billed Hours</div>
+                        <div style="font-size: 28px; font-weight: bold; color: #00a32a;"><?php echo number_format($billed_hours, 2); ?></div>
+                    </div>
+                    <div style="background: #fff; padding: 20px; border-left: 4px solid #f0a402; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                        <div style="font-size: 13px; color: #666; margin-bottom: 5px;">Billable (Not Billed)</div>
+                        <div style="font-size: 28px; font-weight: bold; color: #f0a402;"><?php echo number_format($unbilled_hours, 2); ?></div>
+                    </div>
+                    <div style="background: #fff; padding: 20px; border-left: 4px solid #999; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                        <div style="font-size: 13px; color: #666; margin-bottom: 5px;">Non-Billable Hours</div>
+                        <div style="font-size: 28px; font-weight: bold; color: #999;"><?php echo number_format($non_billable_hours, 2); ?></div>
                     </div>
                     <div style="background: #fff; padding: 20px; border-left: 4px solid #d63638; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                        <div style="font-size: 14px; color: #666; margin-bottom: 5px;">Total Expenses</div>
-                        <div style="font-size: 32px; font-weight: bold; color: #d63638;">$<?php echo number_format($total_expenses, 2); ?></div>
+                        <div style="font-size: 13px; color: #666; margin-bottom: 5px;">Total Expenses</div>
+                        <div style="font-size: 28px; font-weight: bold; color: #d63638;">$<?php echo number_format($total_expenses, 2); ?></div>
                     </div>
                     <div style="background: #fff; padding: 20px; border-left: 4px solid #996800; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                        <div style="font-size: 14px; color: #666; margin-bottom: 5px;">Time Entries</div>
-                        <div style="font-size: 32px; font-weight: bold; color: #996800;"><?php echo count($time_entries); ?></div>
+                        <div style="font-size: 13px; color: #666; margin-bottom: 5px;">Time Entries</div>
+                        <div style="font-size: 28px; font-weight: bold; color: #996800;"><?php echo count($time_entries); ?></div>
                     </div>
                 </div>
 
@@ -3740,6 +3803,7 @@ class TimeGrowReportsController {
                                 <th style="text-align: right;">Hours</th>
                                 <th style="text-align: center;">Billable</th>
                                 <th style="text-align: center;">Billed</th>
+                                <th style="text-align: center;">Order #</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -3779,6 +3843,18 @@ class TimeGrowReportsController {
                                             <span style="color: #dba617;">-</span>
                                         <?php endif; ?>
                                     </td>
+                                    <td style="text-align: center;">
+                                        <?php if ($entry->billed && $entry->billed_order_id): ?>
+                                            <?php
+                                            $order_edit_url = admin_url('post.php?post=' . intval($entry->billed_order_id) . '&action=edit');
+                                            ?>
+                                            <a href="<?php echo esc_url($order_edit_url); ?>" target="_blank" style="font-weight: bold;">
+                                                #<?php echo intval($entry->billed_order_id); ?>
+                                            </a>
+                                        <?php else: ?>
+                                            <span style="color: #999;">—</span>
+                                        <?php endif; ?>
+                                    </td>
                                 </tr>
                             <?php endforeach; ?>
                         </tbody>
@@ -3786,7 +3862,7 @@ class TimeGrowReportsController {
                             <tr style="background: #f0f0f1; font-weight: bold;">
                                 <td colspan="7" style="text-align: right; padding-right: 10px;">Total Hours:</td>
                                 <td style="text-align: right;"><?php echo number_format($total_hours, 2); ?></td>
-                                <td colspan="2"></td>
+                                <td colspan="3"></td>
                             </tr>
                         </tfoot>
                     </table>
