@@ -158,7 +158,6 @@ class TimeGrowWooOrderCreator {
 
 
                 print("<br />---------> Project Rate: $the_rate\n");
-                print("<br />---------> Project Rate (10 min): $the_rate_10_min\n");
 
                 $product_hours = 0;
                 $product_total = 0;
