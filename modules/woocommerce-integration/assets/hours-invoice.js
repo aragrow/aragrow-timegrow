@@ -1,18 +1,11 @@
 /**
- * Hours invoices: each order line shows an Hours box instead of the Quantity box.
- * The hours are saved on the line and the quantity stays 1. Typing hours updates the
- * line subtotal and total from the rate (project, client, then company rate).
+ * Hours invoices (created by the TimeGrow order creator): each order line shows an
+ * Hours box instead of the Quantity box. The hours are saved on the line and the
+ * quantity stays 1. Typing hours updates the line subtotal and total at the line's rate.
  */
 jQuery(function ($) {
-    var $flag = $('#timekeeping_invoice');
-    if (!$flag.length) return;
-
-    // Old orders built from time entries count quantity in 10 minute units: leave them alone
-    if (window.timegrowHoursInvoice && window.timegrowHoursInvoice.enabled === false) return;
-
-    function qtyBox($row) {
-        return $row.find('td.quantity input[name^="order_item_qty"]');
-    }
+    var config = window.timegrowHoursInvoice || {};
+    if (!config.enabled) return;
 
     function money(amount) {
         var m = window.woocommerce_admin_meta_boxes;
@@ -25,81 +18,41 @@ jQuery(function ($) {
         });
     }
 
-    // Rate for a line: the server rate, else the rate the line already carries
-    function rateFor($row, hours) {
-        var rates = (window.timegrowHoursInvoice && window.timegrowHoursInvoice.rates) || {};
-        var rate = parseFloat(rates[$row.data('order_item_id')]) || 0;
-        if (rate > 0) return rate;
-        if ($row.data('rate0') === undefined) {
-            var sub = parseFloat($row.find('input.line_subtotal').val()) || 0;
-            $row.data('rate0', hours > 0 ? sub / hours : 0);
-        }
-        return $row.data('rate0');
-    }
-
-    function hoursOf($row) {
-        return parseFloat($row.find('.timegrow-line-hours input[name^="timegrow_line_hours"]').val()) || 0;
+    // Rate from the server (the line's own rate, else project, client, company)
+    function rateFor($row) {
+        var rates = config.rates || {};
+        return parseFloat(rates[$row.data('order_item_id')]) || 0;
     }
 
     function apply() {
-        var on = $flag.is(':checked');
-
-        // Column headers
-        var $qtyHead = $('#woocommerce-order-items th.quantity');
-        if (!$qtyHead.data('orig')) $qtyHead.data('orig', $qtyHead.text());
-        $qtyHead.text(on ? 'Hours' : $qtyHead.data('orig'));
-        var $priceHead = $('#woocommerce-order-items th.item_cost');
-        if (!$priceHead.data('orig')) $priceHead.data('orig', $priceHead.text());
-        $priceHead.text(on ? 'Rate' : $priceHead.data('orig'));
+        $('#woocommerce-order-items th.quantity').text('Hours');
+        $('#woocommerce-order-items th.item_cost').text('Rate');
 
         $('#woocommerce-order-items tr.item').each(function () {
             var $row = $(this);
             var $wrap = $row.find('.timegrow-line-hours');
-            var $qty = qtyBox($row);
+            var $qty = $row.find('td.quantity input[name^="order_item_qty"]');
             if (!$wrap.length || !$qty.length) return;
 
-            var hours = hoursOf($row);
-            var $view = $row.find('td.quantity .view');
-            var $editCell = $row.find('td.quantity .edit');
+            var hours = parseFloat($wrap.find('input').val()) || 0;
 
-            if (on) {
-                if (!$wrap.data('home')) $wrap.data('home', $wrap.parent());
-                if (!$view.data('orig')) $view.data('orig', $view.html());
+            // The Hours box takes the Quantity box's place; quantity stays 1
+            $wrap.appendTo($row.find('td.quantity .edit'));
+            $qty.hide().val(1);
+            $row.find('td.quantity .view').text(hours.toFixed(2));
 
-                $wrap.appendTo($editCell);
-                $wrap.find('.description').hide();
-                if (!$wrap.find('.timegrow-hours-mode').length) {
-                    $wrap.append('<input type="hidden" class="timegrow-hours-mode" name="timegrow_hours_mode[' + $row.data('order_item_id') + ']" value="1">');
-                }
-
-                // Quantity stays 1 on an hours invoice; the hours are billed from the Hours box
-                $qty.hide().val(1);
-                $view.text(hours.toFixed(2));
-
-                var rate = rateFor($row, hours);
-                if (rate > 0 && window.accounting) $row.find('td.item_cost .view').html(money(rate));
-            } else {
-                $wrap.find('.timegrow-hours-mode').remove();
-                if ($wrap.data('home')) {
-                    $wrap.appendTo($wrap.data('home'));
-                    $wrap.find('.description').show();
-                }
-                if ($view.data('orig')) $view.html($view.data('orig'));
-                // Give the line its hours back as a normal quantity
-                if ($qty.is(':hidden') && hours > 0) $qty.val(hours);
-                $qty.show();
-            }
+            var rate = rateFor($row);
+            if (rate > 0 && window.accounting) $row.find('td.item_cost .view').html(money(rate));
         });
     }
 
-    // Typing hours prices the line; the server saves hours and sets the quantity to 0
-    $(document).on('input change', '.timegrow-line-hours input[name^="timegrow_line_hours"]', function () {
-        if (!$flag.is(':checked')) return;
+    // Typing hours prices the line at its rate; the server saves it on Update or line Save
+    $(document).on('input change', '.timegrow-line-hours input', function () {
         var $row = $(this).closest('tr.item');
         var hours = parseFloat($(this).val());
         if (isNaN(hours) || hours < 0) return;
 
-        var rate = rateFor($row, hours);
+        var rate = rateFor($row);
         if (rate > 0) {
             var amount = (Math.round(rate * hours * 100) / 100).toString();
             $row.find('input.line_subtotal, input.line_total').val(amount);
@@ -107,7 +60,6 @@ jQuery(function ($) {
         $row.find('td.quantity .view').text(hours.toFixed(2));
     });
 
-    $flag.on('change', apply);
     // WooCommerce redraws the item rows after a save, recalculate or reload without a
     // reliable event, so watch the items box and re-apply when the rows are replaced.
     var box = document.getElementById('woocommerce-order-items');

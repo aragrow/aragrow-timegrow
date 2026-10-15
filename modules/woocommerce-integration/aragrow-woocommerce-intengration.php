@@ -44,7 +44,6 @@ class Aragrow_WOO_Integration_Plugins
         add_action('personal_options_update', [ $this, 'ein_ssn_save_user_field' ]); // Profile
         add_action('edit_user_profile_update', [ $this, 'ein_ssn_save_user_field' ]); // Admin
 
-        add_action('woocommerce_process_shop_order_meta', [ $this, 'save_timekeeping_invoice_field' ]);
         // Per-line Project Hours input, applied to the quantity after the order items are saved
         add_action('woocommerce_after_order_itemmeta', [ $this, 'render_line_project_hours_input' ], 20, 3);
         add_action('woocommerce_process_shop_order_meta', [ $this, 'apply_project_hours_to_order_lines' ], 30);
@@ -382,47 +381,21 @@ class Aragrow_WOO_Integration_Plugins
         return $value;
     }
 
-    // Add custom field to admin order page
+    /**
+     * Hours invoices are created by the TimeGrow order creator and cannot be switched
+     * on or off later. The order editor only shows the status, read-only.
+     */
     public function add_timekeeping_invoice_field_to_order($order) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
-
-        woocommerce_wp_checkbox(array(
-            'id'          => 'timekeeping_invoice',
-            'label'       => 'Is Hours Invoice?',
-            'description' => '',
-            'value'       => get_post_meta($order->get_id(), '_timekeeping_invoice', true),
-        ));
-    }
-    // Save custom field value
-
-    public function save_timekeeping_invoice_field($order_id) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
-
-        $is_timekeeping = isset($_POST['timekeeping_invoice']) ? 'yes' : 'no';
-        update_post_meta($order_id, '_timekeeping_invoice', $is_timekeeping);
+        if (!self::is_hours_invoice($order)) return;
+        echo '<p class="form-field form-field-wide"><strong>' . esc_html__('Hours invoice', 'timegrow') . '</strong> '
+            . esc_html__('(created by TimeGrow, cannot be changed)', 'timegrow') . '</p>';
     }
 
     /**
-     * True for old orders built by the time-entry order creator, whose quantities are in
-     * 10 minute units. The hours editor must not reprice them.
-     *
-     * Orders from the creator now use real hours and carry the hours marker, so they pass.
-     * An order counts as an hours invoice when it has the marker (_timegrow_qty_unit) or
-     * a line the hours editor already handled (_timegrow_project_hours). Otherwise the old
-     * creator is recognized by its customer note ("Time entries for client ID") or the
-     * "10 minutes increments" message on its lines.
+     * True for hours invoices: set only by the TimeGrow order creator.
      */
-    public static function is_ten_minute_order($order) {
-        if (!$order || $order->get_meta('_timegrow_qty_unit') === 'hours') return false;
-
-        $lines = $order->get_items('line_item');
-        foreach ($lines as $item) {
-            if ($item->get_meta('_timegrow_project_hours') !== '') return false;
-        }
-        foreach ($lines as $item) {
-            if (strpos((string) $item->get_meta('_display_message'), '10 minutes increments') !== false) return true;
-        }
-        return strpos((string) $order->get_customer_note(), 'Time entries for client ID') === 0;
+    public static function is_hours_invoice($order) {
+        return $order && $order->get_meta('_timegrow_qty_unit') === 'hours';
     }
 
     /**
@@ -449,18 +422,18 @@ class Aragrow_WOO_Integration_Plugins
             true
         );
 
-        // Rate per order line (project rate, else default rate), keyed by line item ID
+        // Rate per order line (the line's own rate, else project, client, company), keyed by line item ID
         $order_id = isset($_GET['id']) ? absint($_GET['id']) : (isset($_GET['post']) ? absint($_GET['post']) : 0);
         $order    = $order_id ? wc_get_order($order_id) : false;
         $rates    = [];
-        if ($order) {
+        if (self::is_hours_invoice($order)) {
             foreach ($order->get_items('line_item') as $item_id => $item) {
-                $rate = $this->get_hours_rate($item->get_product_id(), $order->get_customer_id());
+                $rate = $this->get_line_rate($order, $item);
                 if ($rate > 0) $rates[$item_id] = $rate;
             }
         }
         wp_localize_script('timegrow-hours-invoice', 'timegrowHoursInvoice', [
-            'enabled' => !$this->is_ten_minute_order($order),
+            'enabled' => self::is_hours_invoice($order),
             'rates'   => (object) $rates,
         ]);
     }
@@ -501,22 +474,38 @@ class Aragrow_WOO_Integration_Plugins
     }
 
     /**
-     * Hours input under each line item in the admin order editor.
-     * The value is stored on the line as _timegrow_project_hours.
+     * Rate for a line on an hours invoice: the rate the line already carries
+     * (subtotal / stored hours), else project, client, then company rate.
+     * Keeping the line's own rate means a later rate change never reprices an old invoice.
+     */
+    public function get_line_rate($order, $item) {
+        $hours    = (float) $item->get_meta('_timegrow_project_hours');
+        $subtotal = (float) $item->get_subtotal();
+        if ($hours > 0 && $subtotal > 0) return $subtotal / $hours;
+
+        $rate = $this->get_hours_rate($item->get_product_id(), $order->get_customer_id());
+        if ($rate > 0) return $rate;
+
+        // A line added by hand: its price per unit
+        $qty = (float) $item->get_quantity();
+        return $qty > 0 ? $subtotal / $qty : 0;
+    }
+
+    /**
+     * Hours input on each line of an hours invoice. Stored as _timegrow_project_hours.
      */
     public function render_line_project_hours_input($item_id, $item, $product) {
         if (!is_admin() || !($item instanceof WC_Order_Item_Product)) return;
-        if ($this->is_ten_minute_order($item->get_order())) return;
+        if (!self::is_hours_invoice($item->get_order())) return;
 
         $hours = $item->get_meta('_timegrow_project_hours');
         if ($hours === '') $hours = $item->get_quantity();
 
         printf(
-            '<div class="timegrow-line-hours" style="margin-top:6px;"><label><strong>%s</strong> <input type="number" step="0.01" min="0" style="width:90px;" name="timegrow_line_hours[%d]" value="%s"></label> <span class="description">%s</span></div>',
+            '<div class="timegrow-line-hours" style="margin-top:6px;"><label><strong>%s</strong> <input type="number" step="0.01" min="0" style="width:90px;" name="timegrow_line_hours[%d]" value="%s"></label></div>',
             esc_html__('Hours:', 'timegrow'),
             (int) $item_id,
-            esc_attr(number_format((float) $hours, 2, '.', '')),
-            esc_html__('Billed hours for this line. On an hours invoice the quantity stays 1.', 'timegrow')
+            esc_attr(number_format((float) $hours, 2, '.', ''))
         );
     }
 
@@ -529,82 +518,63 @@ class Aragrow_WOO_Integration_Plugins
         if (empty($_POST['timegrow_line_hours']) || !is_array($_POST['timegrow_line_hours'])) return;
 
         $order = wc_get_order($order_id);
-        if (!$order || $this->is_ten_minute_order($order)) return;
+        if (!self::is_hours_invoice($order)) return;
 
-        $this->apply_hours_to_lines($order, wp_unslash($_POST['timegrow_line_hours']), isset($_POST['timekeeping_invoice']));
+        $this->apply_hours_to_lines($order, wp_unslash($_POST['timegrow_line_hours']));
     }
 
     /**
-     * Order editor line "Save" (ajax): the checkbox is not posted there, so the script
-     * adds a timegrow_hours_mode field to the lines while the box is checked.
+     * Order editor line "Save" (ajax).
      */
     public function apply_hours_after_items_save($order_id, $items) {
-        if (empty($items['timegrow_hours_mode']) || empty($items['timegrow_line_hours']) || !is_array($items['timegrow_line_hours'])) return;
+        if (empty($items['timegrow_line_hours']) || !is_array($items['timegrow_line_hours'])) return;
 
         $order = wc_get_order($order_id);
-        if (!$order || $this->is_ten_minute_order($order)) return;
+        if (!self::is_hours_invoice($order)) return;
 
-        $this->apply_hours_to_lines($order, $items['timegrow_line_hours'], true);
+        $this->apply_hours_to_lines($order, $items['timegrow_line_hours']);
     }
 
     /**
      * Hours invoice lines keep the hours in _timegrow_project_hours and a quantity of 1.
-     * The line total is hours x rate (project, then client, then company rate).
-     * With the box unchecked, a line that was converted gets its hours back as quantity.
+     * A line is repriced only when its hours change, at the line's own rate, so saving an
+     * order for any other reason (status, notes) never changes its totals.
      */
-    private function apply_hours_to_lines($order, array $posted, $is_hours_invoice) {
+    private function apply_hours_to_lines($order, array $posted) {
         $decimals = wc_get_price_decimals();
-        $was_hours = $order->get_meta('_timegrow_qty_unit') === 'hours';
-        $changed = false;
+        $changed  = false;
 
         foreach ($order->get_items('line_item') as $item_id => $item) {
             if (!isset($posted[$item_id]) || !is_numeric($posted[$item_id])) continue;
 
             $hours = round((float) $posted[$item_id], 2);
-            if ($hours <= 0) continue;
+            if ($hours < 0) continue;
 
-            $qty = (float) $item->get_quantity();
-            $prev_hours = (float) $item->get_meta('_timegrow_project_hours');
-            $item->update_meta_data('_timegrow_project_hours', number_format($hours, 2, '.', ''));
+            $prev_hours = $item->get_meta('_timegrow_project_hours');
+            $hours_changed = $prev_hours === '' || abs((float) $prev_hours - $hours) >= 0.005;
 
-            if ($is_hours_invoice) {
+            if ($hours_changed) {
+                $rate         = $this->get_line_rate($order, $item); // read before the hours are updated
                 $old_subtotal = (float) $item->get_subtotal();
+                $ratio        = $old_subtotal > 0 ? (float) $item->get_total() / $old_subtotal : 1; // keep any discount
+                $new_subtotal = round($rate * $hours, $decimals);
 
-                // Rate: project, client, company; else the rate this line already carried
-                $rate = $this->get_hours_rate($item->get_product_id(), $order->get_customer_id());
-                // Hours the current subtotal covers: stored hours on a converted line, else the quantity
-                $basis = ($was_hours && $prev_hours > 0) ? $prev_hours : $qty;
-                if ($rate <= 0 && $basis > 0) $rate = $old_subtotal / $basis;
+                $item->update_meta_data('_timegrow_project_hours', number_format($hours, 2, '.', ''));
+                $item->set_subtotal($new_subtotal);
+                $item->set_total(round($new_subtotal * $ratio, $decimals));
+                $changed = true;
+            }
 
-                if ($rate > 0) {
-                    $ratio = $old_subtotal > 0 ? (float) $item->get_total() / $old_subtotal : 1; // keep any discount
-                    $new_subtotal = round($rate * $hours, $decimals);
-
-                    if ($qty != 1 || abs($old_subtotal - $new_subtotal) >= 0.005) {
-                        $item->set_subtotal($new_subtotal);
-                        $item->set_total(round($new_subtotal * $ratio, $decimals));
-                        $item->set_quantity(1);
-                        $changed = true;
-                    }
-                }
-            } elseif ($was_hours && $qty != $hours) {
-                $item->set_quantity($hours); // unchecked: the line goes back to a normal quantity
+            if ((float) $item->get_quantity() != 1) {
+                $item->set_quantity(1);
                 $changed = true;
             }
             $item->save();
         }
 
-        // Marker read by the PayPal invoicer and the PDF invoice
-        if ($is_hours_invoice) {
-            $order->update_meta_data('_timegrow_qty_unit', 'hours');
-        } elseif ($was_hours) {
-            $order->delete_meta_data('_timegrow_qty_unit');
-        }
-        $order->save_meta_data();
-
         if ($changed) {
             $order->calculate_totals(true);
-            $order->add_order_note('Line hours and totals updated. Hours invoice quantities stay at 1.');
+            $order->add_order_note('Line hours updated. Totals recalculated at each line\'s rate.');
         }
     }
 
@@ -614,9 +584,8 @@ class Aragrow_WOO_Integration_Plugins
     public function show_hours_for_hours_lines($qty_html, $item) {
         if (!($item instanceof WC_Order_Item_Product)) return $qty_html;
 
-        $order = $item->get_order();
         $hours = $item->get_meta('_timegrow_project_hours');
-        if ($hours === '' || !$order || $order->get_meta('_timegrow_qty_unit') !== 'hours') return $qty_html;
+        if ($hours === '' || !self::is_hours_invoice($item->get_order())) return $qty_html;
 
         return '<strong class="product-quantity">' . esc_html(number_format((float) $hours, 2, '.', '')) . ' hrs</strong>';
     }
