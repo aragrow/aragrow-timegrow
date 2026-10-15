@@ -13,6 +13,32 @@ if (!defined('ABSPATH')) {
 class TimeGrowReceiptAnalyzerFactory {
 
     /**
+     * TimeGrow's own limit on AI receipt analysis, so paid API calls stay capped
+     * even without the Voice AI plugin. One budget per user across all providers.
+     * Default 30 per hour; change it with the 'timegrow_ai_rate_limit' filter.
+     *
+     * @param int $user_id
+     * @return bool True when the call is allowed (and counted).
+     */
+    public static function rate_limit_ok($user_id) {
+        $limit  = (int) apply_filters('timegrow_ai_rate_limit', 30, $user_id);
+        $window = HOUR_IN_SECONDS;
+        $key    = 'timegrow_ai_rl_' . (int) $user_id;
+
+        $data = get_transient($key);
+        if (!is_array($data) || ($data['start'] + $window) < time()) {
+            $data = ['start' => time(), 'count' => 0];
+        }
+        if ($data['count'] >= $limit) {
+            return false;
+        }
+
+        $data['count']++;
+        set_transient($key, $data, $window);
+        return true;
+    }
+
+    /**
      * Create analyzer instance based on current settings
      *
      * @return TimeGrowReceiptAnalyzerInterface Analyzer instance

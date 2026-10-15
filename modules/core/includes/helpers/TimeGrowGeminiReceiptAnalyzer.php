@@ -87,6 +87,11 @@ class TimeGrowGeminiReceiptAnalyzer implements TimeGrowReceiptAnalyzerInterface 
             return new WP_Error('no_api_key', __('Google Gemini API key is not configured.', 'aragrow-timegrow'));
         }
 
+        // TimeGrow's own cap on paid AI calls (works without the Voice AI plugin)
+        if (!TimeGrowReceiptAnalyzerFactory::rate_limit_ok(get_current_user_id())) {
+            return new WP_Error('rate_limit', __('Too many receipt analysis requests. Please try again later.', 'aragrow-timegrow'));
+        }
+
         // Check rate limiting if Voice AI Security class is available
         if (class_exists('\AraGrow\VoiceAI\Security')) {
             $user_id = get_current_user_id();
