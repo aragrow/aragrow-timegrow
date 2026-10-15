@@ -51,6 +51,8 @@ class Aragrow_WOO_Integration_Plugins
         add_filter('woocommerce_order_item_quantity_html', [ $this, 'show_hours_for_hours_lines' ], 10, 2);
         add_action('admin_enqueue_scripts', [ $this, 'enqueue_hours_invoice_script' ]);
         add_filter('woocommerce_hidden_order_itemmeta', [ $this, 'hide_internal_item_meta' ]);
+        // PDF Invoices & Packing Slips: offer TimeGrow's own template (listed as timegrow/aragrow)
+        add_filter('wpo_wcpdf_template_paths', [ $this, 'add_pdf_template_path' ]);
 
         // Mostrar el campo en la lista de usuarios
         add_filter('manage_users_columns', [ $this, 'ein_ssn_add_user_column' ]);
@@ -396,6 +398,14 @@ class Aragrow_WOO_Integration_Plugins
      */
     public static function is_hours_invoice($order) {
         return $order && $order->get_meta('_timegrow_qty_unit') === 'hours';
+    }
+
+    /**
+     * Register TimeGrow's PDF templates folder with PDF Invoices & Packing Slips.
+     */
+    public function add_pdf_template_path($paths) {
+        $paths['timegrow'] = __DIR__ . '/templates/pdf/';
+        return $paths;
     }
 
     /**
