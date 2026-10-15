@@ -77,6 +77,9 @@ Stored data:
 | `_timegrow_qty_unit` | order | `hours` on hours invoices. Set only by the creator. Read by the editor, PayPal and the PDF. |
 | `_timekeeping_invoice` | order | Older flag, still set by the creator and read by time entry code and the PDF header check. |
 | `_timegrow_project_hours` | line item | The hours billed on the line. Hidden in the editor. |
+| `_timegrow_line_rate` | line item | The rate the line was priced at, kept even if the hours go to 0. Hidden in the editor. |
+| `_work_done` | line item | Time entry description, shown as "Work done". |
+| `_display_message` | line item | Creator summary ("3.75 hrs. At a rate of ..."). Hidden in the editor. |
 
 Files: `assets/hours-invoice.js` (editor behavior), the hours methods in the main module file. The script re-applies the labels after Recalculate, line saves and reloads by watching the items box.
 
@@ -109,6 +112,7 @@ A **Manual Payment Details** box sits in the side column of the order editor. It
 - **Hours, not units.** Each project becomes one line. The hours worked (two decimals) go in `_timegrow_project_hours` and the quantity is 1. The line subtotal and total are hours x hourly rate. Earlier versions rounded up to 10-minute units and priced each unit at one sixth of the rate. That is gone.
 - **Rate.** Project, then client (user meta), then company, then 75 as a last resort. The client step now reads the profile field. It used to read an unused column on the users table, so it was always 0.
 - **Markers.** New orders get `_timekeeping_invoice` and `_timegrow_qty_unit = hours`. This is the only place an order becomes an hours invoice. Each line gets `_timegrow_project_hours` and a message such as "3.75 hrs. At a rate of 75 per hour."
+- **Skipped projects.** A project with no billable, unbilled hours gets no line, and its entries are not marked billed. A new order that ends up with no lines is deleted again.
 - **Appending.** Entries are added to an existing Pending order for the client only if that order carries the `hours` marker and has not been issued yet (no PDF invoice number, no PayPal invoice ID). Otherwise a new order is created.
 - It creates the project's product if it does not exist, adds the customer note "Time entries for client ID: N", and sets the order to Processing.
 
@@ -128,14 +132,16 @@ Settings page: **Settings > PayPal Integration**, stored in the `wc_pp_auto_invo
 
 ### What happens when an order is sent
 
-1. Set the order status to **Send Invoice to PayPal** (`wc-inv_send2paypal`). If **Send orders to PayPal** is off, the module adds a note and stops.
+1. Set the order status to **Send Invoice to PayPal** (`wc-inv_send2paypal`).
+   - **An order goes to PayPal only once.** If it already has a PayPal invoice ID, the module refuses, adds a note, and puts the status back. Make changes to that invoice in PayPal.
+   - If **Send orders to PayPal** is off, the module adds a note and stops.
 2. The module gets an OAuth token from PayPal.
-3. It builds the invoice lines. Shipping and tax become separate "Shipping" and "Tax" lines. The invoice number comes from the PDF Invoices plugin.
+3. It builds the invoice lines. Shipping and tax become separate "Shipping" and "Tax" lines. The invoice number comes from the PDF Invoices plugin. If the order has no PDF invoice number yet, one is created at this point. If PayPal reports the number as a duplicate, the invoice is created again without it and PayPal assigns its own number (noted on the order).
 4. For each line with a SKU, it creates a PayPal catalog product if needed. The mapping is cached in the `wc_pp_auto_invoicer_product_map` option.
 5. It builds the recipient from the client (see below). Without a valid email it stops with an order note.
-6. It creates the invoice and saves the PayPal invoice ID in `_paypal_invoice_id` on the order. If the order already has an ID (for example, an earlier send failed), it reuses that invoice instead of creating a second one.
+6. It creates the invoice and saves the PayPal invoice ID in `_paypal_invoice_id` on the order.
 7. With "Create & Send", it tells PayPal to send the invoice, adds a note, and emails the customer a short notice. With "Create only", it adds a note that the invoice is a draft. No customer email goes out.
-8. Only after that does the order move on: to **Invoice Sent to PayPal** (`wc-inv_sent2paypal`) when emailed, or **Invoice Draft in PayPal** (`wc-inv_draft2paypal`) when saved as a draft. To send a draft later, switch Invoice Delivery to email and set the order to Send Invoice to PayPal again: the existing PayPal invoice is sent, not a new one. API errors are added as order notes and the status stays where it was.
+8. Only after that does the order move on: to **Invoice Sent to PayPal** (`wc-inv_sent2paypal`) when emailed, or **Invoice Draft in PayPal** (`wc-inv_draft2paypal`) when saved as a draft. Send drafts from your PayPal account. On an API error the module adds a note and moves the order out of Send Invoice to PayPal: back to its previous status when nothing reached PayPal (set it again to retry), or to Invoice Draft in PayPal when the invoice was created but not sent (finish it in PayPal).
 
 ### The client in PayPal
 
