@@ -30,8 +30,8 @@ class TimeGrowNexusController{
         TimeGrowNexusReportView $view_report,
         TimeGrowNexusSettingsView $view_settings,
         TimeGrowNexusProcessTimeView $view_process_time,
-        $projects = [],
-        $reports = [],
+        $projects,
+        $reports,
         TimeGrowTeamMemberModel $team_members_model,
         $list = [], // Default to empty array
         $clients = [] // Clients for process time filtering

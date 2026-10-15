@@ -189,7 +189,7 @@ class TimeGrowExpenseController{
         // Get clients for filter
         $clients = $this->client_model->select(null);
         foreach ($clients as $client) {
-            $filter_options['clients'][$client->ID] = $client->company_name;
+            $filter_options['clients'][$client->ID] = $client->display_name;
         }
 
         // Get projects for filter

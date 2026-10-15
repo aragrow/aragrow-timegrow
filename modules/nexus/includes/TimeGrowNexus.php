@@ -572,6 +572,7 @@ class TimeGrowNexus{
         $projects = []; // Default to empty array
         $reports = []; // Default to empty array
         $list = []; // Default to empty array
+        $clients = []; // Only the process time screen fills this
     
         if ( $screen == 'clock' or $screen == 'manual' or $screen == 'expenses' ) {
             $team_member_model = new TimeGrowTeamMemberModel();
