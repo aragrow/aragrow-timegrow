@@ -49,6 +49,7 @@ class Aragrow_WOO_Integration_Plugins
         add_action('woocommerce_process_shop_order_meta', [ $this, 'apply_project_hours_to_order_lines' ], 30);
         add_action('woocommerce_saved_order_items', [ $this, 'apply_hours_after_items_save' ], 20, 2);
         add_filter('woocommerce_order_item_quantity_html', [ $this, 'show_hours_for_hours_lines' ], 10, 2);
+        add_filter('woocommerce_email_order_item_quantity', [ $this, 'email_hours_for_hours_lines' ], 10, 2);
         add_action('admin_enqueue_scripts', [ $this, 'enqueue_hours_invoice_script' ]);
         add_filter('woocommerce_hidden_order_itemmeta', [ $this, 'hide_internal_item_meta' ]);
         // PDF Invoices & Packing Slips: offer TimeGrow's own template (listed as timegrow/aragrow)
@@ -598,6 +599,18 @@ class Aragrow_WOO_Integration_Plugins
         if ($hours === '' || !self::is_hours_invoice($item->get_order())) return $qty_html;
 
         return '<strong class="product-quantity">' . esc_html(number_format((float) $hours, 2, '.', '')) . ' hrs</strong>';
+    }
+
+    /**
+     * Same as above for WooCommerce emails (HTML and plain text): "3.75 hrs" instead of "1".
+     */
+    public function email_hours_for_hours_lines($qty_display, $item) {
+        if (!($item instanceof WC_Order_Item_Product)) return $qty_display;
+
+        $hours = $item->get_meta('_timegrow_project_hours');
+        if ($hours === '' || !self::is_hours_invoice($item->get_order())) return $qty_display;
+
+        return number_format((float) $hours, 2, '.', '') . ' hrs';
     }
 
     public function custom_aragrow_time_invoice_table_headers($headers, $document) {
