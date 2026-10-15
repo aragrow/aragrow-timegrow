@@ -115,6 +115,9 @@ class TimeGrowTimeEntryView {
                         <?php echo $sortable_link('member_name', __('Member', 'timegrow')); ?>
                     </th>
                     <th scope="col" class="manage-column column-company">Type</th>
+                    <th scope="col" class="manage-column column-hours sortable <?php echo ($current_filters['orderby'] == 'hours') ? 'sorted ' . strtolower($current_filters['order']) : ''; ?>" style="text-align: right; width: 80px;">
+                        <?php echo $sortable_link('hours', __('Hours', 'timegrow')); ?>
+                    </th>
                     <th scope="col" class="manage-column column-document sortable <?php echo ($current_filters['orderby'] == 'billable') ? 'sorted ' . strtolower($current_filters['order']) : ''; ?>">
                         <?php echo $sortable_link('billable', __('Billable', 'timegrow')); ?>
                     </th>
@@ -129,25 +132,44 @@ class TimeGrowTimeEntryView {
                         <tr>
                             <td class="column-name column-primary" data-colname="created_at">
                                 <strong>
-                                        <?php
-                                            if($item->entry_type=='MAN') {
-                                                echo esc_html($item->date);
-                                            } else if($item->entry_type=='IN') {
-                                                echo esc_html($item->clock_in_date);
-                                            } else if($item->entry_type=='OUT') {
-                                                echo esc_html($item->clock_out_date);
-                                            }
-                                        ?>
+                                    <?php if ( $item->entry_type === 'MAN' ) : ?>
+                                        <?php echo esc_html( $item->date ); ?>
+                                    <?php elseif ( $item->clock_in_date || $item->clock_out_date ) : ?>
+                                        <?php if ( $item->clock_in_date ) : ?>
+                                            <span style="white-space: nowrap;">In: <?php echo esc_html( $item->clock_in_date ); ?></span><br>
+                                        <?php endif; ?>
+                                        <?php if ( $item->clock_out_date ) : ?>
+                                            <span style="white-space: nowrap;">Out: <?php echo esc_html( $item->clock_out_date ); ?></span>
+                                        <?php else : ?>
+                                            <span style="color:#999; font-style:italic;">Out: pending</span>
+                                        <?php endif; ?>
+                                    <?php endif; ?>
                                 </strong>
                                 <div class="row-actions visible">
                                     <span class="edit">
-                                        <a href="<?php echo admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-time-entry-edit&id=' . $item->ID); ?>" aria-label="Edit Company">Edit</a> | </span>
+                                        <a href="<?php echo admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-time-entry-edit&id=' . $item->ID); ?>" aria-label="Edit entry">Edit</a>
                                     </span>
                                 </div>
                             </td>
                             <td class="column-document" data-colname="project_name"><?php echo esc_html($item->project_name); ?></td>
                             <td class="column-amount" data-colname="team_member"><?php echo esc_html($item->member_name); ?></td>
                             <td class="column-amount" data-colname="entry_type"><?php echo esc_html($item->entry_type); ?></td>
+                            <td class="column-hours" data-colname="hours" style="text-align: right;">
+                                <?php
+                                if ( $item->entry_type === 'MAN' ) {
+                                    echo $item->hours !== null ? number_format( floatval( $item->hours ), 2 ) : '—';
+                                } elseif ( $item->clock_in_date && $item->clock_out_date ) {
+                                    $seconds = strtotime( $item->clock_out_date ) - strtotime( $item->clock_in_date );
+                                    if ( $seconds > 0 ) {
+                                        echo number_format( $seconds / 3600, 2 );
+                                    } else {
+                                        echo '—';
+                                    }
+                                } else {
+                                    echo '—';
+                                }
+                                ?>
+                            </td>
                             <td class="column-document" data-colname="billable">
                                 <?php if ($item->billable == 1) : ?>
                                     <span class="timegrow-badge timegrow-badge-primary"><?php esc_html_e('Yes', 'timegrow'); ?></span>
@@ -166,7 +188,7 @@ class TimeGrowTimeEntryView {
                     <?php endforeach; ?>
                 <?php else : ?>
                     <tr>
-                        <td colspan="6">No expenses found.</td>
+                        <td colspan="7">No time entries found.</td>
                     </tr>
                 <?php endif; ?>
             </tbody>
@@ -175,7 +197,8 @@ class TimeGrowTimeEntryView {
                     <th scope="col" class="manage-column column-name column-actions column-primary">Date</th>
                     <th scope="col" class="manage-column column-company">Project</th>
                     <th scope="col" class="manage-column column-name">Member</th>
-                    <th scope="col" class="manage-column column-company">Type</th>  
+                    <th scope="col" class="manage-column column-company">Type</th>
+                    <th scope="col" class="manage-column column-hours" style="text-align: right; width: 80px;">Hours</th>
                     <th scope="col" class="manage-column column-document">Billable</th>
                     <th scope="col" class="manage-column column-document">Billed</th>
                 </tr>
