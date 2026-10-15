@@ -74,7 +74,7 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 	}
 
  public function register_custom_invoice_paypal_status() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         register_post_status('wc-inv_send2paypal', array(
             'label'                     => _x('Send Invoice to PayPal', 'Order status', 'woocommerce'),
@@ -120,7 +120,7 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
     }
 
     public function add_custom_invoice_paypal_to_order_statuses($order_statuses) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         if ($this->offer_send_status()) {
             $order_statuses['wc-inv_send2paypal'] = _x('Send Invoice to PayPal', 'Order status', 'woocommerce');
@@ -132,7 +132,7 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 
 
     public function custom_invoice_paypal_admin_styles() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         
         echo '<style>
             .order-status.status-inv_send2paypal { background: purple; color: #fff; }
@@ -142,7 +142,7 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
     }
 
     public function enable_invoice_for_custom_inv_send2paypal_status($allowed, $document) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         if ($document->type == 'invoice') {
             $order = $document->order;
@@ -164,7 +164,7 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 }
 
     public function send_custom_inv_send2paypal_email_notification( $order_id ) {
-        if ( WP_DEBUG ) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         $order = wc_get_order( $order_id );
         if ( ! $order ) {
@@ -193,7 +193,7 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
     }
 
 	public function register_settings() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
 		register_setting( 'wc_pp_auto_invoicer', $this->option_key, ['sanitize_callback' => [$this, 'sanitize_settings']]);
 
@@ -210,7 +210,7 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 	}
 
     public function sanitize_settings($input) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         // WordPress runs this filter twice when the option is saved for the first time.
         // The second pass gets our own output back: return it as is, or the credentials get encrypted twice.
@@ -238,7 +238,7 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
     }
 
 	private function get_settings() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 		$defaults = [
 			'enabled'       => 'yes', // yes|no; on by default so existing setups keep working
 			'env'           => 'sandbox',
@@ -251,7 +251,7 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 	}
 
 	public function render_settings_page() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 		?>
 		<div class="wrap timegrow-page">
 			<!-- Modern Header -->
@@ -374,7 +374,7 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 	}
 
 	public function render_select_env() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 		$settings = $this->get_settings();
 		?>
 		<select name="<?php echo esc_attr( $this->option_key ); ?>[env]">
@@ -433,7 +433,7 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 	 * Woo: when an order becomes Completed, build & send a PayPal invoice
 	 */
 	public function handle_order_to_pay( $order_id, $order_obj = null, $transition = [] ) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
 		if ( ! function_exists( 'wc_get_order' ) ) return;
 		$order = wc_get_order( $order_id );
@@ -599,7 +599,7 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 
 
 		} catch ( Exception $e ) {
-            if(WP_DEBUG) error_log( 'PayPal Invoicer error: ' . $e->getMessage());
+            timegrow_log( 'PayPal Invoicer error: ' . $e->getMessage());
 			$order->add_order_note( 'PayPal Invoicer error: ' . $e->getMessage() );
 
 			// Leave the order in a status that says where it stands, so it is never stuck on "Send Invoice to PayPal"
@@ -698,7 +698,7 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 	 * Returns PayPal product id or empty string.
 	 */
 	private function ensure_paypal_product( $token, $settings, $sku, $name, $description = '' ) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
 		$map = get_option( 'wc_pp_auto_invoicer_product_map', [] );
 		if ( isset( $map[ $sku ] ) && $map[ $sku ] ) { return $map[ $sku ]; }
@@ -728,7 +728,7 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 	 * OAuth2 token
 	 */
 	private function get_oauth_token( $settings ) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
 		$base = $settings['env'] === 'live' ? 'https://api.paypal.com' : 'https://api.sandbox.paypal.com';
 
@@ -760,7 +760,7 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 	 * Generic API request (JSON)
 	 */
 	private function api_request( $token, $settings, $method, $path, $payload = null, $return_raw = false ) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
 		$url = $token['base'] . $path;
 		$args = [
@@ -794,12 +794,12 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 	}
 
 	private function idempotency_key( $method, $path, $payload ) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 		return substr( sha1( $method . '|' . $path . '|' . wp_json_encode( $payload ) . '|' . home_url() ), 0, 36 );
 	}
 
     function encrypt_data($data) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         $key = defined('WC_PAYPAL_SECRET_KEY') ? WC_PAYPAL_SECRET_KEY : '';
         if (empty($key)) return '';
@@ -811,7 +811,7 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
     }
 
     function decrypt_data($encrypted_base64) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         $key = defined('WC_PAYPAL_SECRET_KEY') ? WC_PAYPAL_SECRET_KEY : '';
         if (empty($key)) return '';

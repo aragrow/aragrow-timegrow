@@ -16,7 +16,7 @@ class TimeGrowProjectModel {
     private $allowed_fields;
 
     public function __construct() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         global $wpdb;
         $this->wpdb = $wpdb;
         $this->charset_collate = $wpdb->get_charset_collate();
@@ -34,7 +34,7 @@ class TimeGrowProjectModel {
     }
 
     public function initialize() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         $sql = "CREATE TABLE IF NOT EXISTS {$this->table_name}(
             ID bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -68,7 +68,7 @@ class TimeGrowProjectModel {
      * @return array|object|null Array of expense objects or null if no results.
      */
     public function select($ids = null) {
-        if (WP_DEBUG) error_log(__CLASS__ . '::' . __FUNCTION__);
+        timegrow_log(__CLASS__ . '::' . __FUNCTION__);
     
         // If IDs are provided as an array
         if (is_array($ids)) {
@@ -106,7 +106,7 @@ class TimeGrowProjectModel {
     }
     
     public function available($ids = null) {
-        if (WP_DEBUG) error_log(__CLASS__ . '::' . __FUNCTION__);
+        timegrow_log(__CLASS__ . '::' . __FUNCTION__);
     
         $id = intval($ids); // Sanitize ID
         $sql = $this->wpdb->prepare(
@@ -121,7 +121,7 @@ class TimeGrowProjectModel {
     }
 
     public function assigned($ids = null) {
-        if (WP_DEBUG) error_log(__CLASS__ . '::' . __FUNCTION__);
+        timegrow_log(__CLASS__ . '::' . __FUNCTION__);
     
         $id = intval($ids); // Sanitize ID
         $sql = $this->wpdb->prepare(
@@ -144,7 +144,7 @@ class TimeGrowProjectModel {
      * @return bool|int False on error, or the number of rows updated.
      */
     public function update($id, $data, $format) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         $id = intval($id); // Sanitize ID
 
         // Whitelist allowed fields to prevent SQL injection
@@ -192,7 +192,7 @@ class TimeGrowProjectModel {
      * @return int|false The ID of the newly created row, or false on error.
      */
     public function create($data, $format) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         try {
             // Whitelist allowed fields to prevent SQL injection
             $sanitized_data = [];
@@ -220,7 +220,7 @@ class TimeGrowProjectModel {
                 $sanitized_data,
                 $format
             );
-            error_log($this->wpdb->last_query);
+            timegrow_log($this->wpdb->last_query);
             
             if ($result === false) {
                 return false;
@@ -229,7 +229,7 @@ class TimeGrowProjectModel {
             return $this->wpdb->insert_id;
         } catch (Exception $e) {
             // Handle general exceptions
-            error_log("Exception: " . $e->getMessage());
+            timegrow_log("Exception: " . $e->getMessage());
             echo "An error occurred: " . htmlspecialchars($e->getMessage());
             return new WP_Error(
                 'An error occurred', // Error code
@@ -304,7 +304,7 @@ class TimeGrowProjectModel {
      * @return array Array of matching project objects
      */
     public function search_by_name($project_name) {
-        if (WP_DEBUG) error_log(__CLASS__ . '::' . __FUNCTION__);
+        timegrow_log(__CLASS__ . '::' . __FUNCTION__);
 
         $search_term = '%' . $this->wpdb->esc_like($project_name) . '%';
         $sql = $this->wpdb->prepare(

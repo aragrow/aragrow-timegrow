@@ -7,12 +7,12 @@ if (!defined('ABSPATH')) {
 class TimeGrowExpenseCategory {
 
     public function __construct() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         add_action('admin_menu', [$this, 'register_admin_menu']);
     }
 
     public function register_admin_menu() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         add_submenu_page(
             TIMEGROW_PARENT_MENU,
@@ -38,7 +38,7 @@ class TimeGrowExpenseCategory {
     }
 
     public function tracker_mvc_admin_page($screen) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         // Initialize model and create table if needed
         $category_model = new TimeGrowExpenseCategoryModel();

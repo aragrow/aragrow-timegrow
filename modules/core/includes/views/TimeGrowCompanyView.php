@@ -7,7 +7,7 @@ if (!defined('ABSPATH')) {
 class TimeGrowCompanyView {
     
     public function display($companies, $filter_options = [], $current_filters = []) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         // Set default values for current filters
         $current_filters = array_merge([
@@ -218,7 +218,7 @@ class TimeGrowCompanyView {
     }
 
     public function add() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         ?>
         <div class="wrap timegrow-page">
             <!-- Modern Header -->
@@ -388,7 +388,7 @@ class TimeGrowCompanyView {
     }
 
     public function edit($company) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         ?>
         <div class="wrap timegrow-page">
             <!-- Modern Header -->

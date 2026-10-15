@@ -12,7 +12,7 @@ class TimeGrowUserModel {
     private $wpdb;
 
     public function __construct() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         global $wpdb;
         $this->wpdb = $wpdb;
         $this->table_name = $this->wpdb->prefix . 'users'; // Make sure this matches your table name
@@ -27,7 +27,7 @@ class TimeGrowUserModel {
      * @return array|object|null Array of expense objects or null if no results.
      */
     public function select($ids = null) {
-        if (WP_DEBUG) error_log(__CLASS__ . '::' . __FUNCTION__);
+        timegrow_log(__CLASS__ . '::' . __FUNCTION__);
     
         // If IDs are provided as an array
         if (is_array($ids)) {

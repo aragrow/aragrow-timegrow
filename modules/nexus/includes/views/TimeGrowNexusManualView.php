@@ -14,7 +14,7 @@ class TimeGrowNexusManualView {
      * @param array $args Additional arguments.
      */
     public function display($user, $member_id, $projects = [], $list = []) {
-        if (WP_DEBUG) error_log(__CLASS__ . '::' . __FUNCTION__);
+        timegrow_log(__CLASS__ . '::' . __FUNCTION__);
         if (!$user || !$user->ID) {
             echo '<div class="wrap"><p>' . esc_html__('Error: User not found or not logged in.', 'timegrow') . '</p></div>';
             return;

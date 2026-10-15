@@ -17,7 +17,7 @@ class TimeGrowTimeEntryModel {
     private $allowed_fields;
 
     public function __construct() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         global $wpdb;
         $this->wpdb = $wpdb;
         $this->charset_collate = $wpdb->get_charset_collate();
@@ -36,7 +36,7 @@ class TimeGrowTimeEntryModel {
     }
 
     public function initialize() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         global $wpdb;                  
 
@@ -72,7 +72,7 @@ class TimeGrowTimeEntryModel {
      * @return array|object|null Array of expense objects or null if no results.
      */
     public function select($ids = null) {
-        if (WP_DEBUG) error_log(__CLASS__ . '::' . __FUNCTION__);
+        timegrow_log(__CLASS__ . '::' . __FUNCTION__);
     
         // If IDs are provided as an array
         if (is_array($ids)) {
@@ -125,13 +125,13 @@ class TimeGrowTimeEntryModel {
      * @return bool|int False on error, or the number of rows updated.
      */
     public function update($id, $data, $format) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         try {
             $id = intval($id); // Sanitize ID
-            error_log(print_r($data,true));
+            timegrow_log(print_r($data,true));
             // Whitelist allowed fields to prevent SQL injection
             $sanitized_data = [];
-            error_log(print_r($sanitized_data, true));
+            timegrow_log(print_r($sanitized_data, true));
             foreach ($data as $key => $value) {
                 if (in_array($key,  $this->allowed_fields , true)) {
                     $sanitized_data[$key] = sanitize_text_field($value); // Sanitize each field
@@ -167,7 +167,7 @@ class TimeGrowTimeEntryModel {
 
         } catch (Exception $e) {
             // Handle general exceptions
-            error_log("Exception: " . $e->getMessage());
+            timegrow_log("Exception: " . $e->getMessage());
             echo "An error occurred: " . htmlspecialchars($e->getMessage());
             return new WP_Error(
                 'An error occurred', // Error code
@@ -184,20 +184,20 @@ class TimeGrowTimeEntryModel {
      * @return int|false The ID of the newly created row, or false on error.
      */
     public function create($data, $format) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         try {
             // Whitelist allowed fields to prevent SQL injection
             $sanitized_data = [];
 
-            error_log(print_r($data,true));
+            timegrow_log(print_r($data,true));
 
             foreach ($data as $key => $value) {
                 if (in_array($key,  $this->allowed_fields , true)) {
                     $sanitized_data[$key] = sanitize_text_field($value); // Sanitize each field
                 }
             }
-            error_log('After Validating');
-            error_log(print_r($sanitized_data,true));
+            timegrow_log('After Validating');
+            timegrow_log(print_r($sanitized_data,true));
 
             // Ensure all required fields are present
             if (empty($sanitized_data['member_id']) || 
@@ -222,7 +222,7 @@ class TimeGrowTimeEntryModel {
                 $sanitized_data,
                 $format // string
             );
-            error_log($this->wpdb->last_query);
+            timegrow_log($this->wpdb->last_query);
             
             if ($result === false) {
                 return false;
@@ -231,7 +231,7 @@ class TimeGrowTimeEntryModel {
             return $this->wpdb->insert_id;
         } catch (Exception $e) {
             // Handle general exceptions
-            error_log("Exception: " . $e->getMessage());
+            timegrow_log("Exception: " . $e->getMessage());
             echo "An error occurred: " . htmlspecialchars($e->getMessage());
             return new WP_Error(
                 'An error occurred', // Error code
@@ -242,7 +242,7 @@ class TimeGrowTimeEntryModel {
     }
 
     public function get_time_entries_to_bill($client_id = null, $start_date = null, $end_date = null) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         global $wpdb;
 
         $where_clauses = ['t.billed = 0', 't.billable = 1'];
@@ -319,7 +319,7 @@ class TimeGrowTimeEntryModel {
                 return false;
             }
             // Optionally, you can log the success or perform other actions
-            error_log('Entry ID: ' . $entry->ID . ' marked as billed successfully.');
+            timegrow_log('Entry ID: ' . $entry->ID . ' marked as billed successfully.');
         }
 
         return $entries_by_order;
@@ -356,7 +356,7 @@ class TimeGrowTimeEntryModel {
         global $wpdb;
 
         if (!is_numeric($order_id) || $order_id <= 0) {
-            error_log('Invalid order ID provided to unbill_entries_for_order: ' . $order_id);
+            timegrow_log('Invalid order ID provided to unbill_entries_for_order: ' . $order_id);
             return false;
         }
 
@@ -374,12 +374,12 @@ class TimeGrowTimeEntryModel {
         );
 
         if ($result === false) {
-            error_log('Failed to unbill time entries for order #' . $order_id . ': ' . $wpdb->last_error);
+            timegrow_log('Failed to unbill time entries for order #' . $order_id . ': ' . $wpdb->last_error);
             return false;
         }
 
         if ($result > 0) {
-            error_log('Successfully unbilled ' . $result . ' time entries for deleted/trashed order #' . $order_id);
+            timegrow_log('Successfully unbilled ' . $result . ' time entries for deleted/trashed order #' . $order_id);
         }
 
         return $result;

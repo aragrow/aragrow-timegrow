@@ -8,7 +8,7 @@ if (!defined('ABSPATH')) {
 class TimeGrowReport {
 
     public function __construct() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
    //     add_action('wp_ajax_save_expense', array($this, 'save_ajax'));
    //     add_action('wp_ajax_delete_expense', array($this, 'delete_ajax')); // Add delete action
         add_action('admin_menu', [$this, 'register_admin_menu']);
@@ -17,7 +17,7 @@ class TimeGrowReport {
 
 
     public function register_admin_menu() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         // Redirect old reports menu to nexus reports page
         add_submenu_page(
@@ -47,7 +47,7 @@ class TimeGrowReport {
     }
 
     public function enqueue_scripts_styles($hook) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__ . ' - Hook: ' . $hook);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__ . ' - Hook: ' . $hook);
 
         // Only enqueue on the individual report page (timegrow-reports)
         $report_pages = [
@@ -71,7 +71,7 @@ class TimeGrowReport {
     }
 
     public function tracker_mvc_admin_page($screen) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         $report_view = new TimeGrowReportView();
         $controller = new TimeGrowReportController($report_view);
         $controller->display_admin_page($screen);

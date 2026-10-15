@@ -7,7 +7,7 @@ if (!defined('ABSPATH')) {
 class TimeGrowTeamMemberView {
     
     public function display($items, $filter_options = [], $current_filters = []) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         // Merge with defaults
         $current_filters = array_merge([
@@ -160,7 +160,7 @@ class TimeGrowTeamMemberView {
     }
 
     public function add($users, $companies, $projects) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         ?>
         <div class="wrap timegrow-page">
             <!-- Modern Header -->
@@ -288,7 +288,7 @@ class TimeGrowTeamMemberView {
     }
 
     public function edit($item, $users, $companies, $projects, $assigned) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         ?>
         <div class="wrap timegrow-page">
             <!-- Modern Header -->

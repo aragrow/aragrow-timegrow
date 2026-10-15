@@ -30,7 +30,7 @@ function timegrow_core_load_mvc_classes($class) {
     // Check if the class name starts with "TimeGrow"
     if (strpos($class, 'TimeGrow') !== 0) return;
 
-    if(WP_DEBUG) error_log('timegrow_core_load_mvc_classes - Class: ' . $class);
+    timegrow_log('timegrow_core_load_mvc_classes - Class: ' . $class);
 
     if (file_exists( TIMEGROW_CORE_INCLUDES_DIR . $class . '.php' ) ) {
         require_once TIMEGROW_CORE_INCLUDES_DIR . $class . '.php';

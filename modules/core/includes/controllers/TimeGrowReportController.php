@@ -9,12 +9,12 @@ class TimeGrowReportController{
     private $report_view;
 
     public function __construct( TimeGrowReportView $report_view) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         $this->report_view = $report_view;
     }
 
     public function list_expenses() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         $this->report_view->display_reports();
     }
 
@@ -97,7 +97,7 @@ class TimeGrowReportController{
     }
 
     public function display_admin_page($screen) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         if ($screen == 'list') 
             $this->list_expenses();

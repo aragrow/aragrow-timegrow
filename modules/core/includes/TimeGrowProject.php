@@ -8,7 +8,7 @@ if (!defined('ABSPATH')) {
 class TimeGrowProject{
 
     public function __construct() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
    //     add_action('wp_ajax_save_expense', array($this, 'save_ajax'));
    //     add_action('wp_ajax_delete_expense', array($this, 'delete_ajax')); // Add delete action
         add_action('admin_menu', [$this, 'register_admin_menu']);
@@ -19,7 +19,7 @@ class TimeGrowProject{
 
 
     public function register_admin_menu() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         add_submenu_page(
             TIMEGROW_PARENT_MENU,
@@ -57,7 +57,7 @@ class TimeGrowProject{
     }
 
     public function enqueue_scripts_styles() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         wp_enqueue_script('jquery-ui-core');
         wp_enqueue_script('jquery-ui-slider');
         wp_enqueue_style(
@@ -79,7 +79,7 @@ class TimeGrowProject{
     }
 
     public function tracker_mvc_admin_page($screen) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         $model = new TimeGrowProjectModel();
         $view = new TimeGrowProjectView();
         $model_wc_client = new TimeGrowClientModel();

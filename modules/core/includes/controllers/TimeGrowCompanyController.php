@@ -11,13 +11,13 @@ class TimeGrowCompanyController{
     private $table_name; 
         
     public function __construct(TimeGrowCompanyModel $company_model,  TimeGrowCompanyView $company_view) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);   
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);   
         $this->company_model = $company_model;
         $this->company_view = $company_view;
     }
 
     public function handle_form_submission() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
      
         if (!isset($_POST['timegrow_company_nonce_field']) || 
             !wp_verify_nonce($_POST['timegrow_company_nonce_field'], 'timegrow_company_nonce')) {
@@ -93,7 +93,7 @@ class TimeGrowCompanyController{
     }
 
     public function list() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         // Get all companies first for filter options
         $all_companies = $this->company_model->select(null);
@@ -171,20 +171,20 @@ class TimeGrowCompanyController{
     }
 
     public function add() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         global $wpdb;
         $this->company_view->add();
     }
 
     public function edit($id) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         global $wpdb;
          $company = $this->company_model->select($id)[0]; // Fetch all expenses
         $this->company_view->edit($company);
     }
 
     public function display_admin_page($screen) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         if ($screen != 'list' && ( isset($_POST['add_item']) || isset($_POST['edit_item']) )) {
             $this->handle_form_submission();

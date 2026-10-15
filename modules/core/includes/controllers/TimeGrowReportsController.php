@@ -2011,19 +2011,19 @@ class TimeGrowReportsController {
 
         // Handle CSV export
         if (isset($_GET['export']) && $_GET['export'] === 'csv') {
-            if (WP_DEBUG) error_log('Exporting to CSV');
+            timegrow_log('Exporting to CSV');
             $this->export_my_hours_by_project_csv($current_user);
             return;
         }
 
         // Handle PDF export
         if (isset($_GET['export']) && $_GET['export'] === 'pdf') {
-            if (WP_DEBUG) error_log('Exporting to PDF');
+            timegrow_log('Exporting to PDF');
             $this->export_my_hours_by_project_pdf($current_user);
             return;
         }
 
-        if (WP_DEBUG) error_log('Continuing with normal report display');
+        timegrow_log('Continuing with normal report display');
 
         $time_entry_table = $wpdb->prefix . TIMEGROW_PREFIX . 'time_entry_tracker';
         $project_table = $wpdb->prefix . TIMEGROW_PREFIX . 'project_tracker';

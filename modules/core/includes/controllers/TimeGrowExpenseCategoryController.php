@@ -10,7 +10,7 @@ class TimeGrowExpenseCategoryController {
     private $view;
 
     public function __construct(TimeGrowExpenseCategoryModel $model, TimeGrowExpenseCategoryView $view) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         $this->model = $model;
         $this->view = $view;
     }
@@ -19,7 +19,7 @@ class TimeGrowExpenseCategoryController {
      * Display admin page
      */
     public function display_admin_page($screen) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         if ($screen == 'list') {
             $this->list_categories();

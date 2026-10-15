@@ -8,7 +8,7 @@ if (!defined('ABSPATH')) {
 class TimeGrowTeamMember{
 
     public function __construct() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
    //     add_action('wp_ajax_save_expense', array($this, 'save_ajax'));
    //     add_action('wp_ajax_delete_expense', array($this, 'delete_ajax')); // Add delete action
         add_action('admin_menu', [$this, 'register_admin_menu']);
@@ -19,7 +19,7 @@ class TimeGrowTeamMember{
 
 
     public function register_admin_menu() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         add_submenu_page(
             TIMEGROW_PARENT_MENU,
@@ -57,7 +57,7 @@ class TimeGrowTeamMember{
     }
 
     public function enqueue_scripts_styles() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         // jQuery UI core and sortable
         wp_enqueue_script('jquery-ui-sortable');
@@ -78,7 +78,7 @@ class TimeGrowTeamMember{
     }
 
     public function tracker_mvc_admin_page($screen) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         $model = new TimeGrowTeamMemberModel();
         $view = new TimeGrowTeamMemberView();
         $model_user = new TimeGrowUserModel;

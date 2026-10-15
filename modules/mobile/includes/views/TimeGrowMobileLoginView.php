@@ -613,6 +613,6 @@ class TimeGrowMobileLoginView {
         do_action('timegrow_send_login_sms', $phone, $message, $user_id);
 
         // Log for debugging (remove in production)
-        error_log("TimeGrow Login SMS would be sent to {$phone}: {$message}");
+        timegrow_log("TimeGrow Login SMS would be sent to {$phone}: {$message}");
     }
 }

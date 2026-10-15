@@ -8,7 +8,7 @@ if (!defined('ABSPATH')) {
 class TimeGrowTimeEntry{
 
     public function __construct() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
    //     add_action('wp_ajax_save_expense', array($this, 'save_ajax'));
    //     add_action('wp_ajax_delete_expense', array($this, 'delete_ajax')); // Add delete action
         add_action('admin_menu', [$this, 'register_admin_menu']);
@@ -80,7 +80,7 @@ class TimeGrowTimeEntry{
                     $model->unbill_entries_for_order($post_id);
 
                     // Log the deletion
-                    error_log('TimeGrow: Order #' . $post_id . ' permanently deleted. ' . $entry_count . ' time entries have been unbilled.');
+                    timegrow_log('TimeGrow: Order #' . $post_id . ' permanently deleted. ' . $entry_count . ' time entries have been unbilled.');
                 }
             }
         }
@@ -95,7 +95,7 @@ class TimeGrowTimeEntry{
         // We could optionally re-mark entries as billed here if needed
         // For now, we'll just log that an order was restored
         if (get_post_type($post_id) === 'shop_order') {
-            error_log('WooCommerce order #' . $post_id . ' was restored from trash. Time entries remain unbilled.');
+            timegrow_log('WooCommerce order #' . $post_id . ' was restored from trash. Time entries remain unbilled.');
         }
     }
 
@@ -146,7 +146,7 @@ class TimeGrowTimeEntry{
                 $model->unbill_entries_for_order($order_id);
 
                 // Log the deletion
-                error_log('TimeGrow: Order #' . $order_id . ' permanently deleted. ' . $entry_count . ' time entries have been unbilled.');
+                timegrow_log('TimeGrow: Order #' . $order_id . ' permanently deleted. ' . $entry_count . ' time entries have been unbilled.');
             }
         }
     }
@@ -155,12 +155,12 @@ class TimeGrowTimeEntry{
      * Handle WooCommerce order restored (HPOS compatible)
      */
     public function handle_wc_order_restored($order_id) {
-        error_log('WooCommerce order #' . $order_id . ' was restored from trash. Time entries remain unbilled.');
+        timegrow_log('WooCommerce order #' . $order_id . ' was restored from trash. Time entries remain unbilled.');
     }
 
 
     public function register_admin_menu() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         add_submenu_page(
             TIMEGROW_PARENT_MENU,
@@ -198,7 +198,7 @@ class TimeGrowTimeEntry{
     }
 
     public function enqueue_scripts_styles() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         wp_enqueue_style('timegrow-modern-style', TIMEGROW_CORE_BASE_URI . 'assets/css/timegrow-modern.css');
         wp_enqueue_style('timegrow-forms-style', TIMEGROW_CORE_BASE_URI . 'assets/css/forms.css');
         wp_enqueue_style('timeflies-time-entries-style', TIMEGROW_CORE_BASE_URI . 'assets/css/time_entry.css');
@@ -214,7 +214,7 @@ class TimeGrowTimeEntry{
     }
 
     public function tracker_mvc_admin_page($screen) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         $model = new TimeGrowTimeEntryModel();
         $view = new TimeGrowTimeEntryView();
         $project_model = new TimeGrowProjectModel();

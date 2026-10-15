@@ -29,6 +29,27 @@ defined( 'TIMEGROW_TEAM_MEMBER_CAP' ) or define( 'TIMEGROW_TEAM_MEMBER_CAP', 'ti
 defined( 'TIMEGROW_PARENT_MENU' ) or define( 'TIMEGROW_PARENT_MENU', 'timegrow' );
 defined( 'TIMEGROW_TEAM_MEMBER_MENU' ) or define( 'TIMEGROW_TEAM_MEMBER_MENU', TIMEGROW_PARENT_MENU.'-team-member' );
 
+/**
+ * TimeGrow logging, used instead of timegrow_log() everywhere in the plugin.
+ * Errors (messages with "error", "fail", "exception" or "invalid") are always logged.
+ * Everything else is debug detail and is only logged when TIMEGROW_DEBUG is true,
+ * so WP_DEBUG alone no longer fills debug.log. To turn it on, add to wp-config.php:
+ *     define( 'TIMEGROW_DEBUG', true );
+ * Never pass secrets, tokens, keys or passwords to this function.
+ */
+if ( ! function_exists( 'timegrow_log' ) ) {
+    function timegrow_log( $message ) {
+        if ( ! is_string( $message ) ) {
+            $message = print_r( $message, true );
+        }
+        $is_error = (bool) preg_match( '/error|fail|exception|invalid/i', $message );
+        if ( ! $is_error && ! ( defined( 'TIMEGROW_DEBUG' ) && TIMEGROW_DEBUG ) ) {
+            return;
+        }
+        error_log( '[TimeGrow] ' . $message );
+    }
+}
+
 // Backward compatibility constants
 defined( 'TIMEGROW_INCLUDES_DIR' ) or define( 'TIMEGROW_INCLUDES_DIR', TIMEGROW_MODULES_DIR.'core/includes/' );
 defined( 'TIMEGROW_SCREENS_DIR' ) or define( 'ARAGROW_TIMEGROW_SCREENS_DIR', TIMEGROW_INCLUDES_DIR.'screens/' );

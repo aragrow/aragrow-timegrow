@@ -17,7 +17,7 @@ class TimeGrowOpenAIReceiptAnalyzer implements TimeGrowReceiptAnalyzerInterface 
     private $settings;
 
     public function __construct() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         // Load settings
         $this->settings = get_option('aragrow_timegrow_ai_settings', [
@@ -53,7 +53,7 @@ class TimeGrowOpenAIReceiptAnalyzer implements TimeGrowReceiptAnalyzerInterface 
      * @return array|WP_Error Extracted data or error
      */
     public function analyze_receipt($image_url, $options = []) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         // Check if API key is configured
         if (empty($this->api_key)) {
@@ -118,7 +118,7 @@ class TimeGrowOpenAIReceiptAnalyzer implements TimeGrowReceiptAnalyzerInterface 
      * @return array|WP_Error API response or error
      */
     private function call_openai_vision_api($image_data, $prompt) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         $api_url = 'https://api.openai.com/v1/chat/completions';
 
@@ -180,7 +180,7 @@ class TimeGrowOpenAIReceiptAnalyzer implements TimeGrowReceiptAnalyzerInterface 
      * @return array|WP_Error Image data or error
      */
     private function prepare_image_for_api($image_url) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         // Download image
         $response = wp_remote_get($image_url, [
@@ -301,7 +301,7 @@ IMPORTANT:
      * @return array|WP_Error Parsed data or error
      */
     private function parse_openai_response($response) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         // Extract text from response
         if (!isset($response['choices'][0]['message']['content'])) {
@@ -344,7 +344,7 @@ IMPORTANT:
      * @return array Assignment data (assigned_to, assigned_to_id)
      */
     private function process_assignment_patterns($parsed_data) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         // Check for PROJECT pattern first (higher priority)
         if (!empty($parsed_data['project_pattern'])) {
@@ -376,7 +376,7 @@ IMPORTANT:
      * @return array|null Assignment data or null
      */
     private function match_client_from_text($text) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         // Extract pattern: "CLIENT: Company Name" (case insensitive)
         if (preg_match('/CLIENT:\s*(.+?)(?:\n|$)/i', $text, $matches)) {
@@ -405,7 +405,7 @@ IMPORTANT:
      * @return array|null Assignment data or null
      */
     private function match_project_from_text($text) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         // Extract pattern: "PROJECT: Project Name" (case insensitive)
         if (preg_match('/PROJECT:\s*(.+?)(?:\n|$)/i', $text, $matches)) {

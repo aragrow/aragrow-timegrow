@@ -14,7 +14,7 @@ class TimeGrowAIConfigModel {
         $this->wpdb = $wpdb;
         // Follow TimeGrow naming convention: wp_timegrow_ai_config_tracker
         $this->table_name = $this->wpdb->prefix . TIMEGROW_PREFIX . 'ai_config_tracker';
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__ . ' - Table: ' . $this->table_name);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__ . ' - Table: ' . $this->table_name);
     }
 
     /**
@@ -143,13 +143,13 @@ class TimeGrowAIConfigModel {
 
         foreach ($options_to_delete as $option) {
             delete_option($option);
-            if(WP_DEBUG) error_log('Deleted old AI option: ' . $option);
+            timegrow_log('Deleted old AI option: ' . $option);
         }
 
         // Delete transients
         delete_transient('timegrow_api_key_saved');
 
-        if(WP_DEBUG) error_log('Old AI configuration options cleaned up');
+        timegrow_log('Old AI configuration options cleaned up');
 
         return true;
     }

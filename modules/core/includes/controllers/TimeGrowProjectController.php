@@ -15,7 +15,7 @@ class TimeGrowProjectController{
     private $model_product;
 
     public function __construct(TimeGrowProjectModel $model, TimeGrowProjectView $view, TimeGrowClientModel $model_client, TimeGrowWooProductModel $model_product) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);   
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);   
         $this->model = $model;
         $this->view = $view;
         $this->model_client = $model_client;
@@ -24,7 +24,7 @@ class TimeGrowProjectController{
     }
 
     public function handle_form_submission() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         if (!isset($_POST['timegrow_project_nonce_field']) || 
             !wp_verify_nonce($_POST['timegrow_project_nonce_field'], 'timegrow_project_nonce')) {
@@ -137,7 +137,7 @@ class TimeGrowProjectController{
     }
 
     public function list() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         // Get all projects first for filter options
         $all_projects = $this->model->select(null);
@@ -222,14 +222,14 @@ class TimeGrowProjectController{
     }
 
     public function add() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         $clients = $this->model_client->select(); // Fetch all expenses
         $wc_products = $this->model_product->select(); // Fetch all products
         $this->view->add($clients, $wc_products);
     }
 
     public function edit($id) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         global $wpdb;
         $project = $this->model->select($id)[0]; // Fetch all expenses
         $clients = $this->model_client->select(); // Fetch all expenses
@@ -238,7 +238,7 @@ class TimeGrowProjectController{
     }
 
     public function display_admin_page($screen) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         
       if ($screen != 'list' && ( isset($_POST['add_item']) || isset($_POST['edit_item']) )) {
             $this->handle_form_submission();

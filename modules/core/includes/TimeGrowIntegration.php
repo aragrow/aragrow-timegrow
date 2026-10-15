@@ -8,7 +8,7 @@ if (!defined('ABSPATH')) {
 class TimeGrowIntegration{
 
     public function __construct() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         add_action('admin_menu', [$this, 'register_admin_menu']);
         add_action('admin_init', [ $this, 'register_integration_settings' ]);
         add_action('admin_enqueue_scripts', array($this, 'enqueue_scripts_styles'));
@@ -29,7 +29,7 @@ class TimeGrowIntegration{
     }
 
     public function register_admin_menu() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         add_options_page(
             'WooCommerce Integration',      // Page title
@@ -196,8 +196,8 @@ class TimeGrowIntegration{
 
     public function enqueue_scripts_styles($hook) {
         if(WP_DEBUG) {
-            error_log(__CLASS__.'::'.__FUNCTION__);
-            error_log('Hook: ' . $hook);
+            timegrow_log(__CLASS__.'::'.__FUNCTION__);
+            timegrow_log('Hook: ' . $hook);
         }
 
         // Only enqueue on the integrations settings page
@@ -211,7 +211,7 @@ class TimeGrowIntegration{
     }
 
     public function tracker_mvc_admin_page() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         $this->display_admin_page();
     }
 

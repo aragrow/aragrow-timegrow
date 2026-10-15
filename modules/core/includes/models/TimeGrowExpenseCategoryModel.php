@@ -12,7 +12,7 @@ class TimeGrowExpenseCategoryModel {
     private $allowed_fields;
 
     public function __construct() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         global $wpdb;
         $this->wpdb = $wpdb;
         $this->charset_collate = $wpdb->get_charset_collate();
@@ -31,7 +31,7 @@ class TimeGrowExpenseCategoryModel {
     }
 
     public function initialize() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         $sql = "CREATE TABLE IF NOT EXISTS {$this->table_name} (
             ID BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
             name VARCHAR(255) NOT NULL,

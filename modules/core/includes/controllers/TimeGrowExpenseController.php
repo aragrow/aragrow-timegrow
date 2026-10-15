@@ -17,7 +17,7 @@ class TimeGrowExpenseController{
                                 TimeGrowClientModel $client_model, 
                                 TimeGrowProjectModel $project_model, 
                                 TimeGrowExpenseView $expense_view, ) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         $this->expense_model = $expense_model;
         $this->receipt_model = $receipt_model;
         $this->client_model = $client_model;
@@ -26,7 +26,7 @@ class TimeGrowExpenseController{
     }
 
     public function handle_form_submission() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         
         if (!isset($_POST['timegrow_expense_nonce_field']) || 
             !wp_verify_nonce($_POST['timegrow_expense_nonce_field'], 'timegrow_expense_nonce')) {
@@ -104,7 +104,7 @@ class TimeGrowExpenseController{
     }
 
     public function list_expenses() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         // Get all expenses first for filter options
         $all_expenses = $this->expense_model->select(null);
@@ -179,9 +179,9 @@ class TimeGrowExpenseController{
                   {$where_clause}
                   ORDER BY {$orderby_column} {$order}";
 
-        if(WP_DEBUG) error_log('Expense List Query: ' . $query);
+        timegrow_log('Expense List Query: ' . $query);
         $expenses = $wpdb->get_results($query);
-        if(WP_DEBUG) error_log('Expense Count: ' . count($expenses));
+        timegrow_log('Expense Count: ' . count($expenses));
 
         // Get unique values for filters
         $filter_options = ['clients' => [], 'projects' => []];
@@ -209,7 +209,7 @@ class TimeGrowExpenseController{
     }
 
     public function add_expenses() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         global $wpdb;
         $clients = $this->client_model->select(null); // Fetch all clients
         $projects = $this->project_model->select(null); // Fetch all projects
@@ -217,7 +217,7 @@ class TimeGrowExpenseController{
     }
 
     public function edit_expenses($id) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         global $wpdb;
         $expense = $this->expense_model->select($id)[0]; // Fetch all expenses
         $receipts = $this->receipt_model->select_by_expense($id); // Fetch all expenses
@@ -227,7 +227,7 @@ class TimeGrowExpenseController{
     }
 
     public function display_admin_page($screen) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         if ($screen != 'list' && ( isset($_POST['add_item']) || isset($_POST['edit_item']) )) {
             var_dump('processing form');

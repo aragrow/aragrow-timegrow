@@ -10,14 +10,14 @@ class TimeGrowWooProductModel {
     private $wpdb;
 
     public function __construct() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         global $wpdb;
         $this->wpdb = $wpdb;
         $this->table_name = $this->wpdb->prefix . 'posts'; // Make sure this matches your table name
     }
 
     public function initialize() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
     }
     
@@ -28,7 +28,7 @@ class TimeGrowWooProductModel {
      * @return array|object|null Array of expense objects or null if no results.
      */
     public function select() {
-        if (WP_DEBUG) error_log(__CLASS__ . '::' . __FUNCTION__);
+        timegrow_log(__CLASS__ . '::' . __FUNCTION__);
     
             $args = [
             'post_type'      => 'product', // Change this to your custom post type (e.g., 'product', 'event')

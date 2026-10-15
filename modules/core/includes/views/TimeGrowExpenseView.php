@@ -7,7 +7,7 @@ if (!defined('ABSPATH')) {
 class TimeGrowExpenseView {
     
     public function display_expenses($expenses, $filter_options = [], $current_filters = []) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         // Merge with defaults
         $current_filters = array_merge([
@@ -151,7 +151,7 @@ class TimeGrowExpenseView {
     }
 
     public function add_expense($clients) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         ?>
         <div class="wrap timegrow-page">
             <!-- Modern Header -->
@@ -299,7 +299,7 @@ class TimeGrowExpenseView {
     }
 
     public function edit_expense($expense, $receipts, $clients) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         ?>
         <div class="wrap timegrow-page">

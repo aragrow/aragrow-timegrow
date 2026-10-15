@@ -8,7 +8,7 @@ if (!defined('ABSPATH')) {
 class TimeGrowExpense {
 
     public function __construct() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
    //     add_action('wp_ajax_save_expense', array($this, 'save_ajax'));
    //     add_action('wp_ajax_delete_expense', array($this, 'delete_ajax')); // Add delete action
         add_action('admin_menu', [$this, 'register_admin_menu']);
@@ -17,7 +17,7 @@ class TimeGrowExpense {
 
 
     public function register_admin_menu() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
        
         add_submenu_page(
             TIMEGROW_PARENT_MENU,
@@ -65,7 +65,7 @@ class TimeGrowExpense {
     }
 
     public function enqueue_scripts_styles($hook) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__ . ' - Hook: ' . $hook);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__ . ' - Hook: ' . $hook);
 
         // Only enqueue on expense-related pages
         $expense_pages = [
@@ -104,7 +104,7 @@ class TimeGrowExpense {
     }
 
     public function tracker_mvc_admin_page($screen) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         $expense_model = new TimeGrowExpenseModel();
         $receipt_model = new TimeGrowExpenseReceiptModel();
         $client_model = new TimeGrowClientModel();

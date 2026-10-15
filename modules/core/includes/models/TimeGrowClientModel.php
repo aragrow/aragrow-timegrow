@@ -11,7 +11,7 @@ class TimeGrowClientModel {
     private $wpdb;
 
     public function __construct() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         global $wpdb;
         $this->wpdb = $wpdb;
         $this->table_name = $this->wpdb->prefix . 'users'; // Make sure this matches your table name
@@ -19,7 +19,7 @@ class TimeGrowClientModel {
     }
 
     public function initialize() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
     }
     
@@ -30,7 +30,7 @@ class TimeGrowClientModel {
      * @return array|object|null Array of expense objects or null if no results.
      */
     public function select($ids = null) {
-        if (WP_DEBUG) error_log(__CLASS__ . '::' . __FUNCTION__);
+        timegrow_log(__CLASS__ . '::' . __FUNCTION__);
     
         // If IDs are provided as an array
         if (is_array($ids)) {
@@ -77,7 +77,7 @@ class TimeGrowClientModel {
      * @return array Array of matching client objects
      */
     public function search_by_name($company_name) {
-        if (WP_DEBUG) error_log(__CLASS__ . '::' . __FUNCTION__);
+        timegrow_log(__CLASS__ . '::' . __FUNCTION__);
 
         $search_term = '%' . $this->wpdb->esc_like($company_name) . '%';
         $sql = $this->wpdb->prepare(

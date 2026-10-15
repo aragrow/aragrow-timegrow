@@ -45,18 +45,18 @@ class TimeGrowReceiptAnalyzerFactory {
      * @throws Exception If invalid provider is configured
      */
     public static function create() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         // Get active configuration from the new database table
         if (class_exists('TimeGrowSettings')) {
             $settings = TimeGrowSettings::get_active_ai_config();
             if(WP_DEBUG) {
-                error_log('=== FACTORY CONFIG DEBUG ===');
-                error_log('Factory using active config from database: ' . ($settings['config_name'] ?? 'Unknown'));
-                error_log('Provider: ' . ($settings['ai_provider'] ?? 'Not set'));
-                error_log('Model: ' . ($settings['ai_model'] ?? 'Not set'));
-                error_log('Has API key: ' . (!empty($settings['ai_api_key']) ? 'YES' : 'NO'));
-                error_log('API key length: ' . strlen($settings['ai_api_key'] ?? ''));
+                timegrow_log('=== FACTORY CONFIG DEBUG ===');
+                timegrow_log('Factory using active config from database: ' . ($settings['config_name'] ?? 'Unknown'));
+                timegrow_log('Provider: ' . ($settings['ai_provider'] ?? 'Not set'));
+                timegrow_log('Model: ' . ($settings['ai_model'] ?? 'Not set'));
+                timegrow_log('Has API key: ' . (!empty($settings['ai_api_key']) ? 'YES' : 'NO'));
+                timegrow_log('API key length: ' . strlen($settings['ai_api_key'] ?? ''));
             }
         } else {
             // Fallback to legacy settings if TimeGrowSettings not loaded
@@ -64,12 +64,12 @@ class TimeGrowReceiptAnalyzerFactory {
                 'ai_provider' => 'google_gemini',
                 'ai_model' => 'gemini-1.5-flash',
             ]);
-            if(WP_DEBUG) error_log('Factory using fallback settings (TimeGrowSettings class not found)');
+            timegrow_log('Factory using fallback settings (TimeGrowSettings class not found)');
         }
 
         $provider = $settings['ai_provider'] ?? 'google_gemini';
 
-        if(WP_DEBUG) error_log('Creating analyzer for provider: ' . $provider);
+        timegrow_log('Creating analyzer for provider: ' . $provider);
 
         switch ($provider) {
             case 'openai':

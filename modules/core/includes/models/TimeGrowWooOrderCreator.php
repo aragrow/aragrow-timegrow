@@ -59,7 +59,7 @@ class TimeGrowWooOrderCreator {
      */
     
     public function create_woo_orders_and_products($time_entries) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         if (empty($time_entries)) return [];
         // Group entries by project_id
 
@@ -142,7 +142,7 @@ class TimeGrowWooOrderCreator {
                 //print_r($entries);
                 $project = $model_project->select($project_id);
                 if(!$project) {
-                    error_log('Order creation failed: ' . 'Woo Commerce for Product for Project not found: '. $project_id);
+                    timegrow_log('Order creation failed: ' . 'Woo Commerce for Product for Project not found: '. $project_id);
                     continue;
                 }
                 //var_dump($project);

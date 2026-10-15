@@ -7,7 +7,7 @@ if (!defined('ABSPATH')) {
 class TimeGrowProjectView {
     
     public function display($projects, $filter_options = [], $current_filters = []) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         // Merge with defaults
         $current_filters = array_merge([
@@ -167,7 +167,7 @@ class TimeGrowProjectView {
     }
 
     public function add($clients, $woocommerce_products = null) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         ?>
         <div class="wrap timegrow-page">
             <!-- Modern Header -->
@@ -287,7 +287,7 @@ class TimeGrowProjectView {
     }
 
     public function edit($project, $clients, $woocommerce_products) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         ?>
         <div class="wrap timegrow-page">
             <!-- Modern Header -->

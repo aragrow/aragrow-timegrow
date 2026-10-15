@@ -22,8 +22,8 @@ if (!defined('TIMEGROW_NEXUS_BASE_DIR')) {
 
 // Debug: Log the paths (helpful for troubleshooting CSS/JS loading issues)
 if (WP_DEBUG) {
-    error_log('TIMEGROW_NEXUS_BASE_DIR: ' . TIMEGROW_NEXUS_BASE_DIR);
-    error_log('TIMEGROW_NEXUS_BASE_URI: ' . TIMEGROW_NEXUS_BASE_URI);
+    timegrow_log('TIMEGROW_NEXUS_BASE_DIR: ' . TIMEGROW_NEXUS_BASE_DIR);
+    timegrow_log('TIMEGROW_NEXUS_BASE_URI: ' . TIMEGROW_NEXUS_BASE_URI);
 }
 
 // Include your custom endpoint class file
@@ -38,7 +38,7 @@ require_once plugin_dir_path(__FILE__) . 'includes/routes/class-nexus-custom-end
  * @return void
  */
 function aragrow_timegrow_nexus_allow_cors() {
-    error_log(__CLASS__.'::'.__FUNCTION__);
+    timegrow_log(__CLASS__.'::'.__FUNCTION__);
     if (isset($_SERVER['HTTP_ORIGIN']) && strpos($_SERVER['HTTP_ORIGIN'], 'localhost:5173') !== false) {
         header('Access-Control-Allow-Origin: http://localhost:5173');
         header('Access-Control-Allow-Methods: GET, POST, OPTIONS, PUT, DELETE, PATCH');
@@ -68,7 +68,7 @@ add_action('init', 'aragrow_timegrow_nexus_allow_cors', 15);
  * @return mixed Original $result or null to continue processing.
  */
 function aragrow_timegrow_nexus_rest_preflight($served, $result, $request, $server) {
-    error_log(__CLASS__.'::'.__FUNCTION__);
+    timegrow_log(__CLASS__.'::'.__FUNCTION__);
     if (isset($_SERVER['HTTP_ORIGIN']) && strpos($_SERVER['HTTP_ORIGIN'], 'localhost:5173') !== false) {
         header('Access-Control-Allow-Origin: http://localhost:5173');
         header('Access-Control-Allow-Methods: GET, POST, OPTIONS, PUT, DELETE, PATCH');
@@ -97,7 +97,7 @@ add_action('rest_api_init', ['Nexus_Custom_Endpoints', 'register_routes']);
  * @return WP_REST_Response The modified response object.
  */
 function aragrow_timegrow_nexus_modify_users_me_response( $response, $user, $request ) {
-    error_log(__CLASS__.'::'.__FUNCTION__);
+    timegrow_log(__CLASS__.'::'.__FUNCTION__);
     // Check if it's the 'me' context or if you want to modify all user responses
     // The '/me' endpoint internally uses the 'edit' context for permissions,
     // but you might want to check the route specifically if needed.
@@ -140,7 +140,7 @@ add_filter( 'rest_prepare_user', 'aragrow_timegrow_nexus_modify_users_me_respons
  * @return bool True if the current user has the required permissions, false otherwise.
  */
  function aragrow_timegrow_nexus_custom_rest_permissions( $result ) {
-    error_log(__CLASS__.'::'.__FUNCTION__);
+    timegrow_log(__CLASS__.'::'.__FUNCTION__);
      // Check if $result already indicates an error
      if ( ! empty( $result ) )  return $result;
      if ( ! isset($_SERVER['HTTP_AUTHORIZATION'])) return $result;
@@ -149,7 +149,7 @@ add_filter( 'rest_prepare_user', 'aragrow_timegrow_nexus_modify_users_me_respons
      $token = $matches[1];
      $plugin = new Nexus_Custom_Endpoints();
      $result = $plugin->verify_and_get_jwt_details( $token );
-     error_log(print_r($result, true));
+     timegrow_log(print_r($result, true));
      if( $result == false ) {
         return new WP_Error(
             'rest_imformation',
@@ -276,8 +276,8 @@ function my_debug_dump_users_me_request( $result, $server, $request ) {
     // Check if the current route matches the one we want to inspect
     if ( $request->get_route() === '/wp/v2/users/me' ) {
 
-        error_log(print_r($request, true));
-        error_log(print_r($result, true));
+        timegrow_log(print_r($request, true));
+        timegrow_log(print_r($result, true));
         // Prepare data to dump
         $request_data_to_dump = array(
             'DEBUG_INFO'      => 'Dumping data for /wp/v2/users/me',
@@ -301,10 +301,10 @@ function my_debug_dump_users_me_request( $result, $server, $request ) {
 
         // Dump the data to the PHP error log
         // Use print_r with the second argument true to capture the output
-       // error_log( "--- WP REST API Request Dump --- \n" . print_r( $request_data_to_dump, true ) . "\n--- End Dump ---" );
+       // timegrow_log( "--- WP REST API Request Dump --- \n" . print_r( $request_data_to_dump, true ) . "\n--- End Dump ---" );
 
         // Optional: Dump specific parts if the above is too much
-        // error_log( 'Authorization Header Found: ' . print_r( $request->get_header('Authorization'), true ) );
+        // timegrow_log( 'Authorization Header Found: ' . print_r( $request->get_header('Authorization'), true ) );
     }
 
     // IMPORTANT: Return the original $result (usually null) to allow the request to continue normally.
@@ -329,36 +329,36 @@ function timegrow_nexus_load_mvc_classes($class) {
 
     $timegrow_includes = plugin_dir_path(__FILE__) . '../aragrow-timegrow/includes/';
 
-    error_log(  'timegrow_nexus_load_mvc_classes'. ' - Class: ' . $class );  //Best option for Classes
-    //error_log(TIMEGROW_INCLUDES_DIR . $class . '.php' );
+    timegrow_log(  'timegrow_nexus_load_mvc_classes'. ' - Class: ' . $class );  //Best option for Classes
+    //timegrow_log(TIMEGROW_INCLUDES_DIR . $class . '.php' );
     if (file_exists( TIMEGROW_NEXUS_INCLUDES_DIR . $class . '.php' ) ) {
-        //error_log(1);
+        //timegrow_log(1);
         require_once TIMEGROW_NEXUS_INCLUDES_DIR . $class . '.php';
     } elseif ( file_exists( TIMEGROW_NEXUS_INCLUDES_DIR . 'controllers/' . $class . '.php' ) ) {
-        //error_log(2);
+        //timegrow_log(2);
         require_once TIMEGROW_NEXUS_INCLUDES_DIR . 'controllers/' . $class . '.php';
     }elseif ( file_exists( TIMEGROW_NEXUS_INCLUDES_DIR . 'models/' . $class . '.php' ) ) {
-        //error_log(2);
+        //timegrow_log(2);
         require_once TIMEGROW_NEXUS_INCLUDES_DIR . 'models/' . $class . '.php';
     } elseif ( file_exists( TIMEGROW_NEXUS_INCLUDES_DIR . 'views/' . $class . '.php' ) ) {
-        //error_log(3);
+        //timegrow_log(3);
         require_once TIMEGROW_NEXUS_INCLUDES_DIR . 'views/' . $class . '.php';
     } 
     // Check if the class is from Timegrow
     elseif ( file_exists( $timegrow_includes . 'controllers/' . $class . '.php' ) ) {
-       // error_log(4);
+       // timegrow_log(4);
         require_once $timegrow_includes . 'controllers/' . $class . '.php';
     } elseif (file_exists( $timegrow_includes . $class . '.php' ) ) {
-        //error_log(1);
+        //timegrow_log(1);
         require_once $timegrow_includes . $class . '.php';
     } elseif ( file_exists( $timegrow_includes. 'models/' . $class . '.php' ) ) {
-        //error_log(2);
+        //timegrow_log(2);
         require_once $timegrow_includes . 'models/' . $class . '.php';
     } elseif ( file_exists( $timegrow_includes . 'views/' . $class . '.php' ) ) {
-        //error_log(3);
+        //timegrow_log(3);
         require_once $timegrow_includes . 'views/' . $class . '.php';
     } elseif ( file_exists( $timegrow_includes . 'controllers/' . $class . '.php' ) ) {
-       // error_log(4);
+       // timegrow_log(4);
         require_once $timegrow_includes . 'controllers/' . $class . '.php';
     }
 

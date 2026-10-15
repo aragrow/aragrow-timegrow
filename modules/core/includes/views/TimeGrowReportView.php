@@ -10,7 +10,7 @@ class TimeGrowReportView {
 
     public function display_reports() {
         $reports = [];
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         ?>
     
         <div class="wrap timegrow-page">

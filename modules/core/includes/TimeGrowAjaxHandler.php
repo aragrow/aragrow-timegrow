@@ -145,9 +145,9 @@ class TimeGrow_Ajax_Handler {
 
             // Category ID comes directly from LLM - no database lookup needed
             if(WP_DEBUG) {
-                error_log('=== AJAX RESPONSE DATA ===');
-                error_log('Category ID from LLM: ' . ($analysis['category_id'] ?? 'NOT SET'));
-                error_log('Sending category_id directly to frontend: ' . intval($analysis['category_id'] ?? 0));
+                timegrow_log('=== AJAX RESPONSE DATA ===');
+                timegrow_log('Category ID from LLM: ' . ($analysis['category_id'] ?? 'NOT SET'));
+                timegrow_log('Sending category_id directly to frontend: ' . intval($analysis['category_id'] ?? 0));
             }
 
             // Send success response with extracted data

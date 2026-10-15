@@ -16,7 +16,7 @@ class TimeGrowTeamMemberController{
         
     public function __construct(TimeGrowTeamMemberModel $model,  TimeGrowTeamMemberView $view, TimeGrowUserModel $model_user, TimeGrowCompanyModel $model_company, TimeGrowProjectModel $model_project) {
 
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);   
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);   
         $this->model = $model;
         $this->view = $view;
         $this->model_user = $model_user;
@@ -30,7 +30,7 @@ class TimeGrowTeamMemberController{
 
     public function handle_form_submission() {
 
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         
         if (!isset($_POST['timegrow_team_member_nonce_field']) || 
             !wp_verify_nonce($_POST['timegrow_team_member_nonce_field'], 'timegrow_team_member_nonce')) {
@@ -123,7 +123,7 @@ class TimeGrowTeamMemberController{
             $team_member_id = $id; // Use the ID returned from create or update
             $this->update_team_member_projects($team_member_id, $project_ids);
             
-            if(WP_DEBUG) error_log('Timeflies_Team_Members_Admin.save_ajax() -> Completed');
+            timegrow_log('Timeflies_Team_Members_Admin.save_ajax() -> Completed');
 
             //wp_send_json_success(array('message' => 'Team member saved.', 'team_member_id' => $team_member_id));
     
@@ -135,23 +135,23 @@ class TimeGrowTeamMemberController{
              // Rollback on error
             $this->wpdb->query('ROLLBACK');
 
-            if(WP_DEBUG) error_log('Error saving Team Member. '.$e->getMessage());
+            timegrow_log('Error saving Team Member. '.$e->getMessage());
 
             wp_send_json_success(array('message' => $e->getMessage(), 'team_member_id' => $team_member_id));
             
         } finally {
 
-            if(WP_DEBUG) error_log('Timeflies_Team_Members_Admin.save_ajax() -> Finalized');
+            timegrow_log('Timeflies_Team_Members_Admin.save_ajax() -> Finalized');
             // Optional block of code that always executes
         }
     }
 
     private function update_team_member_projects($team_member_id, $project_ids) {
-        if (WP_DEBUG) error_log('Exc: Timeflies_Team_Members_Admin.update_team_member_projects()');
+        timegrow_log('Exc: Timeflies_Team_Members_Admin.update_team_member_projects()');
 
         if(WP_DEBUG) {
-            error_log('Team Member Project Data');
-            error_log(print_r($project_ids,true));
+            timegrow_log('Team Member Project Data');
+            timegrow_log(print_r($project_ids,true));
         }
         
         // Decode the URL-encoded string
@@ -177,7 +177,7 @@ class TimeGrowTeamMemberController{
         } catch (Exception $e) {
             
             // Log the error or handle it as needed
-            error_log("Transaction failed: " . $e->getMessage());
+            timegrow_log("Transaction failed: " . $e->getMessage());
 
             // Optionally, return false or throw the exception again
             return false;
@@ -187,7 +187,7 @@ class TimeGrowTeamMemberController{
     }
 
     public function list() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         // Get all team members first for filter options
         $all_items = $this->model->select(null);
@@ -277,7 +277,7 @@ class TimeGrowTeamMemberController{
     }
 
     public function add() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         $users = $this->model_user->select(null); // Fetch all team members
         $companies = $this->model_company->select(null); // Fetch all companies
         $projects = $this->model_project->select(null); // Fetch all projects
@@ -285,7 +285,7 @@ class TimeGrowTeamMemberController{
     }
 
     public function edit($id) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         $item = $this->model->select($id)[0]; // Fetch  team member
         $users = $this->model_user->select(null); // Fetch all team members
         $companies = $this->model_company->select(null); // Fetch all team member
@@ -295,7 +295,7 @@ class TimeGrowTeamMemberController{
     }
 
     public function display_admin_page($screen) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
            
         if ($screen != 'list' && ( isset($_POST['add_item']) || isset($_POST['edit_item']) )) {
             print('<div class="wrap timegrow-page-container timegrow-team-member-page">');

@@ -16,7 +16,7 @@ class TimeGrowTeamMemberModel {
     private $table_name5;
 
     public function __construct() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         global $wpdb;
         $this->wpdb = $wpdb;
         $this->charset_collate = $this->wpdb->get_charset_collate();
@@ -34,7 +34,7 @@ class TimeGrowTeamMemberModel {
     }
 
     public function initialize() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         $sql = "CREATE TABLE IF NOT EXISTS $this->table_name  (
             ID bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -64,7 +64,7 @@ class TimeGrowTeamMemberModel {
      * @return array|object|null Array of expense objects or null if no results.
      */
     public function select($ids = null) {
-        if (WP_DEBUG) error_log(__CLASS__ . '::' . __FUNCTION__);
+        timegrow_log(__CLASS__ . '::' . __FUNCTION__);
     
         // If IDs are provided as an array
         if (is_array($ids)) {
@@ -111,7 +111,7 @@ class TimeGrowTeamMemberModel {
      * @return bool|int False on error, or the number of rows updated.
      */
     public function update($id, $data) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         $id = intval($id); // Sanitize ID
 
         // Whitelist allowed fields to prevent SQL injection
@@ -147,7 +147,7 @@ class TimeGrowTeamMemberModel {
      * @return int|false The ID of the newly created row, or false on error.
      */
     public function create($data) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         try {
             // Whitelist allowed fields to prevent SQL injection
             $sanitized_data = [];
@@ -171,7 +171,7 @@ class TimeGrowTeamMemberModel {
                 $sanitized_data,
                 '%s' // string
             );
-            error_log($this->wpdb->last_query);
+            timegrow_log($this->wpdb->last_query);
             
             if ($result === false) {
                 return false;
@@ -180,7 +180,7 @@ class TimeGrowTeamMemberModel {
             return $this->wpdb->insert_id;
         } catch (Exception $e) {
             // Handle general exceptions
-            error_log("Exception: " . $e->getMessage());
+            timegrow_log("Exception: " . $e->getMessage());
             echo "An error occurred: " . htmlspecialchars($e->getMessage());
             return new WP_Error(
                 'An error occurred', // Error code
@@ -197,7 +197,7 @@ class TimeGrowTeamMemberModel {
      * @return array|object|null Array of expense objects or null if no results.
      */
     public function get_projects_for_member($ids = null) {
-        if (WP_DEBUG) error_log(__CLASS__ . '::' . __FUNCTION__);
+        timegrow_log(__CLASS__ . '::' . __FUNCTION__);
     
         //var_dump($ids);
         // If IDs are provided as an array
@@ -254,7 +254,7 @@ class TimeGrowTeamMemberModel {
         $results = $this->wpdb->get_results($sql);
         //var_dump($this->wpdb->last_query);
         if ($this->wpdb->last_error) {
-            error_log("Database error: " . $this->wpdb->last_error);
+            timegrow_log("Database error: " . $this->wpdb->last_error);
             return new WP_Error('db_error', __('Database error occurred.', 'timegrow'));
         }
         if (empty($results)) {
@@ -265,7 +265,7 @@ class TimeGrowTeamMemberModel {
     }
     
     public function get_by_user_id($user_id) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         $user_id = intval($user_id);
         $sql = $this->wpdb->prepare(
             "SELECT * FROM {$this->table_name} WHERE user_id = %d",

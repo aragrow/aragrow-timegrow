@@ -62,7 +62,7 @@ class TimeGrowSMSNotifications {
 
             default:
                 // Log only mode (for development/testing)
-                error_log("TimeGrow SMS to {$phone}: {$message}");
+                timegrow_log("TimeGrow SMS to {$phone}: {$message}");
                 break;
         }
     }
@@ -79,7 +79,7 @@ class TimeGrowSMSNotifications {
         $from_number = get_option('timegrow_twilio_from_number');
 
         if (empty($account_sid) || empty($auth_token) || empty($from_number)) {
-            error_log('TimeGrow: Twilio credentials not configured');
+            timegrow_log('TimeGrow: Twilio credentials not configured');
             return false;
         }
 
@@ -99,7 +99,7 @@ class TimeGrowSMSNotifications {
         ]);
 
         if (is_wp_error($response)) {
-            error_log('TimeGrow Twilio SMS Error: ' . $response->get_error_message());
+            timegrow_log('TimeGrow Twilio SMS Error: ' . $response->get_error_message());
             return false;
         }
 
@@ -107,7 +107,7 @@ class TimeGrowSMSNotifications {
         $response_body = wp_remote_retrieve_body($response);
 
         if ($response_code !== 201) {
-            error_log('TimeGrow Twilio SMS Failed: ' . $response_body);
+            timegrow_log('TimeGrow Twilio SMS Failed: ' . $response_body);
             return false;
         }
 
@@ -123,7 +123,7 @@ class TimeGrowSMSNotifications {
     private static function send_via_aws_sns($phone, $message) {
         // Placeholder for AWS SNS integration
         // Requires AWS SDK for PHP
-        error_log('TimeGrow: AWS SNS integration not yet implemented');
+        timegrow_log('TimeGrow: AWS SNS integration not yet implemented');
 
         // Example implementation would use AWS SDK:
         /*

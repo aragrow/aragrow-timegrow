@@ -8,11 +8,11 @@ class TimeGrowClientController{
 
         
     public function __construct() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);   
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);   
 
     }
     public function display_admin_page($screen) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         $this->list();
     }

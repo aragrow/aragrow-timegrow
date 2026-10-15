@@ -11,18 +11,18 @@ class TimeGrowGeminiReceiptAnalyzer implements TimeGrowReceiptAnalyzerInterface 
     private $settings;
 
     public function __construct() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         // Load active configuration from settings
         if (class_exists('TimeGrowSettings')) {
             $this->settings = TimeGrowSettings::get_active_ai_config();
             if(WP_DEBUG) {
-                error_log('=== ACTIVE CONFIG DEBUG ===');
-                error_log('Config name: ' . ($this->settings['config_name'] ?? 'Not set'));
-                error_log('Is active: ' . (isset($this->settings['is_active_config']) ? ($this->settings['is_active_config'] ? 'YES' : 'NO') : 'Not set'));
-                error_log('Has API key field: ' . (isset($this->settings['ai_api_key']) ? 'YES' : 'NO'));
-                error_log('API provider: ' . ($this->settings['ai_provider'] ?? 'Not set'));
-                error_log('Model: ' . ($this->settings['ai_model'] ?? 'Not set'));
+                timegrow_log('=== ACTIVE CONFIG DEBUG ===');
+                timegrow_log('Config name: ' . ($this->settings['config_name'] ?? 'Not set'));
+                timegrow_log('Is active: ' . (isset($this->settings['is_active_config']) ? ($this->settings['is_active_config'] ? 'YES' : 'NO') : 'Not set'));
+                timegrow_log('Has API key field: ' . (isset($this->settings['ai_api_key']) ? 'YES' : 'NO'));
+                timegrow_log('API provider: ' . ($this->settings['ai_provider'] ?? 'Not set'));
+                timegrow_log('Model: ' . ($this->settings['ai_model'] ?? 'Not set'));
             }
         } else {
             // Fallback to legacy settings if TimeGrowSettings not loaded
@@ -33,16 +33,16 @@ class TimeGrowGeminiReceiptAnalyzer implements TimeGrowReceiptAnalyzerInterface 
                 'enable_auto_analysis' => true,
                 'confidence_threshold' => 0.7,
             ]);
-            if(WP_DEBUG) error_log('Using fallback settings (TimeGrowSettings class not found)');
+            timegrow_log('Using fallback settings (TimeGrowSettings class not found)');
         }
 
         // Decrypt API key if Voice AI Security class is available
         if (class_exists('\AraGrow\VoiceAI\Security')) {
             $encrypted_key = $this->settings['ai_api_key'] ?? '';
             if(WP_DEBUG) {
-                error_log('=== API KEY DECRYPTION ===');
-                error_log('Encrypted key present: ' . (!empty($encrypted_key) ? 'YES' : 'NO'));
-                error_log('Encrypted key length: ' . strlen($encrypted_key));
+                timegrow_log('=== API KEY DECRYPTION ===');
+                timegrow_log('Encrypted key present: ' . (!empty($encrypted_key) ? 'YES' : 'NO'));
+                timegrow_log('Encrypted key length: ' . strlen($encrypted_key));
             }
 
             $this->api_key = !empty($encrypted_key)
@@ -50,25 +50,25 @@ class TimeGrowGeminiReceiptAnalyzer implements TimeGrowReceiptAnalyzerInterface 
                 : '';
 
             if(WP_DEBUG) {
-                error_log('Decryption successful: ' . (!empty($this->api_key) ? 'YES' : 'NO'));
-                error_log('Decrypted key length: ' . strlen($this->api_key));
+                timegrow_log('Decryption successful: ' . (!empty($this->api_key) ? 'YES' : 'NO'));
+                timegrow_log('Decrypted key length: ' . strlen($this->api_key));
             }
         } else {
             $this->api_key = $this->settings['ai_api_key'] ?? '';
-            if(WP_DEBUG) error_log('No encryption class, using raw key (length: ' . strlen($this->api_key) . ')');
+            timegrow_log('No encryption class, using raw key (length: ' . strlen($this->api_key) . ')');
         }
 
         // Check for wp-config constant as fallback
         if (empty($this->api_key) && defined('ARAGROW_AI_API_KEY')) {
             $this->api_key = ARAGROW_AI_API_KEY;
-            if(WP_DEBUG) error_log('Using wp-config API key fallback');
+            timegrow_log('Using wp-config API key fallback');
         }
 
         $this->model = $this->settings['ai_model'] ?? 'gemini-2.0-flash-exp';
         if(WP_DEBUG) {
-            error_log('=== FINAL CONFIG ===');
-            error_log('Using model: ' . $this->model);
-            error_log('API key configured: ' . (!empty($this->api_key) ? 'YES' : 'NO'));
+            timegrow_log('=== FINAL CONFIG ===');
+            timegrow_log('Using model: ' . $this->model);
+            timegrow_log('API key configured: ' . (!empty($this->api_key) ? 'YES' : 'NO'));
         }
     }
 
@@ -80,7 +80,7 @@ class TimeGrowGeminiReceiptAnalyzer implements TimeGrowReceiptAnalyzerInterface 
      * @return array|WP_Error Extracted data or error
      */
     public function analyze_receipt($image_url, $options = []) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         // Check if API key is configured
         if (empty($this->api_key)) {
@@ -110,8 +110,8 @@ class TimeGrowGeminiReceiptAnalyzer implements TimeGrowReceiptAnalyzerInterface 
         $prompt = $this->get_extraction_prompt();
 
         if(WP_DEBUG) {
-            error_log('Prompt length: ' . strlen($prompt) . ' characters');
-            error_log('Prompt preview (first 500 chars): ' . substr($prompt, 0, 500));
+            timegrow_log('Prompt length: ' . strlen($prompt) . ' characters');
+            timegrow_log('Prompt preview (first 500 chars): ' . substr($prompt, 0, 500));
         }
 
         // Call Gemini Vision API
@@ -150,17 +150,17 @@ class TimeGrowGeminiReceiptAnalyzer implements TimeGrowReceiptAnalyzerInterface 
      * @return array|WP_Error API response or error
      */
     private function call_gemini_vision_api($image_data, $prompt) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         $api_url = 'https://generativelanguage.googleapis.com/v1/models/' . $this->model . ':generateContent';
 
         if(WP_DEBUG) {
-            error_log('=== GEMINI API CALL ===');
-            error_log('API URL: ' . $api_url);
-            error_log('API Key present: ' . (!empty($this->api_key) ? 'YES' : 'NO'));
-            error_log('API Key length: ' . strlen($this->api_key));
-            error_log('Image MIME type: ' . $image_data['mime_type']);
-            error_log('Base64 data length: ' . strlen($image_data['base64_data']));
+            timegrow_log('=== GEMINI API CALL ===');
+            timegrow_log('API URL: ' . $api_url);
+            timegrow_log('API Key present: ' . (!empty($this->api_key) ? 'YES' : 'NO'));
+            timegrow_log('API Key length: ' . strlen($this->api_key));
+            timegrow_log('Image MIME type: ' . $image_data['mime_type']);
+            timegrow_log('Base64 data length: ' . strlen($image_data['base64_data']));
         }
 
         // Build request body
@@ -190,7 +190,7 @@ class TimeGrowGeminiReceiptAnalyzer implements TimeGrowReceiptAnalyzerInterface 
 
         // Check for errors
         if (is_wp_error($response)) {
-            if(WP_DEBUG) error_log('WP_Error: ' . $response->get_error_message());
+            timegrow_log('WP_Error: ' . $response->get_error_message());
             return $response;
         }
 
@@ -198,10 +198,10 @@ class TimeGrowGeminiReceiptAnalyzer implements TimeGrowReceiptAnalyzerInterface 
         $body = wp_remote_retrieve_body($response);
 
         if(WP_DEBUG) {
-            error_log('=== API RESPONSE ===');
-            error_log('Status code: ' . $status_code);
+            timegrow_log('=== API RESPONSE ===');
+            timegrow_log('Status code: ' . $status_code);
             if($status_code !== 200) {
-                error_log('Error response body: ' . $body);
+                timegrow_log('Error response body: ' . $body);
             }
         }
 
@@ -210,7 +210,7 @@ class TimeGrowGeminiReceiptAnalyzer implements TimeGrowReceiptAnalyzerInterface 
             $error_message = $error_data['error']['message'] ?? 'Unknown API error';
 
             if(WP_DEBUG) {
-                error_log('Full error data: ' . print_r($error_data, true));
+                timegrow_log('Full error data: ' . print_r($error_data, true));
             }
 
             return new WP_Error('gemini_api_error', sprintf(__('Gemini API error (code %d): %s', 'aragrow-timegrow'), $status_code, $error_message));
@@ -220,10 +220,10 @@ class TimeGrowGeminiReceiptAnalyzer implements TimeGrowReceiptAnalyzerInterface 
 
         // Log usage metadata if available
         if(WP_DEBUG && isset($api_response['usageMetadata'])) {
-            error_log('=== TOKEN USAGE ===');
-            error_log('Prompt tokens: ' . ($api_response['usageMetadata']['promptTokenCount'] ?? 0));
-            error_log('Response tokens: ' . ($api_response['usageMetadata']['candidatesTokenCount'] ?? 0));
-            error_log('Total tokens: ' . ($api_response['usageMetadata']['totalTokenCount'] ?? 0));
+            timegrow_log('=== TOKEN USAGE ===');
+            timegrow_log('Prompt tokens: ' . ($api_response['usageMetadata']['promptTokenCount'] ?? 0));
+            timegrow_log('Response tokens: ' . ($api_response['usageMetadata']['candidatesTokenCount'] ?? 0));
+            timegrow_log('Total tokens: ' . ($api_response['usageMetadata']['totalTokenCount'] ?? 0));
         }
 
         return $api_response;
@@ -236,7 +236,7 @@ class TimeGrowGeminiReceiptAnalyzer implements TimeGrowReceiptAnalyzerInterface 
      * @return array|WP_Error Image data or error
      */
     private function prepare_image_for_api($image_url) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         // Download image
         $response = wp_remote_get($image_url, [
@@ -330,12 +330,12 @@ OTHER IMPORTANT RULES:
      * @return array|WP_Error Parsed data or error
      */
     private function parse_gemini_response($response) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         // Extract text from response
         if (!isset($response['candidates'][0]['content']['parts'][0]['text'])) {
-            if(WP_DEBUG) error_log('=== GEMINI RESPONSE ERROR ===');
-            if(WP_DEBUG) error_log('Full response: ' . print_r($response, true));
+            timegrow_log('=== GEMINI RESPONSE ERROR ===');
+            timegrow_log('Full response: ' . print_r($response, true));
             return new WP_Error('invalid_response', __('Invalid response from Gemini API.', 'aragrow-timegrow'));
         }
 
@@ -343,9 +343,9 @@ OTHER IMPORTANT RULES:
 
         // Log the raw LLM response for evaluation
         if(WP_DEBUG) {
-            error_log('=== RAW GEMINI LLM RESPONSE ===');
-            error_log('Response text: ' . $gemini_text);
-            error_log('Response length: ' . strlen($gemini_text) . ' characters');
+            timegrow_log('=== RAW GEMINI LLM RESPONSE ===');
+            timegrow_log('Response text: ' . $gemini_text);
+            timegrow_log('Response length: ' . strlen($gemini_text) . ' characters');
         }
 
         // Remove markdown code blocks if present
@@ -353,8 +353,8 @@ OTHER IMPORTANT RULES:
         $gemini_text = trim($gemini_text);
 
         if(WP_DEBUG) {
-            error_log('=== CLEANED GEMINI RESPONSE ===');
-            error_log('Cleaned text: ' . $gemini_text);
+            timegrow_log('=== CLEANED GEMINI RESPONSE ===');
+            timegrow_log('Cleaned text: ' . $gemini_text);
         }
 
         // Parse JSON
@@ -362,16 +362,16 @@ OTHER IMPORTANT RULES:
 
         if (json_last_error() !== JSON_ERROR_NONE) {
             if(WP_DEBUG) {
-                error_log('=== JSON PARSE ERROR ===');
-                error_log('Error: ' . json_last_error_msg());
-                error_log('Failed to parse: ' . $gemini_text);
+                timegrow_log('=== JSON PARSE ERROR ===');
+                timegrow_log('Error: ' . json_last_error_msg());
+                timegrow_log('Failed to parse: ' . $gemini_text);
             }
             return new WP_Error('json_parse_error', sprintf(__('Failed to parse Gemini response: %s', 'aragrow-timegrow'), json_last_error_msg()));
         }
 
         if(WP_DEBUG) {
-            error_log('=== PARSED GEMINI DATA ===');
-            error_log('Extracted data: ' . print_r($extracted_data, true));
+            timegrow_log('=== PARSED GEMINI DATA ===');
+            timegrow_log('Extracted data: ' . print_r($extracted_data, true));
         }
 
         // Build description with handwritten notes if present
@@ -413,16 +413,16 @@ OTHER IMPORTANT RULES:
         ];
 
         if(WP_DEBUG) {
-            error_log('=== FINAL EXPENSE DATA ===');
-            error_log('Amount: ' . $expense_data['amount']);
-            error_log('Date: ' . $expense_data['expense_date']);
-            error_log('Vendor: ' . $expense_data['expense_name']);
-            error_log('Category ID (from LLM): ' . ($extracted_data['category_id'] ?? 'NOT SET'));
-            error_log('Category ID (final): ' . $expense_data['category_id']);
-            error_log('Description: ' . $expense_data['expense_description']);
-            error_log('Confidence: ' . $expense_data['confidence']);
-            error_log('Client pattern: ' . ($expense_data['client_pattern'] ?? 'none'));
-            error_log('Project pattern: ' . ($expense_data['project_pattern'] ?? 'none'));
+            timegrow_log('=== FINAL EXPENSE DATA ===');
+            timegrow_log('Amount: ' . $expense_data['amount']);
+            timegrow_log('Date: ' . $expense_data['expense_date']);
+            timegrow_log('Vendor: ' . $expense_data['expense_name']);
+            timegrow_log('Category ID (from LLM): ' . ($extracted_data['category_id'] ?? 'NOT SET'));
+            timegrow_log('Category ID (final): ' . $expense_data['category_id']);
+            timegrow_log('Description: ' . $expense_data['expense_description']);
+            timegrow_log('Confidence: ' . $expense_data['confidence']);
+            timegrow_log('Client pattern: ' . ($expense_data['client_pattern'] ?? 'none'));
+            timegrow_log('Project pattern: ' . ($expense_data['project_pattern'] ?? 'none'));
         }
 
         return $expense_data;
@@ -434,10 +434,10 @@ OTHER IMPORTANT RULES:
      * @return string Formatted list of categories for the AI prompt
      */
     private function get_available_categories() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         if (!class_exists('TimeGrowExpenseCategoryModel')) {
-            if(WP_DEBUG) error_log('TimeGrowExpenseCategoryModel class not found - using fallback');
+            timegrow_log('TimeGrowExpenseCategoryModel class not found - using fallback');
             // Fallback to basic categories if model not available
             return "**Available Categories:**\n- office_expense\n- car_truck_expenses\n- meals\n- travel\n- utilities\n- other";
         }
@@ -446,9 +446,9 @@ OTHER IMPORTANT RULES:
             $category_model = new TimeGrowExpenseCategoryModel();
             $categories = $category_model->get_all(['is_active' => 1]); // Get only active categories
 
-            if(WP_DEBUG) error_log('Retrieved ' . count($categories) . ' categories from database');
+            timegrow_log('Retrieved ' . count($categories) . ' categories from database');
         } catch (Exception $e) {
-            if(WP_DEBUG) error_log('Error fetching categories: ' . $e->getMessage());
+            timegrow_log('Error fetching categories: ' . $e->getMessage());
             return "**Available Categories:**\n- office_expense\n- car_truck_expenses\n- meals\n- travel\n- utilities\n- other";
         }
 
@@ -563,7 +563,7 @@ OTHER IMPORTANT RULES:
      * @return array Assignment data (assigned_to, assigned_to_id)
      */
     private function process_assignment_patterns($parsed_data) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         // Check for PROJECT pattern first (higher priority)
         if (!empty($parsed_data['project_pattern'])) {
@@ -595,7 +595,7 @@ OTHER IMPORTANT RULES:
      * @return array|null Assignment data or null
      */
     private function match_client_from_text($text) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         // Extract pattern: "CLIENT: Company Name" (case insensitive)
         if (preg_match('/CLIENT:\s*(.+?)(?:\n|$)/i', $text, $matches)) {
@@ -624,7 +624,7 @@ OTHER IMPORTANT RULES:
      * @return array|null Assignment data or null
      */
     private function match_project_from_text($text) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         // Extract pattern: "PROJECT: Project Name" (case insensitive)
         if (preg_match('/PROJECT:\s*(.+?)(?:\n|$)/i', $text, $matches)) {
@@ -653,12 +653,12 @@ OTHER IMPORTANT RULES:
      * @return string Mapped category slug
      */
     private function map_category_to_expense_type($category_text) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__ . ' - Input: ' . $category_text);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__ . ' - Input: ' . $category_text);
 
         // Normalize the category text
         $category_text = strtolower(str_replace(' ', '_', trim($category_text)));
 
-        if(WP_DEBUG) error_log('Normalized category: ' . $category_text);
+        timegrow_log('Normalized category: ' . $category_text);
 
         // Get valid categories from database
         if (class_exists('TimeGrowExpenseCategoryModel')) {
@@ -671,15 +671,15 @@ OTHER IMPORTANT RULES:
                     $valid_slugs[] = $cat->slug;
                 }
 
-                if(WP_DEBUG) error_log('Valid slugs from database: ' . implode(', ', $valid_slugs));
+                timegrow_log('Valid slugs from database: ' . implode(', ', $valid_slugs));
 
                 // Check if category exists in database
                 if (in_array($category_text, $valid_slugs)) {
-                    if(WP_DEBUG) error_log('Category matched in database: ' . $category_text);
+                    timegrow_log('Category matched in database: ' . $category_text);
                     return $category_text;
                 }
             } catch (Exception $e) {
-                if(WP_DEBUG) error_log('Error fetching categories for validation: ' . $e->getMessage());
+                timegrow_log('Error fetching categories for validation: ' . $e->getMessage());
             }
         }
 
@@ -695,12 +695,12 @@ OTHER IMPORTANT RULES:
         ];
 
         if (isset($legacy_map[$category_text])) {
-            if(WP_DEBUG) error_log('Category mapped via legacy map: ' . $legacy_map[$category_text]);
+            timegrow_log('Category mapped via legacy map: ' . $legacy_map[$category_text]);
             return $legacy_map[$category_text];
         }
 
         // Default to 'other'
-        if(WP_DEBUG) error_log('Category defaulting to: other');
+        timegrow_log('Category defaulting to: other');
         return 'other';
     }
 
@@ -721,7 +721,7 @@ OTHER IMPORTANT RULES:
      * @return array|WP_Error Array of available models or error
      */
     public function list_available_models() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         // Check if API key is configured
         if (empty($this->api_key)) {

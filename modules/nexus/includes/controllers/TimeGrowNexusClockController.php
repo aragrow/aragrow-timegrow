@@ -1,9 +1,5 @@
 <?php
-
-// ####TimeGrowNexusClockController.php ####
-
-<?php
-// #### TimeGrowNexusController.php ####
+// #### TimeGrowNexusClockController.php ####
 // Exit if accessed directly
 if (!defined('ABSPATH')) {
     exit;
@@ -14,21 +10,21 @@ class TimeGrowNexusClockController{
     private $view;
 
     public function __construct(TimeGrowNexusClockView $view) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);   
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);   
         $this->view = $view;
     }
 
     public function handle_form_submission() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
     }
 
     public function display($user) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         $this->view->clock($user);
     }
 
     public function display_admin_page($screen) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         
         $user = wp_get_current_user();
 
@@ -72,7 +68,7 @@ class TimeGrowTimeEntryController { // Or a more specific ClockController
      * Renders the Clock In/Out page.
      */
     public function render_clock_page() { // This method is your admin page callback
-        if (WP_DEBUG) error_log(__CLASS__ . '::' . __FUNCTION__);
+        timegrow_log(__CLASS__ . '::' . __FUNCTION__);
 
         if (!$this->clock_view) {
             echo '<div class="wrap"><p>' . esc_html__('Error: Clock view component not loaded.', 'timegrow') . '</p></div>';
@@ -98,7 +94,7 @@ class TimeGrowTimeEntryController { // Or a more specific ClockController
         // Example: if slug is 'timegrow-time-entry' under parent 'timegrow-nexus'
         if ($current_screen && $current_screen->id !== 'timegrow_page_timegrow-time-entry' && $current_screen->id !== 'toplevel_page_timegrow-nexus_page_timegrow-time-entry') {
             // Check your actual screen ID in the admin area to confirm
-            // error_log("Screen ID: " . $current_screen->id);
+            // timegrow_log("Screen ID: " . $current_screen->id);
             // return; // Uncomment after confirming your screen ID
         }
 

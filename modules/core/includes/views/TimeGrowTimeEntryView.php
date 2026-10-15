@@ -7,7 +7,7 @@ if (!defined('ABSPATH')) {
 class TimeGrowTimeEntryView {
 
     public function display($time_entries, $filter_options = [], $current_filters = []) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         // Merge with defaults
         $current_filters = array_merge([
@@ -216,7 +216,7 @@ class TimeGrowTimeEntryView {
     }
 
     public function add($projects, $members) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         ?>
         <div class="wrap timegrow-page">
             <h2>Add New Entry</h2>
@@ -359,7 +359,7 @@ class TimeGrowTimeEntryView {
     }
 
     public function edit($time_entry, $projects, $members) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         ?>
         <div class="wrap timegrow-page">
             <h2>Edit Time Entry</h2>

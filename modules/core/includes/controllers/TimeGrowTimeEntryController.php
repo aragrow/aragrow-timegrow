@@ -16,7 +16,7 @@ class TimeGrowTimeEntryController{
                                 TimeGrowTimeEntryView $view, 
                                 TimeGrowProjectModel $project_model, 
                                 TimeGrowTeamMemberModel $member_model) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);   
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);   
         $this->model = $model;
         $this->view = $view;
         $this->project_model = $project_model;
@@ -24,7 +24,7 @@ class TimeGrowTimeEntryController{
     }
 
     public function handle_form_submission() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         if (!isset($_POST['timegrow_time_entry_nonce_field']) || 
             !wp_verify_nonce($_POST['timegrow_time_entry_nonce_field'], 'timegrow_time_entry_nonce')) {
@@ -98,7 +98,7 @@ class TimeGrowTimeEntryController{
     }
 
     public function list() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         // Get all time entries first for filter options
         $all_entries = $this->model->select(null);
@@ -203,7 +203,7 @@ class TimeGrowTimeEntryController{
     }
 
     public function add() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         global $wpdb;
         $projects = $this->project_model->select(null); 
         $members = $this->member_model->select(null); 
@@ -211,7 +211,7 @@ class TimeGrowTimeEntryController{
     }
 
     public function edit($id) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         global $wpdb;
         $time_entries = $this->model->select($id)[0]; // Fetch entry by ID
         $projects = $this->project_model->select(null); 
@@ -220,7 +220,7 @@ class TimeGrowTimeEntryController{
     }
 
     public function display_admin_page($screen) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         if ($screen != 'list' && ( isset($_POST['add_item']) || isset($_POST['edit_item']) )) {
             var_dump('processing form');

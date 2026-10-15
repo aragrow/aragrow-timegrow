@@ -36,7 +36,7 @@ class TimeGrowNexusController{
         $list = [], // Default to empty array
         $clients = [] // Clients for process time filtering
     ) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         $this->model=$model;
         $this->view_dashboard = $view_dashboard;
@@ -55,7 +55,7 @@ class TimeGrowNexusController{
     }
 
     public function handle_form_submission() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
        
         if (isset($_POST['time_entry_id']))  $this->handle_form_submission_time_entry(); 
         else if (isset($_POST['expense_id']))  $this->handle_form_submission_expense(); 
@@ -64,7 +64,7 @@ class TimeGrowNexusController{
 
 
     public function display_admin_page($screen) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         $user = wp_get_current_user();
         $member = $this->team_members_model->get_by_user_id($user->ID);
@@ -97,7 +97,7 @@ class TimeGrowNexusController{
     }
 
     private function handle_form_submission_time_entry() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         if (!isset($_POST['timegrow_time_nexus_nonce_field']) || 
             !wp_verify_nonce($_POST['timegrow_time_nexus_nonce_field'], 'timegrow_time_nexus_nonce')) {

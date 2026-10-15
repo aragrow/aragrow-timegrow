@@ -12,7 +12,7 @@ class TimeGrowSettings {
     private $ai_form_temp_option_name = 'aragrow_timegrow_ai_form_temp'; // Temporary form data (cleared unless editing)
 
     public function __construct() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         add_action('admin_menu', [$this, 'register_settings_page']);
         add_action('admin_init', [$this, 'register_settings']);
         add_action('admin_init', [$this, 'handle_config_actions']);
@@ -23,7 +23,7 @@ class TimeGrowSettings {
         if (class_exists('TimeGrowAIConfigModel')) {
             $model = new TimeGrowAIConfigModel();
             $model->create_table();
-            if(WP_DEBUG) error_log('AI config table check/creation completed');
+            timegrow_log('AI config table check/creation completed');
         }
 
         // One-time cleanup of old options (will only run once)
@@ -31,7 +31,7 @@ class TimeGrowSettings {
             if (class_exists('TimeGrowAIConfigModel')) {
                 TimeGrowAIConfigModel::cleanup_old_options();
                 update_option('timegrow_ai_options_cleaned', true);
-                if(WP_DEBUG) error_log('AI options cleanup completed');
+                timegrow_log('AI options cleanup completed');
             }
         }
     }
@@ -63,7 +63,7 @@ class TimeGrowSettings {
      * Register the settings page in WordPress admin menu
      */
     public function register_settings_page() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         add_submenu_page(
             TIMEGROW_PARENT_MENU,
@@ -79,7 +79,7 @@ class TimeGrowSettings {
      * Register settings, sections, and fields
      */
     public function register_settings() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         // ========================================
         // GENERAL SETTINGS
@@ -232,7 +232,7 @@ class TimeGrowSettings {
      * Sanitize general settings
      */
     public function sanitize_general_settings($input) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         $sanitized = [];
 
@@ -257,7 +257,7 @@ class TimeGrowSettings {
      * Sanitize AI settings
      */
     public function sanitize_ai_settings($input) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         // Check if this is an actual form submission or just WordPress retrieving the option
         $is_form_submission = isset($_POST['submit']) || isset($_POST['option_page']);
@@ -266,19 +266,19 @@ class TimeGrowSettings {
         $is_programmatic_update = is_array($input) && !empty($input) && !$is_form_submission;
 
         if(WP_DEBUG) {
-            error_log('Is form submission: ' . ($is_form_submission ? 'YES' : 'NO'));
-            error_log('Is programmatic update: ' . ($is_programmatic_update ? 'YES' : 'NO'));
+            timegrow_log('Is form submission: ' . ($is_form_submission ? 'YES' : 'NO'));
+            timegrow_log('Is programmatic update: ' . ($is_programmatic_update ? 'YES' : 'NO'));
         }
 
         // If not a form submission AND not a programmatic update, just return input as-is
         if (!$is_form_submission && !$is_programmatic_update) {
-            if(WP_DEBUG) error_log('Not a form submission or programmatic update - returning input as-is');
+            timegrow_log('Not a form submission or programmatic update - returning input as-is');
             return $input;
         }
 
         // If it's a programmatic update (load/activate/clear), return the input without processing
         if ($is_programmatic_update) {
-            if(WP_DEBUG) error_log('Programmatic update - returning input without creating new config');
+            timegrow_log('Programmatic update - returning input without creating new config');
             return $input;
         }
 
@@ -288,21 +288,21 @@ class TimeGrowSettings {
         // Preserve existing config_id if updating
         $existing = get_option($this->ai_option_name, []);
         if(WP_DEBUG) {
-            error_log('Existing option has config_id: ' . (isset($existing['config_id']) ? $existing['config_id'] : 'NONE'));
-            error_log('Input has config_id: ' . (isset($input['config_id']) ? $input['config_id'] : 'NONE'));
+            timegrow_log('Existing option has config_id: ' . (isset($existing['config_id']) ? $existing['config_id'] : 'NONE'));
+            timegrow_log('Input has config_id: ' . (isset($input['config_id']) ? $input['config_id'] : 'NONE'));
         }
 
         // Check if config_id is in the input (hidden field) OR in the existing option
         if (isset($input['config_id']) && !empty($input['config_id'])) {
             // Config ID from hidden form field (preferred)
             $sanitized['config_id'] = sanitize_text_field($input['config_id']);
-            if(WP_DEBUG) error_log('Using config_id from input: ' . $sanitized['config_id']);
+            timegrow_log('Using config_id from input: ' . $sanitized['config_id']);
         } elseif (isset($existing['config_id'])) {
             // Config ID from existing option (fallback)
             $sanitized['config_id'] = $existing['config_id'];
-            if(WP_DEBUG) error_log('Preserving config_id from existing: ' . $existing['config_id']);
+            timegrow_log('Preserving config_id from existing: ' . $existing['config_id']);
         } else {
-            if(WP_DEBUG) error_log('No config_id found - will create new configuration');
+            timegrow_log('No config_id found - will create new configuration');
         }
 
         // Configuration name
@@ -339,12 +339,12 @@ class TimeGrowSettings {
                     if ($is_already_encrypted) {
                         // Already encrypted, don't encrypt again
                         $sanitized['ai_api_key'] = $api_key;
-                        if(WP_DEBUG) error_log('API key appears already encrypted, skipping encryption');
+                        timegrow_log('API key appears already encrypted, skipping encryption');
                     } else {
                         // Plain text key, encrypt it
                         $sanitized['ai_api_key'] = \AraGrow\VoiceAI\Security::encrypt($api_key);
                         $api_key_updated = true;
-                        if(WP_DEBUG) error_log('Encrypting new API key');
+                        timegrow_log('Encrypting new API key');
                     }
                 } else {
                     $sanitized['ai_api_key'] = $api_key;
@@ -394,7 +394,7 @@ class TimeGrowSettings {
             'is_active_config' => false,
         ];
 
-        if(WP_DEBUG) error_log('Clearing form after save');
+        timegrow_log('Clearing form after save');
 
         return $cleared_form;
     }
@@ -411,7 +411,7 @@ class TimeGrowSettings {
         // If this is an update (has config_id), update existing
         if (isset($config['config_id']) && isset($configs[$config['config_id']])) {
             $config_id = $config['config_id'];
-            if(WP_DEBUG) error_log('Updating existing config: ' . $config_id);
+            timegrow_log('Updating existing config: ' . $config_id);
 
             // If setting as active, deactivate all others
             if ($is_active) {
@@ -426,7 +426,7 @@ class TimeGrowSettings {
         } else {
             // Creating new config
             $config['config_id'] = uniqid('ai_config_');
-            if(WP_DEBUG) error_log('Creating new config with ID: ' . $config['config_id']);
+            timegrow_log('Creating new config with ID: ' . $config['config_id']);
 
             // If setting as active, deactivate all others
             if ($is_active) {
@@ -440,7 +440,7 @@ class TimeGrowSettings {
         }
 
         update_option($this->ai_configs_option_name, $configs);
-        if(WP_DEBUG) error_log('Saved configurations, total count: ' . count($configs));
+        timegrow_log('Saved configurations, total count: ' . count($configs));
     }
 
     /**
@@ -529,21 +529,21 @@ class TimeGrowSettings {
             return;
         }
 
-        if(WP_DEBUG) error_log('=== AI CONFIG FORM SUBMISSION DETECTED ===');
+        timegrow_log('=== AI CONFIG FORM SUBMISSION DETECTED ===');
 
         // Verify nonce
         if (!wp_verify_nonce($_POST['timegrow_ai_config_nonce'], 'timegrow_save_ai_config')) {
-            if(WP_DEBUG) error_log('Nonce verification failed');
+            timegrow_log('Nonce verification failed');
             wp_die('Security check failed');
         }
 
         // Check permissions
         if (!current_user_can(TIMEGROW_OWNER_CAP)) {
-            if(WP_DEBUG) error_log('Insufficient permissions');
+            timegrow_log('Insufficient permissions');
             wp_die('Insufficient permissions');
         }
 
-        if(WP_DEBUG) error_log('Processing AI config form submission');
+        timegrow_log('Processing AI config form submission');
 
         // Get form data
         $provider = sanitize_text_field($_POST[$this->ai_option_name]['ai_provider'] ?? '');
@@ -569,7 +569,7 @@ class TimeGrowSettings {
             'is_active' => isset($_POST[$this->ai_option_name]['is_active_config']),
         ];
 
-        if(WP_DEBUG) error_log('Config data: ' . print_r($config_data, true));
+        timegrow_log('Config data: ' . print_r($config_data, true));
 
         // Handle API key - only update if a new one is provided
         $api_key = sanitize_text_field($_POST[$this->ai_option_name]['ai_api_key'] ?? '');
@@ -577,7 +577,7 @@ class TimeGrowSettings {
             // Encrypt the API key
             if (class_exists('\AraGrow\VoiceAI\Security')) {
                 $config_data['ai_api_key'] = \AraGrow\VoiceAI\Security::encrypt($api_key);
-                if(WP_DEBUG) error_log('API key encrypted');
+                timegrow_log('API key encrypted');
             } else {
                 $config_data['ai_api_key'] = $api_key;
             }
@@ -599,7 +599,7 @@ class TimeGrowSettings {
             }
 
             $model->update($config_id, $config_data);
-            if(WP_DEBUG) error_log('Updated config ID: ' . $config_id);
+            timegrow_log('Updated config ID: ' . $config_id);
 
             // Clear the editing transient
             delete_transient('timegrow_editing_config_' . get_current_user_id());
@@ -614,7 +614,7 @@ class TimeGrowSettings {
             }
 
             $new_id = $model->create($config_data);
-            if(WP_DEBUG) error_log('Created new config ID: ' . $new_id);
+            timegrow_log('Created new config ID: ' . $new_id);
 
             // Clear the editing transient
             delete_transient('timegrow_editing_config_' . get_current_user_id());
@@ -645,13 +645,13 @@ class TimeGrowSettings {
         }
 
         $action = $_GET['action'];
-        if(WP_DEBUG) error_log('Config action: ' . $action);
+        timegrow_log('Config action: ' . $action);
 
         // Handle clear action (doesn't need config_id)
         if ($action === 'clear') {
             // Clear the editing transient
             delete_transient('timegrow_editing_config_' . get_current_user_id());
-            if(WP_DEBUG) error_log('Form cleared - transient deleted');
+            timegrow_log('Form cleared - transient deleted');
 
             wp_redirect(admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-settings&tab=ai'));
             exit;
@@ -659,27 +659,27 @@ class TimeGrowSettings {
 
         // Other actions require config_id
         if (!isset($_GET['config_id'])) {
-            if(WP_DEBUG) error_log('No config_id provided');
+            timegrow_log('No config_id provided');
             return;
         }
 
         $config_id = intval($_GET['config_id']);
-        if(WP_DEBUG) error_log('Config ID: ' . $config_id);
+        timegrow_log('Config ID: ' . $config_id);
 
         $model = new TimeGrowAIConfigModel();
         $config = $model->get_by_id($config_id);
 
         if (!$config) {
-            if(WP_DEBUG) error_log('Config ID not found in database');
+            timegrow_log('Config ID not found in database');
             return;
         }
 
-        if(WP_DEBUG) error_log('Config found, proceeding with action: ' . $action);
+        timegrow_log('Config found, proceeding with action: ' . $action);
 
         switch ($action) {
             case 'activate':
                 $model->set_active($config_id);
-                if(WP_DEBUG) error_log('Activated config ID: ' . $config_id);
+                timegrow_log('Activated config ID: ' . $config_id);
 
                 wp_redirect(admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-settings&tab=ai&activated=1&t=' . time()));
                 exit;
@@ -688,18 +688,18 @@ class TimeGrowSettings {
             case 'load':
                 // Store the config data in a transient for form population
                 set_transient('timegrow_editing_config_' . get_current_user_id(), $config, 300);
-                if(WP_DEBUG) error_log('Loading config ID ' . $config_id . ' for editing');
+                timegrow_log('Loading config ID ' . $config_id . ' for editing');
 
                 wp_redirect(admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-settings&tab=ai&loaded=1&edit_id=' . $config_id . '&t=' . time()));
                 exit;
                 break;
 
             case 'delete':
-                if(WP_DEBUG) error_log('Deleting config: ' . $config_id);
+                timegrow_log('Deleting config: ' . $config_id);
 
                 $model->delete($config_id);
 
-                if(WP_DEBUG) error_log('Config deleted from database');
+                timegrow_log('Config deleted from database');
                 wp_redirect(admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-settings&tab=ai&deleted=1&t=' . time()));
                 exit;
                 break;
@@ -710,7 +710,7 @@ class TimeGrowSettings {
      * Render settings page with modern card-based design
      */
     public function render_settings_page() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         if (!current_user_can(TIMEGROW_OWNER_CAP)) {
             wp_die(__('You do not have sufficient permissions to access this page.'));
@@ -1005,14 +1005,14 @@ class TimeGrowSettings {
         if (!$is_loading_for_edit) {
             // Delete the temp option to ensure form is empty by default
             delete_option($this->ai_form_temp_option_name);
-            if(WP_DEBUG) error_log('Form temp data cleared on page load (not editing)');
+            timegrow_log('Form temp data cleared on page load (not editing)');
         }
 
         if(WP_DEBUG) {
-            error_log('=== RENDERING AI SETTINGS FORM ===');
-            error_log('Total configs to display: ' . count($all_configs));
+            timegrow_log('=== RENDERING AI SETTINGS FORM ===');
+            timegrow_log('Total configs to display: ' . count($all_configs));
             foreach($all_configs as $id => $cfg) {
-                error_log('  - ' . $id . ': ' . ($cfg['config_name'] ?? 'Unnamed'));
+                timegrow_log('  - ' . $id . ': ' . ($cfg['config_name'] ?? 'Unnamed'));
             }
         }
         ?>

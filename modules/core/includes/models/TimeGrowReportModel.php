@@ -13,7 +13,7 @@ class TimeGrowExpenseModel {
     private $allowed_fields;
 
     public function __construct() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         global $wpdb;
         $this->wpdb = $wpdb;
         $this->charset_collate = $wpdb->get_charset_collate();
@@ -31,7 +31,7 @@ class TimeGrowExpenseModel {
     }
 
     public function initialize() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         $sql = "CREATE TABLE IF NOT EXISTS {$this->table_name} (  -- Join table for many-to-many
             ID BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
             expense_name VARCHAR(255) NOT NULL,
@@ -58,7 +58,7 @@ class TimeGrowExpenseModel {
      * @return array|object|null Array of expense objects or null if no results.
      */
     public function select($ids = null) {
-        if (WP_DEBUG) error_log(__CLASS__ . '::' . __FUNCTION__);
+        timegrow_log(__CLASS__ . '::' . __FUNCTION__);
     
         // If IDs are provided as an array
         if (is_array($ids)) {
@@ -94,7 +94,7 @@ class TimeGrowExpenseModel {
      * @return bool|int False on error, or the number of rows updated.
      */
     public function update($id, $data) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         $id = intval($id); // Sanitize ID
 
         // Whitelist allowed fields to prevent SQL injection
@@ -133,7 +133,7 @@ class TimeGrowExpenseModel {
      * @return int|false The ID of the newly created row, or false on error.
      */
     public function create($data) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         try {
             // Whitelist allowed fields to prevent SQL injection
             $sanitized_data = [];
@@ -160,7 +160,7 @@ class TimeGrowExpenseModel {
                 $sanitized_data,
                 '%s' // string
             );
-            error_log($this->wpdb->last_query);
+            timegrow_log($this->wpdb->last_query);
             
             if ($result === false) {
                 return false;
@@ -170,7 +170,7 @@ class TimeGrowExpenseModel {
  
         } catch (Exception $e) {
             // Handle general exceptions
-            error_log("Exception: " . $e->getMessage());
+            timegrow_log("Exception: " . $e->getMessage());
             echo "An error occurred: " . htmlspecialchars($e->getMessage());
             return new WP_Error(
                 'An error occurred', // Error code

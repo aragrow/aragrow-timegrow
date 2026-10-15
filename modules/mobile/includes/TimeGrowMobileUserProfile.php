@@ -30,7 +30,7 @@ class TimeGrowMobileUserProfile {
      * Initialize user profile hooks
      */
     public static function init() {
-        error_log("TimeGrow PIN: TimeGrowMobileUserProfile::init() called");
+        timegrow_log("TimeGrow PIN: TimeGrowMobileUserProfile::init() called");
 
         self::$authenticator = new TimeGrowPINAuthenticator();
         self::$model = new TimeGrowMobilePINModel();
@@ -43,7 +43,7 @@ class TimeGrowMobileUserProfile {
         add_action('personal_options_update', [__CLASS__, 'save_mobile_pin_settings']);
         add_action('edit_user_profile_update', [__CLASS__, 'save_mobile_pin_settings']);
 
-        error_log("TimeGrow PIN: Hooks registered for personal_options_update and edit_user_profile_update");
+        timegrow_log("TimeGrow PIN: Hooks registered for personal_options_update and edit_user_profile_update");
 
         // Enqueue profile page scripts
         add_action('admin_enqueue_scripts', [__CLASS__, 'enqueue_profile_scripts']);
@@ -347,28 +347,28 @@ class TimeGrowMobileUserProfile {
      * @param int $user_id The user ID being saved
      */
     public static function save_mobile_pin_settings($user_id) {
-        error_log("TimeGrow PIN: save_mobile_pin_settings HOOK FIRED for user {$user_id}");
-        error_log("TimeGrow PIN: POST data keys: " . implode(', ', array_keys($_POST)));
+        timegrow_log("TimeGrow PIN: save_mobile_pin_settings HOOK FIRED for user {$user_id}");
+        timegrow_log("TimeGrow PIN: POST data keys: " . implode(', ', array_keys($_POST)));
 
         // Check permissions
         $can_edit = (current_user_can('administrator') || get_current_user_id() === $user_id);
         if (!$can_edit) {
-            error_log("TimeGrow PIN: Permission denied for user {$user_id}");
+            timegrow_log("TimeGrow PIN: Permission denied for user {$user_id}");
             return;
         }
 
         // Verify nonce
         if (!isset($_POST['timegrow_mobile_pin_nonce'])) {
-            error_log("TimeGrow PIN: Nonce not set in POST data");
+            timegrow_log("TimeGrow PIN: Nonce not set in POST data");
             return;
         }
 
         if (!wp_verify_nonce($_POST['timegrow_mobile_pin_nonce'], 'timegrow_mobile_pin_action')) {
-            error_log("TimeGrow PIN: Nonce verification failed");
+            timegrow_log("TimeGrow PIN: Nonce verification failed");
             return;
         }
 
-        error_log("TimeGrow PIN: save_mobile_pin_settings called for user {$user_id} - Nonce OK");
+        timegrow_log("TimeGrow PIN: save_mobile_pin_settings called for user {$user_id} - Nonce OK");
 
         // Save mobile phone number
         if (isset($_POST['timegrow_mobile_phone'])) {
@@ -385,25 +385,25 @@ class TimeGrowMobileUserProfile {
         }
 
         $action = isset($_POST['timegrow_mobile_action']) ? sanitize_text_field($_POST['timegrow_mobile_action']) : '';
-        error_log("TimeGrow PIN: Action = '{$action}'");
+        timegrow_log("TimeGrow PIN: Action = '{$action}'");
 
         // Handle PIN generation
         if ($action === 'generate' && isset($_POST['timegrow_new_pin'])) {
             $new_pin = sanitize_text_field($_POST['timegrow_new_pin']);
-            error_log("TimeGrow PIN: Attempting to generate PIN: {$new_pin}");
+            timegrow_log("TimeGrow PIN: Attempting to generate PIN: {$new_pin}");
 
             // Validate PIN format (6 alphanumeric characters)
             if (preg_match('/^[A-Z0-9]{6}$/i', $new_pin)) {
-                error_log("TimeGrow PIN: PIN format valid");
+                timegrow_log("TimeGrow PIN: PIN format valid");
                 $result = self::$authenticator->create_pin_for_user($user_id, $new_pin);
 
                 if ($result) {
-                    error_log("TimeGrow PIN: PIN created successfully in database");
+                    timegrow_log("TimeGrow PIN: PIN created successfully in database");
                     add_user_meta($user_id, '_timegrow_mobile_pin_updated', time(), true);
 
                     // Store PIN temporarily for display in admin notice
                     set_transient('timegrow_pin_generated_' . $user_id, $new_pin, 60); // Store for 60 seconds
-                    error_log("TimeGrow PIN: Transient set for user {$user_id}: {$new_pin}");
+                    timegrow_log("TimeGrow PIN: Transient set for user {$user_id}: {$new_pin}");
 
                     // Send SMS notification if phone number is set
                     $phone = get_user_meta($user_id, 'timegrow_mobile_phone', true);
@@ -411,10 +411,10 @@ class TimeGrowMobileUserProfile {
                         self::send_pin_sms_notification($user_id, $phone, $new_pin);
                     }
                 } else {
-                    error_log("TimeGrow PIN: Failed to create PIN in database");
+                    timegrow_log("TimeGrow PIN: Failed to create PIN in database");
                 }
             } else {
-                error_log("TimeGrow PIN: Invalid PIN format: {$new_pin}");
+                timegrow_log("TimeGrow PIN: Invalid PIN format: {$new_pin}");
             }
         }
 
@@ -451,7 +451,7 @@ class TimeGrowMobileUserProfile {
         do_action('timegrow_send_pin_sms', $phone, $message, $user_id, $pin);
 
         // Log for debugging (remove in production)
-        error_log("TimeGrow PIN SMS would be sent to {$phone}: {$message}");
+        timegrow_log("TimeGrow PIN SMS would be sent to {$phone}: {$message}");
     }
 
     /**

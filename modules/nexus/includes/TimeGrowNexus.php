@@ -9,8 +9,8 @@ class TimeGrowNexus{
 
     public function __construct() {
         if(WP_DEBUG) {
-            error_log(__CLASS__.'::'.__FUNCTION__);
-            error_log('Registering admin_enqueue_scripts hook');
+            timegrow_log(__CLASS__.'::'.__FUNCTION__);
+            timegrow_log('Registering admin_enqueue_scripts hook');
         }
    //     add_action('wp_ajax_save_expense', array($this, 'save_ajax'));
    //     add_action('wp_ajax_delete_expense', array($this, 'delete_ajax')); // Add delete action
@@ -20,14 +20,14 @@ class TimeGrowNexus{
         add_action('admin_enqueue_scripts', array($this, 'enqueue_scripts_styles'));
 
         if(WP_DEBUG) {
-            error_log('admin_enqueue_scripts hook registered');
+            timegrow_log('admin_enqueue_scripts hook registered');
         }
     }
 
 
     public function register_admin_menu() {
 
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         add_submenu_page(
             TIMEGROW_PARENT_MENU,
@@ -122,7 +122,7 @@ class TimeGrowNexus{
     }
 
     public function save_time_entry() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);   
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);   
         
         try {            
             $entry_type    = isset($_POST['entry_type']) ? sanitize_text_field($_POST['entry_type']) : '';
@@ -137,7 +137,7 @@ class TimeGrowNexus{
             return $result;
 
         } catch (Exception $e) {
-            error_log('Clock In Error: ' . $e->getMessage());
+            timegrow_log('Clock In Error: ' . $e->getMessage());
             echo '<div class="notice notice-error is-dismissible"><p>Error: ' . esc_html($e->getMessage()) . '</p></div>';
 
             return false;
@@ -146,10 +146,10 @@ class TimeGrowNexus{
     }
 
  public function save_manual() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         try {
-            error_log('$_POST[]');
-            error_log(print_r($_POST,true));
+            timegrow_log('$_POST[]');
+            timegrow_log(print_r($_POST,true));
             $time_entry_id = isset($_POST['time_entry_id']) ? intval($_POST['time_entry_id']) : 0;
             $project_id     = isset($_POST['project_id']) ? intval($_POST['project_id']) : 0;
             $member_id     = isset($_POST['member_id']) ? intval($_POST['member_id']) : 0;
@@ -191,7 +191,7 @@ class TimeGrowNexus{
                 wp_send_json_error(['message' => 'Invalid Date: '.$date]);
                 wp_die();
             }
-            error_log('Verification Passed');
+            timegrow_log('Verification Passed');
 
             $entry_model = new TimeGrowTimeEntryModel();
 
@@ -227,7 +227,7 @@ class TimeGrowNexus{
 
             $id = $entry_model->create($data, $format);
 
-            error_log("ID processed: {$id}");
+            timegrow_log("ID processed: {$id}");
 
             echo "<div class='notice notice-success is-dismissible'><p>{entry_type} added successfully!</p></div>";
 
@@ -238,10 +238,10 @@ class TimeGrowNexus{
     }
     
     public function save_clock_in() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         try {
-            error_log('$_POST[]');
-            error_log(print_r($_POST,true));
+            timegrow_log('$_POST[]');
+            timegrow_log(print_r($_POST,true));
             $time_entry_id = isset($_POST['time_entry_id']) ? intval($_POST['time_entry_id']) : 0;
             $project_id     = isset($_POST['project_id']) ? intval($_POST['project_id']) : 0;
             $member_id     = isset($_POST['member_id']) ? intval($_POST['member_id']) : 0;
@@ -282,7 +282,7 @@ class TimeGrowNexus{
                 wp_send_json_error(['message' => 'Invalid Clock Date: '.$clock_time]);
                 wp_die();
             }
-            error_log('Verification Passed');
+            timegrow_log('Verification Passed');
 
             $date_obj = DateTime::createFromFormat('Y-m-d h:i:s A', $clock_time);
             if ($date_obj) {
@@ -324,13 +324,13 @@ class TimeGrowNexus{
 
             $id = 0;
             if ($time_entry_id == 0) {
-                error_log('Adding Clock In.');
+                timegrow_log('Adding Clock In.');
                 $data['created_at'] = $current_date;
                 $format[] = '%s';
                 $id = $entry_model->create($data, $format);
             } else
 
-            error_log("ID processed: {$id}");
+            timegrow_log("ID processed: {$id}");
 
             echo "<div class='notice notice-success is-dismissible'><p>{entry_type} added successfully!</p></div>";
 
@@ -341,10 +341,10 @@ class TimeGrowNexus{
     }
 
     public function save_clock_out() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         try {
-            error_log('$_POST[]');
-            error_log(print_r($_POST,true));
+            timegrow_log('$_POST[]');
+            timegrow_log(print_r($_POST,true));
             $time_entry_id = isset($_POST['time_entry_id']) ? intval($_POST['time_entry_id']) : 0;
             $entry_type    = isset($_POST['entry_type']) ? sanitize_text_field($_POST['entry_type']) : '';
             $nonce         = isset($_POST['timegrow_time_nexus_nonce_field']) ? sanitize_text_field($_POST['timegrow_time_nexus_nonce_field']) : '';
@@ -379,7 +379,7 @@ class TimeGrowNexus{
                 wp_send_json_error(['message' => 'Invalid Clock Date: '.$clock_time]);
                 wp_die();
             }
-            error_log('Verification Passed');
+            timegrow_log('Verification Passed');
 
             $date_obj = DateTime::createFromFormat('Y-m-d h:i:s A', $clock_time);
             if ($date_obj) {
@@ -401,11 +401,11 @@ class TimeGrowNexus{
                 '%s'   // clock_out_date (string)
             ];
 
-            error_log('Updating Clock Out.');
-            error_log(print_r($data, true));
+            timegrow_log('Updating Clock Out.');
+            timegrow_log(print_r($data, true));
             $id = $entry_model->update($time_entry_id, $data, $format);
    
-            error_log("ID processed: {$id}");
+            timegrow_log("ID processed: {$id}");
 
             echo "<div class='notice notice-success is-dismissible'><p>{entry_type} added successfully!</p></div>";
 
@@ -419,17 +419,17 @@ class TimeGrowNexus{
 
     public function enqueue_scripts_styles($hook) {
         if(WP_DEBUG) {
-            error_log(__CLASS__.'::'.__FUNCTION__);
-            error_log('Hook: ' . $hook);
-            error_log('TIMEGROW_NEXUS_BASE_URI: ' . TIMEGROW_NEXUS_BASE_URI);
-            error_log('TIMEGROW_CORE_BASE_URI: ' . TIMEGROW_CORE_BASE_URI);
+            timegrow_log(__CLASS__.'::'.__FUNCTION__);
+            timegrow_log('Hook: ' . $hook);
+            timegrow_log('TIMEGROW_NEXUS_BASE_URI: ' . TIMEGROW_NEXUS_BASE_URI);
+            timegrow_log('TIMEGROW_CORE_BASE_URI: ' . TIMEGROW_CORE_BASE_URI);
         }
         $plugin_version = '1.0.0'; // Define appropriately
 
         // Always enqueue modern style for all Nexus pages (shared from core module)
         if (strpos($hook, 'timegrow-nexus') !== false || strpos($hook, 'timegrow_page_timegrow-nexus') !== false) {
             wp_enqueue_style('timegrow-modern-style', TIMEGROW_CORE_BASE_URI . 'assets/css/timegrow-modern.css', [], $plugin_version);
-            if(WP_DEBUG) error_log('Enqueued timegrow-modern.css for hook: ' . $hook);
+            timegrow_log('Enqueued timegrow-modern.css for hook: ' . $hook);
         }
 
         if ($hook == "admin_page_timegrow-nexus-clock" || $hook == "timegrow_page_timegrow-nexus-clock") {
@@ -558,7 +558,7 @@ class TimeGrowNexus{
 
 
     public function tracker_mvc_admin_page($screen) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         $model = new TimeGrowTimeEntryModel();
         $view_dashboard = new TimeGrowNexusView();
         $view_clock = new TimeGrowNexusClockView();
@@ -690,7 +690,7 @@ class TimeGrowNexus{
 
     
     public function get_open_order_for_client($client_id) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
     }
 
 

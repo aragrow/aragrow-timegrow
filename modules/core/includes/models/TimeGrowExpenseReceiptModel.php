@@ -12,7 +12,7 @@ class TimeGrowExpenseReceiptModel {
     private $charset_collate;
 
     public function __construct() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         global $wpdb;
         $this->wpdb = $wpdb;
         $this->charset_collate = $wpdb->get_charset_collate();
@@ -20,7 +20,7 @@ class TimeGrowExpenseReceiptModel {
     }
 
     public function initialize() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         $sql = "CREATE TABLE IF NOT EXISTS  {$this->table_name} (
             ID BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
             expense_id BIGINT(20) UNSIGNED NOT NULL,
@@ -44,7 +44,7 @@ class TimeGrowExpenseReceiptModel {
      * @return array|object|null Array of expense objects or null if no results.
      */
     public function select($ids = null) {
-        if (WP_DEBUG) error_log(__CLASS__ . '::' . __FUNCTION__);
+        timegrow_log(__CLASS__ . '::' . __FUNCTION__);
     
         // If IDs are provided as an array
         if (is_array($ids)) {
@@ -79,7 +79,7 @@ class TimeGrowExpenseReceiptModel {
      * @return array|object|null Array of expense objects or null if no results.
      */
     public function select_by_expense($ids = null) {
-        if (WP_DEBUG) error_log(__CLASS__ . '::' . __FUNCTION__);
+        timegrow_log(__CLASS__ . '::' . __FUNCTION__);
     
         // If IDs are provided as an array
         if (is_array($ids)) {
@@ -110,7 +110,7 @@ class TimeGrowExpenseReceiptModel {
      * @return array|WP_Error Upload result with 'url', 'file', 'type' or error
      */
     public function upload_file($file) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         // Handle file upload
         if (empty($file)) {
@@ -167,7 +167,7 @@ class TimeGrowExpenseReceiptModel {
      * @return int|false Receipt ID on success, false on failure
      */
     public function save_receipt_record($expense_id, $file_url, $gemini_data = null) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         global $wpdb;
 
@@ -212,7 +212,7 @@ class TimeGrowExpenseReceiptModel {
      * @return void
      */
     public function update($expense_id, $file) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         $upload_result = $this->upload_file($file);
 

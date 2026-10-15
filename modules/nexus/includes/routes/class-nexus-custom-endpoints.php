@@ -38,7 +38,7 @@ class Nexus_Custom_Endpoints {
      * Initializes table names with the global $wpdb prefix.
      */
     public function __construct() {
-        error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         global $wpdb;
         // Define the table names using the WordPress prefix.
         $this->client_table_name = $wpdb->prefix . 'users';
@@ -61,7 +61,7 @@ class Nexus_Custom_Endpoints {
      * if the static method is hooked directly (as done in nexus-backend.php).
      */
     public function run() {
-        error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         // Example: add_action( 'some_other_action', array( $this, 'some_method' ) );
     }
 
@@ -88,7 +88,7 @@ class Nexus_Custom_Endpoints {
      * This is the entry point for registering all custom routes.   
     */        
     public static function register_routes() {
-        error_log(__CLASS__.'::'.__FUNCTION__); 
+        timegrow_log(__CLASS__.'::'.__FUNCTION__); 
         // Create an instance of the class to access non-static methods (like the table names and callbacks).
         $instance = new self();
 
@@ -143,29 +143,29 @@ class Nexus_Custom_Endpoints {
             'methods'             => 'GET',
             'callback'            => array( $instance, 'get_current_user_details' ),
             'permission_callback' => function( WP_REST_Request $request ) use ( $instance ) { // Added WP_REST_Request type hint
-                error_log('AUTH-ME: Permission callback started.');
+                timegrow_log('AUTH-ME: Permission callback started.');
                 $auth_header = $request->get_header('authorization');
 
                 if ( empty( $auth_header ) ) {
-                    error_log('AUTH-ME: Permission callback - Authorization header is missing.');
+                    timegrow_log('AUTH-ME: Permission callback - Authorization header is missing.');
                     // Attempt to get from $_SERVER as a fallback (e.g. for some server configs)
                     if (isset($_SERVER['HTTP_AUTHORIZATION'])) {
                         $auth_header = $_SERVER['HTTP_AUTHORIZATION'];
-                        error_log('AUTH-ME: Permission callback - Authorization header found in $_SERVER.');
+                        timegrow_log('AUTH-ME: Permission callback - Authorization header found in $_SERVER.');
                     } else {
                         return new WP_Error( 'rest_forbidden_no_header', __( 'Authorization header is missing.', 'your-plugin-textdomain' ), array( 'status' => 401 ) );
                     }
                 }
 
                 if ( stripos( $auth_header, 'Bearer ' ) !== 0 ) { // Use stripos for case-insensitive check
-                    error_log('AUTH-ME: Permission callback - Authorization header invalid format.'); // never log the header value
+                    timegrow_log('AUTH-ME: Permission callback - Authorization header invalid format.'); // never log the header value
                     return new WP_Error( 'rest_forbidden_invalid_header', __( 'Authorization header is invalid.', 'your-plugin-textdomain' ), array( 'status' => 401 ) );
                 }
 
                 $jwt_token = trim( substr( $auth_header, 7 ) ); // Get token part after "Bearer "
 
                 if (empty($jwt_token)) {
-                    error_log('AUTH-ME: Permission callback - Extracted token is empty.');
+                    timegrow_log('AUTH-ME: Permission callback - Extracted token is empty.');
                     return new WP_Error( 'rest_forbidden_empty_token', __( 'Token is empty after Bearer.', 'your-plugin-textdomain' ), array( 'status' => 401 ) );
                 }
 
@@ -173,17 +173,17 @@ class Nexus_Custom_Endpoints {
                 $jwt_validation = $instance->verify_and_get_jwt_details( $jwt_token );
 
                 if ( is_wp_error( $jwt_validation ) ) {
-                    error_log('AUTH-ME: Permission callback - JWT validation FAILED: ' . $jwt_validation->get_error_message());
+                    timegrow_log('AUTH-ME: Permission callback - JWT validation FAILED: ' . $jwt_validation->get_error_message());
                     return $jwt_validation;
                 }
 
                 $user_id = isset( $jwt_validation->sub ) ? (int) $jwt_validation->sub : 0;
                 if ($user_id <= 0) {
-                    error_log('AUTH-ME: Permission callback - Invalid user ID from token payload.');
+                    timegrow_log('AUTH-ME: Permission callback - Invalid user ID from token payload.');
                     return new WP_Error( 'rest_invalid_user_in_token', __( 'Invalid user identifier in token payload.', 'your-plugin-textdomain' ), array( 'status' => 401 ) );
                 }
 
-                error_log('AUTH-ME: Permission callback - JWT validation SUCCESS. User ID from token: ' . $user_id);
+                timegrow_log('AUTH-ME: Permission callback - JWT validation SUCCESS. User ID from token: ' . $user_id);
                 $request->set_param('validated_user_id', $user_id); // Store for the main callback
                 return true;
             },
@@ -218,22 +218,22 @@ class Nexus_Custom_Endpoints {
     }
 
     public function get_current_user_details( WP_REST_Request $request ) {
-        error_log(__CLASS__.'::'.__FUNCTION__ . ' - STARTED');
+        timegrow_log(__CLASS__.'::'.__FUNCTION__ . ' - STARTED');
 
         $user_id = $request->get_param('validated_user_id'); // Get from permission callback
 
         if ( empty($user_id) || $user_id <= 0 ) {
             // This should ideally not happen if permission callback worked.
             // Could add a fallback to re-validate token from header if needed, but let's keep it clean.
-            error_log(__CLASS__.'::'.__FUNCTION__ . ' - Invalid or missing validated_user_id param.');
+            timegrow_log(__CLASS__.'::'.__FUNCTION__ . ' - Invalid or missing validated_user_id param.');
             return new WP_Error( 'rest_invalid_user_param', __( 'Validated user ID not found in request.', 'your-plugin-textdomain' ), array( 'status' => 401 ) );
         }
 
-        error_log(__CLASS__.'::'.__FUNCTION__ . ' - User ID to fetch: ' . $user_id);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__ . ' - User ID to fetch: ' . $user_id);
         $user = get_userdata( $user_id );
 
         if ( ! $user || ! ( $user instanceof WP_User ) ) {
-            error_log(__CLASS__.'::'.__FUNCTION__ . ' - User not found for ID: ' . $user_id);
+            timegrow_log(__CLASS__.'::'.__FUNCTION__ . ' - User not found for ID: ' . $user_id);
             return new WP_Error( 'rest_user_not_found', __( 'User not found.', 'your-plugin-textdomain' ), array( 'status' => 404 ) );
         }
 
@@ -246,7 +246,7 @@ class Nexus_Custom_Endpoints {
             // 'email'         => $user->user_email,
             // 'roles'         => $user->roles,
         );
-        error_log(__CLASS__.'::'.__FUNCTION__ . ' - Successfully fetched user data: ' . print_r($user_data, true));
+        timegrow_log(__CLASS__.'::'.__FUNCTION__ . ' - Successfully fetched user data: ' . print_r($user_data, true));
         return new WP_REST_Response( $user_data, 200 );
     }
 
@@ -268,7 +268,7 @@ class Nexus_Custom_Endpoints {
      * @return bool|WP_Error True if permission is granted, WP_Error otherwise.
      */
     public function get_permissions_check( $request ) {
-        error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         // Ensure the user is logged in.
         if ( ! is_user_logged_in() ) {
             return new WP_Error( 'rest_not_logged_in', __( 'You are not currently logged in.', 'your-plugin-textdomain' ), array( 'status' => 401 ) );
@@ -295,7 +295,7 @@ class Nexus_Custom_Endpoints {
      * @return bool|WP_Error True if permission is granted, WP_Error otherwise.
      */
     public function get_company_description() {
-        error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         global $wpdb;
         $table_name = $wpdb->prefix . 'company_tracker';    
 
@@ -387,7 +387,7 @@ class Nexus_Custom_Endpoints {
      * @return bool|WP_Error True if permission is granted, WP_Error otherwise.
      */
     public function handle_natural_language_query_permissions_check( $request ) {
-        error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
          // Ensure the user is logged in.
         if ( ! is_user_logged_in() ) {
             return new WP_Error( 'rest_not_logged_in', __( 'You are not currently logged in.', 'your-plugin-textdomain' ), array( 'status' => 401 ) );
@@ -413,7 +413,7 @@ class Nexus_Custom_Endpoints {
      * @return WP_REST_Response|WP_Error The response object containing processed query info/results or an error.
      */
     public function handle_natural_language_query( $request ) {
-        error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         global $wpdb;
 
 
@@ -424,7 +424,7 @@ class Nexus_Custom_Endpoints {
     }
 
     function handle_app_password_login( WP_REST_Request $request ) {
-        error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         // Sanitize username, but application_password should be passed raw to wp_authenticate
         $username = $request->get_param('username'); // Already sanitized by 'args'
         $application_password = $request->get_param('application_password'); // NOT sanitized by args, pass raw
@@ -437,12 +437,12 @@ class Nexus_Custom_Endpoints {
                 array( 'status' => 400 ) // Bad Request
             );
         }
-        error_log("Attempting login for user: " . $username);
+        timegrow_log("Attempting login for user: " . $username);
 
         $user = wp_authenticate( $username, $application_password );
 
         if ( is_wp_error( $user ) ) {
-            error_log("Login failed for user: " . $username . ". Error: " . $user->get_error_code() . " - " . $user->get_error_message());
+            timegrow_log("Login failed for user: " . $username . ". Error: " . $user->get_error_code() . " - " . $user->get_error_message());
             return new WP_Error(
                 $user->get_error_code(),
                 $user->get_error_message(),
@@ -451,19 +451,19 @@ class Nexus_Custom_Endpoints {
         }
 
         if ( ! $user instanceof WP_User ) {
-            error_log("Login for user: " . $username . " - Unknown error, wp_authenticate returned non-WP_User, non-WP_Error.");
+            timegrow_log("Login for user: " . $username . " - Unknown error, wp_authenticate returned non-WP_User, non-WP_Error.");
             return new WP_Error( 'nexus_auth_unknown_error', __( 'An unknown error occurred during authentication.', 'your-plugin-textdomain' ), array( 'status' => 500 ) );
         }
 
-        error_log("Login successful for user: " . $user->user_login . " (ID: " . $user->ID . ")");
+        timegrow_log("Login successful for user: " . $user->user_login . " (ID: " . $user->ID . ")");
         $jwt_response = $this->generate_jwt_manually( $user ); // This returns ['token' => $jwt_token] or WP_Error
 
         if (is_wp_error($jwt_response)) {
-            error_log("JWT generation failed for user: " . $user->user_login . ". Error: " . $jwt_response->get_error_message());
+            timegrow_log("JWT generation failed for user: " . $user->user_login . ". Error: " . $jwt_response->get_error_message());
             return $jwt_response; // Propagate the WP_Error
         }
         
-        error_log("JWT generated successfully for user: " . $user->user_login);
+        timegrow_log("JWT generated successfully for user: " . $user->user_login);
         return new WP_REST_Response( $jwt_response, 200 ); // $jwt_response is like ['token' => 'actual_token_string']
     }
 
@@ -475,7 +475,7 @@ class Nexus_Custom_Endpoints {
      * @return string The Base64Url encoded string.
      */
     private function base64url_encode( $data ) {
-        error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         $base64 = base64_encode( $data ); // Standard base64 encode
         $base64url = strtr( $base64, '+/', '-_' ); // Replace URL-unsafe characters
         return rtrim( $base64url, '=' ); // Remove padding
@@ -488,7 +488,7 @@ class Nexus_Custom_Endpoints {
      * @return string|false The decoded data or false on failure.
      */
     function base64url_decode( $data ) { // Renamed to avoid potential global conflicts
-        error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         // Add back padding characters ('=') needed for standard base64 decoding
         $b64 = strtr( $data, '-_', '+/' );
         $padded = $b64 . str_repeat('=', strlen($b64) % 4);
@@ -524,7 +524,7 @@ class Nexus_Custom_Endpoints {
      * @throws RuntimeException If the JWT generation process fails.
      */
     private function generate_jwt_manually( WP_User $user ) {
-        error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         // Step 1: Define Header
         $header_array = array(
             'alg' => 'HS256', // Algorithm: HMAC-SHA256
@@ -533,7 +533,7 @@ class Nexus_Custom_Endpoints {
         $header = json_encode( $header_array );
         // Handle json_encode errors
         if ( $header === false ) {
-            error_log('Nexus Auth Manual JWT: Header json_encode error: ' . json_last_error_msg());
+            timegrow_log('Nexus Auth Manual JWT: Header json_encode error: ' . json_last_error_msg());
             return new WP_Error( 'nexus_jwt_encode_header', __( 'Failed to encode JWT header.', 'your-plugin-textdomain' ), array( 'status' => 500, 'details' => json_last_error_msg() ) );
         }
     
@@ -560,7 +560,7 @@ class Nexus_Custom_Endpoints {
         $payload = json_encode( $payload_array );
          // Handle json_encode errors
         if ( $payload === false ) {
-            error_log('Nexus Auth Manual JWT: Payload json_encode error: ' . json_last_error_msg());
+            timegrow_log('Nexus Auth Manual JWT: Payload json_encode error: ' . json_last_error_msg());
             return new WP_Error( 'nexus_jwt_encode_payload', __( 'Failed to encode JWT payload.', 'your-plugin-textdomain' ), array( 'status' => 500, 'details' => json_last_error_msg() ) );
         }
     
@@ -575,7 +575,7 @@ class Nexus_Custom_Endpoints {
     
         // Step 6: Get the Secret Key
         if ( ! defined( 'JWT_AUTH_SECRET_KEY' ) || empty( JWT_AUTH_SECRET_KEY ) ) {
-            error_log('Nexus Auth Manual JWT: JWT_AUTH_SECRET_KEY is not defined.');
+            timegrow_log('Nexus Auth Manual JWT: JWT_AUTH_SECRET_KEY is not defined.');
             return new WP_Error( 'nexus_jwt_secret_missing', __( 'JWT secret key is not defined on the backend.', 'your-plugin-textdomain' ), array( 'status' => 500 ) );
         }
         $secret_key = JWT_AUTH_SECRET_KEY;
@@ -598,7 +598,7 @@ class Nexus_Custom_Endpoints {
     }
 
     private static function verify_and_get_jwt( $token ) {
-        error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         // This function is a wrapper for the verify_and_get_jwt_details method.
         // It can be used to validate the JWT token and return the decoded payload.
         $instance = new self();
@@ -607,22 +607,22 @@ class Nexus_Custom_Endpoints {
             // Handle the error case
             return $result; // Return the error object
         }
-        error_log('Result of Verification: ' . print_r($result, true));
+        timegrow_log('Result of Verification: ' . print_r($result, true));
         return $result;
     }
 
     function verify_and_get_jwt_details( $token ) { // Renamed to avoid potential global conflicts
-        error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
     
         if ( empty( $token ) || ! is_string( $token ) ) {
-            error_log('JWT Verify: Invalid or empty token provided.');
+            timegrow_log('JWT Verify: Invalid or empty token provided.');
             return new WP_Error( 'your_prefix_jwt_invalid_token_input', __( 'Invalid token provided.', 'your-plugin-textdomain' ), array( 'status' => 400 ) );
         }
     
         // 1. Split the token into parts
         $parts = explode( '.', $token );
         if ( count( $parts ) !== 3 ) {
-            error_log('JWT Verify: Token structure incorrect (expected 3 parts).');
+            timegrow_log('JWT Verify: Token structure incorrect (expected 3 parts).');
             return new WP_Error( 'your_prefix_jwt_invalid_structure', __( 'Token structure is invalid.', 'your-plugin-textdomain' ), array( 'status' => 401 ) );
         }
         list( $base64UrlHeader, $base64UrlPayload, $base64UrlSignatureProvided ) = $parts;
@@ -632,7 +632,7 @@ class Nexus_Custom_Endpoints {
         $payload_json = $this->base64url_decode( $base64UrlPayload );
     
         if ( $header_json === false || $payload_json === false ) {
-            error_log('JWT Verify: Failed to Base64Url decode header or payload.');
+            timegrow_log('JWT Verify: Failed to Base64Url decode header or payload.');
             return new WP_Error( 'your_prefix_jwt_decode_error', __( 'Failed to decode token parts.', 'your-plugin-textdomain' ), array( 'status' => 401 ) );
         }
     
@@ -640,19 +640,19 @@ class Nexus_Custom_Endpoints {
         $payload_decoded = json_decode( $payload_json ); // Keep as object for easier access
     
         if ( $header_decoded === null || $payload_decoded === null ) {
-            error_log('JWT Verify: Failed to JSON decode header or payload: ' . json_last_error_msg());
+            timegrow_log('JWT Verify: Failed to JSON decode header or payload: ' . json_last_error_msg());
             return new WP_Error( 'your_prefix_jwt_json_decode_error', __( 'Failed to parse token JSON.', 'your-plugin-textdomain' ), array( 'status' => 401 ) );
         }
     
         // Optional: Check algorithm
         if ( ! isset( $header_decoded->alg ) || $header_decoded->alg !== 'HS256' ) {
-            error_log('JWT Verify: Invalid or missing algorithm in header.');
+            timegrow_log('JWT Verify: Invalid or missing algorithm in header.');
             return new WP_Error( 'your_prefix_jwt_invalid_alg', __( 'Invalid algorithm specified.', 'your-plugin-textdomain' ), array( 'status' => 401 ) );
         }
     
         // 3. Get Secret Key (Ensure this constant is defined elsewhere, e.g., wp-config.php)
         if ( ! defined( 'JWT_AUTH_SECRET_KEY' ) || empty( JWT_AUTH_SECRET_KEY ) ) {
-            error_log('JWT Verify: JWT_AUTH_SECRET_KEY is not defined for verification.');
+            timegrow_log('JWT Verify: JWT_AUTH_SECRET_KEY is not defined for verification.');
             return new WP_Error( 'your_prefix_jwt_verification_failed', __( 'Token verification failed.', 'your-plugin-textdomain' ), array( 'status' => 500 ) );
         }
         $secret_key = JWT_AUTH_SECRET_KEY;
@@ -665,61 +665,61 @@ class Nexus_Custom_Endpoints {
         // If not, you'll need to add it. Let's assume it's `your_prefix_base64url_encode`.
         $base64UrlSignatureExpected = $this->base64url_encode( $signature_expected_raw ); // You need the encode function too!
     
-        // error_log('JWT Verify: Expected Signature: ' . $base64UrlSignatureExpected);
-        // error_log('JWT Verify: Provided Signature: ' . $base64UrlSignatureProvided);
-        // error_log('JWT Verify: Hash Equals: ' . hash_equals( $base64UrlSignatureExpected, $base64UrlSignatureProvided ) );
+        // timegrow_log('JWT Verify: Expected Signature: ' . $base64UrlSignatureExpected);
+        // timegrow_log('JWT Verify: Provided Signature: ' . $base64UrlSignatureProvided);
+        // timegrow_log('JWT Verify: Hash Equals: ' . hash_equals( $base64UrlSignatureExpected, $base64UrlSignatureProvided ) );
 
         if ( ! hash_equals( $base64UrlSignatureExpected, $base64UrlSignatureProvided ) ) {
-            error_log('JWT Verify: Signature verification failed.');
+            timegrow_log('JWT Verify: Signature verification failed.');
             return new WP_Error( 'your_prefix_jwt_invalid_signature', __( 'Token signature is invalid.', 'your-plugin-textdomain' ), array( 'status' => 401 ) );
         }
-        error_log('JWT Verify: Signature verified successfully.');
+        timegrow_log('JWT Verify: Signature verified successfully.');
     
         // 5. Check Expiry ('exp' claim)
         if ( ! isset( $payload_decoded->exp ) ) {
-            error_log('JWT Verify: Expiration claim (exp) missing.');
+            timegrow_log('JWT Verify: Expiration claim (exp) missing.');
             return new WP_Error( 'your_prefix_jwt_missing_claim_exp', __( 'Token is missing expiration claim.', 'your-plugin-textdomain' ), array( 'status' => 401 ) );
         }
         if ( time() > $payload_decoded->exp ) {
-            error_log('JWT Verify: Token has expired. Current time: ' . time() . ', Exp time: ' . $payload_decoded->exp);
+            timegrow_log('JWT Verify: Token has expired. Current time: ' . time() . ', Exp time: ' . $payload_decoded->exp);
             return new WP_Error( 'your_prefix_jwt_token_expired', __( 'Token has expired.', 'your-plugin-textdomain' ), array( 'status' => 401 ) );
         }
-        error_log('JWT Verify: Token is not expired.');
+        timegrow_log('JWT Verify: Token is not expired.');
     
         // Optional: Check Not Before ('nbf' claim) if used
         if ( isset( $payload_decoded->nbf ) && time() < $payload_decoded->nbf ) {
-            error_log('JWT Verify: Token is not yet valid (nbf).');
+            timegrow_log('JWT Verify: Token is not yet valid (nbf).');
             return new WP_Error( 'your_prefix_jwt_token_not_yet_valid', __( 'Token is not yet valid.', 'your-plugin-textdomain' ), array( 'status' => 401 ) );
         }
     
         // Optional: Check Issued At ('iat' claim) sanity
         if ( isset( $payload_decoded->iat ) && $payload_decoded->iat > time() ) {
-            error_log('JWT Verify: Issued At (iat) claim is in the future.');
+            timegrow_log('JWT Verify: Issued At (iat) claim is in the future.');
             return new WP_Error( 'your_prefix_jwt_invalid_iat', __( 'Token issue time is invalid.', 'your-plugin-textdomain' ), array( 'status' => 401 ) );
         }
     
         // 6. Validate User ('sub' claim)
         if ( ! isset( $payload_decoded->sub ) || empty( $payload_decoded->sub ) ) {
-            error_log('JWT Verify: Subject claim (sub) missing or empty.');
+            timegrow_log('JWT Verify: Subject claim (sub) missing or empty.');
             return new WP_Error( 'your_prefix_jwt_missing_claim_sub', __( 'Token is missing user identifier.', 'your-plugin-textdomain' ), array( 'status' => 401 ) );
         }
     
         $user_id = (int) $payload_decoded->sub;
         if ( $user_id <= 0 ) {
-            error_log('JWT Verify: Invalid user ID in subject claim (sub).');
+            timegrow_log('JWT Verify: Invalid user ID in subject claim (sub).');
             return new WP_Error( 'your_prefix_jwt_invalid_sub_format', __( 'Invalid user identifier format in token.', 'your-plugin-textdomain' ), array( 'status' => 401 ) );
         }
     
         // Check if user exists in WordPress
         $user = get_userdata( $user_id );
         if ( ! $user || ! ( $user instanceof WP_User ) || $user->ID !== $user_id ) {
-            error_log('JWT Verify: User specified in token (ID: ' . $user_id . ') not found or invalid in WordPress.');
+            timegrow_log('JWT Verify: User specified in token (ID: ' . $user_id . ') not found or invalid in WordPress.');
             return new WP_Error( 'your_prefix_jwt_invalid_user', __( 'Token validation failed.', 'your-plugin-textdomain' ), array( 'status' => 401 ) );
         }
-        error_log('JWT Verify: User (ID: ' . $user_id . ') validated successfully.');
+        timegrow_log('JWT Verify: User (ID: ' . $user_id . ') validated successfully.');
     
         // 7. All checks passed! Return the decoded payload object.
-        error_log('JWT Verify: Token verified successfully for user ID: ' . $user_id);
+        timegrow_log('JWT Verify: Token verified successfully for user ID: ' . $user_id);
         return $payload_decoded;
     }
 

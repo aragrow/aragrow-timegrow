@@ -24,7 +24,7 @@ class Aragrow_WOO_Integration_Plugins
     public function __construct()
     {
 
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         //  add_filter('woocommerce_before_order_itemmeta', [$this, 'custom_admin_order_item_quantity_input'], 10, 2);
         // add_action('woocommerce_before_order_item_quantity_save', [$this, 'allow_decimal_quantities_in_orders'], 10, 2);
         //  add_filter('woocommerce_order_item_quantity_html', [$this, 'display_decimal_quantities_in_admin'], 10, 2);
@@ -110,7 +110,7 @@ class Aragrow_WOO_Integration_Plugins
 
     // Helper function to get all product IDs in the TIMEGROW category
     function is_timegrow_product_id($id) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         $args = array(
             'ID' => $id,
             'category' => array('timegrow'),
@@ -122,7 +122,7 @@ class Aragrow_WOO_Integration_Plugins
     }
 
     function custom_admin_order_item_quantity_input($item_id, $item) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         // Only run this on the order edit page
         if (!is_admin() || !isset($_GET['post']) || get_post_type($_GET['post']) !== 'shop_order') {
             return;
@@ -150,7 +150,7 @@ class Aragrow_WOO_Integration_Plugins
     }   
 
     function allow_decimal_quantities_in_orders($item_id, $item) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         if (isset($_POST['order_item_qty'][$item_id])) {
             $quantity = floatval($_POST['order_item_qty'][$item_id]);
             $item->set_quantity($quantity); // Save as a decimal
@@ -158,13 +158,13 @@ class Aragrow_WOO_Integration_Plugins
     }
     
     function display_decimal_quantities_in_admin($quantity_html, $item) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         $quantity = $item->get_quantity();
         return number_format((float) $quantity, 2, '.', ''); // Display with 2 decimal places
     }
     
     function add_manual_payments_submenu() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         add_submenu_page(
             'woocommerce',
             'Manual Payments',
@@ -176,7 +176,7 @@ class Aragrow_WOO_Integration_Plugins
     }
 
     function manual_payments_page_callback() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         echo '<div class="wrap">';
         echo '<h1>Manual Payments</h1>';
         echo '<p>This is the Manual Payments page content.</p>';
@@ -184,12 +184,12 @@ class Aragrow_WOO_Integration_Plugins
     }
 
     function add_manual_payment_meta_box() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         $screen = wc_get_container()->get(CustomOrdersTableController::class)->custom_orders_table_usage_is_enabled()
             ? wc_get_page_screen_id('shop-order')
             : 'shop_order';
     
-        error_log('Adding manual payment meta box to screen: ' . $screen);
+        timegrow_log('Adding manual payment meta box to screen: ' . $screen);
         add_meta_box(
             'manual_payment_meta_box',
             __('Manual Payment Details', 'textdomain'),
@@ -290,7 +290,7 @@ class Aragrow_WOO_Integration_Plugins
 
                 // Log validation failure
                 if (WP_DEBUG) {
-                    error_log('Manual payment validation failed for Order #' . $order_id . ': ' . implode(' | ', $errors));
+                    timegrow_log('Manual payment validation failed for Order #' . $order_id . ': ' . implode(' | ', $errors));
                 }
 
                 // Do not save invalid data
@@ -319,7 +319,7 @@ class Aragrow_WOO_Integration_Plugins
     }
 
     function display_manual_payment_details($order) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         $order_id = $order->get_id();
         
         $payment_date = get_post_meta($order_id, '_payment_date', true);
@@ -337,7 +337,7 @@ class Aragrow_WOO_Integration_Plugins
     }
 
     function add_custom_field_ein_ssn($user) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         $timegrow_ein_ssn = get_user_meta($user->ID, 'timegrow_ein_ssn', true);
         ?>
@@ -357,7 +357,7 @@ class Aragrow_WOO_Integration_Plugins
 
     // Guardar el campo DNI/NIE/CIF cuando se actualiza el usuario
     function ein_ssn_save_user_field($user_id) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         if (!current_user_can('edit_user', $user_id)) {
             return false;
@@ -370,14 +370,14 @@ class Aragrow_WOO_Integration_Plugins
 
     // Mostrar el campo en la lista de usuarios
     function ein_ssn_add_user_column($columns) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         $columns['_timegrow_ein_ssn'] = __('EIN SSN');
         return $columns;
     }
 
     function ein_ssn_show_user_column_value($value, $column_name, $user_id) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         if ($column_name == 'timegrow_ein_ssn') {
             return get_user_meta($user_id, '_timegrow_ein_ssn', true);
@@ -538,7 +538,7 @@ class Aragrow_WOO_Integration_Plugins
      * Order editor "Update": apply each line's hours.
      */
     public function apply_project_hours_to_order_lines($order_id) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         if (empty($_POST['timegrow_line_hours']) || !is_array($_POST['timegrow_line_hours'])) return;
 
@@ -637,7 +637,7 @@ class Aragrow_WOO_Integration_Plugins
     }
 
     public function custom_aragrow_time_invoice_table_headers($headers, $document) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         $headers = array(
             'product'  => __('Project', 'woocommerce'),
@@ -649,7 +649,7 @@ class Aragrow_WOO_Integration_Plugins
     }
 
     public function custom_aragrow_invoice_table_headers($headers, $document) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         $headers = array(
             'product'  => __('Product', 'woocommerce'),
@@ -661,7 +661,7 @@ class Aragrow_WOO_Integration_Plugins
     }
 
     public function register_custom_invoice_paid_status() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         register_post_status('wc-invoice_paid', array(
             'label'                     => _x('Invoice Paid', 'Order status', 'woocommerce'),
@@ -674,14 +674,14 @@ class Aragrow_WOO_Integration_Plugins
     }
 
     public function add_custom_invoice_paid_to_order_statuses($order_statuses) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         $order_statuses['wc-invoice_paid'] = _x('Invoice Paid', 'Order status', 'woocommerce');
         return $order_statuses;
     }
 
     public function enable_invoice_for_custom_invoice_paid_status($allowed, $document) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         if ($document->type == 'invoice') {
             $order = $document->order;
@@ -693,7 +693,7 @@ class Aragrow_WOO_Integration_Plugins
     }
 
     public function register_custom_invoice_sent_status() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         register_post_status('wc-invoice_sent', array(
             'label'                     => _x('Invoice Sent to Client`', 'Order status', 'woocommerce'),
@@ -706,14 +706,14 @@ class Aragrow_WOO_Integration_Plugins
     }
 
     public function add_custom_invoice_sent_to_order_statuses($order_statuses) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         $order_statuses['wc-invoice_sent'] = _x('Invoice Sent to Client', 'Order status', 'woocommerce');
         return $order_statuses;
     }
 
     public function enable_invoice_for_custom_invoice_sent_status($allowed, $document) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         if ($document->type == 'invoice') {
             $order = $document->order;
@@ -725,7 +725,7 @@ class Aragrow_WOO_Integration_Plugins
     }
 
     public function send_custom_invoice_paid_email_notification($order_id) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         $order = wc_get_order($order_id);
     
@@ -745,7 +745,7 @@ class Aragrow_WOO_Integration_Plugins
     }
 
     public function send_custom_invoice_sent_email_notification($order_id) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         return; // This function is already defined above, so we can skip this duplicate definition.
         $order = wc_get_order($order_id);
 
@@ -765,7 +765,7 @@ class Aragrow_WOO_Integration_Plugins
     }
 
     public function register_custom_partial_paid_status() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         register_post_status('wc-partial_paid', array(
             'label'                     => _x('Partial Paid', 'Order status', 'woocommerce'),
@@ -778,14 +778,14 @@ class Aragrow_WOO_Integration_Plugins
     }
 
     public function add_custom_partial_paid_to_order_statuses($order_statuses) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         $order_statuses['wc-partial_paid'] = _x('Partial Paid', 'Order status', 'woocommerce');
         return $order_statuses;
     }
 
     public function enable_invoice_for_custom_partial_paid_status($allowed, $document) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         if ($document->type == 'invoice') {
             $order = $document->order;
@@ -797,7 +797,7 @@ class Aragrow_WOO_Integration_Plugins
     }
 
     public function send_custom_partial_paid_email_notification($order_id) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         $order = wc_get_order($order_id);
 
@@ -817,7 +817,7 @@ class Aragrow_WOO_Integration_Plugins
     }
 
     public function custom_invoice_paid_admin_styles() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         
         echo '<style>
             .order-status.status-invoice_paid { background: #28a745; color: #fff; }
@@ -825,7 +825,7 @@ class Aragrow_WOO_Integration_Plugins
     }
     
     public function custom_invoice_sent_admin_styles() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         echo '<style>
             .order-status.status-invoice_sent { background: #007bff; color: #fff; }
@@ -833,7 +833,7 @@ class Aragrow_WOO_Integration_Plugins
     }
 
     public function custom_partial_paid_admin_styles() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         echo '<style>
             .order-status.status-partial_paid { background: #ff9800; color: #fff; }
@@ -844,7 +844,7 @@ class Aragrow_WOO_Integration_Plugins
      * Auto-record full payment when order status changes to invoice_paid
      */
     public function auto_record_full_payment($order_id) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         $order = wc_get_order($order_id);
         if (!$order) return;
@@ -867,7 +867,7 @@ class Aragrow_WOO_Integration_Plugins
         $order->save();
 
         if(WP_DEBUG) {
-            error_log('Auto-recorded full payment for order #' . $order_id . ': $' . $order->get_total());
+            timegrow_log('Auto-recorded full payment for order #' . $order_id . ': $' . $order->get_total());
         }
     }
 
@@ -876,7 +876,7 @@ class Aragrow_WOO_Integration_Plugins
      * Validates that a payment amount has been entered
      */
     public function auto_record_partial_payment($order_id) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         $order = wc_get_order($order_id);
         if (!$order) return;
@@ -897,7 +897,7 @@ class Aragrow_WOO_Integration_Plugins
             }
 
             if(WP_DEBUG) {
-                error_log('WARNING: Order #' . $order_id . ' marked as partial_paid but no payment amount set');
+                timegrow_log('WARNING: Order #' . $order_id . ' marked as partial_paid but no payment amount set');
             }
             return;
         }
@@ -924,7 +924,7 @@ class Aragrow_WOO_Integration_Plugins
         }
 
         if(WP_DEBUG) {
-            error_log('Validated partial payment for order #' . $order_id . ': $' . $payment_amount . ' of $' . $order_total);
+            timegrow_log('Validated partial payment for order #' . $order_id . ': $' . $payment_amount . ' of $' . $order_total);
         }
     }
 
@@ -956,13 +956,13 @@ class Aragrow_MyWooUnpaidInvoiceDashboardWidget {
     
     public function __construct() {
         
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         add_action('wp_dashboard_setup', [$this, 'woocommerce_unpaid_invoices_widget'],999);
 
     }
 
     public function woocommerce_unpaid_invoices_widget() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         $return = wp_add_dashboard_widget(
             'aragrow_woocommerce_unpaid_invoices', 
             'Unpaid Invoices', 
@@ -971,7 +971,7 @@ class Aragrow_MyWooUnpaidInvoiceDashboardWidget {
     }
 
     public function woocommerce_unpaid_invoices_callback() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         // Get unpaid invoices
         $unpaid_invoices = $this->get_unpaid_invoices();
         if(empty($unpaid_invoices)) {
@@ -1007,7 +1007,7 @@ class Aragrow_MyWooUnpaidInvoiceDashboardWidget {
     public function get_unpaid_invoices() {
         $unpaid_invoices = [];
         global $wpdb;
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         if (!function_exists('wc_get_orders')) {
             var_dump('ERROR -> WooCommerce not loaded!. Contact your administrator.'); 
             return $unpaid_invoices;

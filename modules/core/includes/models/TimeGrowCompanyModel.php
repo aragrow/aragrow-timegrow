@@ -12,7 +12,7 @@ class TimeGrowCompanyModel {
     private $allowed_fields;
 
     public function __construct() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         global $wpdb;
         $this->wpdb = $wpdb;
         $this->charset_collate = $wpdb->get_charset_collate();
@@ -30,7 +30,7 @@ class TimeGrowCompanyModel {
     }
 
     public function initialize() {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         $sql = "CREATE TABLE IF NOT EXISTS {$this->table_name} (
             ID BIGINT(20) unsigned NOT NULL AUTO_INCREMENT,
             name varchar(255) NOT NULL,
@@ -65,7 +65,7 @@ class TimeGrowCompanyModel {
      * @return array|object|null Array of expense objects or null if no results.
      */
     public function select($ids = null) {
-        if (WP_DEBUG) error_log(__CLASS__ . '::' . __FUNCTION__);
+        timegrow_log(__CLASS__ . '::' . __FUNCTION__);
     
         // If IDs are provided as an array
         if (is_array($ids)) {
@@ -101,7 +101,7 @@ class TimeGrowCompanyModel {
      * @return bool|int False on error, or the number of rows updated.
      */
     public function update($id, $data) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         $id = intval($id); // Sanitize ID
 
         // Whitelist allowed fields to prevent SQL injection
@@ -146,7 +146,7 @@ class TimeGrowCompanyModel {
      * @return int|false The ID of the newly created row, or false on error.
      */
     public function create($data) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         try {
             // Whitelist allowed fields to prevent SQL injection
             $sanitized_data = [];
@@ -179,7 +179,7 @@ class TimeGrowCompanyModel {
                 $sanitized_data,
                 '%s' // string
             );
-            error_log($this->wpdb->last_query);
+            timegrow_log($this->wpdb->last_query);
             
             if ($result === false) {
                 return false;
@@ -188,7 +188,7 @@ class TimeGrowCompanyModel {
             return $this->wpdb->insert_id;
         } catch (Exception $e) {
             // Handle general exceptions
-            error_log("Exception: " . $e->getMessage());
+            timegrow_log("Exception: " . $e->getMessage());
             echo "An error occurred: " . htmlspecialchars($e->getMessage());
             return new WP_Error(
                 'An error occurred', // Error code

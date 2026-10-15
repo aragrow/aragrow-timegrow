@@ -7,7 +7,7 @@ if (!defined('ABSPATH')) {
 class TimeGrowExpenseCategoryView {
 
     public function display_categories($categories, $hierarchical_categories) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         ?>
         <div class="wrap timegrow-page timegrow-page-container">
             <!-- Modern Header -->
@@ -319,7 +319,7 @@ class TimeGrowExpenseCategoryView {
      * Display edit category form
      */
     public function edit_category($category, $hierarchical_categories) {
-        if(WP_DEBUG) error_log(__CLASS__.'::'.__FUNCTION__);
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
         ?>
         <div class="wrap timegrow-page timegrow-page-container">
             <!-- Modern Header -->
