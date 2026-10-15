@@ -158,7 +158,7 @@ class Nexus_Custom_Endpoints {
                 }
 
                 if ( stripos( $auth_header, 'Bearer ' ) !== 0 ) { // Use stripos for case-insensitive check
-                    error_log('AUTH-ME: Permission callback - Authorization header invalid format: ' . $auth_header);
+                    error_log('AUTH-ME: Permission callback - Authorization header invalid format.'); // never log the header value
                     return new WP_Error( 'rest_forbidden_invalid_header', __( 'Authorization header is invalid.', 'your-plugin-textdomain' ), array( 'status' => 401 ) );
                 }
 
@@ -168,7 +168,6 @@ class Nexus_Custom_Endpoints {
                     error_log('AUTH-ME: Permission callback - Extracted token is empty.');
                     return new WP_Error( 'rest_forbidden_empty_token', __( 'Token is empty after Bearer.', 'your-plugin-textdomain' ), array( 'status' => 401 ) );
                 }
-                error_log('AUTH-ME: Permission callback - Token extracted: ' . $jwt_token);
 
 
                 $jwt_validation = $instance->verify_and_get_jwt_details( $jwt_token );
@@ -587,8 +586,6 @@ class Nexus_Custom_Endpoints {
         // hash_hmac returns the calculated HMAC. The third argument 'true'
         // makes it return the raw binary output, which is needed BEFORE Base64Url encoding.
         $signature = hash_hmac('sha256', $dataToSign, $secret_key, true);
-        error_log('secret_key: ' . $secret_key);
-        error_log('Nexus Auth Manual JWT: Signature: ' . bin2hex($signature));
         // Step 8: Base64Url encode the raw binary signature.
         $base64UrlSignature = $this->base64url_encode( $signature );
     
@@ -723,7 +720,6 @@ class Nexus_Custom_Endpoints {
     
         // 7. All checks passed! Return the decoded payload object.
         error_log('JWT Verify: Token verified successfully for user ID: ' . $user_id);
-        error_log('JWT Verify: Payload: ' . print_r($payload_decoded, true));
         return $payload_decoded;
     }
 

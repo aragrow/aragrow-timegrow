@@ -52,9 +52,6 @@ class TimeGrowGeminiReceiptAnalyzer implements TimeGrowReceiptAnalyzerInterface 
             if(WP_DEBUG) {
                 error_log('Decryption successful: ' . (!empty($this->api_key) ? 'YES' : 'NO'));
                 error_log('Decrypted key length: ' . strlen($this->api_key));
-                if(!empty($this->api_key)) {
-                    error_log('Decrypted key preview: ' . substr($this->api_key, 0, 15) . '...' . substr($this->api_key, -4));
-                }
             }
         } else {
             $this->api_key = $this->settings['ai_api_key'] ?? '';
@@ -157,9 +154,6 @@ class TimeGrowGeminiReceiptAnalyzer implements TimeGrowReceiptAnalyzerInterface 
             error_log('API URL: ' . $api_url);
             error_log('API Key present: ' . (!empty($this->api_key) ? 'YES' : 'NO'));
             error_log('API Key length: ' . strlen($this->api_key));
-            if(!empty($this->api_key)) {
-                error_log('API Key preview: ' . substr($this->api_key, 0, 15) . '...' . substr($this->api_key, -4));
-            }
             error_log('Image MIME type: ' . $image_data['mime_type']);
             error_log('Base64 data length: ' . strlen($image_data['base64_data']));
         }
