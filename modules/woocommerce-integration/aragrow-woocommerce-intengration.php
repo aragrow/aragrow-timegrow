@@ -49,6 +49,7 @@ class Aragrow_WOO_Integration_Plugins
         add_action('woocommerce_after_order_itemmeta', [ $this, 'render_line_project_hours_input' ], 20, 3);
         add_action('woocommerce_process_shop_order_meta', [ $this, 'apply_project_hours_to_order_lines' ], 30);
         add_action('admin_enqueue_scripts', [ $this, 'enqueue_hours_invoice_script' ]);
+        add_filter('woocommerce_hidden_order_itemmeta', [ $this, 'hide_internal_item_meta' ]);
 
         // Mostrar el campo en la lista de usuarios
         add_filter('manage_users_columns', [ $this, 'ein_ssn_add_user_column' ]);
@@ -397,6 +398,15 @@ class Aragrow_WOO_Integration_Plugins
 
         $is_timekeeping = isset($_POST['timekeeping_invoice']) ? 'yes' : 'no';
         update_post_meta($order_id, '_timekeeping_invoice', $is_timekeeping);
+    }
+
+    /**
+     * Hide TimeGrow's internal line item meta in the admin order editor.
+     */
+    public function hide_internal_item_meta($hidden) {
+        $hidden[] = '_timegrow_project_hours';
+        $hidden[] = '_precise_quantity'; // written by the old Float Quantities plugin
+        return $hidden;
     }
 
     /**
