@@ -473,7 +473,6 @@ class Aragrow_WOO_Integration_Plugins
         global $wpdb;
 
         $project_table = $wpdb->prefix . TIMEGROW_PREFIX . 'project_tracker';
-        $company_table = $wpdb->prefix . TIMEGROW_PREFIX . 'company_tracker';
 
         $project = $wpdb->get_row($wpdb->prepare(
             "SELECT client_id, default_flat_fee FROM {$project_table} WHERE product_id = %d ORDER BY ID LIMIT 1",
@@ -491,7 +490,7 @@ class Aragrow_WOO_Integration_Plugins
         }
 
         // 3. Company rate
-        return (float) $wpdb->get_var("SELECT default_flat_fee FROM {$company_table} WHERE ID = 1 AND default_flat_fee > 0");
+        return max(0, timegrow_company_default_rate());
     }
 
     /**

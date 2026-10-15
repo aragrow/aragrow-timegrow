@@ -115,8 +115,7 @@ class TimeGrowProjectController{
         $rate = (float) $data['default_flat_fee'];
         if ($rate <= 0 && $client) $rate = (float) get_user_meta($client->ID, 'timegrow_default_flat_fee', true);
         if ($rate <= 0) {
-            $company_table = $wpdb->prefix . TIMEGROW_PREFIX . 'company_tracker';
-            $rate = (float) $wpdb->get_var("SELECT default_flat_fee FROM {$company_table} WHERE ID = 1");
+            $rate = timegrow_company_default_rate();
         }
 
         $product = $product_id ? wc_get_product($product_id) : false;

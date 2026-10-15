@@ -50,6 +50,18 @@ if ( ! function_exists( 'timegrow_log' ) ) {
     }
 }
 
+/**
+ * Company default hourly rate: the rate of the first company record (lowest ID).
+ * Used instead of assuming the company row has ID 1. Returns 0 when none is set.
+ */
+if ( ! function_exists( 'timegrow_company_default_rate' ) ) {
+    function timegrow_company_default_rate() {
+        global $wpdb;
+        $table = $wpdb->prefix . TIMEGROW_PREFIX . 'company_tracker';
+        return (float) $wpdb->get_var( "SELECT default_flat_fee FROM {$table} ORDER BY ID LIMIT 1" );
+    }
+}
+
 // Backward compatibility constants
 defined( 'TIMEGROW_INCLUDES_DIR' ) or define( 'TIMEGROW_INCLUDES_DIR', TIMEGROW_MODULES_DIR.'core/includes/' );
 defined( 'TIMEGROW_SCREENS_DIR' ) or define( 'ARAGROW_TIMEGROW_SCREENS_DIR', TIMEGROW_INCLUDES_DIR.'screens/' );

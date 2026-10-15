@@ -3282,12 +3282,12 @@ class TimeGrowReportsController {
                     SUM(CASE
                         WHEN te.billable = 1 AND te.billed = 1 AND te.hours IS NOT NULL AND te.hours > 0 THEN te.hours * COALESCE(
                             NULLIF(p.default_flat_fee, 0),
-                            (SELECT NULLIF(ct.default_flat_fee, 0) FROM {$company_table} ct WHERE ct.ID = 1 LIMIT 1),
+                            (SELECT NULLIF(ct.default_flat_fee, 0) FROM {$company_table} ct ORDER BY ct.ID LIMIT 1),
                             75)
                         WHEN te.billable = 1 AND te.billed = 1 AND te.clock_in_date IS NOT NULL AND te.clock_out_date IS NOT NULL
                         THEN (TIMESTAMPDIFF(SECOND, te.clock_in_date, te.clock_out_date) / 3600) * COALESCE(
                             NULLIF(p.default_flat_fee, 0),
-                            (SELECT NULLIF(ct.default_flat_fee, 0) FROM {$company_table} ct WHERE ct.ID = 1 LIMIT 1),
+                            (SELECT NULLIF(ct.default_flat_fee, 0) FROM {$company_table} ct ORDER BY ct.ID LIMIT 1),
                             75)
                         ELSE 0
                     END) as billed_amount,

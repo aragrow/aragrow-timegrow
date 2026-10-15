@@ -158,8 +158,7 @@ class TimeGrowWooOrderCreator {
                     $the_rate = $rate[0]->default_flat_fee ?? null;
                 }
                 if (!$the_rate || bccomp($the_rate, '0.00', 2) === 0){
-                    $rate = $model_project->get_company_rate(1);
-                    $the_rate = $rate[0]->default_flat_fee ?? null;
+                    $the_rate = (string) timegrow_company_default_rate();
                 }
                 if (!$the_rate || bccomp($the_rate, '0.00', 2) === 0){
                     $the_rate = 75;
@@ -232,7 +231,8 @@ class TimeGrowWooOrderCreator {
                     $product->set_name($product_name);
                     $product->set_regular_price($the_rate);
                     $product->set_virtual(true);
-                    $product->set_category_ids([21]);
+                    $term = get_term_by('slug', 'timegrow', 'product_cat');
+                    if ($term) $product->set_category_ids([$term->term_id]);
                     $product->set_catalog_visibility('hidden');
                     $product->save();
                     $product_id = $product->get_id();
