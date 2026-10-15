@@ -48,7 +48,8 @@ class TimeGrowReportsController {
                 'icon' => 'dashicons-groups',
                 'roles' => ['administrator'],
                 'capability' => 'view_team_hours_summary',
-                'category' => 'Team & Performance'
+                'category' => 'Team & Performance',
+                'coming_soon' => true
             ],
             [
                 'slug' => 'project_profitability',
