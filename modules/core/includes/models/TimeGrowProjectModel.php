@@ -159,6 +159,11 @@ class TimeGrowProjectModel {
             }
         }
 
+        // product_id has a foreign key: store NULL, not 0, when there is no product
+        if (array_key_exists('product_id', $sanitized_data) && empty($sanitized_data['product_id'])) {
+            $sanitized_data['product_id'] = null;
+        }
+
         // Ensure all required fields are present
         if (empty($sanitized_data['client_id']) || 
             empty($sanitized_data['name']) || 
@@ -196,6 +201,11 @@ class TimeGrowProjectModel {
                 if (in_array($key,  $this->allowed_fields , true)) {
                     $sanitized_data[$key] = sanitize_text_field($value); // Sanitize each field
                 }
+            }
+
+            // product_id has a foreign key: store NULL, not 0, when there is no product
+            if (array_key_exists('product_id', $sanitized_data) && empty($sanitized_data['product_id'])) {
+                $sanitized_data['product_id'] = null;
             }
 
             // Ensure all required fields are present
