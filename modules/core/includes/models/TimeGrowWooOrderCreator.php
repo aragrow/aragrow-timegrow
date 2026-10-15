@@ -84,9 +84,12 @@ class TimeGrowWooOrderCreator {
 
             print('<br />---> ');print('Client Id: '.$client_id);
 
+            // Reuse a pending hours invoice for this client, never an order built another way
             $order = wc_get_orders([
                 'customer_id' => $client_id,
                 'status' => 'pending',
+                'meta_key' => '_timegrow_qty_unit',
+                'meta_value' => 'hours',
                 'limit' => -1 // Get all orders
             ]);
 
@@ -120,6 +123,7 @@ class TimeGrowWooOrderCreator {
                 ];      
                 $order->set_address($billing_address, 'billing');
                 $order->add_meta_data('_timekeeping_invoice', true);
+                $order->add_meta_data('_timegrow_qty_unit', 'hours'); // quantities are real hours
             }   
 
 
@@ -152,7 +156,6 @@ class TimeGrowWooOrderCreator {
                     $the_rate = 75;
                 }
 
-                $the_rate_10_min = $the_rate / 6; // Convert to 10 minute rate
 
                 print("<br />---------> Project Rate: $the_rate\n");
                 print("<br />---------> Project Rate (10 min): $the_rate_10_min\n");
@@ -195,9 +198,9 @@ class TimeGrowWooOrderCreator {
 
                 print('<br />---------> Product Hours: '.$product_hours);
         
-                $product_quantity = $this->hours_to_10min_units($product_hours);
-
-                $product_total = round($product_quantity * $the_rate_10_min, 2);
+                // Quantity is the hours worked, priced at the hourly rate
+                $product_hours = round($product_hours, 2);
+                $product_total = round($product_hours * $the_rate, 2);
 
                 print('<br /> -------> Product Total Hours: '.$product_hours);
                 print('<br /> -------> Product Total: '.$product_total);
@@ -228,10 +231,12 @@ class TimeGrowWooOrderCreator {
                 
                 $item->set_product_id($product_id);
                 $item->set_name($product_name);
-                $item->set_quantity($product_quantity);
-                $item->add_meta_data('_display_message', $product_hours . ' hrs in 10 minutes increments. At a rate of '. $the_rate. ' per hour.');
+                $item->set_quantity(1); // hours live in _timegrow_project_hours; quantity stays 1
+                $item->add_meta_data('_timegrow_project_hours', number_format($product_hours, 2, '.', ''));
+                $item->add_meta_data('_display_message', $product_hours . ' hrs. At a rate of '. $the_rate. ' per hour.');
                 $item->add_meta_data('_work_done', $work_done);
 
+                $item->set_subtotal($product_total);
                 $item->set_total($product_total);
                 
                 $order->add_item($item);
@@ -259,9 +264,4 @@ class TimeGrowWooOrderCreator {
     }
 
     private $debug_output = '';
-
-    public function hours_to_10min_units($hours) {
-        $minutes = $hours * 60;
-        return (int) ceil($minutes / 10);
-    }
 }
