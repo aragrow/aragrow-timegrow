@@ -20,8 +20,9 @@ composer test        # or: vendor/bin/phpunit
 | `tests/unit/HourlyRateTest.php` | Rate order: project, then client, then company. A line's own rate: stored rate, then price / hours, then the rate order, then unit price for a hand-added line. |
 | `tests/unit/HoursLinesTest.php` | Saving hours invoice lines: repricing only when hours change, quantity stays 1, discounts kept, hand-edited prices become the line rate, rounding is not an edit, 0 hours keeps the rate, regular orders untouched. |
 | `tests/unit/InvoiceLinesTest.php` | PayPal quantity and rate for hours and regular lines, shipping and tax lines, and the PDF invoice line numbers. |
+| `tests/unit/OrderCreatorTest.php` | Time entries to invoice lines: which entries count, hours for manual and clock entries (open clock entries skipped), rate order with the 75 fallback, line rounding, and which pending order is reused. |
 
-Not covered yet: the time entry order creator, the PayPal API calls, and the reports.
+Not covered yet: the PayPal API calls, the order creator's database and WooCommerce steps, and the reports (their SQL and HTML).
 
 ## How it works
 

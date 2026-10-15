@@ -71,3 +71,4 @@ $GLOBALS['wpdb'] = new TimeGrow_Fake_WPDB();
 $plugin = dirname( __DIR__ );
 require_once $plugin . '/modules/woocommerce-integration/aragrow-woocommerce-intengration.php';
 require_once $plugin . '/modules/paypal-invoicer/aragrow-wc-paypal-auto-invoicer.php';
+require_once $plugin . '/modules/core/includes/models/TimeGrowWooOrderCreator.php';
