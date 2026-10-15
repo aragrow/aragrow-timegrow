@@ -1,3 +1,4 @@
+<?php if (!defined('ABSPATH')) exit; // Exit if accessed directly ?>
 <div class="wrap timegrow-page">
     <h2>All Time Entries</h2>
 

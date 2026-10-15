@@ -1,3 +1,4 @@
+<?php if (!defined('ABSPATH')) exit; // Exit if accessed directly ?>
 <div class="wrap timegrow-page">
     <h2><?php echo $time_entry_id ? 'Edit' : 'Add'; ?> Time Entry</h2>
 
