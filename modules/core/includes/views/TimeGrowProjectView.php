@@ -189,27 +189,6 @@ class TimeGrowProjectView {
 
                 <div class="metabox-holder columns-2">
                     <div class="postbox-container">
-                    <?php $integrations = get_option('timegrow_integration_settings')?: false;
-                            if ($integrations['wc_products'] && class_exists('WooCommerce')) { ?>
-                            <div class="postbox">
-                                <h3 class="hndle"><span>WooCommerce Integraton</span></h3>
-                                <div class="inside">
-                                    <table class="form-table">
-                                        <tr>
-                                            <th scope="row"><label for="product_id">WooCommerce Product <span class="required">*</span></label></th>
-                                            <td>
-                                                <select id="product_id" name="product_id" class="regular-text">
-                                                    <option value="">Select a WooCommerce Product</option>
-                                                    <?php foreach ($woocommerce_products as $item) : ?>
-                                                        <option value="<?php echo esc_attr($item->ID); ?>"><?php echo esc_html($item->post_title); ?></option>
-                                                    <?php endforeach; ?>
-                                                </select>
-                                            </td>
-                                        </tr>
-                                    </table>
-                                </div>
-                            </div>
-                        <?php } ?>
                         <div class="postbox">
                             <h3 class="hndle"><span>Project Information</span></h3>
                             <div class="inside">

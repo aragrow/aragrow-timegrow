@@ -44,7 +44,7 @@ class TimeGrowProjectController{
             'estimate_hours' => floatval($_POST['estimate_hours']),
             'billable' => isset($_POST['billable'])?:0,
             'status' => isset($_POST['status']) ? intval($_POST['status']) : 1,
-            'product_id' => sanitize_text_field($_POST['product_id']),
+            'product_id' => isset($_POST['product_id']) ? absint($_POST['product_id']) : 0,
             'updated_at' => $current_date
             
         ];
@@ -65,6 +65,11 @@ class TimeGrowProjectController{
 
         $id = intval($_POST['project_id']);
         if ($id == 0) {
+            // No product picked: create a WooCommerce product for this client and project
+            if (empty($data['product_id'])) {
+                $product_id = $this->sync_client_product($data);
+                if ($product_id) $data['product_id'] = $product_id;
+            }
             $data['created_at'] = $current_date;
             $format[] = '%s';
             $id = $this->model->create($data, $format);
@@ -77,6 +82,10 @@ class TimeGrowProjectController{
 
         } else {
 
+            // Keep the WooCommerce product in step with the project (or create one if missing)
+            $product_id = $this->sync_client_product($data, (int) $data['product_id']);
+            if ($product_id) $data['product_id'] = $product_id;
+
             $result = $this->model->update($id, $data, $format);
 
             if ($result) {
@@ -87,6 +96,44 @@ class TimeGrowProjectController{
 
         }
 
+    }
+
+    /**
+     * Create or update the WooCommerce product for a project, named "Client - Project".
+     * Price is the hourly rate: project, then client, then company.
+     * Pass an existing product ID to update it. Returns the product ID, or 0 when
+     * WooCommerce or the products integration is off.
+     */
+    private function sync_client_product(array $data, $product_id = 0) {
+        $settings = get_option('timegrow_integration_settings') ?: [];
+        if (empty($settings['wc_products']) || !class_exists('WC_Product_Simple')) return 0;
+
+        global $wpdb;
+        $client = get_userdata((int) $data['client_id']);
+        $name   = ($client ? $client->display_name . ' - ' : '') . $data['name'];
+
+        $rate = (float) $data['default_flat_fee'];
+        if ($rate <= 0 && $client) $rate = (float) get_user_meta($client->ID, 'timegrow_default_flat_fee', true);
+        if ($rate <= 0) {
+            $company_table = $wpdb->prefix . TIMEGROW_PREFIX . 'company_tracker';
+            $rate = (float) $wpdb->get_var("SELECT default_flat_fee FROM {$company_table} WHERE ID = 1");
+        }
+
+        $product = $product_id ? wc_get_product($product_id) : false;
+        $is_new  = !$product;
+        if ($is_new) {
+            $product = new WC_Product_Simple();
+            $product->set_virtual(true);
+            $product->set_catalog_visibility('hidden');
+            $product->set_status('publish');
+            $term = get_term_by('slug', 'timegrow', 'product_cat');
+            if ($term) $product->set_category_ids([$term->term_id]);
+        }
+
+        $product->set_name($name);
+        if ($rate > 0) $product->set_regular_price((string) $rate);
+
+        return (int) $product->save();
     }
 
     public function list() {
