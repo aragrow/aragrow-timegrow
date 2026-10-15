@@ -114,6 +114,14 @@ class TimeGrowSettings {
             'general_settings_section'
         );
 
+        add_settings_field(
+            'delete_data_on_uninstall',
+            'Delete data on uninstall',
+            [$this, 'render_delete_data_field'],
+            'aragrow-timegrow-settings-general',
+            'general_settings_section'
+        );
+
         // ========================================
         // AI PROVIDER SETTINGS
         // ========================================
@@ -249,6 +257,9 @@ class TimeGrowSettings {
         } else {
             $sanitized['currency'] = 'USD';
         }
+
+        // Opt-in: uninstall.php only removes data when this is 'yes'
+        $sanitized['delete_data_on_uninstall'] = !empty($input['delete_data_on_uninstall']) ? 'yes' : 'no';
 
         return $sanitized;
     }
@@ -1351,6 +1362,18 @@ class TimeGrowSettings {
             <?php endforeach; ?>
         </select>
         <p class="description">Timezone for time tracking and reporting.</p>
+        <?php
+    }
+
+    public function render_delete_data_field() {
+        $options = get_option($this->general_option_name, []);
+        $value   = $options['delete_data_on_uninstall'] ?? 'no';
+        ?>
+        <label>
+            <input type="checkbox" name="<?php echo esc_attr($this->general_option_name); ?>[delete_data_on_uninstall]" value="yes" <?php checked($value, 'yes'); ?>>
+            Delete all TimeGrow data when the plugin is deleted
+        </label>
+        <p class="description">Removes TimeGrow's tables (time entries, projects, clients, expenses, team members), settings, user profile fields, roles and capabilities. WooCommerce orders and products are kept. This cannot be undone.</p>
         <?php
     }
 
