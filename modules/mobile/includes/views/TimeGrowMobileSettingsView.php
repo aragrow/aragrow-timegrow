@@ -91,7 +91,94 @@ class TimeGrowMobileSettingsView {
             case 'disable_access':
                 $this->handle_disable_access($user_id);
                 break;
+
+            case 'save_sms_settings':
+                $this->handle_save_sms_settings();
+                break;
         }
+    }
+
+    /**
+     * Save text-message (SMS) settings. A blank Twilio token keeps the saved one.
+     */
+    private function handle_save_sms_settings() {
+        if (!current_user_can('manage_options')) {
+            $this->error_message = 'You are not allowed to change these settings.';
+            return;
+        }
+
+        $service = sanitize_key($_POST['sms_service'] ?? 'none');
+        if (!in_array($service, ['none', 'twilio', 'custom'], true)) {
+            $service = 'none';
+        }
+
+        update_option('timegrow_mobile_sms_enabled', !empty($_POST['sms_enabled']) ? 1 : 0);
+        update_option('timegrow_mobile_sms_service', $service);
+        update_option('timegrow_twilio_account_sid', sanitize_text_field(wp_unslash($_POST['twilio_account_sid'] ?? '')));
+        update_option('timegrow_twilio_from_number', sanitize_text_field(wp_unslash($_POST['twilio_from_number'] ?? '')));
+
+        $token = trim(sanitize_text_field(wp_unslash($_POST['twilio_auth_token'] ?? '')));
+        if ($token !== '') {
+            update_option('timegrow_twilio_auth_token', $token);
+        }
+
+        $this->success_message = 'Text message settings saved.';
+    }
+
+    /**
+     * Text-message (SMS) settings card.
+     */
+    private function render_sms_settings() {
+        $enabled = (bool) get_option('timegrow_mobile_sms_enabled', false);
+        $service = get_option('timegrow_mobile_sms_service', 'none');
+        $sid     = get_option('timegrow_twilio_account_sid', '');
+        $from    = get_option('timegrow_twilio_from_number', '');
+        $token   = (string) get_option('timegrow_twilio_auth_token', '');
+        ?>
+        <div class="card" style="max-width: none; margin-top: 30px;">
+            <h2>Text Message Alerts</h2>
+            <p>Send a text when a PIN is created and each time someone logs in with their PIN. The person needs a <strong>Mobile Phone Number</strong> on their user profile.</p>
+            <form method="post" action="">
+                <?php wp_nonce_field('timegrow_mobile_settings', 'timegrow_mobile_settings_nonce'); ?>
+                <input type="hidden" name="action" value="save_sms_settings">
+                <table class="form-table">
+                    <tr>
+                        <th scope="row">Send text messages</th>
+                        <td><label><input type="checkbox" name="sms_enabled" value="1" <?php checked($enabled); ?>> Turn on text message alerts</label></td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="sms_service">Service</label></th>
+                        <td>
+                            <select name="sms_service" id="sms_service">
+                                <option value="none" <?php selected($service, 'none'); ?>>None</option>
+                                <option value="twilio" <?php selected($service, 'twilio'); ?>>Twilio</option>
+                                <option value="custom" <?php selected($service, 'custom'); ?>>Custom (set up by a developer)</option>
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="twilio_account_sid">Twilio Account SID</label></th>
+                        <td><input type="text" class="regular-text" name="twilio_account_sid" id="twilio_account_sid" value="<?php echo esc_attr($sid); ?>"></td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="twilio_auth_token">Twilio Auth Token</label></th>
+                        <td>
+                            <input type="password" class="regular-text" name="twilio_auth_token" id="twilio_auth_token" value="" autocomplete="new-password"
+                                   placeholder="<?php echo $token !== '' ? esc_attr('Saved (ends in ' . substr($token, -4) . '). Leave blank to keep it') : 'Paste your Twilio auth token'; ?>">
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="twilio_from_number">Twilio phone number</label></th>
+                        <td>
+                            <input type="text" class="regular-text" name="twilio_from_number" id="twilio_from_number" value="<?php echo esc_attr($from); ?>" placeholder="+15551234567">
+                            <p class="description">The number texts are sent from, as shown in your Twilio account.</p>
+                        </td>
+                    </tr>
+                </table>
+                <p class="submit"><button type="submit" class="button button-primary">Save Text Message Settings</button></p>
+            </form>
+        </div>
+        <?php
     }
 
     /**
@@ -358,6 +445,8 @@ class TimeGrowMobileSettingsView {
                     <?php endif; ?>
                 </tbody>
             </table>
+
+            <?php $this->render_sms_settings(); ?>
 
             <div style="margin-top: 30px; padding: 15px; background: #f0f0f1; border-left: 4px solid #2271b1;">
                 <h3 style="margin-top: 0;">Mobile Login URL</h3>

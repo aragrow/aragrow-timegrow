@@ -262,7 +262,7 @@ class TimeGrowMobile {
     public static function add_admin_menu() {
         if (current_user_can('administrator')) {
             add_submenu_page(
-                'timegrow-nexus',
+                TIMEGROW_PARENT_MENU, // shown in the TimeGrow menu
                 'Mobile Access',
                 'Mobile Access',
                 'manage_options',
