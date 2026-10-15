@@ -254,17 +254,9 @@ class TimeGrowProjectModel {
     }
 
     public function get_client_rate($client_id) {
-
-        $sql = $this->wpdb->prepare(
-            "SELECT default_flat_fee
-            FROM {$this->table_name2}  
-            WHERE ID = %d",
-            $client_id
-        );
-        $return = $this->wpdb->get_results($sql);
-
-        return $return;
-
+        // The profile field saves to user meta, not to a column on the users table
+        $rate = get_user_meta((int) $client_id, 'timegrow_default_flat_fee', true);
+        return [ (object) [ 'default_flat_fee' => is_numeric($rate) ? $rate : '0.00' ] ];
     }
 
     public function get_company_rate($company_id) {
