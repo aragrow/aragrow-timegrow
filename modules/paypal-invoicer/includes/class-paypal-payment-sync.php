@@ -361,6 +361,13 @@ class Aragrow_TimeGrow_PayPal_Payment_Sync {
 		if ( $checked ) {
 			echo '<p class="description">' . esc_html( sprintf( __( 'Last checked: %s', 'timegrow' ), $checked ) ) . '</p>';
 		}
+		// A paid order is refunded in PayPal first (TimeGrow refuses the refund here until then)
+		if ( in_array( $order->get_status(), [ 'invoice_paid', 'partial_paid' ], true ) && ! in_array( $status, [ 'REFUNDED', 'MARKED_AS_REFUNDED' ], true ) ) {
+			$message = $status === 'PARTIALLY_REFUNDED'
+				? __( 'The PayPal invoice is only partly refunded. To refund more here, refund it in PayPal first.', 'timegrow' )
+				: __( 'The PayPal invoice is not refunded yet. To refund this order, refund it in PayPal first.', 'timegrow' );
+			echo '<p style="color: #996800;"><span class="dashicons dashicons-warning" style="font-size: 16px; width: 16px; height: 16px;"></span> ' . esc_html( $message ) . '</p>';
+		}
 		echo '<p><a class="button" href="' . esc_url( $url ) . '">' . esc_html__( 'Check PayPal status', 'timegrow' ) . '</a></p>';
 	}
 

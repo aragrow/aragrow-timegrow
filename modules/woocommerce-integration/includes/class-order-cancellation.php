@@ -42,30 +42,33 @@ class Aragrow_TimeGrow_Order_Cancellation {
 		add_action( 'woocommerce_order_status_changed', [ __CLASS__, 'handle_reopened' ], 10, 4 );
 		add_action( 'woocommerce_create_refund', [ __CLASS__, 'require_paypal_refund' ], 10, 2 );
 		add_action( 'admin_notices', [ __CLASS__, 'show_notice' ] );
+		// The order data box prints the status dropdown between these two hooks
+		add_action( 'woocommerce_admin_order_data_after_payment_info', [ __CLASS__, 'start_limiting_dropdown' ] );
+		add_action( 'woocommerce_admin_order_data_after_order_details', [ __CLASS__, 'stop_limiting_dropdown' ] );
+	}
+
+	/** The order whose status dropdown is being printed, or null. */
+	private static $dropdown_order = null;
+
+	public static function start_limiting_dropdown( $order ) {
+		self::show_order_notice(); // a refused status change or refund, shown right above the dropdown
+		self::$dropdown_order = $order instanceof WC_Order ? $order : null;
 		add_filter( 'wc_order_statuses', [ __CLASS__, 'limit_status_dropdown' ], 20 );
 	}
 
+	public static function stop_limiting_dropdown() {
+		self::$dropdown_order = null;
+		remove_filter( 'wc_order_statuses', [ __CLASS__, 'limit_status_dropdown' ], 20 );
+	}
+
 	/**
-	 * On the order edit screen, offer only the statuses the order may move to (plus its own).
-	 * Page loads only: saving checks the status against the full list, and the guard enforces the rule.
+	 * In the order edit screen's status dropdown, offer only the statuses the order may move to
+	 * (plus its own). Active only while that dropdown is printed, so order counts and status names
+	 * elsewhere keep the full list; the guard enforces the rule on save.
 	 */
 	public static function limit_status_dropdown( $statuses ) {
-		static $busy = false;
-		if ( $busy || ! is_admin() || wp_doing_ajax() || ( $_SERVER['REQUEST_METHOD'] ?? '' ) !== 'GET' || ( $_GET['action'] ?? '' ) !== 'edit' ) {
-			return $statuses;
-		}
-		if ( ( $_GET['page'] ?? '' ) === 'wc-orders' ) {
-			$order_id = absint( $_GET['id'] ?? 0 ); // HPOS
-		} elseif ( ( $GLOBALS['pagenow'] ?? '' ) === 'post.php' ) {
-			$order_id = absint( $_GET['post'] ?? 0 ); // legacy order storage
-		} else {
-			return $statuses;
-		}
-
-		$busy  = true; // loading the order can ask for the statuses again
-		$order = $order_id ? wc_get_order( $order_id ) : false;
-		$busy  = false;
-		if ( ! $order instanceof WC_Order ) {
+		$order = self::$dropdown_order;
+		if ( ! $order ) {
 			return $statuses;
 		}
 
@@ -227,8 +230,13 @@ class Aragrow_TimeGrow_Order_Cancellation {
 		if ( $refunded + 0.005 >= (float) $needed ) {
 			return '';
 		}
+		$invoice_id = Aragrow_TimeGrow_PayPal_Payment_Sync::invoice_id_for( $order );
+		if ( $refunded < 0.005 ) {
+			return sprintf( 'The PayPal invoice %s is not refunded yet. Refund it in PayPal first, then refund it here.', $invoice_id );
+		}
 		return sprintf(
-			'Refund it in PayPal first. PayPal shows %s refunded, and this would bring the order to %s refunded.',
+			'The PayPal invoice %s is only refunded %s so far, and this would bring the order to %s refunded. Refund the rest in PayPal first.',
+			$invoice_id,
 			number_format( $refunded, 2, '.', ',' ),
 			number_format( (float) $needed, 2, '.', ',' )
 		);
@@ -474,7 +482,25 @@ class Aragrow_TimeGrow_Order_Cancellation {
 		set_transient( $key, array_filter( $notices ), 60 );
 	}
 
+	/**
+	 * Top-of-page notices, for pages other than the order edit screen (orders list after a bulk
+	 * action). On the order edit screen they show inside the order box instead (show_order_notice).
+	 */
 	public static function show_notice() {
+		if ( self::is_order_edit_screen() ) {
+			return;
+		}
+		self::print_notices( 'notice is-dismissible' );
+	}
+
+	/**
+	 * Inside the order box, right above the Status dropdown, where they can't be missed.
+	 */
+	public static function show_order_notice() {
+		self::print_notices( 'notice inline', 'margin: 10px 0 0;' );
+	}
+
+	private static function print_notices( $class, $style = '' ) {
 		$key     = 'timegrow_cancel_notice_' . get_current_user_id();
 		$notices = get_transient( $key );
 		if ( ! $notices ) {
@@ -483,10 +509,20 @@ class Aragrow_TimeGrow_Order_Cancellation {
 		delete_transient( $key );
 		foreach ( (array) $notices as $notice ) {
 			printf(
-				'<div class="notice notice-%s is-dismissible"><p>%s</p></div>',
+				'<div class="%s notice-%s" style="%s"><p><strong>%s</strong></p></div>',
+				esc_attr( $class ),
 				esc_attr( $notice['type'] === 'error' ? 'error' : 'success' ),
+				esc_attr( $style ),
 				esc_html( $notice['message'] )
 			);
 		}
+	}
+
+	private static function is_order_edit_screen() {
+		if ( ( $_GET['action'] ?? '' ) === 'edit' && ( $_GET['page'] ?? '' ) === 'wc-orders' ) {
+			return true; // HPOS
+		}
+		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+		return $screen && $screen->id === 'shop_order' && $screen->base === 'post'; // legacy order storage
 	}
 }
