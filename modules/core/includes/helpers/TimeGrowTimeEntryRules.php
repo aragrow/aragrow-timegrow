@@ -96,6 +96,50 @@ class TimeGrowTimeEntryRules {
     }
 
     /**
+     * Why a project and client can't be used together, or '' when they can. Pure.
+     *
+     * @param object|null $project       The project row from the database (null = not there).
+     * @param int         $client_id     Client the entry names (voice entry sends it); 0 = not given.
+     * @param bool        $client_exists Whether the project's client is in the database.
+     */
+    public static function project_client_problem($project, $client_id, $client_exists) {
+        if (!$project) {
+            return __('That project is not in TimeGrow.', 'timegrow');
+        }
+        if ((int) ($project->status ?? 1) !== 1) {
+            return __('That project is not active.', 'timegrow');
+        }
+        $project_client = (int) ($project->client_id ?? 0);
+        if ((int) $client_id > 0 && (int) $client_id !== $project_client) {
+            return __('That project belongs to another client.', 'timegrow');
+        }
+        if ((int) $client_id > 0 && !$client_exists) {
+            return __('The client for that project is not in TimeGrow.', 'timegrow');
+        }
+        return '';
+    }
+
+    /**
+     * When the browser names a client (voice entry does), check the project and client are in the
+     * database and the project is that client's; stop the request with an error when not.
+     */
+    public static function require_project_client($project_id, $client_id) {
+        if ((int) $client_id <= 0) {
+            return;
+        }
+        global $wpdb;
+        $project = $wpdb->get_row($wpdb->prepare(
+            "SELECT ID, client_id, status FROM {$wpdb->prefix}" . TIMEGROW_PREFIX . "project_tracker WHERE ID = %d",
+            (int) $project_id
+        ));
+        $exists  = $project && TimeGrowProjectPicker::client_exists($project->client_id);
+        $problem = self::project_client_problem($project, $client_id, $exists);
+        if ($problem !== '') {
+            wp_send_json_error(['message' => $problem]);
+        }
+    }
+
+    /**
      * Check who and what for a save, and stop the request with an error when it isn't allowed.
      *
      * @param string $capability    The Nexus page capability (access_nexus_manual_entry or access_nexus_clock).

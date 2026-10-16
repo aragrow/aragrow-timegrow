@@ -29,6 +29,11 @@ class TimeGrowProjectPicker {
         return $names[$client_id];
     }
 
+    /** True when the client (a WordPress user) is in the database. */
+    public static function client_exists($client_id) {
+        return (int) $client_id > 0 && get_userdata((int) $client_id) !== false;
+    }
+
     /**
      * Projects grouped by client, sorted by client then project name. Uses client_name on the
      * project when it is there, otherwise looks it up.

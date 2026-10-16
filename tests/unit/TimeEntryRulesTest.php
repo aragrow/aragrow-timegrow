@@ -32,4 +32,14 @@ class TimeEntryRulesTest extends TestCase {
         $this->assertStringContainsString( 'future', TimeGrowTimeEntryRules::clock_problem( '2026-10-16 10:00:00', $now ) );
         $this->assertStringContainsString( 'not valid', TimeGrowTimeEntryRules::clock_problem( '2026-10-16 9am', $now ) );
     }
+
+    public function test_project_and_client_must_be_in_timegrow_and_belong_together() {
+        $project = (object) [ 'ID' => 5, 'client_id' => 12, 'status' => 1 ];
+        $this->assertSame( '', TimeGrowTimeEntryRules::project_client_problem( $project, 12, true ) );
+        $this->assertSame( '', TimeGrowTimeEntryRules::project_client_problem( $project, 0, false ), 'no client named: nothing to check' );
+        $this->assertStringContainsString( 'another client', TimeGrowTimeEntryRules::project_client_problem( $project, 13, true ) );
+        $this->assertStringContainsString( 'client for that project', TimeGrowTimeEntryRules::project_client_problem( $project, 12, false ) );
+        $this->assertStringContainsString( 'not in TimeGrow', TimeGrowTimeEntryRules::project_client_problem( null, 12, true ) );
+        $this->assertStringContainsString( 'not active', TimeGrowTimeEntryRules::project_client_problem( (object) [ 'client_id' => 12, 'status' => 0 ], 12, true ) );
+    }
 }
