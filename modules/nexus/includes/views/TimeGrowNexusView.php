@@ -253,6 +253,33 @@ class TimeGrowNexusView {
                     </div>
                 </a>
                 <?php endif; ?>
+
+                <?php if (($show_all || current_user_can('access_nexus_process_time')) && class_exists('Aragrow_TimeGrow_Invoice_Delivery')) : $to_mail = count(Aragrow_TimeGrow_Invoice_Delivery::waiting_orders()); ?>
+                <a href="<?php echo esc_url(admin_url('admin.php?page=' . Aragrow_TimeGrow_Invoice_Delivery::PAGE_SLUG)); ?>" class="timegrow-card">
+                    <div class="timegrow-card-header">
+                        <div class="timegrow-icon timegrow-icon-woocommerce">
+                            <span class="dashicons dashicons-printer"></span>
+                        </div>
+                        <div class="timegrow-card-title">
+                            <h2><?php esc_html_e('Print & Mail', 'timegrow'); ?></h2>
+                            <span class="timegrow-badge <?php echo $to_mail ? 'timegrow-badge-warning' : 'timegrow-badge-success'; ?>">
+                                <?php echo esc_html(sprintf(_n('%d to mail', '%d to mail', $to_mail, 'timegrow'), $to_mail)); ?>
+                            </span>
+                        </div>
+                    </div>
+                    <div class="timegrow-card-body">
+                        <p class="timegrow-card-description">
+                            <?php esc_html_e('Invoices for clients who get them by post: print, mail, mark as mailed.', 'timegrow'); ?>
+                        </p>
+                        <div class="timegrow-card-footer">
+                            <span class="timegrow-action-link">
+                                <?php esc_html_e('Open Print & Mail', 'timegrow'); ?>
+                                <span class="dashicons dashicons-arrow-right-alt"></span>
+                            </span>
+                        </div>
+                    </div>
+                </a>
+                <?php endif; ?>
                 </div><!-- .timegrow-cards-container -->
             </div><!-- .timegrow-section -->
             <?php endif; ?>

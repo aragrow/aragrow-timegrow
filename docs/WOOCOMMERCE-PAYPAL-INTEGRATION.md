@@ -92,8 +92,25 @@ The module registers these statuses, with admin colors, emails and PDF Invoices 
 | Invoice Sent to Client | `wc-invoice_sent` |
 | Partial Paid | `wc-partial_paid` |
 | Invoice Paid | `wc-invoice_paid` |
+| To Be Mailed | `wc-to_be_mailed` (no client email, PDF allowed) |
 
 Moving an order to Invoice Paid records the payment date (today) and sets the payment amount to the order total, if they are empty. Partial Paid needs a payment amount above 0.
+
+### Invoice delivery
+
+Code: `modules/woocommerce-integration/includes/class-invoice-delivery.php`. Each client has an **Invoice Delivery** field on their profile (`timegrow_invoice_delivery` user meta): `email` (default, also used for unknown values and guest orders), `paypal` or `mail`.
+
+One order action, **Send invoice (<method>)**, sends the order the client's way:
+
+| Method | What `send()` does | Order ends in |
+|---|---|---|
+| Email | Sends WooCommerce's Customer invoice email with the PDF attached (unless the PDF plugin already attaches it) | Invoice Sent to Client, set quietly (no second status email) |
+| PayPal | Moves the order to Send Invoice to PayPal, so the auto invoicer takes over. Refused if the PayPal module is off | Invoice Sent to PayPal or Invoice Draft in PayPal |
+| Print and mail | Moves the order to To Be Mailed. Nothing is emailed | To Be Mailed |
+
+**Print & Mail** (`admin.php?page=timegrow-nexus-print-mail`, card on the Nexus dashboard, cap `access_nexus_process_time`) lists To Be Mailed orders with the billing address and a PDF link. **Mark as mailed** (nonce checked) moves the order quietly to Invoice Sent to Client with an order note.
+
+Process Time still sets new orders to Processing, so WooCommerce's Processing order email goes out for every client, including Print and mail ones, while that email is on.
 
 ### Manual payments
 
