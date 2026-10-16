@@ -367,6 +367,7 @@ function timegrow_nexus_load_mvc_classes($class) {
 spl_autoload_register( 'timegrow_nexus_load_mvc_classes' );
 
 if ( ! isset( $timegrow_nexus ) ) $timegrow_nexus = New TimeGrowNexus();
+TimeGrowNexusVoice::init(); // voice entry on the Manual Time Entry page
 
 // Register activation hook
 register_activation_hook(__FILE__, 'timegrow_nexus_plugin_activate');
