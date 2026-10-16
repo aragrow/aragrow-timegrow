@@ -4,6 +4,40 @@
 
 ---
 
+## Current architecture (2.2.0)
+
+This section replaces the per-provider analyzer description further down, which is kept for history. Since 2.2.0 there is one AI layer, in the core module, with no dependency on other plugins.
+
+| Piece | File | What it does |
+|---|---|---|
+| `TimeGrowAI` | `modules/core/includes/helpers/TimeGrowAI.php` | The configuration each feature uses (Settings > AI table `timegrow_ai_config_tracker`), the API key (encrypted, see below), a short model list per provider (the recommended model and the lowest-cost one; a configuration using another model keeps it), the key test, one request client for every provider, retries, and per-user rate limits. |
+| `TimeGrowAIReceiptAnalyzer` | `modules/core/includes/helpers/TimeGrowAIReceiptAnalyzer.php` | The only receipt reader. Same prompt for every provider, with the real category IDs; the returned category must be an active one (an ID, or a slug, else 0). Reads the image from disk and resizes it to 1,600 px. |
+| `TimeGrowReceiptAnalyzerFactory` | same folder | Returns the reader above (kept so older callers work). |
+| `TimeGrowNexusVoice` | `modules/nexus/includes/TimeGrowNexusVoice.php` | Voice entry: prompt, `merge()` checks, AJAX `timegrow_voice_parse`. Uses `TimeGrowAI::request()`. |
+| `TimeGrowTimeEntryRules` | `modules/core/includes/helpers/TimeGrowTimeEntryRules.php` | Rules for every time entry save (Manual, Clock In / Out, voice): member from the logged-in user, any active project or only the member's assigned ones (Settings > General > Team members can record time on; assignments in `timegrow_team_member_projects_tracker`), hours above 0 and up to 24, no future dates, clock out only your own entry. |
+
+**Settings.** Settings > **AI** holds only the provider configurations (table `timegrow_ai_config_tracker`: provider, model, key, and `is_active`, shown as **Default**). Each feature keeps its own switches and an **AI to use** choice (`ai_config_id`, 0 = the default): **AI Receipt Analysis** (`timegrow_receipt_settings`: `auto_analysis`, `confidence_threshold`, `ai_config_id`; until first saved it carries over the old per-configuration columns) and **AI Voice Entry** (`timegrow_voice_settings`). Both feature pages test the key of the configuration they use on load and show it with `render_ai_status()`, so a broken key only affects the features using it.
+
+**Per-feature choice.** Callers pass the feature: `TimeGrowAI::config('receipts')`, `is_configured('voice')`, `request(['feature' => 'voice', ...])`. `choice($feature)` returns the row plus `fell_back` (the chosen configuration was deleted, so the default is used and the feature page says so). The saved ID is checked against the table on save; an unknown ID becomes 0. `configurations()` lists every configuration (default first) with a label (`Name: Provider · Model`) and its key status for the dropdowns.
+
+**Request client.** `TimeGrowAI::request(['prompt', 'image' => ['mime', 'data'], 'json', 'max_tokens', 'timeout'])` returns `['text', 'usage', 'model']` or a `WP_Error`. `build_request()` and `parse_response()` are pure and unit tested:
+
+| Provider | Endpoint | Key | JSON answers |
+|---|---|---|---|
+| Google Gemini | `v1beta/models/{model}:generateContent` | `x-goog-api-key` header (never in the URL) | `responseMimeType: application/json` |
+| OpenAI | `v1/chat/completions` | `Authorization: Bearer` | `response_format: json_object` |
+| Anthropic | `v1/messages` | `x-api-key` | asked in the prompt, read with `json_from_text()` |
+
+It retries twice (after 1 and 2 seconds) on no connection, 408, 429 and 5xx. Failures are logged with provider, model and status only, never the body.
+
+**Key test.** Settings > AI > **Test** and every load of the AI Receipt Analysis and AI Voice Entry pages call `TimeGrowAI::test()`: a model lookup (Gemini, OpenAI) or a 1-token message (Anthropic). 2xx = works; 401/403, a 400 about the key, or 404 (model) = not working, and `is_configured()` turns AI off; anything else (outage, 429, timeout) = could not check, and AI stays on. Results are stored per configuration in the `timegrow_ai_key_status` option, tied to a fingerprint of the stored key, so a new key starts as not tested.
+
+**Keys.** Encrypted with AES-256-CBC, keyed from `AUTH_KEY` and `SECURE_AUTH_KEY` in `wp-config.php`, stored as `tg1:` + base64(iv + ciphertext). Values saved by the Aragrow Voice AI plugin (same method, no prefix) and plain keys are still read. `ARAGROW_AI_API_KEY` in `wp-config.php` is used when no key is saved. Changing the WordPress security keys makes stored AI keys unreadable: enter the key again.
+
+**Limits.** Per user per hour: 30 receipt reads, 120 voice answers (`timegrow_ai_rate_limit` filter, arguments `$limit, $user_id, $bucket`). Voice sends at most 500 characters per answer and asks for at most 300 output tokens.
+
+---
+
 ## Overview
 Complete multi-provider AI system for receipt analysis and expense data extraction. Supports Google Gemini, OpenAI GPT-4, and Anthropic Claude with 33 IRS Schedule C categories.
 
