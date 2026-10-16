@@ -5,124 +5,35 @@ if (!defined('ABSPATH')) {
 }
 
 /**
- * Factory for creating receipt analyzer instances
- *
- * Instantiates the correct analyzer based on plugin settings
- * Supports Google Gemini, OpenAI, and Anthropic Claude
+ * Receipt reader for the active AI configuration. One reader (TimeGrowAIReceiptAnalyzer) works
+ * with every provider through TimeGrowAI.
  */
 class TimeGrowReceiptAnalyzerFactory {
 
     /**
-     * TimeGrow's own limit on AI receipt analysis, so paid API calls stay capped
-     * even without the Voice AI plugin. One budget per user across all providers.
-     * Default 30 per hour; change it with the 'timegrow_ai_rate_limit' filter.
-     *
-     * @param int $user_id
-     * @return bool True when the call is allowed (and counted).
+     * Per-user cap on AI receipt reading (kept for older callers; see TimeGrowAI::rate_limit_ok()).
      */
     public static function rate_limit_ok($user_id) {
-        $limit  = (int) apply_filters('timegrow_ai_rate_limit', 30, $user_id);
-        $window = HOUR_IN_SECONDS;
-        $key    = 'timegrow_ai_rl_' . (int) $user_id;
-
-        $data = get_transient($key);
-        if (!is_array($data) || ($data['start'] + $window) < time()) {
-            $data = ['start' => time(), 'count' => 0];
-        }
-        if ($data['count'] >= $limit) {
-            return false;
-        }
-
-        $data['count']++;
-        set_transient($key, $data, $window);
-        return true;
+        return TimeGrowAI::rate_limit_ok($user_id, 'receipts');
     }
 
     /**
-     * Create analyzer instance based on current settings
-     *
-     * @return TimeGrowReceiptAnalyzerInterface Analyzer instance
-     * @throws Exception If invalid provider is configured
+     * @return TimeGrowReceiptAnalyzerInterface
      */
     public static function create() {
-        timegrow_log(__CLASS__.'::'.__FUNCTION__);
-
-        // Get active configuration from the new database table
-        if (class_exists('TimeGrowSettings')) {
-            $settings = TimeGrowSettings::get_active_ai_config();
-            if(timegrow_debug()) {
-                timegrow_log('=== FACTORY CONFIG DEBUG ===');
-                timegrow_log('Factory using active config from database: ' . ($settings['config_name'] ?? 'Unknown'));
-                timegrow_log('Provider: ' . ($settings['ai_provider'] ?? 'Not set'));
-                timegrow_log('Model: ' . ($settings['ai_model'] ?? 'Not set'));
-                timegrow_log('Has API key: ' . (!empty($settings['ai_api_key']) ? 'YES' : 'NO'));
-                timegrow_log('API key length: ' . strlen($settings['ai_api_key'] ?? ''));
-            }
-        } else {
-            // Fallback to legacy settings if TimeGrowSettings not loaded
-            $settings = get_option('aragrow_timegrow_ai_settings', [
-                'ai_provider' => 'google_gemini',
-                'ai_model' => 'gemini-1.5-flash',
-            ]);
-            timegrow_log('Factory using fallback settings (TimeGrowSettings class not found)');
-        }
-
-        $provider = $settings['ai_provider'] ?? 'google_gemini';
-
-        timegrow_log('Creating analyzer for provider: ' . $provider);
-
-        switch ($provider) {
-            case 'openai':
-                if (!class_exists('TimeGrowOpenAIReceiptAnalyzer')) {
-                    throw new Exception('OpenAI analyzer class not found');
-                }
-                return new TimeGrowOpenAIReceiptAnalyzer();
-
-            case 'anthropic':
-                if (!class_exists('TimeGrowClaudeReceiptAnalyzer')) {
-                    throw new Exception('Claude analyzer class not found');
-                }
-                return new TimeGrowClaudeReceiptAnalyzer();
-
-            case 'google_gemini':
-            default:
-                if (!class_exists('TimeGrowGeminiReceiptAnalyzer')) {
-                    throw new Exception('Gemini analyzer class not found');
-                }
-                return new TimeGrowGeminiReceiptAnalyzer();
-        }
+        return new TimeGrowAIReceiptAnalyzer();
     }
 
     /**
-     * Get list of available analyzers
+     * Providers receipts can be read with.
      *
-     * @return array Array of provider keys that have analyzer classes
+     * @return string[]
      */
     public static function get_available_analyzers() {
-        $available = [];
-
-        if (class_exists('TimeGrowGeminiReceiptAnalyzer')) {
-            $available[] = 'google_gemini';
-        }
-
-        if (class_exists('TimeGrowOpenAIReceiptAnalyzer')) {
-            $available[] = 'openai';
-        }
-
-        if (class_exists('TimeGrowClaudeReceiptAnalyzer')) {
-            $available[] = 'anthropic';
-        }
-
-        return $available;
+        return array_keys(TimeGrowAI::providers());
     }
 
-    /**
-     * Check if a specific provider is available
-     *
-     * @param string $provider Provider key (google_gemini, openai, anthropic)
-     * @return bool True if provider analyzer exists
-     */
     public static function is_provider_available($provider) {
-        return in_array($provider, self::get_available_analyzers());
+        return in_array($provider, self::get_available_analyzers(), true);
     }
 }

@@ -171,8 +171,7 @@ class TimeGrowExpenseView {
                 <?php
                 wp_nonce_field('timegrow_expense_nonce', 'timegrow_expense_nonce_field');
                 // Add AI analysis status for JavaScript - use new database table
-                $ai_settings = class_exists('TimeGrowSettings') ? TimeGrowSettings::get_active_ai_config() : [];
-                $ai_enabled = ($ai_settings['enable_auto_analysis'] ?? false) && !empty($ai_settings['ai_api_key']);
+                $ai_enabled = TimeGrowSettings::receipt_settings()['auto_analysis'] === 'yes' && TimeGrowAI::is_configured('receipts');
                 ?>
                 <input type="hidden" id="ai_analysis_enabled" value="<?php echo $ai_enabled ? '1' : '0'; ?>" />
         
@@ -203,13 +202,9 @@ class TimeGrowExpenseView {
                                                 <p style="margin: 10px 0 0 28px; font-size: 13px; color: #64748b;">
                                                     AI will extract amount, date, vendor, category, and description from your receipt image.
                                                     <?php
-                                                    $ai_settings = class_exists('TimeGrowSettings') ? TimeGrowSettings::get_active_ai_config() : get_option('aragrow_timegrow_ai_settings', []);
-                                                    $provider_name = 'AI';
-                                                    if (!empty($ai_settings['ai_provider'])) {
-                                                        $providers = ['google_gemini' => 'Google Gemini', 'openai' => 'OpenAI GPT-4', 'anthropic' => 'Anthropic Claude'];
-                                                        $provider_name = $providers[$ai_settings['ai_provider']] ?? 'AI';
-                                                    }
-                                                    $model_name = $ai_settings['ai_model'] ?? '';
+                                                    $ai_settings = TimeGrowAI::config('receipts');
+                                                    $provider_name = TimeGrowAI::providers()[$ai_settings['ai_provider']]['name'] ?? 'AI';
+                                                    $model_name = TimeGrowAI::model_name($ai_settings['ai_provider'], $ai_settings['ai_model']);
                                                     echo '<br><strong>Provider:</strong> ' . esc_html($provider_name);
                                                     if (!empty($model_name)) {
                                                         echo ' | <strong>Model:</strong> ' . esc_html($model_name);

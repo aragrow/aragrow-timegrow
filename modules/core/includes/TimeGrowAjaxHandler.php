@@ -24,7 +24,6 @@ class TimeGrow_Ajax_Handler {
         // Hook for logged-in users
         add_action('wp_ajax_check_is_billable', array($this, 'handle_is_billable_check'));
         add_action('wp_ajax_analyze_receipt_realtime', array($this, 'handle_analyze_receipt_realtime'));
-        add_action('wp_ajax_list_gemini_models', array($this, 'handle_list_gemini_models'));
 
         // Hook for non-logged-in users (if needed)
         //add_action('wp_ajax_nopriv_check_is_billable', array($this, 'handle_is_billable_check'));
@@ -77,162 +76,68 @@ class TimeGrow_Ajax_Handler {
     }
     
     /**
-     * Handle real-time receipt analysis AJAX request
-     * Analyzes receipt image immediately when uploaded and returns extracted data
+     * Real-time receipt reading: the uploaded image is read by the active AI and the expense
+     * fields come back to fill the form. Low-confidence results come back too, with a warning.
      */
     public function handle_analyze_receipt_realtime() {
-        // Verify nonce
-        if (!wp_verify_nonce($_POST['nonce'], 'timegrow_ajax_nonce')) {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'timegrow_ajax_nonce')) {
             wp_send_json_error('Security check failed');
-            return;
         }
-
-        // Check if file was uploaded
+        if (!current_user_can(TIMEGROW_OWNER_CAP)) {
+            wp_send_json_error('You are not allowed to add expenses.', 403);
+        }
         if (empty($_FILES['receipt_file'])) {
             wp_send_json_error('No file uploaded');
-            return;
+        }
+        $receipts = TimeGrowSettings::receipt_settings(); // Settings > AI Receipt Analysis
+        if ($receipts['auto_analysis'] !== 'yes') {
+            wp_send_json_error('Reading receipts with AI is turned off in Settings > AI Receipt Analysis.');
+        }
+        if (!TimeGrowAI::is_configured('receipts')) {
+            wp_send_json_error('AI is not configured, or its key is not working. Check TimeGrow > Settings > AI.');
         }
 
-        // Check AI configuration - use new database table
-        $settings = class_exists('TimeGrowSettings') ? TimeGrowSettings::get_active_ai_config() : [];
-        $ai_configured = !empty($settings['ai_api_key']) && !empty($settings['ai_provider']);
-
-        if (!$ai_configured) {
-            wp_send_json_error('AI is not configured. Please configure your AI provider in Settings.');
-            return;
+        $receipt_model = new TimeGrowExpenseReceiptModel();
+        $upload        = $receipt_model->upload_file($_FILES['receipt_file']);
+        if (is_wp_error($upload)) {
+            wp_send_json_error($upload->get_error_message());
         }
+        $file = $upload['file'] ?? ''; // wp_handle_upload() puts the path in "file"
 
         try {
-            // Upload file temporarily
-            $receipt_model = new TimeGrowExpenseReceiptModel();
-            $upload_result = $receipt_model->upload_file($_FILES['receipt_file']);
-
-            if (is_wp_error($upload_result)) {
-                wp_send_json_error($upload_result->get_error_message());
-                return;
-            }
-
-            // Analyze receipt with AI
-            $analyzer = TimeGrowReceiptAnalyzerFactory::create();
-            $analysis = $analyzer->analyze_receipt($upload_result['url']);
-
-            if (is_wp_error($analysis)) {
-                // Delete uploaded file if analysis fails
-                @unlink($upload_result['path']);
-                wp_send_json_error($analysis->get_error_message());
-                return;
-            }
-
-            // Check confidence threshold
-            $confidence_threshold = $settings['confidence_threshold'] ?? 0.7;
-            $confidence = floatval($analysis['confidence'] ?? 0);
-
-            if ($confidence < $confidence_threshold) {
-                wp_send_json_success([
-                    'low_confidence' => true,
-                    'confidence' => $confidence,
-                    'threshold' => $confidence_threshold,
-                    'message' => sprintf(
-                        'AI confidence is only %d%% (threshold: %d%%). Data may not be accurate.',
-                        round($confidence * 100),
-                        round($confidence_threshold * 100)
-                    ),
-                    'file_url' => $upload_result['url'],
-                    'file_path' => $upload_result['path']
-                ]);
-                return;
-            }
-
-            // Category ID comes directly from LLM - no database lookup needed
-            if(timegrow_debug()) {
-                timegrow_log('=== AJAX RESPONSE DATA ===');
-                timegrow_log('Category ID from LLM: ' . ($analysis['category_id'] ?? 'NOT SET'));
-                timegrow_log('Sending category_id directly to frontend: ' . intval($analysis['category_id'] ?? 0));
-            }
-
-            // Send success response with extracted data
-            wp_send_json_success([
-                'amount' => floatval($analysis['amount'] ?? 0),
-                'expense_date' => sanitize_text_field($analysis['expense_date'] ?? ''),
-                'expense_name' => sanitize_text_field($analysis['expense_name'] ?? ''),
-                'expense_description' => sanitize_text_field($analysis['expense_description'] ?? ''),
-                'category_id' => intval($analysis['category_id'] ?? 0),
-                'assigned_to' => sanitize_text_field($analysis['assigned_to'] ?? 'general'),
-                'assigned_to_id' => intval($analysis['assigned_to_id'] ?? 0),
-                'confidence' => $confidence,
-                'token_usage' => $analysis['token_usage'] ?? null,
-                'model_used' => $analysis['model_used'] ?? null,
-                'file_url' => $upload_result['url'],
-                'file_path' => $upload_result['path'],
-                'message' => sprintf('Receipt analyzed with %d%% confidence', round($confidence * 100))
-            ]);
-
+            $analysis = TimeGrowReceiptAnalyzerFactory::create()->analyze_receipt($upload['url'], ['path' => $file]);
         } catch (Exception $e) {
-            wp_send_json_error('Error analyzing receipt: ' . $e->getMessage());
+            $analysis = new WP_Error('analysis_error', $e->getMessage());
         }
-    }
-
-    /**
-     * Handle list Gemini models AJAX request
-     * Returns all available Gemini models that support generateContent
-     */
-    public function handle_list_gemini_models() {
-        // Verify nonce
-        if (!wp_verify_nonce($_POST['nonce'], 'timegrow_ajax_nonce')) {
-            wp_send_json_error('Security check failed');
-            return;
-        }
-
-        // Check user permissions
-        if (!current_user_can('manage_options')) {
-            wp_send_json_error('Insufficient permissions');
-            return;
-        }
-
-        try {
-            // Create analyzer instance
-            $analyzer = new TimeGrowGeminiReceiptAnalyzer();
-
-            // Get available models
-            $models = $analyzer->list_available_models();
-
-            if (is_wp_error($models)) {
-                wp_send_json_error($models->get_error_message());
-                return;
+        if (is_wp_error($analysis)) {
+            if ($file && is_file($file)) {
+                @unlink($file); // nothing will use this upload
             }
-
-            // Add pricing information to each model
-            foreach ($models as &$model) {
-                $model_name = basename($model['name']);
-
-                // Determine pricing tier based on model name and token limits
-                // All are free tier but differ in token consumption
-                if (strpos($model_name, '8b') !== false || strpos($model_name, '-8b-') !== false) {
-                    $model['pricing'] = 'Free (Lightweight)';
-                    $model['tier'] = 'low';
-                } elseif (strpos($model_name, 'flash') !== false) {
-                    $model['pricing'] = 'Free (Mid Tier)';
-                    $model['tier'] = 'mid';
-                } elseif (strpos($model_name, 'pro') !== false) {
-                    $model['pricing'] = 'Free (Expensive - High quality)';
-                    $model['tier'] = 'high';
-                } else {
-                    $model['pricing'] = 'Free';
-                    $model['tier'] = 'unknown';
-                }
-
-                $model['model_id'] = $model_name;
-            }
-
-            wp_send_json_success([
-                'models' => $models,
-                'total' => count($models),
-                'message' => 'Successfully retrieved ' . count($models) . ' vision-capable models'
-            ]);
-
-        } catch (Exception $e) {
-            wp_send_json_error('Error listing models: ' . $e->getMessage());
+            wp_send_json_error($analysis->get_error_message());
         }
+
+        $threshold  = (float) $receipts['confidence_threshold'];
+        $confidence = (float) ($analysis['confidence'] ?? 0);
+        $low        = $confidence < $threshold;
+
+        wp_send_json_success([
+            'amount'              => (float) ($analysis['amount'] ?? 0),
+            'expense_date'        => sanitize_text_field($analysis['expense_date'] ?? ''),
+            'expense_name'        => sanitize_text_field($analysis['expense_name'] ?? ''),
+            'expense_description' => sanitize_textarea_field($analysis['expense_description'] ?? ''),
+            'category_id'         => (int) ($analysis['category_id'] ?? 0),
+            'assigned_to'         => sanitize_text_field($analysis['assigned_to'] ?? 'general'),
+            'assigned_to_id'      => (int) ($analysis['assigned_to_id'] ?? 0),
+            'confidence'          => $confidence,
+            'threshold'           => $threshold,
+            'low_confidence'      => $low,
+            'token_usage'         => $analysis['token_usage'] ?? null,
+            'model_used'          => $analysis['model_used'] ?? null,
+            'file_url'            => $upload['url'], // the file's location on the server is not sent
+            'message'             => $low
+                ? sprintf('AI confidence is only %d%% (threshold %d%%). Check every field before saving.', round($confidence * 100), round($threshold * 100))
+                : sprintf('Receipt analyzed with %d%% confidence', round($confidence * 100)),
+        ]);
     }
 
     /**
