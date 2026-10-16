@@ -131,12 +131,15 @@ class TimeGrow_Ajax_Handler {
             'confidence'          => $confidence,
             'threshold'           => $threshold,
             'low_confidence'      => $low,
+            'suspicious'          => !empty($analysis['suspicious']),
             'token_usage'         => $analysis['token_usage'] ?? null,
             'model_used'          => $analysis['model_used'] ?? null,
             'file_url'            => $upload['url'], // the file's location on the server is not sent
-            'message'             => $low
+            'message'             => !empty($analysis['suspicious'])
+                ? 'The receipt has text that reads like instructions to the AI. That text was ignored. Check every field before saving.'
+                : ($low
                 ? sprintf('AI confidence is only %d%% (threshold %d%%). Check every field before saving.', round($confidence * 100), round($threshold * 100))
-                : sprintf('Receipt analyzed with %d%% confidence', round($confidence * 100)),
+                : sprintf('Receipt analyzed with %d%% confidence', round($confidence * 100))),
         ]);
     }
 

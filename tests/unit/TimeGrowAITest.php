@@ -119,7 +119,7 @@ class TimeGrowAITest extends TestCase {
         $this->assertSame( 300 + TimeGrowAI::THINKING_HEADROOM, $gb['generationConfig']['maxOutputTokens'] ); // room for thinking
 
         $o = json_decode( TimeGrowAI::build_request( 'openai', 'gpt-4o-mini', 'K', [ 'prompt' => 'Read', 'image' => $img, 'json' => true ] )['body'], true );
-        $this->assertSame( 'data:image/png;base64,QUJD', $o['messages'][0]['content'][1]['image_url']['url'] );
+        $this->assertSame( 'data:image/png;base64,QUJD', $o['messages'][1]['content'][1]['image_url']['url'] );
         $this->assertSame( 'json_object', $o['response_format']['type'] );
         $this->assertArrayHasKey( 'max_completion_tokens', $o ); // what current OpenAI models accept
 
