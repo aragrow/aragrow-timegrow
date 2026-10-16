@@ -14,6 +14,7 @@ class TimeGrowTimeEntryView {
             'orderby' => 'date',
             'order' => 'DESC',
             'filter_project' => '',
+            'filter_client' => '',
             'filter_member' => '',
             'filter_billable' => '',
             'filter_billed' => '',
@@ -29,7 +30,7 @@ class TimeGrowTimeEntryView {
         };
 
         // Check if any filters are active
-        $has_filters = !empty($current_filters['filter_project']) || !empty($current_filters['filter_member']) ||
+        $has_filters = !empty($current_filters['filter_project']) || !empty($current_filters['filter_client']) || !empty($current_filters['filter_member']) ||
                        !empty($current_filters['filter_billable']) || !empty($current_filters['filter_billed']) ||
                        !empty($current_filters['filter_entry_type']) || !empty($current_filters['filter_search']);
         ?>
@@ -60,6 +61,15 @@ class TimeGrowTimeEntryView {
                     <option value=""><?php esc_html_e('All Projects', 'timegrow'); ?></option>
                     <?php foreach ($filter_options['projects'] as $id => $name) : ?>
                         <option value="<?php echo esc_attr($id); ?>" <?php selected($current_filters['filter_project'], $id); ?>>
+                            <?php echo esc_html($name); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+
+                <select id="filter_client" name="filter_client">
+                    <option value=""><?php esc_html_e('All Clients', 'timegrow'); ?></option>
+                    <?php foreach (($filter_options['clients'] ?? []) as $id => $name) : ?>
+                        <option value="<?php echo esc_attr($id); ?>" <?php selected($current_filters['filter_client'], $id); ?>>
                             <?php echo esc_html($name); ?>
                         </option>
                     <?php endforeach; ?>
@@ -111,6 +121,9 @@ class TimeGrowTimeEntryView {
                     <th scope="col" class="manage-column column-company sortable <?php echo ($current_filters['orderby'] == 'project_name') ? 'sorted ' . strtolower($current_filters['order']) : ''; ?>">
                         <?php echo $sortable_link('project_name', __('Project', 'timegrow')); ?>
                     </th>
+                    <th scope="col" class="manage-column column-company sortable <?php echo ($current_filters['orderby'] == 'client_name') ? 'sorted ' . strtolower($current_filters['order']) : ''; ?>">
+                        <?php echo $sortable_link('client_name', __('Client', 'timegrow')); ?>
+                    </th>
                     <th scope="col" class="manage-column column-name sortable <?php echo ($current_filters['orderby'] == 'member_name') ? 'sorted ' . strtolower($current_filters['order']) : ''; ?>">
                         <?php echo $sortable_link('member_name', __('Member', 'timegrow')); ?>
                     </th>
@@ -152,6 +165,7 @@ class TimeGrowTimeEntryView {
                                 </div>
                             </td>
                             <td class="column-document" data-colname="project_name"><?php echo esc_html($item->project_name); ?></td>
+                            <td class="column-document" data-colname="client_name"><?php echo esc_html($item->client_name ?? ''); ?></td>
                             <td class="column-amount" data-colname="team_member"><?php echo esc_html($item->member_name); ?></td>
                             <td class="column-amount" data-colname="entry_type"><?php echo esc_html($item->entry_type); ?></td>
                             <td class="column-hours" data-colname="hours" style="text-align: right;">
@@ -188,7 +202,7 @@ class TimeGrowTimeEntryView {
                     <?php endforeach; ?>
                 <?php else : ?>
                     <tr>
-                        <td colspan="7">No time entries found.</td>
+                        <td colspan="8">No time entries found.</td>
                     </tr>
                 <?php endif; ?>
             </tbody>
@@ -196,6 +210,7 @@ class TimeGrowTimeEntryView {
                 <tr>
                     <th scope="col" class="manage-column column-name column-actions column-primary">Date</th>
                     <th scope="col" class="manage-column column-company">Project</th>
+                    <th scope="col" class="manage-column column-company">Client</th>
                     <th scope="col" class="manage-column column-name">Member</th>
                     <th scope="col" class="manage-column column-company">Type</th>
                     <th scope="col" class="manage-column column-hours" style="text-align: right; width: 80px;">Hours</th>

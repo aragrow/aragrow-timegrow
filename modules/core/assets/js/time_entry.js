@@ -98,6 +98,7 @@ jQuery(document).ready(function($) {
 
         var filterSearch = $('#filter_search').val();
         var filterProject = $('#filter_project').val();
+        var filterClient = $('#filter_client').val();
         var filterMember = $('#filter_member').val();
         var filterBillable = $('#filter_billable').val();
         var filterBilled = $('#filter_billed').val();
@@ -106,6 +107,7 @@ jQuery(document).ready(function($) {
         var url = new URL(window.location.href);
         url.searchParams.delete('s');
         url.searchParams.delete('filter_project');
+        url.searchParams.delete('filter_client');
         url.searchParams.delete('filter_member');
         url.searchParams.delete('filter_billable');
         url.searchParams.delete('filter_billed');
@@ -113,6 +115,7 @@ jQuery(document).ready(function($) {
 
         if (filterSearch) url.searchParams.set('s', filterSearch);
         if (filterProject) url.searchParams.set('filter_project', filterProject);
+        if (filterClient) url.searchParams.set('filter_client', filterClient);
         if (filterMember) url.searchParams.set('filter_member', filterMember);
         if (filterBillable) url.searchParams.set('filter_billable', filterBillable);
         if (filterBilled) url.searchParams.set('filter_billed', filterBilled);
@@ -122,7 +125,7 @@ jQuery(document).ready(function($) {
     });
 
     // Allow Enter key to trigger filter
-    $('#filter_search, #filter_project, #filter_member, #filter_billable, #filter_billed, #filter_entry_type').on('keypress', function(e) {
+    $('#filter_search, #filter_project, #filter_client, #filter_member, #filter_billable, #filter_billed, #filter_entry_type').on('keypress', function(e) {
         if (e.which === 13) {
             e.preventDefault();
             $('#filter_time_entries').click();

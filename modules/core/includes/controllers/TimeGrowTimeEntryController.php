@@ -107,6 +107,7 @@ class TimeGrowTimeEntryController{
         global $wpdb;
         $where_conditions = [];
         $filter_project = isset($_GET['filter_project']) ? sanitize_text_field($_GET['filter_project']) : '';
+        $filter_client = isset($_GET['filter_client']) ? sanitize_text_field($_GET['filter_client']) : '';
         $filter_member = isset($_GET['filter_member']) ? sanitize_text_field($_GET['filter_member']) : '';
         $filter_billable = isset($_GET['filter_billable']) ? sanitize_text_field($_GET['filter_billable']) : '';
         $filter_billed = isset($_GET['filter_billed']) ? sanitize_text_field($_GET['filter_billed']) : '';
@@ -116,12 +117,15 @@ class TimeGrowTimeEntryController{
         if (!empty($filter_search)) {
             $search_term = '%' . $wpdb->esc_like($filter_search) . '%';
             $where_conditions[] = $wpdb->prepare(
-                "(te.description LIKE %s OR p.name LIKE %s OR tm.name LIKE %s)",
-                $search_term, $search_term, $search_term
+                "(te.description LIKE %s OR p.name LIKE %s OR tm.name LIKE %s OR u.display_name LIKE %s)",
+                $search_term, $search_term, $search_term, $search_term
             );
         }
         if (!empty($filter_project)) {
             $where_conditions[] = $wpdb->prepare("te.project_id = %d", intval($filter_project));
+        }
+        if (!empty($filter_client)) {
+            $where_conditions[] = $wpdb->prepare("p.client_id = %d", intval($filter_client));
         }
         if (!empty($filter_member)) {
             $where_conditions[] = $wpdb->prepare("te.member_id = %d", intval($filter_member));
@@ -141,7 +145,7 @@ class TimeGrowTimeEntryController{
         $order = isset($_GET['order']) ? sanitize_text_field($_GET['order']) : 'DESC';
 
         // Validate orderby column
-        $allowed_orderby = ['date', 'project_name', 'member_name', 'hours', 'billable', 'billed'];
+        $allowed_orderby = ['date', 'project_name', 'client_name', 'member_name', 'hours', 'billable', 'billed'];
         if (!in_array($orderby, $allowed_orderby)) {
             $orderby = 'date';
         }
@@ -158,6 +162,8 @@ class TimeGrowTimeEntryController{
             $orderby_column = 'te.' . $orderby;
         } elseif ($orderby == 'project_name') {
             $orderby_column = 'p.name';
+        } elseif ($orderby == 'client_name') {
+            $orderby_column = 'u.display_name';
         } elseif ($orderby == 'member_name') {
             $orderby_column = 'tm.name';
         }
@@ -167,22 +173,28 @@ class TimeGrowTimeEntryController{
         $project_table = $wpdb->prefix . TIMEGROW_PREFIX . 'project_tracker';
         $member_table = $wpdb->prefix . TIMEGROW_PREFIX . 'team_member_tracker';
         $where_clause = !empty($where_conditions) ? 'WHERE ' . implode(' AND ', $where_conditions) : '';
-        $query = "SELECT te.*, p.name as project_name, tm.name as member_name
+        $query = "SELECT te.*, p.name as project_name, tm.name as member_name, p.client_id, u.display_name as client_name
                   FROM {$table_name} te
                   LEFT JOIN {$project_table} p ON te.project_id = p.ID
                   LEFT JOIN {$member_table} tm ON te.member_id = tm.ID
+                  LEFT JOIN {$wpdb->users} u ON p.client_id = u.ID
                   {$where_clause}
                   ORDER BY {$orderby_column} {$order}";
         $time_entries = $wpdb->get_results($query);
 
         // Get unique values for filters
-        $filter_options = ['projects' => [], 'members' => []];
+        $filter_options = ['projects' => [], 'clients' => [], 'members' => []];
 
-        // Get projects for filter
+        // Get projects for filter, and the clients those projects belong to
         $projects = $this->project_model->select(null);
         foreach ($projects as $project) {
             $filter_options['projects'][$project->ID] = $project->name;
+            $client = !empty($project->client_id) ? get_userdata($project->client_id) : false;
+            if ($client) {
+                $filter_options['clients'][$client->ID] = $client->display_name;
+            }
         }
+        asort($filter_options['clients'], SORT_NATURAL | SORT_FLAG_CASE);
 
         // Get members for filter
         $members = $this->member_model->select(null);
@@ -194,6 +206,7 @@ class TimeGrowTimeEntryController{
             'orderby' => $orderby,
             'order' => $order,
             'filter_project' => $filter_project,
+            'filter_client' => $filter_client,
             'filter_member' => $filter_member,
             'filter_billable' => $filter_billable,
             'filter_billed' => $filter_billed,
