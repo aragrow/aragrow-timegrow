@@ -362,7 +362,7 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 
 				<div class="timegrow-footer">
 					<?php submit_button(__('Save PayPal Settings', 'timegrow'), 'primary large', 'submit', false); ?>
-					<a href="<?php echo esc_url(admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-nexus-settings')); ?>" class="button button-secondary large">
+					<a href="<?php echo esc_url(admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-settings')); ?>" class="button button-secondary large">
 						<span class="dashicons dashicons-arrow-left-alt"></span>
 						<?php esc_html_e('Back to Settings', 'timegrow'); ?>
 					</a>

@@ -174,7 +174,7 @@ class TimeGrowNexusView {
                 </h2>
                 <div class="timegrow-cards-container">
                 <?php if ($show_all || current_user_can('access_nexus_settings')) : ?>
-                <a href="<?php echo esc_url("\?page=".TIMEGROW_PARENT_MENU."-nexus-settings"); ?>" class="timegrow-card">
+                <a href="<?php echo esc_url(admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-settings')); ?>" class="timegrow-card">
                     <div class="timegrow-card-header">
                         <div class="timegrow-icon timegrow-icon-primary">
                             <span class="dashicons dashicons-admin-settings"></span>

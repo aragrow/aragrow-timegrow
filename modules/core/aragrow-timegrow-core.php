@@ -47,6 +47,13 @@ function timegrow_core_load_mvc_classes($class) {
 
 spl_autoload_register( 'timegrow_core_load_mvc_classes' );
 
+// The shared TimeGrow stylesheet, registered once and versioned by its last change, so every
+// admin page (which enqueue it by handle) gets the current styles instead of a cached copy.
+add_action( 'admin_enqueue_scripts', function () {
+    $file = TIMEGROW_CORE_BASE_DIR . 'assets/css/timegrow-modern.css';
+    wp_register_style( 'timegrow-modern-style', TIMEGROW_CORE_BASE_URI . 'assets/css/timegrow-modern.css', [], file_exists( $file ) ? (string) filemtime( $file ) : null );
+}, 1 );
+
 // Initialize core components
 if ( ! isset( $timegrow_integrations) ) $timegrow_integration = New TimeGrowIntegration();
 if ( ! isset( $timegrow_company ) ) $timegrow_company = New TimeGrowCompany();

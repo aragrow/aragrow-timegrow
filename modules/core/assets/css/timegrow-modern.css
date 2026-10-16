@@ -740,3 +740,258 @@
 .timegrow-p-20 {
     padding: 20px;
 }
+
+/* ==========================================================================
+   AI status card (Settings > Voice Entry)
+   ========================================================================== */
+.tg-ai-status {
+    --tg-tone: #8c8f94;
+    --tg-tone-soft: #f0f0f1;
+    --tg-tone-glow: rgba(140, 143, 148, 0.25);
+    position: relative;
+    margin: 18px 0 6px;
+    padding: 22px 24px;
+    border-radius: 14px;
+    background: #fff;
+    border: 1px solid #e2e4e7;
+    box-shadow: 0 10px 30px -18px rgba(30, 30, 60, 0.35);
+    overflow: hidden;
+}
+
+.tg-ai-status::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--tg-tone), #667eea 140%);
+}
+
+.tg-ai-status--ok   { --tg-tone: #00a32a; --tg-tone-soft: #e8f6ec; --tg-tone-glow: rgba(0, 163, 42, 0.25); }
+.tg-ai-status--warn { --tg-tone: #c48a00; --tg-tone-soft: #fcf5e1; --tg-tone-glow: rgba(219, 166, 23, 0.28); }
+.tg-ai-status--bad  { --tg-tone: #d63638; --tg-tone-soft: #fcebec; --tg-tone-glow: rgba(214, 54, 56, 0.25); }
+
+.tg-ai-status__hero {
+    display: flex;
+    gap: 18px;
+    align-items: flex-start;
+}
+
+.tg-ai-status__icon {
+    flex: 0 0 auto;
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+    display: grid;
+    place-items: center;
+    background: var(--tg-tone-soft);
+    color: var(--tg-tone);
+    box-shadow: 0 0 0 6px var(--tg-tone-glow);
+}
+
+.tg-ai-status__icon .dashicons {
+    font-size: 28px;
+    width: 28px;
+    height: 28px;
+}
+
+.tg-ai-status--ok .tg-ai-status__icon {
+    animation: tg-ai-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes tg-ai-pulse {
+    0%, 100% { box-shadow: 0 0 0 6px var(--tg-tone-glow); }
+    50%      { box-shadow: 0 0 0 11px rgba(0, 163, 42, 0.08); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tg-ai-status--ok .tg-ai-status__icon { animation: none; }
+}
+
+.tg-ai-status__pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--tg-tone);
+    background: var(--tg-tone-soft);
+}
+
+.tg-ai-status__pill::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+}
+
+.tg-ai-status__title {
+    margin: 8px 0 6px;
+    font-size: 18px;
+    line-height: 1.3;
+    color: #1d2327;
+}
+
+.tg-ai-status__text {
+    margin: 0;
+    color: #50575e;
+    font-size: 13px;
+    line-height: 1.55;
+    max-width: 640px;
+}
+
+/* Your voice -> AI -> Time entry */
+.tg-ai-status__flow {
+    display: flex;
+    align-items: center;
+    margin: 20px 0 16px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: #f8f9fb;
+}
+
+.tg-ai-status__step {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.tg-ai-status__step-icon {
+    position: relative;
+    flex: 0 0 auto;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #fff;
+}
+
+.tg-ai-status__step-icon .dashicons {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+}
+
+.tg-ai-status__step--ai .tg-ai-status__step-icon {
+    background: var(--tg-tone);
+}
+
+.tg-ai-status__step-badge {
+    position: absolute;
+    right: -3px;
+    bottom: -3px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 2px solid #f8f9fb;
+    background: var(--tg-tone);
+    color: #fff;
+    font-size: 10px;
+    line-height: 12px;
+    text-align: center;
+    font-weight: 700;
+}
+
+.tg-ai-status__step-label {
+    display: flex;
+    flex-direction: column;
+    font-size: 12px;
+    color: #50575e;
+    line-height: 1.35;
+}
+
+.tg-ai-status__step-label strong {
+    color: #1d2327;
+    font-size: 13px;
+}
+
+.tg-ai-status__link {
+    flex: 1 1 24px;
+    height: 2px;
+    margin: 0 12px;
+    min-width: 16px;
+    background: repeating-linear-gradient(90deg, #c3c4c7 0 6px, transparent 6px 11px);
+}
+
+.tg-ai-status--ok .tg-ai-status__link {
+    background: linear-gradient(90deg, #667eea, var(--tg-tone));
+}
+
+/* Details and actions */
+.tg-ai-status__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 18px;
+}
+
+.tg-ai-status__chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 11px;
+    border-radius: 8px;
+    border: 1px solid #e2e4e7;
+    background: #fff;
+    font-size: 12px;
+    color: #50575e;
+}
+
+.tg-ai-status__chip .dashicons {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+    color: #764ba2;
+}
+
+.tg-ai-status__chip b {
+    color: #1d2327;
+    font-weight: 600;
+}
+
+.tg-ai-status__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.wp-core-ui .tg-ai-status__actions .button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 36px;
+    padding: 0 16px;
+    border-radius: 8px;
+}
+
+.wp-core-ui .tg-ai-status__actions .button-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: 0;
+}
+
+.wp-core-ui .tg-ai-status__actions .button .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    line-height: 1;
+    margin: 0;
+    vertical-align: middle;
+}
+
+@media (max-width: 782px) {
+    .tg-ai-status { padding: 18px; }
+    .tg-ai-status__flow { flex-direction: column; align-items: flex-start; gap: 10px; }
+    .tg-ai-status__link { width: 2px; height: 14px; flex: none; margin: 0 0 0 18px; background: #c3c4c7; }
+}
+
+/* Range inputs on TimeGrow settings pages follow the brand color */
+.timegrow-page input[type="range"] {
+    accent-color: #764ba2;
+}

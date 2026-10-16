@@ -15,6 +15,7 @@ class TimeGrowNexus{
    //     add_action('wp_ajax_save_expense', array($this, 'save_ajax'));
    //     add_action('wp_ajax_delete_expense', array($this, 'delete_ajax')); // Add delete action
         add_action('admin_menu', [$this, 'register_admin_menu'], 20);
+        add_action('admin_init', [$this, 'redirect_old_settings_hub']);
         add_action('wp_ajax_delete_nexus', array($this, 'delete_ajax')); // Add delete action
         add_action('wp_ajax_save_time_entry', array($this, 'save_time_entry'));
         add_action('admin_enqueue_scripts', array($this, 'enqueue_scripts_styles'));
@@ -117,17 +118,27 @@ class TimeGrowNexus{
             },
         );
 
+        // The old Nexus settings hub (a copy of TimeGrow > Settings): kept only so old links and
+        // bookmarks still work; redirect_old_settings_hub() forwards them.
         add_submenu_page(
-            TIMEGROW_PARENT_MENU, // shown in the menu: the hub that links to every settings area
+            null,
             'Settings',
             'Settings',
             'access_nexus_settings',
             TIMEGROW_PARENT_MENU . '-nexus-settings',
-            function() { // Define a closure
-                $this->tracker_mvc_admin_page( 'settings' ); // Call the tracker_mvc method, passing the parameter
-            },
+            '__return_null'
         );
 
+    }
+
+    /**
+     * The Nexus "Settings" hub was merged into TimeGrow > Settings: send old links there.
+     */
+    public function redirect_old_settings_hub() {
+        if (($_GET['page'] ?? '') === TIMEGROW_PARENT_MENU . '-nexus-settings') {
+            wp_safe_redirect(admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-settings'));
+            exit;
+        }
     }
 
     public function save_time_entry() {
@@ -157,8 +168,7 @@ class TimeGrowNexus{
  public function save_manual() {
         timegrow_log(__CLASS__.'::'.__FUNCTION__);
         try {
-            timegrow_log('$_POST[]');
-            timegrow_log(print_r($_POST,true));
+            timegrow_log('Time entry save: ' . sanitize_key($_POST['entry_type'] ?? '')); // no form contents in the log
             $time_entry_id = isset($_POST['time_entry_id']) ? intval($_POST['time_entry_id']) : 0;
             $project_id     = isset($_POST['project_id']) ? intval($_POST['project_id']) : 0;
             $member_id     = isset($_POST['member_id']) ? intval($_POST['member_id']) : 0;
@@ -169,6 +179,7 @@ class TimeGrowNexus{
             $hours         = isset($_POST['hours']) ? floatval($_POST['hours']) : 0;
             $description  = isset($_POST['description']) ? sanitize_text_field($_POST['description']) : '';
             $isBillable  = isset($_POST['billable']) ? intval($_POST['billable']) : 0;
+            $start_time  = isset($_POST['start_time']) ? sanitize_text_field($_POST['start_time']) : ''; // optional, HH:MM (voice entry)
             if (
                 !isset($nonce) ||
                 !wp_verify_nonce($nonce, 'timegrow_time_nexus_nonce')
@@ -201,6 +212,19 @@ class TimeGrowNexus{
                 wp_die();
             }
             timegrow_log('Verification Passed');
+
+            // Who and what: the member comes from the logged-in user, the project must be theirs
+            $member_id = TimeGrowTimeEntryRules::require_member_and_project('access_nexus_manual_entry', $member_id, $project_id);
+            $problem   = TimeGrowTimeEntryRules::manual_problem($date, $hours, current_time('Y-m-d'));
+            if ($problem !== '') {
+                wp_send_json_error(['message' => $problem]);
+            }
+            $hours = round($hours * 4) / 4;
+
+            // The date column holds a time too: keep the start time when one was given
+            if (preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $start_time)) {
+                $date .= ' ' . $start_time . ':00';
+            }
 
             $entry_model = new TimeGrowTimeEntryModel();
 
@@ -235,10 +259,10 @@ class TimeGrowNexus{
             ];
 
             $id = $entry_model->create($data, $format);
-
-            timegrow_log("ID processed: {$id}");
-
-            echo "<div class='notice notice-success is-dismissible'><p>{entry_type} added successfully!</p></div>";
+            if (!$id) {
+                wp_send_json_error(['message' => __('The time entry could not be saved.', 'timegrow')]);
+            }
+            wp_send_json_success(['id' => (int) $id, 'message' => __('Time entry saved.', 'timegrow')]);
 
         } catch (Exception $e) {
             wp_send_json_error('Manual Error: ' . $e->getMessage());
@@ -249,8 +273,7 @@ class TimeGrowNexus{
     public function save_clock_in() {
         timegrow_log(__CLASS__.'::'.__FUNCTION__);
         try {
-            timegrow_log('$_POST[]');
-            timegrow_log(print_r($_POST,true));
+            timegrow_log('Time entry save: ' . sanitize_key($_POST['entry_type'] ?? '')); // no form contents in the log
             $time_entry_id = isset($_POST['time_entry_id']) ? intval($_POST['time_entry_id']) : 0;
             $project_id     = isset($_POST['project_id']) ? intval($_POST['project_id']) : 0;
             $member_id     = isset($_POST['member_id']) ? intval($_POST['member_id']) : 0;
@@ -296,6 +319,12 @@ class TimeGrowNexus{
             $date_obj = DateTime::createFromFormat('Y-m-d h:i:s A', $clock_time);
             if ($date_obj) {
                 $clock_time = $date_obj->format('Y-m-d H:i:s'); // "2025-08-20 16:50:34"
+            }
+
+            $member_id = TimeGrowTimeEntryRules::require_member_and_project('access_nexus_clock', $member_id, $project_id);
+            $problem   = TimeGrowTimeEntryRules::clock_problem($clock_time, current_time('mysql'));
+            if ($problem !== '') {
+                wp_send_json_error(['message' => $problem]);
             }
 
             $entry_model = new TimeGrowTimeEntryModel();
@@ -337,11 +366,11 @@ class TimeGrowNexus{
                 $data['created_at'] = $current_date;
                 $format[] = '%s';
                 $id = $entry_model->create($data, $format);
-            } else
-
-            timegrow_log("ID processed: {$id}");
-
-            echo "<div class='notice notice-success is-dismissible'><p>{entry_type} added successfully!</p></div>";
+            }
+            if (!$id) {
+                wp_send_json_error(['message' => __('Could not clock in.', 'timegrow')]);
+            }
+            wp_send_json_success(['id' => (int) $id, 'message' => __('Clocked in.', 'timegrow')]);
 
         } catch (Exception $e) {
             wp_send_json_error('Clock In Error: ' . $e->getMessage());
@@ -352,8 +381,7 @@ class TimeGrowNexus{
     public function save_clock_out() {
         timegrow_log(__CLASS__.'::'.__FUNCTION__);
         try {
-            timegrow_log('$_POST[]');
-            timegrow_log(print_r($_POST,true));
+            timegrow_log('Time entry save: ' . sanitize_key($_POST['entry_type'] ?? '')); // no form contents in the log
             $time_entry_id = isset($_POST['time_entry_id']) ? intval($_POST['time_entry_id']) : 0;
             $entry_type    = isset($_POST['entry_type']) ? sanitize_text_field($_POST['entry_type']) : '';
             $nonce         = isset($_POST['timegrow_time_nexus_nonce_field']) ? sanitize_text_field($_POST['timegrow_time_nexus_nonce_field']) : '';
@@ -395,6 +423,17 @@ class TimeGrowNexus{
                 $clock_time = $date_obj->format('Y-m-d H:i:s'); // "2025-08-20 16:50:34"
             }
 
+            if (!current_user_can('access_nexus_clock') && !TimeGrowTimeEntryRules::is_admin()) {
+                wp_send_json_error(['message' => __('You are not allowed to record time.', 'timegrow')], 403);
+            }
+            if (!$time_entry_id || !TimeGrowTimeEntryRules::owns_entry($time_entry_id)) {
+                wp_send_json_error(['message' => __('That time entry is not yours.', 'timegrow')], 403);
+            }
+            $problem = TimeGrowTimeEntryRules::clock_problem($clock_time, current_time('mysql'));
+            if ($problem !== '') {
+                wp_send_json_error(['message' => $problem]);
+            }
+
             $entry_model = new TimeGrowTimeEntryModel();
 
             $current_date = current_time('mysql');
@@ -410,13 +449,11 @@ class TimeGrowNexus{
                 '%s'   // clock_out_date (string)
             ];
 
-            timegrow_log('Updating Clock Out.');
-            timegrow_log(print_r($data, true));
             $id = $entry_model->update($time_entry_id, $data, $format);
-   
-            timegrow_log("ID processed: {$id}");
-
-            echo "<div class='notice notice-success is-dismissible'><p>{entry_type} added successfully!</p></div>";
+            if ($id === false) {
+                wp_send_json_error(['message' => __('Could not clock out.', 'timegrow')]);
+            }
+            wp_send_json_success(['id' => (int) $time_entry_id, 'message' => __('Clocked out.', 'timegrow')]);
 
         } catch (Exception $e) {
 
@@ -470,10 +507,17 @@ class TimeGrowNexus{
         if ($hook == "admin_page_timegrow-nexus-clock" || $hook == "timegrow_page_timegrow-nexus-clock") {
 
             wp_enqueue_script(
+                'timegrow-nexus-project-clients', // shared: client on project tiles and search
+                TIMEGROW_NEXUS_BASE_URI . 'assets/js/project-clients.js',
+                ['jquery'],
+                filemtime(TIMEGROW_NEXUS_BASE_DIR . 'assets/js/project-clients.js'),
+                true
+            );
+            wp_enqueue_script(
                 'timegrow-nexus-clock', // New handle, matches wp_localize_script
                 TIMEGROW_NEXUS_BASE_URI . 'assets/js/clock.js', // Path to your new JS file
-                [], // No React dependencies needed for vanilla JS
-                $plugin_version,
+                ['jquery', 'timegrow-nexus-project-clients'],
+                filemtime(TIMEGROW_NEXUS_BASE_DIR . 'assets/js/clock.js'),
                 true // Load in footer
             );
             wp_enqueue_style('timeflies-nexus-project-bc-style', TIMEGROW_NEXUS_BASE_URI . 'assets/css/nexus_project_bc.css', [], $plugin_version);
@@ -482,7 +526,7 @@ class TimeGrowNexus{
                 'timegrow-clock-style',
                 TIMEGROW_NEXUS_BASE_URI . 'assets/css/clock.css',
                 [],
-                $plugin_version
+                filemtime(TIMEGROW_NEXUS_BASE_DIR . 'assets/css/clock.css')
             );
             wp_localize_script(
                     'timegrow-nexus-clock',
@@ -496,13 +540,40 @@ class TimeGrowNexus{
         } elseif ($hook == "admin_page_timegrow-nexus-manual" || $hook == "timegrow_page_timegrow-nexus-manual") {
 
             wp_enqueue_script(
+                'timegrow-nexus-project-clients', // shared: client on project tiles and search
+                TIMEGROW_NEXUS_BASE_URI . 'assets/js/project-clients.js',
+                ['jquery'],
+                filemtime(TIMEGROW_NEXUS_BASE_DIR . 'assets/js/project-clients.js'),
+                true
+            );
+            wp_enqueue_script(
                 'timegrow-nexus-manual', // New handle, matches wp_localize_script
                 TIMEGROW_NEXUS_BASE_URI . 'assets/js/manual.js', // Path to your new JS file
-                [], // No React dependencies needed for vanilla JS
-                $plugin_version,
+                ['jquery', 'timegrow-nexus-project-clients'],
+                filemtime(TIMEGROW_NEXUS_BASE_DIR . 'assets/js/manual.js'),
                 true // Load in footer
             );
-            wp_enqueue_style('timegrow-clock-style', TIMEGROW_NEXUS_BASE_URI . 'assets/css/clock.css', [], $plugin_version);
+            // Voice entry chat (TimeGrowNexusVoice), when on in Settings > Voice Entry
+            $voice = TimeGrowSettings::voice_settings();
+            if ($voice['enabled'] === 'yes') {
+            wp_enqueue_script(
+                'timegrow-nexus-voice',
+                TIMEGROW_NEXUS_BASE_URI . 'assets/js/voice-entry.js',
+                ['jquery', 'timegrow-nexus-project-clients', 'timegrow-nexus-manual'],
+                filemtime(TIMEGROW_NEXUS_BASE_DIR . 'assets/js/voice-entry.js'),
+                true
+            );
+            wp_localize_script('timegrow-nexus-voice', 'timegrowVoice', [
+                'ajaxUrl' => admin_url('admin-ajax.php'),
+                'nonce'   => wp_create_nonce(TimeGrowNexusVoice::NONCE),
+                'today'   => current_time('Y-m-d'),
+                'aiReady' => $voice['use_ai'] === 'yes' && TimeGrowAI::is_configured('voice'),
+                'speak'   => $voice['speak'] === 'yes',
+                'askStartTime' => $voice['ask_start_time'] === 'yes',
+                'lang'    => TimeGrowSettings::voice_language(),
+            ]);
+            }
+            wp_enqueue_style('timegrow-clock-style', TIMEGROW_NEXUS_BASE_URI . 'assets/css/clock.css', [], filemtime(TIMEGROW_NEXUS_BASE_DIR . 'assets/css/clock.css'));
             wp_localize_script(
                 'timegrow-nexus-manual',
                 'timegrow_nexus_list',
@@ -564,15 +635,6 @@ class TimeGrowNexus{
                 [],
                 $plugin_version
             );
-        } elseif ($hook == "admin_page_timegrow-nexus-settings" || $hook == "timegrow_page_timegrow-nexus-settings") {
-            // Modern style already enqueued above (line 431)
-            // Enqueue forms.css for .timegrow-page wrapper styles (shared from core module)
-            wp_enqueue_style(
-                'timegrow-forms-style',
-                TIMEGROW_CORE_BASE_URI . 'assets/css/forms.css',
-                [],
-                $plugin_version
-            );
         }
 
         // Dashboard - check if it's the main Nexus page
@@ -600,7 +662,6 @@ class TimeGrowNexus{
         $view_manual = new TimeGrowNexusManualView();
         $view_expense = new TimeGrowNexusExpenseView();
         $view_report = new TimeGrowNexusReportView();
-        $view_settings = new TimeGrowNexusSettingsView();
         $view_process_time = new TimeGrowNexusProcessTimeView();
         $controller_reports = new TimeGrowReportsController($view_report);
         $team_member_model = new TimeGrowTeamMemberModel();
@@ -619,7 +680,11 @@ class TimeGrowNexus{
                 // User is not an administrator, get projects for the current user
                 $member = $team_member_model->get_by_user_id(get_current_user_id());
                 $member_id = $member ? $member->ID : 0;
-                $projects = $team_member_model->get_projects_for_member($member_id);
+                // All active projects, or only assigned ones (Settings > General); same rule the save checks
+                $projects = TimeGrowTimeEntryRules::everyone_on_all_projects()
+                    ? $team_member_model->get_projects_for_member(-1)
+                    : $team_member_model->get_projects_for_member($member_id);
+                $projects = is_array($projects) ? $projects : [];
                 $list = $model->select(get_current_user_id()); // Get entries for the current user
             }
         } elseif ( $screen == 'reports' ) {
@@ -720,7 +785,7 @@ class TimeGrowNexus{
             }
         }
 
-        $controller = new TimeGrowNexusController($model, $view_dashboard, $view_clock, $view_manual, $view_expense, $view_report, $view_settings, $view_process_time, $projects, $reports, $team_member_model, $list, $clients);
+        $controller = new TimeGrowNexusController($model, $view_dashboard, $view_clock, $view_manual, $view_expense, $view_report, $view_process_time, $projects, $reports, $team_member_model, $list, $clients);
         $controller->display_admin_page($screen);
     }
 

@@ -13,7 +13,6 @@ class TimeGrowNexusController{
     private $view_manual;
     private $view_expense;
     private $view_report;
-    private $view_settings;
     private $view_process_time;
     private $projects;
     private $reports;
@@ -28,7 +27,6 @@ class TimeGrowNexusController{
         TimeGrowNexusManualView $view_manual,
         TimeGrowNexusExpenseView $view_expense,
         TimeGrowNexusReportView $view_report,
-        TimeGrowNexusSettingsView $view_settings,
         TimeGrowNexusProcessTimeView $view_process_time,
         $projects,
         $reports,
@@ -44,7 +42,6 @@ class TimeGrowNexusController{
         $this->view_manual = $view_manual;
         $this->view_expense = $view_expense;
         $this->view_report = $view_report;
-        $this->view_settings = $view_settings;
         $this->view_process_time = $view_process_time;
         $this->projects = $projects;
         $this->reports = $reports;
@@ -89,8 +86,6 @@ class TimeGrowNexusController{
             $report_controller = new TimeGrowReportsController();
             $report_controller->render_individual_report_page();
         }
-        elseif ($screen == 'settings')
-            $this->view_settings->display($user);
         elseif ($screen == 'process_time')
             $this->view_process_time->display($user, $this->clients);
     }

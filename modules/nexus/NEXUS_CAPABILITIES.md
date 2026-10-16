@@ -176,14 +176,15 @@ add_submenu_page(
     $callback
 );
 
-// Settings - admin only
+// Settings - admin only. Merged into TimeGrow > Settings (timegrow-settings) in 2.2.0:
+// this hidden page only forwards old links there (TimeGrowNexus::redirect_old_settings_hub()).
 add_submenu_page(
     null,  // Hidden from menu
     'Settings',
     'Settings',
     'access_nexus_settings',  // Admin-only capability
     TIMEGROW_PARENT_MENU . '-nexus-settings',
-    $callback
+    '__return_null'
 );
 ```
 

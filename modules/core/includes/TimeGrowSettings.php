@@ -7,6 +7,8 @@ if (!defined('ABSPATH')) {
 class TimeGrowSettings {
 
     private $general_option_name = 'aragrow_timegrow_general_settings';
+    const VOICE_OPTION = 'timegrow_voice_settings';
+    const RECEIPT_OPTION = 'timegrow_receipt_settings';
     private $ai_option_name = 'aragrow_timegrow_ai_settings';
     private $ai_configs_option_name = 'aragrow_timegrow_ai_configurations';
     private $ai_form_temp_option_name = 'aragrow_timegrow_ai_form_temp'; // Temporary form data (cleared unless editing)
@@ -49,7 +51,7 @@ class TimeGrowSettings {
             'timegrow-modern-style',
             plugin_dir_url(__FILE__) . '../assets/css/timegrow-modern.css',
             [],
-            '1.0.0'
+            filemtime(dirname(__DIR__) . '/assets/css/timegrow-modern.css') // new styles reach browsers right away
         );
         wp_enqueue_style(
             'timegrow-forms-style',
@@ -68,7 +70,7 @@ class TimeGrowSettings {
         add_submenu_page(
             TIMEGROW_PARENT_MENU,
             'TimeGrow Settings',
-            'General & AI', // the Nexus "Settings" item is the hub for all settings
+            'Settings', // the one settings hub: General, AI, Voice Entry, Mobile Access, WooCommerce, PayPal
             TIMEGROW_OWNER_CAP,
             TIMEGROW_PARENT_MENU . '-settings',
             [$this, 'render_settings_page']
@@ -115,6 +117,14 @@ class TimeGrowSettings {
         );
 
         add_settings_field(
+            'team_project_access',
+            'Team members can record time on',
+            [$this, 'render_team_project_access_field'],
+            'aragrow-timegrow-settings-general',
+            'general_settings_section'
+        );
+
+        add_settings_field(
             'delete_data_on_uninstall',
             'Delete data on uninstall',
             [$this, 'render_delete_data_field'],
@@ -123,14 +133,27 @@ class TimeGrowSettings {
         );
 
         // ========================================
-        // AI PROVIDER SETTINGS
+        // RECEIPT ANALYSIS SETTINGS
         // ========================================
         register_setting(
-            'aragrow_timegrow_ai_settings_group',
-            $this->ai_option_name,
-            [$this, 'sanitize_ai_settings']
+            'timegrow_receipt_settings_group',
+            self::RECEIPT_OPTION,
+            ['sanitize_callback' => [$this, 'sanitize_receipt_settings']]
         );
 
+        // ========================================
+        // VOICE ENTRY SETTINGS
+        // ========================================
+        register_setting(
+            'timegrow_voice_settings_group',
+            self::VOICE_OPTION,
+            ['sanitize_callback' => [$this, 'sanitize_voice_settings'], 'default' => self::voice_defaults()]
+        );
+
+        // ========================================
+        // AI PROVIDER SETTINGS
+        // ========================================
+        // Saved by handle_form_submission() into the AI configurations table (TimeGrowAIConfigModel)
         add_settings_section(
             'ai_provider_section',
             '',
@@ -168,7 +191,7 @@ class TimeGrowSettings {
         // Set as active configuration
         add_settings_field(
             'is_active_config',
-            'Active Configuration',
+            'Default Configuration',
             [$this, 'render_is_active_config_field'],
             'aragrow-timegrow-settings-ai',
             'ai_provider_section'
@@ -182,58 +205,19 @@ class TimeGrowSettings {
             'aragrow-timegrow-settings-ai',
             'ai_provider_section'
         );
-
-        // Enable auto-analysis
-        add_settings_field(
-            'enable_auto_analysis',
-            'Enable Auto-Analysis',
-            [$this, 'render_enable_auto_analysis_field'],
-            'aragrow-timegrow-settings-ai',
-            'ai_provider_section'
-        );
-
-        // Confidence threshold
-        add_settings_field(
-            'confidence_threshold',
-            'Confidence Threshold',
-            [$this, 'render_confidence_threshold_field'],
-            'aragrow-timegrow-settings-ai',
-            'ai_provider_section'
-        );
+        // Reading receipts automatically and the confidence threshold are Receipt Analysis settings (RECEIPT_OPTION)
     }
 
     /**
-     * Get available AI providers and their models
+     * AI providers and their models (TimeGrowAI: current models, plus any the provider listed
+     * when a key was last tested).
      */
     private function get_ai_providers() {
-        return [
-            'google_gemini' => [
-                'name' => 'Google Gemini',
-                'models' => TimeGrowGeminiReceiptAnalyzer::get_model_options(),
-                'api_url' => 'https://generativelanguage.googleapis.com/v1/models/{model}:generateContent',
-                'docs_url' => 'https://aistudio.google.com/apikey',
-            ],
-            'openai' => [
-                'name' => 'OpenAI',
-                'models' => [
-                    'gpt-4o' => 'GPT-4o (Best for vision)',
-                    'gpt-4o-mini' => 'GPT-4o Mini (Faster, Cheaper)',
-                    'gpt-4-turbo' => 'GPT-4 Turbo',
-                ],
-                'api_url' => 'https://api.openai.com/v1/chat/completions',
-                'docs_url' => 'https://platform.openai.com/api-keys',
-            ],
-            'anthropic' => [
-                'name' => 'Anthropic Claude',
-                'models' => [
-                    'claude-3-5-sonnet-20241022' => 'Claude 3.5 Sonnet (Best for vision)',
-                    'claude-3-opus-20240229' => 'Claude 3 Opus (Most capable)',
-                    'claude-3-haiku-20240307' => 'Claude 3 Haiku (Fastest)',
-                ],
-                'api_url' => 'https://api.anthropic.com/v1/messages',
-                'docs_url' => 'https://console.anthropic.com/settings/keys',
-            ],
-        ];
+        $providers = [];
+        foreach (TimeGrowAI::providers() as $id => $p) {
+            $providers[$id] = $p + ['models' => TimeGrowAI::model_options($id)];
+        }
+        return $providers;
     }
 
     /**
@@ -259,199 +243,12 @@ class TimeGrowSettings {
         }
 
         // Opt-in: uninstall.php only removes data when this is 'yes'
-        $sanitized['delete_data_on_uninstall'] = !empty($input['delete_data_on_uninstall']) ? 'yes' : 'no';
+        // Only "yes" (the checkbox value) is on: WordPress runs this twice when the option is first created
+        $sanitized['delete_data_on_uninstall'] = ($input['delete_data_on_uninstall'] ?? '') === 'yes' ? 'yes' : 'no';
+
+        $sanitized['team_project_access'] = ($input['team_project_access'] ?? 'all') === 'assigned' ? 'assigned' : 'all';
 
         return $sanitized;
-    }
-
-    /**
-     * Sanitize AI settings
-     */
-    public function sanitize_ai_settings($input) {
-        timegrow_log(__CLASS__.'::'.__FUNCTION__);
-
-        // Check if this is an actual form submission or just WordPress retrieving the option
-        $is_form_submission = isset($_POST['submit']) || isset($_POST['option_page']);
-
-        // Check if this is a programmatic update (from our config actions like load/activate/clear)
-        $is_programmatic_update = is_array($input) && !empty($input) && !$is_form_submission;
-
-        if(timegrow_debug()) {
-            timegrow_log('Is form submission: ' . ($is_form_submission ? 'YES' : 'NO'));
-            timegrow_log('Is programmatic update: ' . ($is_programmatic_update ? 'YES' : 'NO'));
-        }
-
-        // If not a form submission AND not a programmatic update, just return input as-is
-        if (!$is_form_submission && !$is_programmatic_update) {
-            timegrow_log('Not a form submission or programmatic update - returning input as-is');
-            return $input;
-        }
-
-        // If it's a programmatic update (load/activate/clear), return the input without processing
-        if ($is_programmatic_update) {
-            timegrow_log('Programmatic update - returning input without creating new config');
-            return $input;
-        }
-
-        $sanitized = [];
-        $providers = $this->get_ai_providers();
-
-        // Preserve existing config_id if updating
-        $existing = get_option($this->ai_option_name, []);
-        if(timegrow_debug()) {
-            timegrow_log('Existing option has config_id: ' . (isset($existing['config_id']) ? $existing['config_id'] : 'NONE'));
-            timegrow_log('Input has config_id: ' . (isset($input['config_id']) ? $input['config_id'] : 'NONE'));
-        }
-
-        // Check if config_id is in the input (hidden field) OR in the existing option
-        if (isset($input['config_id']) && !empty($input['config_id'])) {
-            // Config ID from hidden form field (preferred)
-            $sanitized['config_id'] = sanitize_text_field($input['config_id']);
-            timegrow_log('Using config_id from input: ' . $sanitized['config_id']);
-        } elseif (isset($existing['config_id'])) {
-            // Config ID from existing option (fallback)
-            $sanitized['config_id'] = $existing['config_id'];
-            timegrow_log('Preserving config_id from existing: ' . $existing['config_id']);
-        } else {
-            timegrow_log('No config_id found - will create new configuration');
-        }
-
-        // Configuration name
-        $sanitized['config_name'] = isset($input['config_name']) && !empty($input['config_name'])
-            ? sanitize_text_field($input['config_name'])
-            : 'Default Configuration';
-
-        // AI Provider
-        if (isset($input['ai_provider']) && array_key_exists($input['ai_provider'], $providers)) {
-            $sanitized['ai_provider'] = $input['ai_provider'];
-        } else {
-            $sanitized['ai_provider'] = 'google_gemini';
-        }
-
-        // AI Model (validate against selected provider)
-        $selected_provider = $sanitized['ai_provider'];
-        if (isset($input['ai_model']) && array_key_exists($input['ai_model'], $providers[$selected_provider]['models'])) {
-            $sanitized['ai_model'] = $input['ai_model'];
-        } else {
-            // Default to first model of selected provider
-            $sanitized['ai_model'] = array_key_first($providers[$selected_provider]['models']);
-        }
-
-        // API Key - encrypt if Voice AI Security class is available
-        $api_key_updated = false;
-        if (isset($input['ai_api_key'])) {
-            $api_key = sanitize_text_field($input['ai_api_key']);
-            if (!empty($api_key)) {
-                if (class_exists('\AraGrow\VoiceAI\Security')) {
-                    // Check if this looks like it's already encrypted (base64 encoded, not starting with expected API key prefix)
-                    // Google Gemini keys start with "AIza", OpenAI with "sk-", Anthropic with "sk-ant-"
-                    $is_already_encrypted = !preg_match('/^(AIza|sk-|sk-ant-)/', $api_key);
-
-                    if ($is_already_encrypted) {
-                        // Already encrypted, don't encrypt again
-                        $sanitized['ai_api_key'] = $api_key;
-                        timegrow_log('API key appears already encrypted, skipping encryption');
-                    } else {
-                        // Plain text key, encrypt it
-                        $sanitized['ai_api_key'] = \AraGrow\VoiceAI\Security::encrypt($api_key);
-                        $api_key_updated = true;
-                        timegrow_log('Encrypting new API key');
-                    }
-                } else {
-                    $sanitized['ai_api_key'] = $api_key;
-                    $api_key_updated = true;
-                }
-            } else {
-                // Field is empty - keep existing encrypted value if it exists
-                $sanitized['ai_api_key'] = $existing['ai_api_key'] ?? '';
-            }
-        } else {
-            // Field not in input - keep existing value
-            $sanitized['ai_api_key'] = $existing['ai_api_key'] ?? '';
-        }
-
-        // Store flag to show API key saved banner
-        if ($api_key_updated) {
-            set_transient('timegrow_api_key_saved', true, 30);
-        }
-
-        // Enable auto-analysis
-        $sanitized['enable_auto_analysis'] = isset($input['enable_auto_analysis']) ? true : false;
-
-        // Confidence threshold
-        if (isset($input['confidence_threshold'])) {
-            $threshold = floatval($input['confidence_threshold']);
-            $sanitized['confidence_threshold'] = max(0.0, min(1.0, $threshold));
-        } else {
-            $sanitized['confidence_threshold'] = 0.7;
-        }
-
-        // Is active configuration
-        $is_active = isset($input['is_active_config']) && $input['is_active_config'];
-        $sanitized['is_active_config'] = $is_active;
-
-        // Save or update configuration
-        $this->save_configuration($sanitized, $is_active);
-
-        // After saving, clear the form by returning empty defaults
-        // This ensures the form is empty after save
-        $cleared_form = [
-            'ai_provider' => 'google_gemini',
-            'ai_model' => 'gemini-2.0-flash-exp',
-            'ai_api_key' => '',
-            'enable_auto_analysis' => false,
-            'confidence_threshold' => 0.7,
-            'config_name' => '',
-            'is_active_config' => false,
-        ];
-
-        timegrow_log('Clearing form after save');
-
-        return $cleared_form;
-    }
-
-    /**
-     * Save or update configuration
-     *
-     * @param array $config Configuration data
-     * @param bool $is_active Whether this should be the active config
-     */
-    private function save_configuration($config, $is_active) {
-        $configs = get_option($this->ai_configs_option_name, []);
-
-        // If this is an update (has config_id), update existing
-        if (isset($config['config_id']) && isset($configs[$config['config_id']])) {
-            $config_id = $config['config_id'];
-            timegrow_log('Updating existing config: ' . $config_id);
-
-            // If setting as active, deactivate all others
-            if ($is_active) {
-                foreach ($configs as &$existing_config) {
-                    $existing_config['is_active_config'] = false;
-                }
-            }
-
-            // Update the config
-            $config['is_active_config'] = $is_active;
-            $configs[$config_id] = $config;
-        } else {
-            // Creating new config
-            $config['config_id'] = uniqid('ai_config_');
-            timegrow_log('Creating new config with ID: ' . $config['config_id']);
-
-            // If setting as active, deactivate all others
-            if ($is_active) {
-                foreach ($configs as &$existing_config) {
-                    $existing_config['is_active_config'] = false;
-                }
-            }
-
-            $config['is_active_config'] = $is_active;
-            $configs[$config['config_id']] = $config;
-        }
-
-        update_option($this->ai_configs_option_name, $configs);
-        timegrow_log('Saved configurations, total count: ' . count($configs));
     }
 
     /**
@@ -560,7 +357,13 @@ class TimeGrowSettings {
         $provider = sanitize_text_field($_POST[$this->ai_option_name]['ai_provider'] ?? '');
         $model = sanitize_text_field($_POST[$this->ai_option_name]['ai_model'] ?? '');
 
-        // Validate required fields
+        // Validate required fields: a known provider, and a model id (from the list, or one the provider has)
+        if (!isset(TimeGrowAI::providers()[$provider])) {
+            $provider = '';
+        }
+        if ($model !== '' && !preg_match('/^[a-z0-9][a-z0-9.\-]{1,80}$/i', $model)) {
+            $model = '';
+        }
         if (empty($provider)) {
             wp_redirect(admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-settings&tab=ai&error=missing_provider'));
             exit;
@@ -575,23 +378,15 @@ class TimeGrowSettings {
             'config_name' => sanitize_text_field($_POST[$this->ai_option_name]['config_name'] ?? 'Default Configuration'),
             'ai_provider' => $provider,
             'ai_model' => $model,
-            'enable_auto_analysis' => isset($_POST[$this->ai_option_name]['enable_auto_analysis']),
-            'confidence_threshold' => floatval($_POST[$this->ai_option_name]['confidence_threshold'] ?? 0.7),
             'is_active' => isset($_POST[$this->ai_option_name]['is_active_config']),
         ];
 
-        timegrow_log('Config data: ' . print_r($config_data, true));
 
         // Handle API key - only update if a new one is provided
         $api_key = sanitize_text_field($_POST[$this->ai_option_name]['ai_api_key'] ?? '');
         if (!empty($api_key)) {
-            // Encrypt the API key
-            if (class_exists('\AraGrow\VoiceAI\Security')) {
-                $config_data['ai_api_key'] = \AraGrow\VoiceAI\Security::encrypt($api_key);
-                timegrow_log('API key encrypted');
-            } else {
-                $config_data['ai_api_key'] = $api_key;
-            }
+            $config_data['ai_api_key'] = TimeGrowAI::encrypt($api_key); // stored encrypted
+            set_transient('timegrow_api_key_saved', true, 30);
         }
 
         // Check if we're updating or creating
@@ -638,6 +433,16 @@ class TimeGrowSettings {
     /**
      * Handle configuration actions (activate, load, delete, clear)
      */
+    /**
+     * Link for a configuration action (test, activate, load, delete), with its nonce.
+     */
+    private function config_action_url($action, $config_id) {
+        return wp_nonce_url(
+            admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-settings&tab=ai&action=' . $action . '&config_id=' . (int) $config_id),
+            'timegrow_ai_config_' . (int) $config_id
+        );
+    }
+
     public function handle_config_actions() {
         if (!isset($_GET['page']) || $_GET['page'] !== TIMEGROW_PARENT_MENU . '-settings') {
             return;
@@ -687,7 +492,16 @@ class TimeGrowSettings {
 
         timegrow_log('Config found, proceeding with action: ' . $action);
 
+        // Every config action link carries a nonce (see config_action_url)
+        check_admin_referer('timegrow_ai_config_' . $config_id);
+
         switch ($action) {
+            case 'test':
+                $result = TimeGrowAI::test($config);
+                set_transient('timegrow_ai_test_' . get_current_user_id(), $result + ['config_name' => $config['config_name']], 60);
+                wp_redirect(admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-settings&tab=ai&tested=1&t=' . time()));
+                exit;
+
             case 'activate':
                 $model->set_active($config_id);
                 timegrow_log('Activated config ID: ' . $config_id);
@@ -735,6 +549,10 @@ class TimeGrowSettings {
             $this->render_general_settings_form();
         } elseif ($active_tab === 'ai') {
             $this->render_ai_settings_form();
+        } elseif ($active_tab === 'voice') {
+            $this->render_voice_settings_form();
+        } elseif ($active_tab === 'receipts') {
+            $this->render_receipt_settings_form();
         }
     }
 
@@ -743,8 +561,7 @@ class TimeGrowSettings {
      */
     private function render_overview_page() {
         // Check AI configuration from new database table
-        $ai_settings = self::get_active_ai_config();
-        $has_ai_configured = !empty($ai_settings['ai_api_key']);
+        $has_ai_configured = TimeGrowAI::is_configured();
         $paypal_plugin_active = class_exists('Aragrow_WC_PayPal_Auto_Invoicer');
         ?>
         <div class="wrap timegrow-page">
@@ -795,55 +612,151 @@ class TimeGrowSettings {
                     </div>
                 </a>
 
-                <!-- AI Provider Settings Card -->
+                <!-- AI Card: the provider every AI feature uses -->
                 <a href="?page=<?php echo TIMEGROW_PARENT_MENU; ?>-settings&tab=ai" class="timegrow-card">
                     <div class="timegrow-card-header">
                         <div class="timegrow-icon <?php echo $has_ai_configured ? 'timegrow-icon-primary' : 'timegrow-icon-disabled'; ?>">
                             <span class="dashicons dashicons-analytics"></span>
                         </div>
                         <div class="timegrow-card-title">
-                            <h2>AI Receipt Analysis</h2>
-                            <span class="timegrow-badge <?php echo $has_ai_configured ? 'timegrow-badge-success' : 'timegrow-badge-inactive'; ?>">
-                                <?php echo $has_ai_configured ? 'Configured' : 'Not Configured'; ?>
-                            </span>
+                            <h2><?php esc_html_e('AI', 'timegrow'); ?></h2>
+                            <?php
+                            $ai_cfg    = TimeGrowAI::config();
+                            $ai_status = TimeGrowAI::api_key($ai_cfg) !== '' ? TimeGrowAI::key_status($ai_cfg) : null;
+                            if ($ai_status && $ai_status['ok'] === false) {
+                                [$badge_class, $badge_text] = ['timegrow-badge-warning', __('Key not working', 'timegrow')];
+                            } elseif ($has_ai_configured) {
+                                [$badge_class, $badge_text] = ['timegrow-badge-success', __('Configured', 'timegrow')];
+                            } else {
+                                [$badge_class, $badge_text] = ['timegrow-badge-inactive', __('Not configured', 'timegrow')];
+                            }
+                            ?>
+                            <span class="timegrow-badge <?php echo esc_attr($badge_class); ?>"><?php echo esc_html($badge_text); ?></span>
                         </div>
                     </div>
                     <div class="timegrow-card-body">
                         <p class="timegrow-card-description">
-                            Configure AI-powered automatic receipt analysis. Upload receipt images and let AI extract expense data automatically.
+                            <?php esc_html_e('Your AI providers, models and keys. Each AI feature uses the default or picks its own.', 'timegrow'); ?>
                         </p>
                         <div class="timegrow-features">
-                            <div class="timegrow-feature-badge">
-                                <span class="dashicons dashicons-google"></span>
-                                <span>Google Gemini</span>
-                            </div>
-                            <div class="timegrow-feature-badge">
-                                <span class="dashicons dashicons-welcome-learn-more"></span>
-                                <span>OpenAI GPT-4</span>
-                            </div>
-                            <div class="timegrow-feature-badge">
-                                <span class="dashicons dashicons-superhero"></span>
-                                <span>Claude AI</span>
-                            </div>
-                            <div class="timegrow-feature-badge">
-                                <span class="dashicons dashicons-yes-alt"></span>
-                                <span>Auto-Populate Fields</span>
-                            </div>
+                            <div class="timegrow-feature-badge"><span class="dashicons dashicons-cloud"></span><span>Google Gemini</span></div>
+                            <div class="timegrow-feature-badge"><span class="dashicons dashicons-cloud"></span><span>OpenAI</span></div>
+                            <div class="timegrow-feature-badge"><span class="dashicons dashicons-cloud"></span><span>Anthropic Claude</span></div>
                         </div>
-                        <?php if (!$has_ai_configured): ?>
-                        <div class="timegrow-info-box">
-                            <span class="dashicons dashicons-info"></span>
-                            <p><strong>Setup Required:</strong> Add your API key to enable automatic receipt analysis.</p>
-                        </div>
-                        <?php endif; ?>
                         <div class="timegrow-card-footer">
                             <span class="timegrow-action-link">
-                                <?php echo $has_ai_configured ? 'Manage AI Settings' : 'Setup AI Analysis'; ?>
+                                <?php echo $has_ai_configured ? esc_html__('Manage AI', 'timegrow') : esc_html__('Set up AI', 'timegrow'); ?>
                                 <span class="dashicons dashicons-arrow-right-alt"></span>
                             </span>
                         </div>
                     </div>
                 </a>
+
+                <!-- Receipt Analysis Card -->
+                <?php $receipts_on = self::receipt_settings()['auto_analysis'] === 'yes'; ?>
+                <a href="?page=<?php echo TIMEGROW_PARENT_MENU; ?>-settings&tab=receipts" class="timegrow-card">
+                    <div class="timegrow-card-header">
+                        <div class="timegrow-icon <?php echo $receipts_on ? 'timegrow-icon-primary' : 'timegrow-icon-disabled'; ?>">
+                            <span class="dashicons dashicons-media-document"></span>
+                        </div>
+                        <div class="timegrow-card-title">
+                            <h2><?php esc_html_e('AI Receipt Analysis', 'timegrow'); ?></h2>
+                            <span class="timegrow-badge <?php echo $receipts_on ? 'timegrow-badge-success' : 'timegrow-badge-inactive'; ?>">
+                                <?php echo $receipts_on ? esc_html__('On', 'timegrow') : esc_html__('Off', 'timegrow'); ?>
+                            </span>
+                        </div>
+                    </div>
+                    <div class="timegrow-card-body">
+                        <p class="timegrow-card-description">
+                            <?php esc_html_e('Read uploaded receipts with AI and fill in the expense: amount, date, vendor and category.', 'timegrow'); ?>
+                        </p>
+                        <div class="timegrow-features">
+                            <div class="timegrow-feature-badge"><span class="dashicons dashicons-yes-alt"></span><span><?php esc_html_e('Fills in expenses', 'timegrow'); ?></span></div>
+                            <div class="timegrow-feature-badge"><span class="dashicons dashicons-chart-bar"></span><span><?php esc_html_e('Confidence check', 'timegrow'); ?></span></div>
+                        </div>
+                        <div class="timegrow-card-footer">
+                            <span class="timegrow-action-link">
+                                <?php esc_html_e('Configure AI Receipt Analysis', 'timegrow'); ?>
+                                <span class="dashicons dashicons-arrow-right-alt"></span>
+                            </span>
+                        </div>
+                    </div>
+                </a>
+
+                <!-- Voice Entry Card -->
+                <?php $voice = self::voice_settings(); $voice_on = $voice['enabled'] === 'yes'; ?>
+                <a href="?page=<?php echo TIMEGROW_PARENT_MENU; ?>-settings&tab=voice" class="timegrow-card">
+                    <div class="timegrow-card-header">
+                        <div class="timegrow-icon <?php echo $voice_on ? 'timegrow-icon-primary' : 'timegrow-icon-disabled'; ?>">
+                            <span class="dashicons dashicons-microphone"></span>
+                        </div>
+                        <div class="timegrow-card-title">
+                            <h2><?php esc_html_e('AI Voice Entry', 'timegrow'); ?></h2>
+                            <span class="timegrow-badge <?php echo $voice_on ? 'timegrow-badge-success' : 'timegrow-badge-inactive'; ?>">
+                                <?php echo $voice_on ? esc_html__('On', 'timegrow') : esc_html__('Off', 'timegrow'); ?>
+                            </span>
+                        </div>
+                    </div>
+                    <div class="timegrow-card-body">
+                        <p class="timegrow-card-description">
+                            <?php esc_html_e('Let team members record time by talking to a chat on the Manual Time Entry page.', 'timegrow'); ?>
+                        </p>
+                        <div class="timegrow-features">
+                            <div class="timegrow-feature-badge">
+                                <span class="dashicons dashicons-microphone"></span>
+                                <span><?php esc_html_e('Speech to text', 'timegrow'); ?></span>
+                            </div>
+                            <div class="timegrow-feature-badge">
+                                <span class="dashicons dashicons-analytics"></span>
+                                <span><?php echo $voice['use_ai'] === 'yes' && TimeGrowAI::is_configured('voice') ? esc_html__('Reads sentences with AI', 'timegrow') : esc_html__('Asks each question', 'timegrow'); ?></span>
+                            </div>
+                        </div>
+                        <div class="timegrow-card-footer">
+                            <span class="timegrow-action-link">
+                                <?php esc_html_e('Configure AI Voice Entry', 'timegrow'); ?>
+                                <span class="dashicons dashicons-arrow-right-alt"></span>
+                            </span>
+                        </div>
+                    </div>
+                </a>
+
+                <!-- Mobile Access Card -->
+                <?php if (current_user_can('manage_options')): $sms_on = get_option('timegrow_mobile_sms_enabled') ? true : false; ?>
+                <a href="<?php echo esc_url(admin_url('admin.php?page=timegrow-mobile-settings')); ?>" class="timegrow-card">
+                    <div class="timegrow-card-header">
+                        <div class="timegrow-icon timegrow-icon-primary">
+                            <span class="dashicons dashicons-smartphone"></span>
+                        </div>
+                        <div class="timegrow-card-title">
+                            <h2><?php esc_html_e('Mobile Access', 'timegrow'); ?></h2>
+                            <span class="timegrow-badge <?php echo $sms_on ? 'timegrow-badge-success' : 'timegrow-badge-inactive'; ?>">
+                                <?php echo $sms_on ? esc_html__('Text messages on', 'timegrow') : esc_html__('Text messages off', 'timegrow'); ?>
+                            </span>
+                        </div>
+                    </div>
+                    <div class="timegrow-card-body">
+                        <p class="timegrow-card-description">
+                            <?php esc_html_e('Mobile login with a PIN for team members, and text message alerts.', 'timegrow'); ?>
+                        </p>
+                        <div class="timegrow-features">
+                            <div class="timegrow-feature-badge">
+                                <span class="dashicons dashicons-lock"></span>
+                                <span><?php esc_html_e('PIN login', 'timegrow'); ?></span>
+                            </div>
+                            <div class="timegrow-feature-badge">
+                                <span class="dashicons dashicons-email"></span>
+                                <span><?php esc_html_e('Text messages', 'timegrow'); ?></span>
+                            </div>
+                        </div>
+                        <div class="timegrow-card-footer">
+                            <span class="timegrow-action-link">
+                                <?php esc_html_e('Configure Mobile Access', 'timegrow'); ?>
+                                <span class="dashicons dashicons-arrow-right-alt"></span>
+                            </span>
+                        </div>
+                    </div>
+                </a>
+                <?php endif; ?>
 
                 <!-- WooCommerce Integration Card -->
                 <a href="<?php echo esc_url(admin_url('options-general.php?page=woocommerce-integration')); ?>" class="timegrow-card">
@@ -1031,8 +944,8 @@ class TimeGrowSettings {
             <!-- Modern Header -->
             <div class="timegrow-modern-header">
                 <div class="timegrow-header-content">
-                    <h1>AI Receipt Analysis</h1>
-                    <p class="subtitle">Configure AI-powered automatic receipt analysis</p>
+                    <h1><?php esc_html_e('AI', 'timegrow'); ?></h1>
+                    <p class="subtitle"><?php esc_html_e('The AI provider, model and key that AI Receipt Analysis and AI Voice Entry use', 'timegrow'); ?></p>
                 </div>
                 <div class="timegrow-header-illustration">
                     <span class="dashicons dashicons-analytics"></span>
@@ -1047,9 +960,16 @@ class TimeGrowSettings {
                 <?php delete_transient('timegrow_api_key_saved'); ?>
             <?php endif; ?>
 
+            <?php $ai_test = isset($_GET['tested']) ? get_transient('timegrow_ai_test_' . get_current_user_id()) : false; ?>
+            <?php if ($ai_test): delete_transient('timegrow_ai_test_' . get_current_user_id()); ?>
+                <div class="notice notice-<?php echo $ai_test['ok'] === true ? 'success' : ($ai_test['ok'] === null ? 'warning' : 'error'); ?> is-dismissible">
+                    <p><strong><?php echo esc_html($ai_test['config_name']); ?>:</strong> <?php echo esc_html($ai_test['message']); ?></p>
+                </div>
+            <?php endif; ?>
+
             <?php if (isset($_GET['activated'])): ?>
                 <div class="notice notice-success is-dismissible">
-                    <p><strong>Configuration activated successfully!</strong> This configuration is now active and will be used for receipt analysis.</p>
+                    <p><strong>Default configuration changed.</strong> AI Receipt Analysis and AI Voice Entry use it unless they picked another one under "AI to use".</p>
                 </div>
             <?php endif; ?>
 
@@ -1121,8 +1041,8 @@ class TimeGrowSettings {
                                 <th>Configuration Name</th>
                                 <th>Provider</th>
                                 <th>Model</th>
-                                <th>Status</th>
-                                <th>Auto-Analysis</th>
+                                <th>Used by</th>
+                                <th>Key</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -1134,30 +1054,49 @@ class TimeGrowSettings {
                                 <td><?php echo esc_html($config['ai_model'] ?? 'N/A'); ?></td>
                                 <td>
                                     <?php if ($config['is_active_config'] ?? false): ?>
-                                        <span class="timegrow-badge timegrow-badge-success">Active</span>
+                                        <span class="timegrow-badge timegrow-badge-success"><?php esc_html_e('Default', 'timegrow'); ?></span>
+                                    <?php endif; ?>
+                                    <?php
+                                    $users = [];
+                                    foreach (['receipts' => __('AI Receipt Analysis', 'timegrow'), 'voice' => __('AI Voice Entry', 'timegrow')] as $feature => $feature_name) {
+                                        if ((int) (TimeGrowAI::config($feature)['id'] ?? 0) === (int) $config_id) {
+                                            $users[] = $feature_name;
+                                        }
+                                    }
+                                    ?>
+                                    <br><span class="description"><?php echo $users ? esc_html(implode(', ', $users)) : esc_html__('Not used', 'timegrow'); ?></span>
+                                </td>
+                                <td>
+                                    <?php $key_status = TimeGrowAI::key_status(['id' => $config_id] + $config); ?>
+                                    <?php if ($key_status === null): ?>
+                                        <span class="description"><?php esc_html_e('Not tested', 'timegrow'); ?></span>
+                                    <?php elseif ($key_status['ok'] === null): ?>
+                                        <span class="dashicons dashicons-clock" style="color: #996800;"></span> <?php esc_html_e('Could not check', 'timegrow'); ?>
+                                        <br><span class="description" title="<?php echo esc_attr($key_status['message']); ?>"><?php echo esc_html($key_status['checked_at']); ?></span>
+                                    <?php elseif ($key_status['ok']): ?>
+                                        <span class="dashicons dashicons-yes-alt" style="color: #00a32a;"></span> <?php esc_html_e('Works', 'timegrow'); ?>
+                                        <br><span class="description"><?php echo esc_html($key_status['checked_at']); ?></span>
                                     <?php else: ?>
-                                        <span class="timegrow-badge timegrow-badge-inactive">Inactive</span>
+                                        <span class="dashicons dashicons-warning" style="color: #d63638;"></span> <?php esc_html_e('Not working', 'timegrow'); ?>
+                                        <br><span class="description" title="<?php echo esc_attr($key_status['message']); ?>"><?php echo esc_html($key_status['checked_at']); ?></span>
                                     <?php endif; ?>
                                 </td>
                                 <td>
-                                    <?php if ($config['enable_auto_analysis'] ?? false): ?>
-                                        <span class="dashicons dashicons-yes-alt" style="color: #00a32a;"></span> Enabled
-                                    <?php else: ?>
-                                        <span class="dashicons dashicons-dismiss" style="color: #d63638;"></span> Disabled
-                                    <?php endif; ?>
-                                </td>
-                                <td>
+                                    <a href="<?php echo esc_url($this->config_action_url('test', $config_id)); ?>"
+                                       class="button button-small">
+                                        Test
+                                    </a>
                                     <?php if (!($config['is_active_config'] ?? false)): ?>
-                                        <a href="?page=<?php echo TIMEGROW_PARENT_MENU; ?>-settings&tab=ai&action=activate&config_id=<?php echo esc_attr($config_id); ?>"
+                                        <a href="<?php echo esc_url($this->config_action_url('activate', $config_id)); ?>"
                                            class="button button-small">
-                                            Activate
+                                            Make default
                                         </a>
                                     <?php endif; ?>
-                                    <a href="?page=<?php echo TIMEGROW_PARENT_MENU; ?>-settings&tab=ai&action=load&config_id=<?php echo esc_attr($config_id); ?>"
+                                    <a href="<?php echo esc_url($this->config_action_url('load', $config_id)); ?>"
                                        class="button button-small">
                                         Edit
                                     </a>
-                                    <a href="?page=<?php echo TIMEGROW_PARENT_MENU; ?>-settings&tab=ai&action=delete&config_id=<?php echo esc_attr($config_id); ?>"
+                                    <a href="<?php echo esc_url($this->config_action_url('delete', $config_id)); ?>"
                                        class="button button-small button-link-delete"
                                        onclick="console.log('Delete clicked for config:', '<?php echo esc_js($config_id); ?>'); return confirm('Are you sure you want to delete this configuration?');">
                                         Delete
@@ -1365,6 +1304,505 @@ class TimeGrowSettings {
         <?php
     }
 
+    // ========================================
+    // VOICE ENTRY
+    // ========================================
+
+    // ========================================
+    // AI RECEIPT ANALYSIS
+    // ========================================
+
+    /**
+     * Receipt settings: read uploaded receipts with AI, and the confidence below which the expense
+     * is filled in with a warning. Until first saved, they carry over the values the active AI
+     * configuration had (they used to live there).
+     */
+    public static function receipt_settings() {
+        $saved = get_option(self::RECEIPT_OPTION, null);
+        if (is_array($saved)) {
+            return wp_parse_args($saved, ['auto_analysis' => 'yes', 'confidence_threshold' => 0.7, 'ai_config_id' => 0]);
+        }
+        $row = class_exists('TimeGrowAIConfigModel') ? (new TimeGrowAIConfigModel())->get_active() : null;
+        return [
+            'auto_analysis'        => ($row === null || !empty($row['enable_auto_analysis'])) ? 'yes' : 'no',
+            'confidence_threshold' => isset($row['confidence_threshold']) ? (float) $row['confidence_threshold'] : 0.7,
+            'ai_config_id'         => 0, // 0 = the default AI configuration
+        ];
+    }
+
+    public function sanitize_receipt_settings($input) {
+        $input = is_array($input) ? $input : [];
+        return [
+            // Only "yes" (the checkbox value) is on: WordPress runs this twice when the option is first created
+            'auto_analysis'        => ($input['auto_analysis'] ?? '') === 'yes' ? 'yes' : 'no',
+            'confidence_threshold' => round(max(0.0, min(1.0, (float) ($input['confidence_threshold'] ?? 0.7))), 2),
+            'ai_config_id'         => self::valid_ai_config_id($input['ai_config_id'] ?? 0),
+        ];
+    }
+
+    /** A saved AI configuration's ID, or 0 (use the default) for anything else. */
+    private static function valid_ai_config_id($id) {
+        $id = (int) $id;
+        return ($id > 0 && class_exists('TimeGrowAIConfigModel') && (new TimeGrowAIConfigModel())->get_by_id($id)) ? $id : 0;
+    }
+
+    /**
+     * The AI configuration a feature chose under "AI to use", or 0 for the default.
+     *
+     * @param string $feature "receipts" or "voice".
+     */
+    public static function feature_ai_config_id($feature) {
+        $settings = $feature === 'receipts' ? self::receipt_settings() : ($feature === 'voice' ? self::voice_settings() : []);
+        return (int) ($settings['ai_config_id'] ?? 0);
+    }
+
+    /**
+     * The "AI to use" dropdown for a feature: Use the default, or any saved configuration, each with
+     * its key status. A note shows when the feature's choice was deleted and the default is used.
+     */
+    private function render_ai_choice($feature, $option_name, $selected) {
+        $configs = TimeGrowAI::configurations();
+        $choice  = TimeGrowAI::choice($feature);
+        $default = null;
+        foreach ($configs as $c) {
+            if ($c['is_default']) {
+                $default = $c;
+            }
+        }
+        $state = function ($status) {
+            if ($status === null) {
+                return __('not tested', 'timegrow');
+            }
+            return $status['ok'] === true ? __('key works', 'timegrow') : ($status['ok'] === false ? __('key not working', 'timegrow') : __('could not check', 'timegrow'));
+        };
+        ?>
+        <table class="form-table" role="presentation">
+            <tr>
+                <th scope="row"><label for="timegrow_<?php echo esc_attr($feature); ?>_ai_config"><?php esc_html_e('AI to use', 'timegrow'); ?></label></th>
+                <td>
+                    <select id="timegrow_<?php echo esc_attr($feature); ?>_ai_config" name="<?php echo esc_attr($option_name); ?>[ai_config_id]" class="regular-text" style="min-width: 420px;">
+                        <option value="0" <?php selected((int) $selected, 0); ?>>
+                            <?php echo esc_html($default
+                                ? sprintf(__('Use the default (%1$s, %2$s)', 'timegrow'), $default['label'], $state($default['status']))
+                                : __('Use the default', 'timegrow')); ?>
+                        </option>
+                        <?php foreach ($configs as $c): ?>
+                            <option value="<?php echo esc_attr($c['id']); ?>" <?php selected((int) $selected, $c['id']); ?>>
+                                <?php echo esc_html($c['label'] . ' (' . $state($c['status']) . ')'); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                    <?php if ($choice['fell_back']): ?>
+                        <p class="description" style="color: #996800;"><?php esc_html_e('The configuration chosen here was deleted, so the default is used. Pick another one and save.', 'timegrow'); ?></p>
+                    <?php else: ?>
+                        <p class="description"><?php esc_html_e('Pick any configuration saved under Settings > AI. Save to check the new choice below.', 'timegrow'); ?></p>
+                    <?php endif; ?>
+                </td>
+            </tr>
+        </table>
+        <?php
+    }
+
+    private function render_receipt_settings_form() {
+        $settings = self::receipt_settings();
+        $ai       = TimeGrowAI::config('receipts');
+        $status   = $this->check_ai_now('receipts'); // every time this page loads
+        $ai_url   = admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-settings&tab=ai');
+        $percent  = (int) round($settings['confidence_threshold'] * 100);
+        ?>
+        <div class="wrap timegrow-page">
+            <div class="timegrow-modern-header">
+                <div class="timegrow-header-content">
+                    <h1><?php esc_html_e('AI Receipt Analysis', 'timegrow'); ?></h1>
+                    <p class="subtitle"><?php esc_html_e('Read uploaded receipts with AI and fill in the expense for you', 'timegrow'); ?></p>
+                </div>
+                <div class="timegrow-header-illustration">
+                    <span class="dashicons dashicons-media-document"></span>
+                </div>
+            </div>
+
+            <?php if (isset($_GET['settings-updated'])): ?>
+                <div class="notice notice-success is-dismissible"><p><?php esc_html_e('Receipt analysis settings saved.', 'timegrow'); ?></p></div>
+            <?php endif; ?>
+
+            <form method="post" action="options.php">
+                <?php settings_fields('timegrow_receipt_settings_group'); ?>
+
+                <div class="timegrow-card">
+                    <div class="timegrow-card-header">
+                        <div class="timegrow-icon timegrow-icon-primary"><span class="dashicons dashicons-media-document"></span></div>
+                        <div class="timegrow-card-title"><h2><?php esc_html_e('Receipts', 'timegrow'); ?></h2></div>
+                    </div>
+                    <div class="timegrow-card-body">
+                        <div class="timegrow-feature-item">
+                            <label class="timegrow-toggle-switch">
+                                <input type="checkbox" name="<?php echo esc_attr(self::RECEIPT_OPTION); ?>[auto_analysis]" value="yes" <?php checked($settings['auto_analysis'], 'yes'); ?>>
+                                <span class="timegrow-toggle-slider"></span>
+                            </label>
+                            <div class="timegrow-feature-info">
+                                <strong><?php esc_html_e('Read receipts with AI', 'timegrow'); ?></strong>
+                                <p><?php esc_html_e('When a receipt photo is uploaded with an expense, AI reads it and fills in the amount, date, vendor, category and description. Check them before saving.', 'timegrow'); ?></p>
+                            </div>
+                        </div>
+                        <table class="form-table" role="presentation">
+                            <tr>
+                                <th scope="row"><label for="timegrow_receipt_threshold"><?php esc_html_e('Confidence threshold', 'timegrow'); ?></label></th>
+                                <td>
+                                    <input type="range" id="timegrow_receipt_threshold" min="0.5" max="1" step="0.05"
+                                           name="<?php echo esc_attr(self::RECEIPT_OPTION); ?>[confidence_threshold]"
+                                           value="<?php echo esc_attr($settings['confidence_threshold']); ?>"
+                                           oninput="this.nextElementSibling.textContent = Math.round(this.value * 100) + '%'"
+                                           style="width: 240px; vertical-align: middle;">
+                                    <strong style="margin-left: 10px;"><?php echo esc_html($percent); ?>%</strong>
+                                    <p class="description"><?php esc_html_e('When the AI is less sure than this, the details are still filled in, with a warning to check every field.', 'timegrow'); ?></p>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="timegrow-card">
+                    <div class="timegrow-card-header">
+                        <div class="timegrow-icon timegrow-icon-primary"><span class="dashicons dashicons-analytics"></span></div>
+                        <div class="timegrow-card-title"><h2><?php esc_html_e('AI', 'timegrow'); ?></h2></div>
+                    </div>
+                    <div class="timegrow-card-body">
+                        <?php $this->render_ai_choice('receipts', self::RECEIPT_OPTION, $settings['ai_config_id']); ?>
+                        <?php $this->render_ai_status('receipts', $settings['auto_analysis'] === 'yes', $ai, $status, $ai_url, admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-settings&tab=receipts')); ?>
+                    </div>
+                </div>
+
+                <div class="timegrow-footer">
+                    <?php submit_button(__('Save Settings', 'timegrow'), 'primary large', 'submit', false); ?>
+                    <a href="?page=<?php echo TIMEGROW_PARENT_MENU; ?>-settings" class="button button-secondary large">
+                        <span class="dashicons dashicons-arrow-left-alt"></span>
+                        <?php esc_html_e('Back to Settings', 'timegrow'); ?>
+                    </a>
+                </div>
+            </form>
+        </div>
+        <?php
+    }
+
+    // ========================================
+    // AI VOICE ENTRY
+    // ========================================
+
+    public static function voice_defaults() {
+        return [
+            'enabled'        => 'yes', // show "Speak an entry" on the Manual Time Entry page
+            'use_ai'         => 'yes', // read whole sentences with the active AI configuration
+            'speak'          => 'yes', // speak the questions out loud by default
+            'ask_start_time' => 'yes', // ask what time the work started
+            'language'       => '',    // speech recognition language; '' = the site language
+            'ai_config_id'   => 0,     // AI to use: 0 = the default AI configuration
+        ];
+    }
+
+    /** Speech languages offered. Keys are BCP 47 tags the browser understands. */
+    public static function voice_languages() {
+        return [
+            ''      => __('Site language', 'timegrow'),
+            'en-US' => 'English (United States)',
+            'en-GB' => 'English (United Kingdom)',
+            'es-US' => 'Español (Estados Unidos)',
+            'es-MX' => 'Español (México)',
+            'es-ES' => 'Español (España)',
+            'fr-FR' => 'Français',
+            'de-DE' => 'Deutsch',
+            'pt-BR' => 'Português (Brasil)',
+            'it-IT' => 'Italiano',
+        ];
+    }
+
+    public static function voice_settings() {
+        $saved = get_option(self::VOICE_OPTION, []);
+        return wp_parse_args(is_array($saved) ? $saved : [], self::voice_defaults());
+    }
+
+    /** The speech language to use: the setting, or the site language (en_US becomes en-US). */
+    public static function voice_language() {
+        $lang = self::voice_settings()['language'];
+        return $lang !== '' ? $lang : str_replace('_', '-', get_locale());
+    }
+
+    public function sanitize_voice_settings($input) {
+        $input = is_array($input) ? $input : [];
+        $out   = [];
+        foreach (['enabled', 'use_ai', 'speak', 'ask_start_time'] as $key) {
+            // Only "yes" (the checkbox value) is on: WordPress runs this twice when the option is first created
+            $out[$key] = ($input[$key] ?? '') === 'yes' ? 'yes' : 'no';
+        }
+        $lang            = sanitize_text_field($input['language'] ?? '');
+        $out['language'] = array_key_exists($lang, self::voice_languages()) ? $lang : '';
+        $out['ai_config_id'] = self::valid_ai_config_id($input['ai_config_id'] ?? 0);
+        return $out;
+    }
+
+    private function voice_toggle($key, $title, $description, $settings) {
+        ?>
+        <div class="timegrow-feature-item">
+            <label class="timegrow-toggle-switch">
+                <input type="checkbox" name="<?php echo esc_attr(self::VOICE_OPTION . '[' . $key . ']'); ?>" value="yes" <?php checked($settings[$key], 'yes'); ?>>
+                <span class="timegrow-toggle-slider"></span>
+            </label>
+            <div class="timegrow-feature-info">
+                <strong><?php echo esc_html($title); ?></strong>
+                <p><?php echo esc_html($description); ?></p>
+            </div>
+        </div>
+        <?php
+    }
+
+    /**
+     * The status card for a feature that uses the AI from Settings > AI (receipts or voice):
+     * headline, what it means for the feature, a small diagram, details and one fix button.
+     * $status is the key test that ran when the page loaded (null when no key is saved).
+     *
+     * @param string $feature "receipts" or "voice".
+     * @param bool   $use_ai  Whether the feature's own AI switch is on.
+     */
+    private function render_ai_status($feature, $use_ai, $ai, $status, $ai_url, $again_url) {
+        $providers = TimeGrowAI::providers();
+        $provider  = $providers[$ai['ai_provider']]['name'] ?? __('the AI provider', 'timegrow');
+        $company   = ['google_gemini' => 'Google', 'openai' => 'OpenAI', 'anthropic' => 'Anthropic'][$ai['ai_provider']] ?? $provider;
+        $model     = TimeGrowAI::model_name($ai['ai_provider'], $ai['ai_model']);
+
+        $words = [
+            'voice' => [
+                'without'  => __('the chat asks each question one by one', 'timegrow'),
+                'off'      => [__('Reading sentences with AI is off', 'timegrow'), __('The chat asks each question one by one. Turn the switch above on to let it fill several answers from one sentence.', 'timegrow')],
+                'ready'    => __('Voice entry understands whole sentences with %1$s (%2$s). Checked just now.', 'timegrow'),
+                'uses'     => __('Voice entry still uses AI.', 'timegrow'),
+                'ai_ok'    => __('Understands whole sentences', 'timegrow'),
+                'ai_no'    => __('Asking each question', 'timegrow'),
+                'steps'    => [['microphone', __('Your voice', 'timegrow'), __('Turned into text', 'timegrow')],
+                               ['clock', __('Time entry', 'timegrow'), __('Saved after you confirm', 'timegrow')]],
+            ],
+            'receipts' => [
+                'without'  => __('receipts aren\'t read automatically, so expenses are filled in by hand', 'timegrow'),
+                'off'      => [__('Reading receipts with AI is off', 'timegrow'), __('Expenses are filled in by hand. Turn the switch above on to have uploaded receipts read for you.', 'timegrow')],
+                'ready'    => __('Uploaded receipts are read with %1$s (%2$s): amount, date, vendor and category fill in for you. Checked just now.', 'timegrow'),
+                'uses'     => __('Receipts are still sent to AI.', 'timegrow'),
+                'ai_ok'    => __('Reads amount, date, vendor', 'timegrow'),
+                'ai_no'    => __('Not reading receipts', 'timegrow'),
+                'steps'    => [['format-image', __('Receipt photo', 'timegrow'), __('Uploaded with the expense', 'timegrow')],
+                               ['money-alt', __('Expense', 'timegrow'), __('Filled in for you to check', 'timegrow')]],
+            ],
+        ][$feature];
+        $fallback = sprintf(__('Until then, %s.', 'timegrow'), $words['without']);
+        $why      = ['', ''];
+
+        if (!$use_ai) {
+            $box = ['tone' => 'off', 'icon' => 'marker', 'title' => $words['off'][0], 'text' => $words['off'][1]];
+        } elseif ($status === null) {
+            $box = ['tone' => 'off', 'icon' => 'admin-plugins', 'title' => __('No AI set up yet', 'timegrow'),
+                    'text' => ucfirst($words['without']) . '. ' . __('Add an AI provider and key in AI settings to turn this on.', 'timegrow'),
+                    'button' => __('Set up AI', 'timegrow'), 'pill' => __('Not set up', 'timegrow')];
+        } elseif ($status['ok'] === true) {
+            $box = ['tone' => 'ok', 'icon' => 'yes-alt', 'title' => __('AI is ready', 'timegrow'),
+                    'text' => sprintf($words['ready'], $provider, $model), 'link' => __('Open AI settings', 'timegrow')];
+        } elseif ($status['ok'] === null) {
+            $box = ['tone' => 'warn', 'icon' => 'clock', 'title' => __('Couldn\'t check AI right now', 'timegrow'),
+                    'text' => sprintf(__('%s didn\'t answer just now, so the key wasn\'t checked.', 'timegrow'), $company) . ' ' . $words['uses'] . ' ' . __('This page checks again each time it opens.', 'timegrow'),
+                    'link' => __('Open AI settings', 'timegrow')];
+        } else {
+            $reasons = [
+                'key'      => [sprintf(__('%s rejected the API key', 'timegrow'), $company),
+                               sprintf(__('The key may have been revoked or copied incorrectly. Create a new key with %s and save it in AI settings.', 'timegrow'), $company)],
+                'model'    => [__('the chosen model isn\'t available', 'timegrow'),
+                               sprintf(__('The key works, but %s isn\'t available to it. Pick another model in AI settings.', 'timegrow'), $model)],
+                'no_key'   => [__('no API key is saved', 'timegrow'), __('Add the API key in AI settings.', 'timegrow')],
+                'no_model' => [__('no model is chosen', 'timegrow'), __('Pick a model in AI settings.', 'timegrow')],
+            ];
+            $why = $reasons[$status['reason']] ?? [__('it needs attention', 'timegrow'), $status['message']];
+            $box = ['tone' => 'bad', 'icon' => 'warning', 'title' => $why[0],
+                    'text' => $why[1] . ' ' . $fallback, 'button' => $status['reason'] === 'key' ? __('Fix the API key', 'timegrow') : __('Open AI settings', 'timegrow')];
+        }
+
+        $pills   = ['ok' => __('Connected', 'timegrow'), 'warn' => __('Not checked', 'timegrow'), 'bad' => __('AI isn\'t working', 'timegrow'), 'off' => __('Off', 'timegrow')];
+        $marks   = ['ok' => '&#10003;', 'warn' => '?', 'bad' => '!', 'off' => '&ndash;'];
+        $ai_say  = ['ok' => $words['ai_ok'], 'warn' => __('Couldn\'t be checked', 'timegrow'), 'bad' => $words['ai_no'], 'off' => $words['ai_no']];
+        $title   = $box['tone'] === 'bad' ? ucfirst($why[0]) : $box['title'];
+        $checked = ($status && !empty($status['checked_at'])) ? date_i18n(get_option('time_format'), strtotime($status['checked_at'])) : '';
+        [$first, $last] = $words['steps'];
+        ?>
+        <div class="tg-ai-status tg-ai-status--<?php echo esc_attr($box['tone']); ?>" role="status" aria-live="polite">
+            <div class="tg-ai-status__hero">
+                <div class="tg-ai-status__icon"><span class="dashicons dashicons-<?php echo esc_attr($box['icon']); ?>" aria-hidden="true"></span></div>
+                <div>
+                    <span class="tg-ai-status__pill"><?php echo esc_html($box['pill'] ?? $pills[$box['tone']]); ?></span>
+                    <h3 class="tg-ai-status__title"><?php echo esc_html($title); ?></h3>
+                    <p class="tg-ai-status__text"><?php echo esc_html($box['text']); ?></p>
+                </div>
+            </div>
+
+            <div class="tg-ai-status__flow" aria-label="<?php esc_attr_e('How this uses AI', 'timegrow'); ?>">
+                <div class="tg-ai-status__step">
+                    <span class="tg-ai-status__step-icon"><span class="dashicons dashicons-<?php echo esc_attr($first[0]); ?>" aria-hidden="true"></span></span>
+                    <span class="tg-ai-status__step-label"><strong><?php echo esc_html($first[1]); ?></strong><?php echo esc_html($first[2]); ?></span>
+                </div>
+                <span class="tg-ai-status__link" aria-hidden="true"></span>
+                <div class="tg-ai-status__step tg-ai-status__step--ai">
+                    <span class="tg-ai-status__step-icon"><span class="dashicons dashicons-analytics" aria-hidden="true"></span><span class="tg-ai-status__step-badge" aria-hidden="true"><?php echo $marks[$box['tone']]; ?></span></span>
+                    <span class="tg-ai-status__step-label"><strong><?php echo esc_html($status === null && $use_ai ? __('AI', 'timegrow') : $model); ?></strong><?php echo esc_html($ai_say[$box['tone']]); ?></span>
+                </div>
+                <span class="tg-ai-status__link" aria-hidden="true"></span>
+                <div class="tg-ai-status__step">
+                    <span class="tg-ai-status__step-icon"><span class="dashicons dashicons-<?php echo esc_attr($last[0]); ?>" aria-hidden="true"></span></span>
+                    <span class="tg-ai-status__step-label"><strong><?php echo esc_html($last[1]); ?></strong><?php echo esc_html($last[2]); ?></span>
+                </div>
+            </div>
+
+            <?php if ($status !== null || $ai['config_name'] !== ''): ?>
+            <div class="tg-ai-status__meta">
+                <span class="tg-ai-status__chip"><span class="dashicons dashicons-cloud" aria-hidden="true"></span><?php esc_html_e('Provider', 'timegrow'); ?> <b><?php echo esc_html($provider); ?></b></span>
+                <?php if ($ai['ai_model'] !== ''): ?>
+                    <span class="tg-ai-status__chip"><span class="dashicons dashicons-admin-generic" aria-hidden="true"></span><?php esc_html_e('Model', 'timegrow'); ?> <b><?php echo esc_html($model); ?></b></span>
+                <?php endif; ?>
+                <?php if ($checked !== ''): ?>
+                    <span class="tg-ai-status__chip"><span class="dashicons dashicons-update" aria-hidden="true"></span><?php esc_html_e('Checked', 'timegrow'); ?> <b><?php echo esc_html($checked); ?></b></span>
+                <?php endif; ?>
+                <?php if ($ai['config_name'] !== ''): ?>
+                    <span class="tg-ai-status__chip"><span class="dashicons dashicons-admin-settings" aria-hidden="true"></span><?php esc_html_e('Configuration', 'timegrow'); ?> <b><?php echo esc_html($ai['config_name']); ?></b></span>
+                <?php endif; ?>
+            </div>
+            <?php endif; ?>
+
+            <div class="tg-ai-status__actions">
+                <?php if (!empty($box['button'])): ?>
+                    <a href="<?php echo esc_url($ai_url); ?>" class="button button-primary"><span class="dashicons dashicons-admin-network" aria-hidden="true"></span><?php echo esc_html($box['button']); ?></a>
+                <?php elseif (!empty($box['link'])): ?>
+                    <a href="<?php echo esc_url($ai_url); ?>" class="button"><span class="dashicons dashicons-admin-settings" aria-hidden="true"></span><?php echo esc_html($box['link']); ?></a>
+                <?php endif; ?>
+                <?php if ($status !== null && $use_ai): ?>
+                    <a href="<?php echo esc_url($again_url); ?>" class="button"><span class="dashicons dashicons-update" aria-hidden="true"></span><?php esc_html_e('Check again', 'timegrow'); ?></a>
+                <?php endif; ?>
+            </div>
+        </div>
+        <?php
+    }
+
+    /**
+     * Test the key of the configuration a feature uses (its own choice, else the default) now, a
+     * tiny free request, and return the result, or null when no key is saved. Feature pages call
+     * this each time they load.
+     */
+    private function check_ai_now($feature) {
+        $row = TimeGrowAI::choice($feature)['row'];
+        return $row && TimeGrowAI::api_key(TimeGrowAI::normalize($row)) !== '' ? TimeGrowAI::test($row) : null;
+    }
+
+    private function render_voice_settings_form() {
+        $settings = self::voice_settings();
+        $ai       = TimeGrowAI::config('voice');
+        $status   = $this->check_ai_now('voice'); // every time this page loads
+        $ai_url   = admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-settings&tab=ai');
+        ?>
+        <div class="wrap timegrow-page">
+            <div class="timegrow-modern-header">
+                <div class="timegrow-header-content">
+                    <h1><?php esc_html_e('AI Voice Entry', 'timegrow'); ?></h1>
+                    <p class="subtitle"><?php esc_html_e('Record time by talking to a chat on the Manual Time Entry page', 'timegrow'); ?></p>
+                </div>
+                <div class="timegrow-header-illustration">
+                    <span class="dashicons dashicons-microphone"></span>
+                </div>
+            </div>
+
+            <?php if (isset($_GET['settings-updated'])): ?>
+                <div class="notice notice-success is-dismissible"><p><?php esc_html_e('Voice entry settings saved.', 'timegrow'); ?></p></div>
+            <?php endif; ?>
+
+            <form method="post" action="options.php">
+                <?php settings_fields('timegrow_voice_settings_group'); ?>
+
+                <div class="timegrow-card">
+                    <div class="timegrow-card-header">
+                        <div class="timegrow-icon timegrow-icon-primary"><span class="dashicons dashicons-microphone"></span></div>
+                        <div class="timegrow-card-title"><h2><?php esc_html_e('Voice entry', 'timegrow'); ?></h2></div>
+                    </div>
+                    <div class="timegrow-card-body">
+                        <?php
+                        $this->voice_toggle('enabled', __('Turn voice entry on', 'timegrow'),
+                            __('Shows a "Speak an entry" button on the Manual Time Entry page. The chat asks for the client, project, day, start time, hours, billable and description, and nothing is saved until the person confirms. Speech is turned into text by the browser: in Chrome and Edge that is done by Google or Microsoft, in Safari by Apple. People can always type instead.', 'timegrow'), $settings);
+                        $this->voice_toggle('speak', __('Speak the questions out loud', 'timegrow'),
+                            __('The chat reads its questions aloud. Each person can still turn the sound off in the chat; their choice is remembered on their device.', 'timegrow'), $settings);
+                        $this->voice_toggle('ask_start_time', __('Ask for a start time', 'timegrow'),
+                            __('Asks what time the work started (people can skip it). When off, entries are saved with the day only.', 'timegrow'), $settings);
+                        ?>
+                        <table class="form-table" role="presentation">
+                            <tr>
+                                <th scope="row"><label for="timegrow_voice_language"><?php esc_html_e('Speech language', 'timegrow'); ?></label></th>
+                                <td>
+                                    <select id="timegrow_voice_language" name="<?php echo esc_attr(self::VOICE_OPTION); ?>[language]">
+                                        <?php foreach (self::voice_languages() as $code => $label): ?>
+                                            <option value="<?php echo esc_attr($code); ?>" <?php selected($settings['language'], $code); ?>><?php echo esc_html($label); ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <p class="description">
+                                        <?php echo esc_html(sprintf(__('The language people speak in. Site language is %s here. The chat\'s questions are in English.', 'timegrow'), str_replace('_', '-', get_locale()))); ?>
+                                    </p>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="timegrow-card">
+                    <div class="timegrow-card-header">
+                        <div class="timegrow-icon timegrow-icon-primary"><span class="dashicons dashicons-analytics"></span></div>
+                        <div class="timegrow-card-title"><h2><?php esc_html_e('AI', 'timegrow'); ?></h2></div>
+                    </div>
+                    <div class="timegrow-card-body">
+                        <?php
+                        $this->voice_toggle('use_ai', __('Read whole sentences with AI', 'timegrow'),
+                            __('A sentence like "two hours yesterday on the SEO audit for Copperleaf" fills several answers at once. Only the person\'s own projects are sent, with what they said. When off, or when the AI is not working, the chat asks each question.', 'timegrow'), $settings);
+                        ?>
+                        <?php $this->render_ai_choice('voice', self::VOICE_OPTION, $settings['ai_config_id']); ?>
+                        <?php $this->render_ai_status('voice', $settings['use_ai'] === 'yes', $ai, $status, $ai_url, admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-settings&tab=voice')); ?>
+                    </div>
+                </div>
+
+                <div class="timegrow-footer">
+                    <?php submit_button(__('Save Settings', 'timegrow'), 'primary large', 'submit', false); ?>
+                    <a href="?page=<?php echo TIMEGROW_PARENT_MENU; ?>-settings" class="button button-secondary large">
+                        <span class="dashicons dashicons-arrow-left-alt"></span>
+                        <?php esc_html_e('Back to Settings', 'timegrow'); ?>
+                    </a>
+                </div>
+            </form>
+        </div>
+        <?php
+    }
+
+    /**
+     * Which projects team members (not administrators) may record time on: "all" active projects
+     * (default) or only the projects "assigned" to them under Team Members.
+     */
+    public static function team_project_access() {
+        $options = get_option('aragrow_timegrow_general_settings', []);
+        return (is_array($options) && ($options['team_project_access'] ?? 'all') === 'assigned') ? 'assigned' : 'all';
+    }
+
+    public function render_team_project_access_field() {
+        $value = self::team_project_access();
+        $name  = esc_attr($this->general_option_name) . '[team_project_access]';
+        ?>
+        <fieldset>
+            <label style="display: block; margin-bottom: 6px;">
+                <input type="radio" name="<?php echo $name; ?>" value="all" <?php checked($value, 'all'); ?>>
+                <?php esc_html_e('All active projects', 'timegrow'); ?>
+            </label>
+            <label style="display: block;">
+                <input type="radio" name="<?php echo $name; ?>" value="assigned" <?php checked($value, 'assigned'); ?>>
+                <?php esc_html_e('Only the projects assigned to them under Team Members', 'timegrow'); ?>
+            </label>
+        </fieldset>
+        <p class="description"><?php esc_html_e('Applies to Clock In / Out, Manual Time Entry and voice entry. Administrators can always record time on any active project, for any team member.', 'timegrow'); ?></p>
+        <?php
+    }
+
     public function render_delete_data_field() {
         $options = get_option($this->general_option_name, []);
         $value   = $options['delete_data_on_uninstall'] ?? 'no';
@@ -1414,7 +1852,7 @@ class TimeGrowSettings {
                 </option>
             <?php endforeach; ?>
         </select>
-        <p class="description">Choose which AI provider to use for receipt analysis. <strong style="color: #d63638;">*Required</strong></p>
+        <p class="description">Choose the AI provider for receipts and voice entry. <strong style="color: #d63638;">*Required</strong></p>
         <?php
     }
 
@@ -1424,6 +1862,9 @@ class TimeGrowSettings {
         $model = $form_data['ai_model'] ?? '';
         $providers = $this->get_ai_providers();
         $models = !empty($provider) ? ($providers[$provider]['models'] ?? []) : [];
+        if ($model !== '' && !isset($models[$model])) {
+            $models[$model] = sprintf(__('%s (older model, kept because this configuration uses it)', 'timegrow'), $model);
+        }
         ?>
         <select name="<?php echo esc_attr($this->ai_option_name); ?>[ai_model]" id="ai_model" class="regular-text" required>
             <option value="">-- Select a Model --</option>
@@ -1433,16 +1874,16 @@ class TimeGrowSettings {
                 </option>
             <?php endforeach; ?>
         </select>
-        <p class="description">Choose which model to use for receipt analysis. <strong style="color: #d63638;">*Required</strong></p>
+        <p class="description">Choose the model. It must be able to read images (for receipts). <strong style="color: #d63638;">*Required</strong></p>
         <?php
     }
 
     public function render_ai_api_key_field() {
         $form_data = $this->get_form_data();
-        $provider = $form_data['ai_provider'] ?? 'google_gemini';
+        $provider = !empty($form_data['ai_provider']) && isset($this->get_ai_providers()[$form_data['ai_provider']]) ? $form_data['ai_provider'] : 'google_gemini';
         $has_key = !empty($form_data['ai_api_key']);
         $providers = $this->get_ai_providers();
-        $docs_url = $providers[$provider]['docs_url'];
+        $docs_url = $providers[$provider]['docs_url'] ?? '';
         ?>
         <input type="password"
                name="<?php echo esc_attr($this->ai_option_name); ?>[ai_api_key]"
@@ -1474,8 +1915,8 @@ class TimeGrowSettings {
                    <?php checked($is_active, true); ?>>
             <span class="timegrow-toggle-slider"></span>
         </label>
-        <span style="margin-left: 10px; font-weight: 600; color: #2271b1;">Set as Active Configuration</span>
-        <p class="description">When enabled, this will be the active AI configuration used for receipt analysis. Only one configuration can be active at a time.</p>
+        <span style="margin-left: 10px; font-weight: 600; color: #2271b1;">Make this the default</span>
+        <p class="description">AI Receipt Analysis and AI Voice Entry use the default unless they pick another configuration under "AI to use". Only one configuration can be the default.</p>
         <?php
     }
 
@@ -1500,34 +1941,5 @@ class TimeGrowSettings {
         <?php
     }
 
-    public function render_enable_auto_analysis_field() {
-        $form_data = $this->get_form_data();
-        $checked = isset($form_data['enable_auto_analysis']) && $form_data['enable_auto_analysis'];
-        ?>
-        <label class="timegrow-toggle-switch">
-            <input type="checkbox"
-                   name="<?php echo esc_attr($this->ai_option_name); ?>[enable_auto_analysis]"
-                   value="1"
-                   <?php checked($checked, true); ?>>
-            <span class="timegrow-toggle-slider"></span>
-        </label>
-        <span style="margin-left: 10px;">Automatically analyze receipts when uploaded</span>
-        <p class="description">When enabled, receipt images will be sent to your selected AI provider for automatic data extraction.</p>
-        <?php
-    }
 
-    public function render_confidence_threshold_field() {
-        $form_data = $this->get_form_data();
-        $threshold = $form_data['confidence_threshold'] ?? 0.7;
-        ?>
-        <input type="number"
-               name="<?php echo esc_attr($this->ai_option_name); ?>[confidence_threshold]"
-               value="<?php echo esc_attr($threshold); ?>"
-               min="0"
-               max="1"
-               step="0.1"
-               class="small-text">
-        <p class="description">Only auto-populate expense fields if AI confidence is above this threshold (0.0 to 1.0). Default: 0.7</p>
-        <?php
-    }
 }
