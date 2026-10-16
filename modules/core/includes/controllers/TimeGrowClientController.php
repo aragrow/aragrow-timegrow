@@ -6,9 +6,9 @@ if (!defined('ABSPATH')) {
 
 class TimeGrowClientController{
 
-        
+
     public function __construct() {
-        timegrow_log(__CLASS__.'::'.__FUNCTION__);   
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
     }
     public function display_admin_page($screen) {
@@ -17,35 +17,34 @@ class TimeGrowClientController{
         $this->list();
     }
 
+    /**
+     * Clients list: WooCommerce customers when the clients integration is on,
+     * otherwise the clients TimeGrow already uses (TimeGrowClientModel).
+     */
     public function list() {
+        timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
-        $integrations = get_option('timegrow_integration_settings');
-        if ($integrations['wc_clients'] && class_exists('WooCommerce')) {
-            ?>
-            <div class="wrap">
-                <!-- Modern Header -->
-                <div class="timegrow-modern-header">
-                    <div class="timegrow-header-content">
-                        <h1><?php esc_html_e('Clients', 'timegrow'); ?></h1>
-                        <p class="subtitle"><?php esc_html_e('Manage your client information and relationships', 'timegrow'); ?></p>
-                    </div>
-                    <div class="timegrow-header-illustration">
-                        <span class="dashicons dashicons-groups"></span>
-                    </div>
-                </div>
+        $integrations = get_option('timegrow_integration_settings', []);
+        $woocommerce  = !empty($integrations['wc_clients']) && class_exists('WooCommerce');
 
-                <div class="timegrow-notice timegrow-notice-info">
-                    <span class="dashicons dashicons-info"></span>
-                    <div>
-                        <strong><?php esc_html_e('WooCommerce Integration Active', 'timegrow'); ?></strong>
-                        <p><?php esc_html_e('Clients are integrated with WooCommerce Customers.', 'timegrow'); ?></p>
-                    </div>
-                </div>
-            </div>
-            <?php
-            exit();
+        $users = $woocommerce
+            ? get_users(['role' => 'customer', 'orderby' => 'display_name', 'order' => 'ASC'])
+            : (new TimeGrowClientModel())->select();
+
+        $clients = [];
+        foreach ((array) $users as $user) {
+            $id        = (int) $user->ID;
+            $clients[] = [
+                'id'       => $id,
+                'name'     => $user->display_name,
+                'company'  => get_user_meta($id, 'billing_company', true),
+                'email'    => get_user_meta($id, 'billing_email', true) ?: $user->user_email,
+                'phone'    => get_user_meta($id, 'billing_phone', true),
+                'edit_url' => admin_url('user-edit.php?user_id=' . $id),
+            ];
         }
 
+        (new TimeGrowClientView())->display($clients, $woocommerce);
     }
 
 }
