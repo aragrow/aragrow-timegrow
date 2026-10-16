@@ -35,6 +35,13 @@ class TimeGrowClientView {
                 </div>
             <?php endif; ?>
 
+            <div class="tablenav top">
+                <div class="alignleft actions">
+                    <a href="<?php echo esc_url(admin_url('user-new.php?customer=y')); ?>" target="_blank" rel="noopener noreferrer" class="button button-primary"><?php esc_html_e('Add New Client', 'timegrow'); ?></a>
+                </div>
+                <br class="clear">
+            </div>
+
             <table class="wp-list-table widefat fixed striped table-view-list clients">
                 <thead>
                     <tr>
