@@ -86,6 +86,15 @@ class TimeGrowNexus{
 
         add_submenu_page(
             null,
+            'Sync Payments',
+            'Sync Payments',
+            'access_nexus_process_time', // same people who can process time (administrators)
+            TIMEGROW_PARENT_MENU . '-nexus-sync-payments',
+            [ $this, 'render_sync_payments_page' ]
+        );
+
+        add_submenu_page(
+            null,
             __('Reports', 'timegrow'),         // Page title
             __('Reports', 'timegrow'),         // Menu title
             'access_nexus_view_reports',
@@ -415,6 +424,32 @@ class TimeGrowNexus{
                 wp_die();
 
         }
+    }
+
+    /**
+     * Sync Payments page: shows open PayPal invoices and runs the PayPal payment sync
+     * (Aragrow_TimeGrow_PayPal_Payment_Sync) when the button is pressed.
+     */
+    public function render_sync_payments_page() {
+        $view = new TimeGrowNexusSyncPaymentsView();
+
+        if (!class_exists('Aragrow_TimeGrow_PayPal_Payment_Sync') || !class_exists('Aragrow_WC_PayPal_Auto_Invoicer')) {
+            $view->display(null, []);
+            return;
+        }
+
+        $sync    = new Aragrow_TimeGrow_PayPal_Payment_Sync(Aragrow_WC_PayPal_Auto_Invoicer::instance());
+        $results = null;
+
+        if (isset($_POST['timegrow_sync_payments'])) {
+            check_admin_referer('timegrow_sync_payments', 'timegrow_sync_payments_nonce');
+            if (!current_user_can('access_nexus_process_time')) {
+                wp_die(esc_html__('You are not allowed to sync payments.', 'timegrow'), 403);
+            }
+            $results = $sync->sync_open_orders();
+        }
+
+        $view->display($sync->status_summary(), $sync->open_orders(), $results);
     }
 
     public function enqueue_scripts_styles($hook) {

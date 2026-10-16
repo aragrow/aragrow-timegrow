@@ -226,6 +226,33 @@ class TimeGrowNexusView {
                     </div>
                 </a>
                 <?php endif; ?>
+
+                <?php if (($show_all || current_user_can('access_nexus_process_time')) && class_exists('Aragrow_TimeGrow_PayPal_Payment_Sync')) : ?>
+                <a href="<?php echo esc_url(admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-nexus-sync-payments')); ?>" class="timegrow-card">
+                    <div class="timegrow-card-header">
+                        <div class="timegrow-icon timegrow-icon-woocommerce">
+                            <span class="dashicons dashicons-update"></span>
+                        </div>
+                        <div class="timegrow-card-title">
+                            <h2><?php esc_html_e('Sync Payments', 'timegrow'); ?></h2>
+                            <span class="timegrow-badge timegrow-badge-success">
+                                <?php esc_html_e('PayPal', 'timegrow'); ?>
+                            </span>
+                        </div>
+                    </div>
+                    <div class="timegrow-card-body">
+                        <p class="timegrow-card-description">
+                            <?php esc_html_e('Check PayPal for paid invoices and mark the orders as paid.', 'timegrow'); ?>
+                        </p>
+                        <div class="timegrow-card-footer">
+                            <span class="timegrow-action-link">
+                                <?php esc_html_e('Sync Payments', 'timegrow'); ?>
+                                <span class="dashicons dashicons-arrow-right-alt"></span>
+                            </span>
+                        </div>
+                    </div>
+                </a>
+                <?php endif; ?>
                 </div><!-- .timegrow-cards-container -->
             </div><!-- .timegrow-section -->
             <?php endif; ?>

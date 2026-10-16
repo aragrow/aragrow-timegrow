@@ -165,20 +165,62 @@ class Aragrow_TimeGrow_PayPal_Payment_Sync {
 	}
 
 	/**
-	 * Check every open PayPal invoice (sent, draft, or partly paid), up to 50 per run.
+	 * Scheduled run: sync every open PayPal invoice.
 	 */
 	public function run_scheduled() {
 		if ( ! $this->invoicer->has_credentials() ) return;
+		$this->sync_open_orders();
+	}
 
-		$orders = wc_get_orders( [ 'status' => self::OPEN_STATUSES, 'limit' => 50, 'orderby' => 'date', 'order' => 'ASC' ] );
-		foreach ( $orders as $order ) {
-			if ( self::invoice_id_for( $order ) === '' ) continue;
+	/**
+	 * Orders with a PayPal invoice still waiting for payment: Invoice Sent to PayPal,
+	 * Invoice Draft in PayPal or Partial Paid. Oldest first.
+	 */
+	public function open_orders( $limit = 50 ) {
+		$orders = wc_get_orders( [ 'status' => self::OPEN_STATUSES, 'limit' => $limit, 'orderby' => 'date', 'order' => 'ASC' ] );
+		return array_values( array_filter( $orders, function( $order ) {
+			return self::invoice_id_for( $order ) !== '';
+		} ) );
+	}
+
+	/**
+	 * Sync every open PayPal invoice and report what happened to each order.
+	 *
+	 * @return array[] One row per order: order, invoice_id, before, after, message, error.
+	 */
+	public function sync_open_orders( $limit = 50 ) {
+		$results = [];
+		foreach ( $this->open_orders( $limit ) as $order ) {
+			$before = $order->get_status();
+			$row    = [ 'order' => $order, 'invoice_id' => self::invoice_id_for( $order ), 'before' => $before, 'after' => $before, 'message' => '', 'error' => false ];
 			try {
-				$this->sync_order( $order );
+				$row['message'] = $this->sync_order( $order );
+				$fresh          = wc_get_order( $order->get_id() );
+				$row['after']   = $fresh ? $fresh->get_status() : $before;
 			} catch ( Exception $e ) {
+				$row['message'] = 'PayPal check failed: ' . $e->getMessage();
+				$row['error']   = true;
 				timegrow_log( 'PayPal sync error for order #' . $order->get_id() . ': ' . $e->getMessage() );
 			}
+			$results[] = $row;
 		}
+		return $results;
+	}
+
+	/**
+	 * How payment sync is set up, for the Sync Payments page.
+	 */
+	public function status_summary() {
+		$settings  = $this->invoicer->settings();
+		$intervals = [ 'hourly' => 'Every hour', 'twicedaily' => 'Twice a day', 'daily' => 'Once a day' ];
+		$next      = wp_next_scheduled( self::CRON_HOOK );
+		return [
+			'credentials' => $this->invoicer->has_credentials(),
+			'environment' => $settings['env'] === 'live' ? 'Live' : 'Sandbox',
+			'interval'    => $intervals[ $settings['sync_interval'] ] ?? $settings['sync_interval'],
+			'next_run'    => $next ? get_date_from_gmt( gmdate( 'Y-m-d H:i:s', $next ), 'Y-m-d H:i' ) : '',
+			'webhook'     => $settings['webhook_id'] !== '',
+		];
 	}
 
 	// ------------------------------------------------------------------

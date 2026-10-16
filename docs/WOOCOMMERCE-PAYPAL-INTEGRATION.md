@@ -154,13 +154,14 @@ Phone numbers are not sent. PayPal needs them split into country code and number
 
 ### When the client pays
 
-Code: `modules/paypal-invoicer/includes/class-paypal-payment-sync.php`. Three ways in, one sync step:
+Code: `modules/paypal-invoicer/includes/class-paypal-payment-sync.php`. Four ways in, one sync step:
 
 | How | When | Setup |
 |---|---|---|
 | **Webhook** | Within seconds of the payment | In the PayPal developer dashboard, add a webhook for `https://your-site/wp-json/timegrow/v1/paypal-webhook` with the events `INVOICING.INVOICE.PAID`, `INVOICING.INVOICE.CANCELLED` and `INVOICING.INVOICE.REFUNDED`. Paste its Webhook ID in Settings > PayPal Integration. Needs a public HTTPS site. |
 | **Scheduled check** | Every hour, twice a day, or daily (default) | Settings > PayPal Integration > **Check for payments**. Checks up to 50 orders in Invoice Sent to PayPal, Invoice Draft in PayPal or Partial Paid. WP-Cron runs on site visits; on a quiet site, add a real server cron job that loads `wp-cron.php`. |
 | **Check PayPal status** button | On demand | The **PayPal Invoice** box on the order shows the invoice ID, the last PayPal status, and the button. |
+| **Sync Payments** page | On demand, all open orders | Nexus Dashboard > **Sync Payments** (administrators). Lists open PayPal orders, runs `sync_open_orders()` (up to 50, oldest first) and shows the result per order, plus the schedule and webhook status. View: `modules/nexus/includes/views/TimeGrowNexusSyncPaymentsView.php`. |
 
 The sync step always reads the invoice from PayPal's API (a webhook message is never trusted on its own; its signature is also verified with PayPal first), then:
 
