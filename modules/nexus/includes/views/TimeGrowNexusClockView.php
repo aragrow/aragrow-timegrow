@@ -36,10 +36,10 @@ class TimeGrowNexusClockView {
         wp_localize_script('timegrow-nexus-clock', 'timegrowClockAppData', $js_data);
 
         // Initial state variables for direct PHP output
-        $is_clocked_in = ($current_clock_status['status'] === 'clocked_in')?true:false;
-        $cloked_project = ($current_clock_status['cloked_project'])?:'None';
-        $clock_in_timestamp = $current_clock_status['clockInTimestamp'];
-        $entry_id = ($current_clock_status['entryId'])?:0;
+        $is_clocked_in = ($current_clock_status['status'] ?? '') === 'clocked_in'; // the other values exist only when clocked in
+        $cloked_project = ($current_clock_status['cloked_project'] ?? '') ?: 'None';
+        $clock_in_timestamp = $current_clock_status['clockInTimestamp'] ?? null;
+        $entry_id = ($current_clock_status['entryId'] ?? 0) ?: 0;
         ?>
         <div class="wrap timegrow-modern-wrapper">
             <!-- Modern Header -->
@@ -86,11 +86,14 @@ class TimeGrowNexusClockView {
                                 <div class="timegrow-project-tile" draggable="true"
                                      data-project-id="<?php echo esc_attr($project->ID); ?>"
                                      data-project-name="<?php echo esc_attr($project->name); ?>"
-                                     data-project-desc="<?php echo esc_attr($project->description); ?>">
+                                     data-project-desc="<?php echo esc_attr($project->description); ?>"
+                                     data-client-id="<?php echo esc_attr($project->client_id ?? 0); ?>"
+                                     data-client-name="<?php echo esc_attr(TimeGrowProjectPicker::client_name($project->client_id ?? 0)); ?>">
                                     <div class="timegrow-project-tile-header">
                                         <span class="dashicons dashicons-move"></span>
                                         <h3><?php echo esc_html($project->name); ?></h3>
                                     </div>
+                                    <p class="timegrow-project-tile-client"><?php echo esc_html(TimeGrowProjectPicker::client_name($project->client_id ?? 0)); ?></p>
                                     <p class="timegrow-project-tile-desc"><?php echo esc_html($project->description); ?></p>
                                 </div>
                                 <?php endforeach; ?>

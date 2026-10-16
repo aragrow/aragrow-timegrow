@@ -95,11 +95,14 @@ class TimeGrowNexusManualView {
                                 <div class="timegrow-project-tile" draggable="true"
                                      data-project-id="<?php echo esc_attr($project->ID); ?>"
                                      data-project-name="<?php echo esc_attr($project->name); ?>"
-                                     data-project-desc="<?php echo esc_attr($project->description); ?>">
+                                     data-project-desc="<?php echo esc_attr($project->description); ?>"
+                                     data-client-id="<?php echo esc_attr($project->client_id ?? 0); ?>"
+                                     data-client-name="<?php echo esc_attr(TimeGrowProjectPicker::client_name($project->client_id ?? 0)); ?>">
                                     <div class="timegrow-project-tile-header">
                                         <span class="dashicons dashicons-move"></span>
                                         <h3><?php echo esc_html($project->name); ?></h3>
                                     </div>
+                                    <p class="timegrow-project-tile-client"><?php echo esc_html(TimeGrowProjectPicker::client_name($project->client_id ?? 0)); ?></p>
                                     <p class="timegrow-project-tile-desc"><?php echo esc_html($project->description); ?></p>
                                 </div>
                                 <?php endforeach; ?>
@@ -213,10 +216,14 @@ class TimeGrowNexusManualView {
                 <input type="hidden" name="page" value="<?php echo esc_attr(TIMEGROW_PARENT_MENU . '-nexus-manual'); ?>">
                 <select name="project" onchange="this.form.submit()">
                     <option value="">All Projects</option>
-                    <?php foreach ($projects as $project): ?>
-                        <option value="<?= esc_attr($project->ID) ?>" <?= selected($filter_project, $project->ID, false) ?>>
-                            <?= esc_html($project->name) ?>
-                        </option>
+                    <?php foreach (TimeGrowProjectPicker::group_by_client($projects, $filter_project) as $group): ?>
+                        <optgroup label="<?= esc_attr($group['name']) ?>">
+                            <?php foreach ($group['projects'] as $project): ?>
+                                <option value="<?= esc_attr($project->ID) ?>" <?= selected($filter_project, $project->ID, false) ?>>
+                                    <?= esc_html($project->name) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </optgroup>
                     <?php endforeach; ?>
                 </select>
             </form>

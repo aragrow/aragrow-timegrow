@@ -648,3 +648,140 @@
         font-size: 14px !important;
     }
 }
+/* Client on project tiles, and the Client dropdown that narrows them (project-clients.js) */
+.timegrow-project-tile-client {
+    margin: 0 0 4px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #2271b1;
+}
+
+.timegrow-nexus-client-label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    font-size: 15px;
+}
+
+.timegrow-nexus-client-filter {
+    width: 100%;
+    min-height: 50px;
+    padding: 12px;
+    font-size: 16px;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    margin-bottom: 14px;
+    box-sizing: border-box;
+}
+
+.timegrow-nexus-no-match {
+    margin: 0 0 10px;
+    color: #646970;
+    font-style: italic;
+}
+
+/* Filters above the project tiles (left column) */
+.timegrow-tile-filters {
+    margin-bottom: 12px;
+}
+
+.timegrow-tile-filters .timegrow-nexus-client-label {
+    font-size: 13px;
+    margin-bottom: 4px;
+}
+
+.timegrow-tile-filters .timegrow-nexus-client-filter,
+.timegrow-tile-filters .timegrow-tile-search {
+    width: 100%;
+    min-height: 40px;
+    padding: 8px 10px;
+    font-size: 14px;
+    border: 2px solid #ddd;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    box-sizing: border-box;
+}
+
+/* Voice entry chat on the Manual Time Entry page (voice-entry.js) */
+.timegrow-voice {
+    margin-bottom: 16px;
+}
+
+.timegrow-voice-open .dashicons,
+.timegrow-voice-mic .dashicons {
+    vertical-align: middle;
+}
+
+.timegrow-voice-panel {
+    border: 2px solid #2271b1;
+    border-radius: 8px;
+    background: #fff;
+    padding: 12px;
+}
+
+.timegrow-voice-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.timegrow-voice-close {
+    font-size: 20px;
+    margin-left: 10px;
+    text-decoration: none;
+}
+
+.timegrow-voice-log {
+    max-height: 260px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.timegrow-voice-msg {
+    max-width: 85%;
+    padding: 8px 12px;
+    border-radius: 12px;
+    line-height: 1.4;
+}
+
+.timegrow-voice-bot {
+    align-self: flex-start;
+    background: #f0f0f1;
+}
+
+.timegrow-voice-me {
+    align-self: flex-end;
+    background: #2271b1;
+    color: #fff;
+}
+
+.timegrow-voice-thinking {
+    color: #646970;
+}
+
+.timegrow-voice-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.timegrow-voice-bar {
+    display: flex;
+    gap: 6px;
+}
+
+.timegrow-voice-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.timegrow-voice-mic.is-listening {
+    background: #d63638;
+    border-color: #d63638;
+    color: #fff;
+}

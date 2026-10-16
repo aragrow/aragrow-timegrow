@@ -203,6 +203,7 @@ class TimeGrowTimeEntry{
         wp_enqueue_style('timegrow-forms-style', TIMEGROW_CORE_BASE_URI . 'assets/css/forms.css');
         wp_enqueue_style('timeflies-time-entries-style', TIMEGROW_CORE_BASE_URI . 'assets/css/time_entry.css');
         wp_enqueue_script('timeflies-time-entries-script', TIMEGROW_CORE_BASE_URI . 'assets/js/time_entry.js', array('jquery'), '1.1', true);
+        wp_enqueue_script('timegrow-project-picker', TIMEGROW_CORE_BASE_URI . 'assets/js/project-picker.js', array('jquery'), '1.0', true);
         wp_localize_script(
             'timeflies-companies-script',
             'timeflies_companies_list',

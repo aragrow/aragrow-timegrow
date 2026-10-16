@@ -248,19 +248,7 @@ class TimeGrowTimeEntryView {
                             <h3 class="hndle"><span>General Information</span></h3>
                             <div class="inside">
                                 <table class="form-table">
-                                    <tr>
-                                        <th scope="row"><label for="project_id">Project <span class="required">*</span></label></th>
-                                        <td>
-                                        <select name="project_id" class="large-text" required>
-                                            <option>Select a Project</option>
-                                            <?php foreach ($projects as $project): ?>
-                                                <option value="<?= esc_attr($project->ID); ?>">
-                                                    <?= esc_html($project->name); ?>
-                                                </option>
-                                            <?php endforeach; ?>
-                                        </select>
-                                        </td>
-                                    </tr>
+                                    <?php TimeGrowProjectPicker::render_rows($projects, 0); ?>
                                     <tr>
                                         <th scope="row"><label for="member_id">Member <span class="required">*</span></label></th>
                                         <td>
@@ -390,18 +378,7 @@ class TimeGrowTimeEntryView {
                             <h3 class="hndle"><span>General Information</span></h3>
                             <div class="inside">
                                 <table class="form-table">
-                                    <tr>
-                                        <th scope="row"><label for="project_id">Project <span class="required">*</span></label></th>
-                                        <td>
-                                        <select name="project_id" class="large-text" required>
-                                            <?php foreach ($projects as $project): ?>
-                                                <option value="<?= esc_attr($project->ID); ?>" <?= selected($project->ID, $time_entry->project_id); ?>>
-                                                    <?= esc_html($project->name); ?>
-                                                </option>
-                                            <?php endforeach; ?>
-                                        </select>
-                                        </td>
-                                    </tr>
+                                    <?php TimeGrowProjectPicker::render_rows($projects, $time_entry->project_id); ?>
                                     <tr>
                                         <th scope="row"><label for="member_id">Member <span class="required">*</span></label></th>
                                         <td>
@@ -428,8 +405,8 @@ class TimeGrowTimeEntryView {
                                         <th scope="row"><label for="status">Status</label></th>
                                         <td>
                                             <select id="status" name="status">
-                                                <option value="1" <?php selected($time_entry->status, 1); ?>>Active</option>
-                                                <option value="0" <?php selected($time_entry->status, 0); ?>>Inactive</option>
+                                                <option value="1" <?php selected($time_entry->status ?? 1, 1); ?>>Active</option>
+                                                <option value="0" <?php selected($time_entry->status ?? 1, 0); ?>>Inactive</option>
                                             </select>
                                         </td>
                                     </tr>
