@@ -19,6 +19,8 @@ require_once __DIR__ . '/includes/class-decimal-quantities.php';
 Aragrow_TimeGrow_Decimal_Quantities::init();
 require_once __DIR__ . '/includes/class-invoice-delivery.php';
 Aragrow_TimeGrow_Invoice_Delivery::init();
+require_once __DIR__ . '/includes/class-order-cancellation.php';
+Aragrow_TimeGrow_Order_Cancellation::init();
 
 class Aragrow_WOO_Integration_Plugins
 {

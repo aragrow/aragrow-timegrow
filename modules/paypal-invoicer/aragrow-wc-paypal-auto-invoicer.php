@@ -206,6 +206,7 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 		add_settings_field( 'client_id', 'Client ID', [ $this, 'render_text_client' ], 'paypal-integration', 'wc_pp_section_main' );
 		add_settings_field( 'client_secret', 'Client Secret', [ $this, 'render_text_secret' ], 'paypal-integration', 'wc_pp_section_main' );
 		add_settings_field( 'send_action', 'Invoice Delivery', [ $this, 'render_select_send' ], 'paypal-integration', 'wc_pp_section_main' );
+		add_settings_field( 'cancel_notify', 'When an order is cancelled', [ $this, 'render_checkbox_cancel_notify' ], 'paypal-integration', 'wc_pp_section_main' );
 		add_settings_field( 'merchant_email', 'Merchant Email (optional)', [ $this, 'render_text_email' ], 'paypal-integration', 'wc_pp_section_main' );
 		add_settings_field( 'sync_interval', 'Check for payments', [ $this, 'render_select_sync_interval' ], 'paypal-integration', 'wc_pp_section_main' );
 		add_settings_field( 'webhook_id', 'Webhook ID', [ $this, 'render_text_webhook_id' ], 'paypal-integration', 'wc_pp_section_main' );
@@ -224,6 +225,7 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
         $out['enabled']        = ! empty( $input['enabled'] ) ? 'yes' : 'no';
         $out['env']            = in_array($input['env'] ?? 'sandbox', ['sandbox','live'], true) ? $input['env'] : 'sandbox';
         $out['send_action']    = in_array($input['send_action'] ?? 'send', ['send','save'], true) ? $input['send_action'] : 'send';
+        $out['cancel_notify']  = ! empty( $input['cancel_notify'] ) ? 'yes' : 'no';
         $out['merchant_email'] = isset($input['merchant_email']) ? sanitize_email($input['merchant_email']) : '';
         $out['sync_interval']  = in_array($input['sync_interval'] ?? 'daily', ['hourly','twicedaily','daily'], true) ? $input['sync_interval'] : 'daily';
         $out['webhook_id']     = isset($input['webhook_id']) ? sanitize_text_field(trim((string) $input['webhook_id'])) : '';
@@ -255,6 +257,7 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 			'client_id'     => '',
 			'client_secret' => '',
 			'send_action'   => 'send', // send|save
+			'cancel_notify' => 'yes',  // yes|no: PayPal tells the client when their invoice is cancelled
 			'merchant_email'=> '',
 			'sync_interval' => 'daily',  // hourly|twicedaily|daily: backup check for PayPal payments
 			'webhook_id'    => '',       // from the PayPal developer dashboard, used to verify webhook messages
@@ -380,6 +383,22 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 			<div class="timegrow-feature-info">
 				<strong><?php esc_html_e( 'Send orders to PayPal', 'timegrow' ); ?></strong>
 				<p><?php esc_html_e( 'Create PayPal invoices when an order is set to "Send Invoice to PayPal". When off, the status change only adds an order note.', 'timegrow' ); ?></p>
+			</div>
+		</div>
+		<?php
+	}
+
+	public function render_checkbox_cancel_notify() {
+		$settings = $this->get_settings();
+		?>
+		<div class="timegrow-feature-item">
+			<label class="timegrow-toggle-switch">
+				<input type="checkbox" name="<?php echo esc_attr( $this->option_key ); ?>[cancel_notify]" value="yes" <?php checked( $settings['cancel_notify'], 'yes' ); ?>>
+				<span class="timegrow-toggle-slider"></span>
+			</label>
+			<div class="timegrow-feature-info">
+				<strong><?php esc_html_e( 'Tell the client', 'timegrow' ); ?></strong>
+				<p><?php esc_html_e( 'Cancel invoice (in Order actions) cancels the PayPal invoice too. When on, PayPal emails the client that no payment is due. Drafts the client never received are deleted without telling them.', 'timegrow' ); ?></p>
 			</div>
 		</div>
 		<?php

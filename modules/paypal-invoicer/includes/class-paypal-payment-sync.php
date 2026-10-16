@@ -9,7 +9,10 @@
  * - "Check PayPal status" button on the order.
  * All three call sync_order(), which reads the invoice from PayPal's API (never trusting the
  * incoming message) and updates the order: Invoice Paid / Partial Paid with the payment date,
- * amount and transaction ID, or an order note for cancelled / refunded invoices.
+ * amount and transaction ID, or an order note for cancelled / refunded invoices (an invoice
+ * cancelled in PayPal does not cancel the order).
+ * The other way round, cancel_invoice() cancels (or deletes a draft) PayPal invoice when the
+ * invoice is cancelled from TimeGrow (see Aragrow_TimeGrow_Order_Cancellation).
  *
  * @package TimeGrow
  * @subpackage PayPal_Invoicer
@@ -152,6 +155,110 @@ class Aragrow_TimeGrow_PayPal_Payment_Sync {
 			return $decision['note'];
 		}
 		return sprintf( 'PayPal status: %s. Nothing to update.', $decision['paypal_status'] ?: 'unknown' );
+	}
+
+	// ------------------------------------------------------------------
+	// Refunds: PayPal first
+	// ------------------------------------------------------------------
+
+	/**
+	 * Amount refunded on a PayPal invoice. A refund status without an amount counts as the full
+	 * invoice. Pure: no side effects.
+	 */
+	public static function refunded_amount( array $invoice ) {
+		if ( isset( $invoice['refunds']['refund_amount']['value'] ) ) {
+			return (float) $invoice['refunds']['refund_amount']['value'];
+		}
+		if ( in_array( (string) ( $invoice['status'] ?? '' ), [ 'REFUNDED', 'MARKED_AS_REFUNDED' ], true ) ) {
+			return (float) ( $invoice['amount']['value'] ?? 0 );
+		}
+		return 0.0;
+	}
+
+	/**
+	 * Read the order's PayPal invoice and return how much PayPal shows as refunded. Throws on API errors.
+	 */
+	public function paypal_refunded( $order ) {
+		$invoice = $this->invoicer->paypal_request( 'GET', '/v2/invoicing/invoices/' . rawurlencode( self::invoice_id_for( $order ) ) );
+		$order->update_meta_data( '_paypal_invoice_status', (string) ( $invoice['status'] ?? '' ) );
+		$order->update_meta_data( '_paypal_last_checked', current_time( 'mysql' ) );
+		$order->save_meta_data();
+		return self::refunded_amount( $invoice );
+	}
+
+	// ------------------------------------------------------------------
+	// Cancelling the PayPal invoice when the order is cancelled
+	// ------------------------------------------------------------------
+
+	/**
+	 * What cancelling the order means for its PayPal invoice. Pure: no side effects.
+	 *
+	 * @param string $paypal_status Invoice status from PayPal.
+	 * @return string delete (a draft the client never saw) | cancel (sent, so PayPal cancels it) |
+	 *                done (already cancelled) | paid (money came in: leave it, keep the time billed)
+	 */
+	public static function cancel_plan( $paypal_status ) {
+		switch ( (string) $paypal_status ) {
+			case 'DRAFT':
+				return 'delete';
+			case 'CANCELLED':
+				return 'done';
+			case 'PAID':
+			case 'MARKED_AS_PAID':
+			case 'PARTIALLY_PAID':
+			case 'REFUNDED':
+			case 'PARTIALLY_REFUNDED':
+			case 'MARKED_AS_REFUNDED':
+				return 'paid';
+			default: // SENT, UNPAID, SCHEDULED, PAYMENT_PENDING
+				return 'cancel';
+		}
+	}
+
+	/**
+	 * Cancel (or, for a draft, delete) the order's PayPal invoice. Reads the invoice first. Throws on API errors.
+	 *
+	 * @return array { release: bool (true when nothing can be paid any more, so the order may be cancelled), message: string }
+	 */
+	public function cancel_invoice( $order ) {
+		$invoice_id = self::invoice_id_for( $order );
+		$path       = '/v2/invoicing/invoices/' . rawurlencode( $invoice_id );
+		$invoice    = $this->invoicer->paypal_request( 'GET', $path );
+		$status     = (string) ( $invoice['status'] ?? '' );
+
+		switch ( self::cancel_plan( $status ) ) {
+			case 'delete':
+				$this->invoicer->paypal_request( 'DELETE', $path );
+				$status  = 'DELETED';
+				$message = sprintf( 'PayPal draft invoice %s deleted (the client never received it).', $invoice_id );
+				$release = true;
+				break;
+			case 'cancel':
+				$notify = $this->invoicer->settings()['cancel_notify'] === 'yes';
+				$this->invoicer->paypal_request( 'POST', $path . '/cancel', [
+					'subject'           => 'Invoice cancelled',
+					'note'              => sprintf( 'Invoice for order #%s has been cancelled. No payment is due.', $order->get_order_number() ),
+					'send_to_invoicer'  => false,
+					'send_to_recipient' => $notify,
+				] );
+				$status  = 'CANCELLED';
+				$message = sprintf( 'PayPal invoice %s cancelled%s.', $invoice_id, $notify ? ' and the client was told' : ' (the client was not told)' );
+				$release = true;
+				break;
+			case 'done':
+				$message = sprintf( 'PayPal invoice %s was already cancelled.', $invoice_id );
+				$release = true;
+				break;
+			default: // paid
+				$message = sprintf( 'PayPal invoice %s shows %s, so it was not cancelled and the time stays billed. Review this order.', $invoice_id, $status );
+				$release = false;
+		}
+
+		$order->update_meta_data( '_paypal_invoice_status', $status );
+		$order->update_meta_data( '_paypal_last_checked', current_time( 'mysql' ) );
+		$order->save_meta_data();
+
+		return [ 'release' => $release, 'message' => $message ];
 	}
 
 	// ------------------------------------------------------------------

@@ -347,6 +347,73 @@ class TimeGrowTimeEntryModel {
     }
 
     /**
+     * IDs of the time entries billed to an order.
+     *
+     * @param int $order_id The WooCommerce order ID
+     * @return int[]
+     */
+    public function billed_entry_ids_for_order($order_id) {
+        global $wpdb;
+
+        if (!is_numeric($order_id) || $order_id <= 0) {
+            return [];
+        }
+
+        return array_map('intval', $wpdb->get_col($wpdb->prepare(
+            "SELECT ID FROM {$this->table_name} WHERE billed_order_id = %d",
+            (int) $order_id
+        )));
+    }
+
+    /**
+     * IDs among $ids that are billed right now (to any order).
+     *
+     * @param int[] $ids Time entry IDs
+     * @return int[]
+     */
+    public function billed_among($ids) {
+        global $wpdb;
+
+        $ids = array_filter(array_map('intval', (array) $ids));
+        if (!$ids) {
+            return [];
+        }
+
+        $placeholders = implode(',', array_fill(0, count($ids), '%d'));
+        return array_map('intval', $wpdb->get_col($wpdb->prepare(
+            "SELECT ID FROM {$this->table_name} WHERE billed = 1 AND ID IN ($placeholders)",
+            $ids
+        )));
+    }
+
+    /**
+     * Bill these entries to an order again (a cancelled order reopened). Only unbilled ones are touched.
+     *
+     * @param int[] $ids      Time entry IDs
+     * @param int   $order_id The WooCommerce order ID
+     * @return int|false Number of entries updated, or false on error
+     */
+    public function rebill_entries($ids, $order_id) {
+        global $wpdb;
+
+        $ids = array_filter(array_map('intval', (array) $ids));
+        if (!$ids || !is_numeric($order_id) || $order_id <= 0) {
+            return 0;
+        }
+
+        $placeholders = implode(',', array_fill(0, count($ids), '%d'));
+        $result = $wpdb->query($wpdb->prepare(
+            "UPDATE {$this->table_name} SET billed = 1, billed_order_id = %d, updated_at = %s WHERE billed = 0 AND ID IN ($placeholders)",
+            array_merge([(int) $order_id, current_time('mysql')], $ids)
+        ));
+
+        if ($result === false) {
+            timegrow_log('Failed to bill time entries again for order #' . $order_id . ': ' . $wpdb->last_error);
+        }
+        return $result;
+    }
+
+    /**
      * Reset billed status for time entries when an order is trashed or deleted
      *
      * @param int $order_id The WooCommerce order ID
