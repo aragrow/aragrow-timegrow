@@ -180,6 +180,7 @@ class TimeGrowNexus{
             $description  = isset($_POST['description']) ? sanitize_text_field($_POST['description']) : '';
             $isBillable  = isset($_POST['billable']) ? intval($_POST['billable']) : 0;
             $start_time  = isset($_POST['start_time']) ? sanitize_text_field($_POST['start_time']) : ''; // optional, HH:MM (voice entry)
+            $client_id   = isset($_POST['client_id']) ? intval($_POST['client_id']) : 0; // optional (voice entry): must be the project's client
             if (
                 !isset($nonce) ||
                 !wp_verify_nonce($nonce, 'timegrow_time_nexus_nonce')
@@ -215,6 +216,7 @@ class TimeGrowNexus{
 
             // Who and what: the member comes from the logged-in user, the project must be theirs
             $member_id = TimeGrowTimeEntryRules::require_member_and_project('access_nexus_manual_entry', $member_id, $project_id);
+            TimeGrowTimeEntryRules::require_project_client($project_id, $client_id);
             $problem   = TimeGrowTimeEntryRules::manual_problem($date, $hours, current_time('Y-m-d'));
             if ($problem !== '') {
                 wp_send_json_error(['message' => $problem]);
@@ -553,26 +555,7 @@ class TimeGrowNexus{
                 filemtime(TIMEGROW_NEXUS_BASE_DIR . 'assets/js/manual.js'),
                 true // Load in footer
             );
-            // Voice entry chat (TimeGrowNexusVoice), when on in Settings > Voice Entry
-            $voice = TimeGrowSettings::voice_settings();
-            if ($voice['enabled'] === 'yes') {
-            wp_enqueue_script(
-                'timegrow-nexus-voice',
-                TIMEGROW_NEXUS_BASE_URI . 'assets/js/voice-entry.js',
-                ['jquery', 'timegrow-nexus-project-clients', 'timegrow-nexus-manual'],
-                filemtime(TIMEGROW_NEXUS_BASE_DIR . 'assets/js/voice-entry.js'),
-                true
-            );
-            wp_localize_script('timegrow-nexus-voice', 'timegrowVoice', [
-                'ajaxUrl' => admin_url('admin-ajax.php'),
-                'nonce'   => wp_create_nonce(TimeGrowNexusVoice::NONCE),
-                'today'   => current_time('Y-m-d'),
-                'aiReady' => $voice['use_ai'] === 'yes' && TimeGrowAI::is_configured('voice'),
-                'speak'   => $voice['speak'] === 'yes',
-                'askStartTime' => $voice['ask_start_time'] === 'yes',
-                'lang'    => TimeGrowSettings::voice_language(),
-            ]);
-            }
+            // The voice entry chat loads on every admin page: TimeGrowNexusVoice::enqueue()
             wp_enqueue_style('timegrow-clock-style', TIMEGROW_NEXUS_BASE_URI . 'assets/css/clock.css', [], filemtime(TIMEGROW_NEXUS_BASE_DIR . 'assets/css/clock.css'));
             wp_localize_script(
                 'timegrow-nexus-manual',

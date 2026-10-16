@@ -1,15 +1,29 @@
 // File: assets/js/voice-entry.js
-// Voice entry on the Manual Time Entry page: a chat that asks for the client, project, day, start
-// time, hours, billable and description, by voice (Web Speech API) or typing. Free-form answers are
-// read by the site's AI (TimeGrowNexusVoice.php); short answers and taps are read here. Nothing is
-// saved until the person confirms; then the normal Manual form saves the entry.
+// Voice entry: a chat that asks for the client, project, day, start time, hours, billable and
+// description, by voice (Web Speech API) or typing. Free-form answers are read by the site's AI
+// (TimeGrowNexusVoice.php); short answers and taps are read here. Nothing is saved until the person
+// confirms.
+// A round mic icon floats in the bottom-right corner of every admin page; it opens the chat above it.
+// - Manual Time Entry page: the normal form saves the entry.
+// - Any other admin page: it saves through the same AJAX action (save_time_entry) without leaving the page.
 jQuery(document).ready(function($) {
   const cfg = window.timegrowVoice || {};
   const on = v => v === true || v === 1 || v === '1'; // wp_localize_script sends true / false as "1" / ""
   const $form = $('#timegrow-nexus-entry-form');
-  if (!$form.length || !window.TimeGrowProjectClients) return;
+  const floating = !$form.length;
 
-  const projects = window.TimeGrowProjectClients.collect();
+  // The person's projects: sent by the server, else read from the Manual page's project tiles
+  let projects = [];
+  if (Array.isArray(cfg.projects) && cfg.projects.length) {
+    projects = cfg.projects.map(p => {
+      const project = { id: p.id, name: String(p.name), clientId: String(p.clientId || ''), clientName: String(p.clientName || '') };
+      project.label = project.clientName ? project.name + ' (' + project.clientName + ')' : project.name;
+      return project;
+    }).sort((a, b) => a.clientName.localeCompare(b.clientName) || a.name.localeCompare(b.name));
+  } else if (!floating && window.TimeGrowProjectClients) {
+    projects = window.TimeGrowProjectClients.collect();
+  }
+  if (!floating && !projects.length && !window.TimeGrowProjectClients) return;
   const ORDER = ['client_id', 'project_id', 'date', 'start_time', 'hours', 'billable', 'description']
     .filter(k => k !== 'start_time' || cfg.askStartTime === undefined || on(cfg.askStartTime)); // Settings > Voice Entry
   const LABELS = { client_id: 'client', project_id: 'project', date: 'day', start_time: 'start time', hours: 'hours', billable: 'billable', description: 'description' };
@@ -163,16 +177,25 @@ jQuery(document).ready(function($) {
   // The chat
   // ------------------------------------------------------------------
 
+  const MIC = '<svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 14.5a3.5 3.5 0 0 0 3.5-3.5V5.5a3.5 3.5 0 1 0-7 0V11a3.5 3.5 0 0 0 3.5 3.5Z"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M18.5 11a6.5 6.5 0 0 1-13 0M12 17.5V21M8.5 21h7"/></svg>';
   const $card = $(`
     <div class="timegrow-voice">
-      <button type="button" class="timegrow-voice-open button"><span class="dashicons dashicons-microphone"></span> Speak an entry</button>
-      <div class="timegrow-voice-panel" hidden>
+      <button type="button" class="timegrow-voice-fab" aria-expanded="false" aria-label="Record time by voice" title="Record time by voice">
+        <span class="timegrow-voice-fab-icon">${MIC}</span>
+        <span class="timegrow-voice-fab-close" aria-hidden="true">&times;</span>
+      </button>
+      <div class="timegrow-voice-panel" role="dialog" aria-label="Voice time entry" hidden>
         <div class="timegrow-voice-head">
-          <strong>Voice entry</strong>
+          <span class="timegrow-voice-title"><span class="timegrow-voice-avatar">${MIC}</span><strong>Voice time entry</strong></span>
           <span>
+            <button type="button" class="timegrow-voice-voices button-link" aria-expanded="false">Voice</button>
             <button type="button" class="timegrow-voice-mute button-link"></button>
             <button type="button" class="timegrow-voice-close button-link" aria-label="Close">&times;</button>
           </span>
+        </div>
+        <div class="timegrow-voice-picker" hidden>
+          <label>Voice <select class="timegrow-voice-pick"></select></label>
+          <button type="button" class="button button-small timegrow-voice-try">Try it</button>
         </div>
         <div class="timegrow-voice-log" aria-live="polite"></div>
         <div class="timegrow-voice-chips"></div>
@@ -183,7 +206,7 @@ jQuery(document).ready(function($) {
         </div>
       </div>
     </div>`);
-  $form.closest('.timegrow-nexus-container').before($card);
+  $('body').append($card);
   const $panel = $card.find('.timegrow-voice-panel'), $log = $card.find('.timegrow-voice-log');
   const $chips = $card.find('.timegrow-voice-chips'), $text = $card.find('.timegrow-voice-text'), $mic = $card.find('.timegrow-voice-mic');
   if (!Recognition || window.isSecureContext === false) $mic.hide(); // the mic needs a supported browser and https
@@ -195,19 +218,80 @@ jQuery(document).ready(function($) {
     $log.scrollTop($log[0].scrollHeight);
   }
 
-  function say(text, chips) {
+  /** Show a message; read it aloud as `spoken` when given (shorter and more natural to hear). */
+  function say(text, chips, spoken) {
     bubble('bot', text);
     $chips.empty();
     (chips || []).forEach(c => $chips.append($('<button>', { type: 'button', class: 'button timegrow-voice-chip', text: c.label }).data('chip', c)));
-    speak(text);
+    speak(spoken || text);
+  }
+
+  // ------------------------------------------------------------------
+  // Speaking: the most natural voice the browser has
+  // ------------------------------------------------------------------
+
+  const synth = window.speechSynthesis && window.SpeechSynthesisUtterance ? window.speechSynthesis : null;
+  const speechLang = () => (cfg.lang || document.documentElement.lang || 'en-US');
+  // macOS joke voices and old robotic ones
+  const NOVELTY = /\b(albert|bad news|bahh|bells|boing|bubbles|cellos|good news|jester|organ|superstar|trinoids|whisper|wobble|zarvox|fred|junior|ralph|kathy|grandma|grandpa|rocko|shelley|flo|eddy|reed|sandy|hysterical|deranged|pipe organ)\b/i;
+
+  /**
+   * How natural a voice should sound, from its name: neural / "Natural" / "Premium" / "Enhanced"
+   * and Google voices first, joke voices last. Voices in another language don't count. Pure.
+   */
+  function voiceScore(voice, lang) {
+    const want = String(lang || 'en-US').toLowerCase(), have = String(voice.lang || '').toLowerCase().replace('_', '-');
+    if (have.split('-')[0] !== want.split('-')[0]) return -1;
+    const name = String(voice.name || '');
+    if (NOVELTY.test(name)) return 0;
+    let score = 10;
+    if (/natural|neural/i.test(name)) score += 50;
+    else if (/premium/i.test(name)) score += 45;
+    else if (/enhanced/i.test(name)) score += 40;
+    else if (/^google/i.test(name)) score += 30;
+    if (/\b(ava|samantha|allison|evan|zoe|jenny|aria|guy|michelle|emma|brian|andrew|daniel|serena|karen|moira|tessa|libby|sonia|ryan)\b/i.test(name)) score += 10;
+    if (have === want) score += 5;
+    if (voice.default) score += 1;
+    return score;
+  }
+
+  function bestVoice(voices, lang) {
+    let best = null, bestScore = 0;
+    (voices || []).forEach(v => { const sc = voiceScore(v, lang); if (sc > bestScore) { best = v; bestScore = sc; } });
+    return best;
+  }
+
+  let chosenVoice = null;
+  function loadVoices() {
+    if (!synth) return;
+    const voices = synth.getVoices() || [];
+    if (!voices.length) return;
+    let savedName = null;
+    try { savedName = window.localStorage.getItem('timegrowVoiceName'); } catch (e) {}
+    chosenVoice = voices.find(v => v.name === savedName) || bestVoice(voices, speechLang());
+    const usable = voices.filter(v => voiceScore(v, speechLang()) > 0).sort((a, b) => voiceScore(b, speechLang()) - voiceScore(a, speechLang()));
+    const $pick = $card.find('.timegrow-voice-pick').empty();
+    usable.forEach(v => $pick.append($('<option>', { value: v.name, text: v.name.replace(/\s*\(.*\)$/, '') + (voiceScore(v, speechLang()) >= 40 ? ' ★' : '') })));
+    if (chosenVoice) $pick.val(chosenVoice.name);
+  }
+
+  /** Split into sentences: short utterances sound better and avoid Chrome cutting long ones off. */
+  function sentences(text) {
+    return String(text).match(/[^.!?]+[.!?]+["”]?|[^.!?]+$/g)?.map(t => t.trim()).filter(Boolean) || [String(text)];
   }
 
   function speak(text) {
-    if (muted || !window.speechSynthesis || !window.SpeechSynthesisUtterance) { if (voiceMode) setTimeout(listen, 300); return; }
-    window.speechSynthesis.cancel();
-    const u = new window.SpeechSynthesisUtterance(text);
-    u.onend = () => { if (voiceMode) listen(); };
-    window.speechSynthesis.speak(u);
+    if (muted || !synth) { if (voiceMode) setTimeout(listen, 300); return; }
+    synth.cancel();
+    const parts = sentences(text);
+    parts.forEach((part, i) => {
+      const u = new window.SpeechSynthesisUtterance(part);
+      if (chosenVoice) { u.voice = chosenVoice; u.lang = chosenVoice.lang; } else { u.lang = speechLang(); }
+      u.rate = 1.03;  // a touch quicker than the default sounds less like reading aloud
+      u.pitch = 1;
+      if (i === parts.length - 1) u.onend = () => { if (voiceMode) listen(); };
+      synth.speak(u);
+    });
   }
 
   let recognizer = null;
@@ -218,10 +302,10 @@ jQuery(document).ready(function($) {
     recognizer.lang = cfg.lang || document.documentElement.lang || 'en-US';
     recognizer.interimResults = false;
     recognizer.maxAlternatives = 1;
-    recognizer.onstart = () => $mic.addClass('is-listening');
-    recognizer.onend = () => $mic.removeClass('is-listening');
+    recognizer.onstart = () => { $mic.addClass('is-listening'); $card.addClass('is-listening'); };
+    recognizer.onend = () => { $mic.removeClass('is-listening'); $card.removeClass('is-listening'); };
     recognizer.onerror = e => {
-      $mic.removeClass('is-listening');
+      $mic.removeClass('is-listening'); $card.removeClass('is-listening');
       voiceMode = false; // don't keep reopening the mic
       const why = {
         'not-allowed': 'Microphone access is blocked. Allow the microphone for this site in your browser, or type your answer.',
@@ -254,27 +338,63 @@ jQuery(document).ready(function($) {
     }
   }
 
+  // Spoken only: a short, varied acknowledgement before the next question, like a person would
+  const ACKS = ['Got it.', 'Okay.', 'Great.', 'Sounds good.', 'Perfect.', 'Alright.'];
+  let ackNext = false, lastAck = '';
+  function ack() {
+    if (!ackNext) return '';
+    ackNext = false;
+    const pool = ACKS.filter(a => a !== lastAck);
+    lastAck = pool[Math.floor(Math.random() * pool.length)];
+    return lastAck + ' ';
+  }
+
   function ask(key) {
     asking = key;
     const today = todayDate(), yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
+    const a = ack();
     switch (key) {
       case 'client_id':
-        return say('Which client is this for?', clients.map(c => ({ label: c.name, value: c.id })));
+        return say('Which client is this for?', clients.map(c => ({ label: c.name, value: c.id })), a + 'Which client is this for?');
       case 'project_id': {
         const theirs = projects.filter(p => p.clientId === String(fields.client_id));
-        return say(`Which project for ${clientName()}?`, theirs.map(p => ({ label: p.name, value: p.id })));
+        return say(`Which project for ${clientName()}?`, theirs.map(p => ({ label: p.name, value: p.id })), a + `And which project for ${clientName()}?`);
       }
       case 'date':
-        return say('Which day was it?', [{ label: 'Today', value: ymd(today) }, { label: 'Yesterday', value: ymd(yesterday) }]);
+        return say('Which day was it?', [{ label: 'Today', value: ymd(today) }, { label: 'Yesterday', value: ymd(yesterday) }], a + 'Which day was this?');
       case 'start_time':
-        return say('What time did you start? You can skip this.', [{ label: 'Skip', value: 'skip' }]);
+        return say('What time did you start? You can skip this.', [{ label: 'Skip', value: 'skip' }], a + 'What time did you start? Or just say skip.');
       case 'hours':
-        return say('How many hours?', [0.5, 1, 1.5, 2, 3, 4, 8].map(h => ({ label: fmtHours(h), value: h })));
+        return say('How many hours?', [0.5, 1, 1.5, 2, 3, 4, 8].map(h => ({ label: fmtHours(h), value: h })), a + 'How long did you work?');
       case 'billable':
-        return say('Is it billable?', [{ label: 'Yes', value: 1 }, { label: 'No', value: 0 }]);
+        return say('Is it billable?', [{ label: 'Yes', value: 1 }, { label: 'No', value: 0 }], a + 'Is it billable?');
       case 'description':
-        return say('What did you work on?');
+        return say('What did you work on?', null, a + 'What did you work on?');
     }
+  }
+
+  // Natural spoken forms: "two and a half hours", "Thursday, October 15th", "nine thirty A M"
+  function spokenHours(h) {
+    const whole = Math.floor(h), mins = Math.round((h - whole) * 60);
+    if (!whole) return mins + ' minutes';
+    const unit = whole === 1 ? 'hour' : 'hours';
+    if (mins === 30) return whole + ' and a half ' + unit;
+    if (mins === 15) return whole + ' ' + unit + ' and 15 minutes';
+    if (mins === 45) return whole + ' ' + unit + ' and 45 minutes';
+    return whole + ' ' + unit;
+  }
+  function spokenDate(d) {
+    if (d === ymd(todayDate())) return 'today';
+    const y = todayDate(); y.setDate(y.getDate() - 1);
+    if (d === ymd(y)) return 'yesterday';
+    const p = d.split('-');
+    return 'on ' + new Date(+p[0], +p[1] - 1, +p[2]).toLocaleDateString(speechLang(), { weekday: 'long', month: 'long', day: 'numeric' });
+  }
+  function spokenSummary() {
+    const p = project();
+    return `${spokenHours(+fields.hours)} ${spokenDate(fields.date)}` +
+      (fields.start_time && fields.start_time !== 'skip' ? `, starting at ${fmtTime(fields.start_time)}` : '') +
+      `, for ${clientName()}, ${p ? p.name : ''}. ${fields.billable ? 'Billable' : 'Not billable'}. ${fields.description}`;
   }
 
   function summary() {
@@ -291,7 +411,7 @@ jQuery(document).ready(function($) {
     asking = 'confirm';
     say('Here is your entry: ' + summary() + ' Save it?', [
       { label: 'Save entry', value: 'save' }, { label: 'Change something', value: 'change' }, { label: 'Start over', value: 'restart' },
-    ]);
+    ], ack() + 'Here is what I have. ' + spokenSummary() + '. Should I save it?');
   }
 
   // ------------------------------------------------------------------
@@ -307,6 +427,8 @@ jQuery(document).ready(function($) {
   function answer(text, chip) {
     text = String(text || '').trim();
     if (!text && !chip) return;
+    if (asking === 'saving') return;
+    if (asking === 'done') { fields = {}; ORDER.forEach(k => { fields[k] = null; }); asking = ''; } // a new entry
     bubble('me', chip ? chip.label : text);
     $chips.empty();
     $text.val('');
@@ -330,6 +452,7 @@ jQuery(document).ready(function($) {
       return next();
     }
 
+    ackNext = true; // the next question starts with "Got it." and the like (spoken only)
     if (chip) { setField(asking, chip.value); return next(); }
 
     // A plainly simple answer is read here; anything else goes to the AI when it's on
@@ -357,6 +480,7 @@ jQuery(document).ready(function($) {
           }
           return next();
         }
+        if (res && res.data && res.data.code === 'blocked') bubble('bot', res.data.message); // looked like instructions to the AI
         if (asking && local !== null) { setField(asking, local); return next(); }
         return asking ? retry() : next();
       })
@@ -370,14 +494,16 @@ jQuery(document).ready(function($) {
   function retry() {
     const key = asking;
     bubble('bot', `Sorry, I didn't get the ${LABELS[key]}.`);
+    ackNext = false;
     ask(key);
   }
 
   // ------------------------------------------------------------------
-  // Saving through the normal Manual form
+  // Saving: through the normal Manual form, or straight to save_time_entry from other pages
   // ------------------------------------------------------------------
 
   function save() {
+    if (floating) return saveDirect();
     const p = project();
     $('#project_id').val(fields.project_id);
     $('#mobile-project-selector').val(fields.project_id); // no change event: it would re-check billable
@@ -391,7 +517,8 @@ jQuery(document).ready(function($) {
     $hours.find('option').filter((i, o) => +o.value === +fields.hours).prop('selected', true);
     $('#description').val(fields.description);
     $('#nexus-manual_billable').prop('checked', !!+fields.billable);
-    $form.find('input[name="start_time"]').remove();
+    $form.find('input[name="start_time"], input[name="client_id"]').remove();
+    $form.append($('<input>', { type: 'hidden', name: 'client_id', value: fields.client_id })); // the save checks it is the project's client
     if (fields.start_time && fields.start_time !== 'skip') {
       $form.append($('<input>', { type: 'hidden', name: 'start_time', value: fields.start_time }));
     }
@@ -400,7 +527,7 @@ jQuery(document).ready(function($) {
     say('Saving your entry.');
     $form.data('voice', true);
     $form.off('.timegrowVoice')
-      .one('timegrow:saved.timegrowVoice', () => { $form.off('.timegrowVoice'); say('Saved. Taking you back to the dashboard.'); })
+      .one('timegrow:saved.timegrowVoice', () => { $form.off('.timegrowVoice'); say('Saved. Taking you back to the dashboard.', null, 'All done. It\'s saved.'); })
       .one('timegrow:save-failed.timegrowVoice', (e, message) => {
         $form.off('.timegrowVoice').data('voice', false);
         asking = 'confirm';
@@ -409,33 +536,80 @@ jQuery(document).ready(function($) {
     $form.trigger('submit');
   }
 
+  function saveDirect() {
+    voiceMode = false;
+    asking = 'saving';
+    say('Saving your entry.');
+    const failed = message => {
+      asking = 'confirm';
+      say(`That wasn't saved: ${message}`, [{ label: 'Save entry', value: 'save' }, { label: 'Change something', value: 'change' }]);
+    };
+    const data = {
+      action: 'save_time_entry', entry_type: 'MAN', time_entry_id: 0, member_id: 0,
+      timegrow_time_nexus_nonce_field: cfg.saveNonce, project_id: fields.project_id, client_id: fields.client_id, date: fields.date,
+      hours: fields.hours, billable: fields.billable ? 1 : 0, description: fields.description,
+    };
+    if (fields.start_time && fields.start_time !== 'skip') data.start_time = fields.start_time;
+    $.ajax({ url: cfg.ajaxUrl, method: 'POST', data: data })
+      .done(res => {
+        if (res && res.success) {
+          asking = 'done';
+          return say('Saved: ' + summary(), [{ label: 'Record another', value: '__restart' }, { label: 'Close', value: '__close' }], 'All done. It\'s saved. Anything else?');
+        }
+        failed(String((res && res.data && (res.data.message || res.data)) || 'unknown error'));
+      })
+      .fail(() => failed('The site could not be reached.'));
+  }
+
   function start() {
     fields = {}; ORDER.forEach(k => { fields[k] = null; });
     asking = '';
     say('Tell me what you worked on, for example: "Two hours yesterday on the SEO audit for Copperleaf, keyword research." Or answer my questions one at a time.',
-      [{ label: 'Ask me the questions', value: '__questions' }]);
+      [{ label: 'Ask me the questions', value: '__questions' }],
+      'Hi! What did you work on? You can tell me in one go, or I can ask you step by step.');
   }
 
   // ------------------------------------------------------------------
   // Events
   // ------------------------------------------------------------------
 
-  $card.on('click', '.timegrow-voice-open', function() {
+  function open() {
+    if (!$panel.prop('hidden')) { $text.trigger('focus'); return; } // already open: keep the conversation
     $panel.prop('hidden', false);
-    $(this).hide();
+    $card.addClass('is-open').find('.timegrow-voice-fab').attr({ 'aria-expanded': 'true', 'aria-label': 'Close voice entry', title: 'Close voice entry' });
     if (!projects.length) {
       $card.find('.timegrow-voice-bar').hide();
       return say("You don't have any projects to record time on yet. Ask an administrator to add you to a project.");
     }
     start();
-  });
-  $card.on('click', '.timegrow-voice-close', function() {
+    $text.trigger('focus');
+  }
+
+  function close() {
     $panel.prop('hidden', true);
-    $card.find('.timegrow-voice-open').show();
+    $card.removeClass('is-open is-listening').find('.timegrow-voice-fab').attr({ 'aria-expanded': 'false', 'aria-label': 'Record time by voice', title: 'Record time by voice' });
     voiceMode = false;
     try { if (recognizer) recognizer.abort(); } catch (e) {}
     if (window.speechSynthesis) window.speechSynthesis.cancel();
+  }
+
+  $card.on('click', '.timegrow-voice-fab', () => ($panel.prop('hidden') ? open() : close()));
+  $card.on('click', '.timegrow-voice-close', close);
+  $card.on('keydown', e => { if (e.key === 'Escape') { close(); $card.find('.timegrow-voice-fab').trigger('focus'); } });
+  $card.on('click', '.timegrow-voice-voices', function() {
+    const $row = $card.find('.timegrow-voice-picker'), show = $row.prop('hidden');
+    loadVoices();
+    $row.prop('hidden', !show);
+    $(this).attr('aria-expanded', show ? 'true' : 'false');
   });
+  $card.on('change', '.timegrow-voice-pick', function() {
+    const v = synth ? (synth.getVoices() || []).find(x => x.name === this.value) : null;
+    if (v) { chosenVoice = v; try { window.localStorage.setItem('timegrowVoiceName', v.name); } catch (e) {} }
+  });
+  $card.on('click', '.timegrow-voice-try', () => { const was = muted; muted = false; speak("Hi! This is how I'll sound when I ask about your time."); muted = was; });
+  if (synth) { loadVoices(); if ('onvoiceschanged' in synth) synth.addEventListener('voiceschanged', loadVoices); }
+  if (!synth) $card.find('.timegrow-voice-voices').hide();
+
   $card.on('click', '.timegrow-voice-mute', function() {
     muted = !muted;
     try { window.localStorage.setItem('timegrowVoiceMuted', muted ? '1' : '0'); } catch (e) {}
@@ -445,6 +619,8 @@ jQuery(document).ready(function($) {
   $card.on('click', '.timegrow-voice-chip', function() {
     const chip = $(this).data('chip');
     if (chip.value === '__questions') { bubble('me', chip.label); $chips.empty(); return next(); }
+    if (chip.value === '__restart') return start();
+    if (chip.value === '__close') return close();
     answer('', chip);
   });
   $mic.on('click', function() { voiceMode = true; listen(); });
@@ -452,5 +628,5 @@ jQuery(document).ready(function($) {
   $text.on('keypress', e => { if (e.which === 13) { e.preventDefault(); voiceMode = false; answer($text.val()); } });
 
   // For tests
-  window.TimeGrowVoiceEntry = { answer: answer, fields: () => fields, asking: () => asking, readLocally: readLocally, readStrict: readStrict };
+  window.TimeGrowVoiceEntry = { open: open, close: close, voiceScore: voiceScore, bestVoice: bestVoice, sentences: sentences, spokenHours: spokenHours, answer: answer, fields: () => fields, asking: () => asking, readLocally: readLocally, readStrict: readStrict };
 });

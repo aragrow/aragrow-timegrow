@@ -2,7 +2,10 @@
 use PHPUnit\Framework\TestCase;
 
 if ( ! function_exists( 'wp_json_encode' ) ) {
-    function wp_json_encode( $data ) { return json_encode( $data ); }
+    function wp_json_encode( $data, $flags = 0 ) { return json_encode( $data, $flags ); }
+}
+if ( ! function_exists( 'wp_strip_all_tags' ) ) {
+    function wp_strip_all_tags( $s ) { return trim( strip_tags( (string) $s ) ); }
 }
 require_once dirname( __DIR__, 2 ) . '/modules/core/includes/helpers/TimeGrowProjectPicker.php';
 require_once dirname( __DIR__, 2 ) . '/modules/core/includes/helpers/TimeGrowAI.php';
@@ -73,7 +76,7 @@ class VoiceEntryTest extends TestCase {
         $f = $this->merge( [ 'billable' => false ], [ 'hours' => 2, 'description' => 'Call' ] );
 
         $this->assertSame( 0, $f['billable'] );
-        $this->assertSame( 2, $f['hours'] );
+        $this->assertSame( 2.0, $f['hours'] ); // known fields are checked too
         $this->assertSame( 'Call', $f['description'] );
     }
 
@@ -88,6 +91,6 @@ class VoiceEntryTest extends TestCase {
         $this->assertStringContainsString( 'Today is 2026-10-16 (Friday)', $prompt );
         $this->assertStringContainsString( '"project_id":20', $prompt );
         $this->assertStringContainsString( '"client":"Copperleaf"', $prompt );
-        $this->assertStringContainsString( 'The person said: "two hours yesterday"', $prompt );
+        $this->assertStringContainsString( "<untrusted_data name=\"what_the_person_said\">\ntwo hours yesterday\n</untrusted_data>", $prompt );
     }
 }

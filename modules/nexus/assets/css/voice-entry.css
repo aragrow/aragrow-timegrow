@@ -1,0 +1,269 @@
+/* Voice time entry (voice-entry.js): a round mic icon in the bottom-right corner of every admin
+   page, and the chat panel it opens. Loaded wherever AI Voice Entry is on. */
+.timegrow-voice {
+    --tgv-start: #667eea;
+    --tgv-end: #764ba2;
+    --tgv-ink: #1d2327;
+    --tgv-muted: #646970;
+    --tgv-line: #e2e4e7;
+    --tgv-soft: #f4f5fb;
+    --tgv-live: #d63638;
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    z-index: 99990; /* above page content, below the admin bar and media modals */
+    font-size: 14px;
+}
+
+/* ---- The mic icon */
+.timegrow-voice-fab {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 60px;
+    height: 60px;
+    margin: 0 0 0 auto;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--tgv-start) 0%, var(--tgv-end) 100%);
+    color: #fff;
+    cursor: pointer;
+    box-shadow: 0 10px 24px rgba(118, 75, 162, 0.35), 0 2px 6px rgba(0, 0, 0, 0.12);
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.timegrow-voice-fab:hover {
+    transform: translateY(-2px) scale(1.04);
+    box-shadow: 0 14px 30px rgba(118, 75, 162, 0.45), 0 3px 8px rgba(0, 0, 0, 0.14);
+}
+.timegrow-voice-fab:focus-visible {
+    outline: 3px solid #fff;
+    box-shadow: 0 0 0 6px var(--tgv-start), 0 10px 24px rgba(118, 75, 162, 0.35);
+}
+.timegrow-voice-fab::after { /* soft ring, pulses while listening */
+    content: "";
+    position: absolute;
+    inset: -6px;
+    border-radius: 50%;
+    border: 2px solid rgba(118, 75, 162, 0.25);
+    pointer-events: none;
+}
+.timegrow-voice-fab-icon,
+.timegrow-voice-fab-close {
+    grid-area: 1 / 1;
+    display: grid;
+    place-items: center;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+}
+.timegrow-voice-fab-close {
+    font-size: 30px;
+    line-height: 1;
+    opacity: 0;
+    transform: rotate(-90deg);
+}
+.timegrow-voice.is-open .timegrow-voice-fab-icon { opacity: 0; transform: scale(0.6); }
+.timegrow-voice.is-open .timegrow-voice-fab-close { opacity: 1; transform: none; }
+
+.timegrow-voice.is-listening .timegrow-voice-fab {
+    background: var(--tgv-live);
+    box-shadow: 0 10px 24px rgba(214, 54, 56, 0.4);
+}
+.timegrow-voice.is-listening .timegrow-voice-fab::after {
+    border-color: rgba(214, 54, 56, 0.55);
+    animation: timegrow-voice-pulse 1.4s ease-out infinite;
+}
+@keyframes timegrow-voice-pulse {
+    from { transform: scale(1); opacity: 1; }
+    to   { transform: scale(1.45); opacity: 0; }
+}
+
+/* ---- The chat panel */
+.timegrow-voice-panel {
+    position: absolute;
+    right: 0;
+    bottom: 76px;
+    width: 380px;
+    max-width: calc(100vw - 48px);
+    max-height: calc(100vh - 150px); /* header stays on screen however many buttons there are */
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    color: var(--tgv-ink);
+    border: 1px solid var(--tgv-line);
+    border-radius: 16px;
+    box-shadow: 0 24px 48px rgba(29, 35, 39, 0.18), 0 4px 12px rgba(29, 35, 39, 0.08);
+    overflow: hidden;
+    transform-origin: bottom right;
+    animation: timegrow-voice-in 0.18s ease-out;
+}
+.timegrow-voice-panel[hidden] { display: none; }
+@keyframes timegrow-voice-in {
+    from { opacity: 0; transform: translateY(8px) scale(0.98); }
+    to   { opacity: 1; transform: none; }
+}
+
+.timegrow-voice-head {
+    flex-shrink: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 14px;
+    background: linear-gradient(135deg, var(--tgv-start) 0%, var(--tgv-end) 100%);
+    color: #fff;
+}
+.timegrow-voice-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 15px;
+}
+.timegrow-voice-avatar {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+}
+.timegrow-voice-avatar svg { width: 18px; height: 18px; }
+.timegrow-voice-head .button-link,
+.timegrow-voice-head .button-link:hover,
+.timegrow-voice-head .button-link:focus {
+    color: #fff;
+    text-decoration: none;
+}
+.timegrow-voice-voices {
+    font-size: 12px;
+    opacity: 0.85;
+    margin-right: 10px;
+}
+.timegrow-voice-picker {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--tgv-line);
+    font-size: 13px;
+}
+.timegrow-voice-picker[hidden] { display: none; }
+.timegrow-voice-picker label { flex: 1; display: flex; align-items: center; gap: 8px; min-width: 0; }
+.timegrow-voice-pick { flex: 1; min-width: 0; max-width: 100%; }
+.timegrow-voice-mute {
+    font-size: 12px;
+    opacity: 0.85;
+}
+.timegrow-voice-close {
+    font-size: 22px;
+    line-height: 1;
+    margin-left: 10px;
+}
+
+.timegrow-voice-log {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1 1 300px;
+    min-height: 100px;
+    overflow-y: auto;
+    padding: 14px;
+    background: var(--tgv-soft);
+}
+.timegrow-voice-msg {
+    max-width: 85%;
+    padding: 9px 13px;
+    border-radius: 14px;
+    line-height: 1.45;
+}
+.timegrow-voice-bot {
+    align-self: flex-start;
+    background: #fff;
+    border: 1px solid var(--tgv-line);
+    border-bottom-left-radius: 4px;
+}
+.timegrow-voice-me {
+    align-self: flex-end;
+    background: linear-gradient(135deg, var(--tgv-start) 0%, var(--tgv-end) 100%);
+    color: #fff;
+    border-bottom-right-radius: 4px;
+}
+.timegrow-voice-thinking { color: var(--tgv-muted); }
+
+.timegrow-voice-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    flex-shrink: 0;
+    max-height: 140px; /* a long client list scrolls here */
+    overflow-y: auto;
+    padding: 0 14px;
+    background: var(--tgv-soft);
+}
+.timegrow-voice-chips:not(:empty) { padding-bottom: 12px; }
+.wp-core-ui .timegrow-voice-chip.button {
+    border-radius: 999px;
+    border-color: var(--tgv-start);
+    color: var(--tgv-end);
+    background: #fff;
+}
+.wp-core-ui .timegrow-voice-chip.button:hover {
+    background: var(--tgv-start);
+    color: #fff;
+}
+
+.timegrow-voice-bar {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    border-top: 1px solid var(--tgv-line);
+}
+.timegrow-voice-text {
+    flex: 1;
+    min-width: 0;
+    border-radius: 999px !important;
+    padding: 4px 14px !important;
+}
+.wp-core-ui .timegrow-voice-mic.button {
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    min-height: 38px;
+    padding: 0;
+    border-radius: 50%;
+    border: 0;
+    background: var(--tgv-soft);
+    color: var(--tgv-end);
+}
+.wp-core-ui .timegrow-voice-mic.button:hover { background: #e9e6f7; }
+.wp-core-ui .timegrow-voice-mic.button.is-listening {
+    background: var(--tgv-live);
+    color: #fff;
+}
+.timegrow-voice-mic .dashicons { width: 20px; height: 20px; font-size: 20px; }
+.wp-core-ui .timegrow-voice-send.button-primary {
+    border-radius: 999px;
+    border: 0;
+    background: linear-gradient(135deg, var(--tgv-start) 0%, var(--tgv-end) 100%);
+}
+
+/* ---- Phones */
+@media screen and (max-width: 600px) {
+    .timegrow-voice { right: 16px; bottom: 16px; }
+    .timegrow-voice-panel {
+        bottom: 76px;
+        width: calc(100vw - 32px);
+        max-width: none;
+        max-height: calc(100vh - 160px);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .timegrow-voice-fab,
+    .timegrow-voice-fab-icon,
+    .timegrow-voice-fab-close,
+    .timegrow-voice-panel { transition: none; animation: none; }
+    .timegrow-voice.is-listening .timegrow-voice-fab::after { animation: none; }
+}
