@@ -14,6 +14,7 @@ class TimeGrowTeamMemberModel {
     private $table_name3;
     private $table_name4;
     private $table_name5;
+    private $table_member_projects;
 
     public function __construct() {
         timegrow_log(__CLASS__.'::'.__FUNCTION__);
@@ -25,6 +26,7 @@ class TimeGrowTeamMemberModel {
         $this->table_name3 = $this->wpdb->prefix . 'users'; // Make sure this matches your table name
         $this->table_name4 = $this->wpdb->prefix . TIMEGROW_PREFIX . 'project_tracker'; // Make sure this matches your table name
         $this->table_name5 = $this->wpdb->prefix . TIMEGROW_PREFIX . 'time_entry_tracker'; // Make sure this matches your table name
+        $this->table_member_projects = $this->wpdb->prefix . TIMEGROW_PREFIX . 'team_member_projects_tracker'; // which projects each member works on
         
         $this->allowed_fields = ['user_id', 'company_id',
                                 'name', 'email',
@@ -55,6 +57,18 @@ class TimeGrowTeamMemberModel {
 
         dbDelta($sql);
 
+        // Which projects each team member works on (Team Members > assigned projects).
+        // Clock In / Out, Manual Time Entry and voice entry only offer these projects.
+        $sql = "CREATE TABLE IF NOT EXISTS {$this->table_member_projects} (
+            ID bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            team_member_id bigint(20) unsigned NOT NULL,
+            project_id bigint(20) unsigned NOT NULL,
+            PRIMARY KEY  (ID),
+            UNIQUE KEY member_project (team_member_id, project_id),
+            KEY project_id (project_id)
+        ) $this->charset_collate;";
+
+        dbDelta($sql);
     }
     
     /**
@@ -207,23 +221,21 @@ class TimeGrowTeamMemberModel {
             $sql = $this->wpdb->prepare(
                 "SELECT M.ID AS team_ID, M.name AS team_name, P.* 
                     FROM {$this->table_name} M  
-                    JOIN {$this->table_name2} X ON M.ID = X.team_member_id
+                    JOIN {$this->table_member_projects} X ON M.ID = X.team_member_id
                     JOIN {$this->table_name4} P ON X.project_id = P.ID  
-                    WHERE A.ID IN ($placeholders) 
+                    WHERE M.ID IN ($placeholders)
+                    AND P.status = 1 
                     ORDER BY M.name, P.name",
                 $ids
             );
         }
         // If a single ID is provided
         elseif (intval($ids) and $ids == -1) {
-            $id = intval($ids); // Sanitize ID
-            $sql = $this->wpdb->prepare(
-                "SELECT null AS team_ID, null AS team_name, P.* 
-                    FROM {$this->table_name4} P 
+            // All active projects (administrators); no values to bind, so no prepare()
+            $sql = "SELECT null AS team_ID, null AS team_name, P.*
+                    FROM {$this->table_name4} P
                 WHERE P.status = 1
-                ORDER BY P.name",
-                $id
-            );
+                ORDER BY P.name";
         }
         // If a single ID is provided
         elseif (intval($ids)) {
@@ -231,7 +243,7 @@ class TimeGrowTeamMemberModel {
             $sql = $this->wpdb->prepare(
                 "SELECT M.ID AS team_ID, M.name AS team_name, P.* 
                     FROM {$this->table_name} M
-                    JOIN {$this->table_name2} X ON M.ID = X.team_member_id
+                    JOIN {$this->table_member_projects} X ON M.ID = X.team_member_id
                     JOIN {$this->table_name4} P ON X.project_id = P.ID
                 WHERE M.ID = %d
                 AND P.status = 1
@@ -244,7 +256,7 @@ class TimeGrowTeamMemberModel {
          
             $sql = "SELECT M.ID AS team_ID, M.name AS team_name, P.* 
             FROM {$this->table_name} M
-            JOIN {$this->table_name2} X ON M.ID = X.team_member_id
+            JOIN {$this->table_member_projects} X ON M.ID = X.team_member_id
             JOIN {$this->table_name4} P ON X.project_id = P.ID  
             WHERE M.status = 1
             AND P.status = 1

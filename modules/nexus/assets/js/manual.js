@@ -19,18 +19,9 @@ jQuery(document).ready(function($) {
    * Create dropdown for project selection (works on all devices)
    */
   function createProjectDropdown() {
-    // Collect all projects from tiles
-    const projects = [];
-    $('.timegrow-project-tile').each(function() {
-      projects.push({
-        id: $(this).data('project-id'),
-        name: $(this).data('project-name'),
-        desc: $(this).data('project-desc')
-      });
-    });
-
-    // Sort projects alphabetically by name
-    projects.sort((a, b) => a.name.localeCompare(b.name));
+    // Projects from the tiles, with their client, sorted by client then name
+    const Picker = window.TimeGrowProjectClients;
+    const projects = Picker.collect();
 
     // Create dropdown wrapper with search
     const $wrapper = $('<div id="mobile-project-selector-wrapper"></div>');
@@ -46,11 +37,8 @@ jQuery(document).ready(function($) {
     // Add default option
     $select.append('<option value="">-- Choose a Project --</option>');
 
-    // Add project options to both select and datalist
-    projects.forEach(function(project) {
-      $select.append(`<option value="${project.id}">${project.name}</option>`);
-      $datalist.append(`<option value="${project.name}" data-id="${project.id}">${project.name}</option>`);
-    });
+    // Add project options ("Project (Client)") to both select and datalist
+    Picker.fill($select, $datalist, projects);
 
     // Link search to datalist
     $searchInput.attr('list', 'projects-datalist');
@@ -59,10 +47,13 @@ jQuery(document).ready(function($) {
     $wrapper.append($label).append($searchInput).append($datalist).append($select.hide());
     $('#timegrow-nexus-entry-form').prepend($wrapper);
 
+    // Client dropdown and keyword search above the tiles (left column)
+    Picker.addTileFilters(projects, 'manual');
+
     // Handle search input selection
     $searchInput.on('input change', function() {
       const searchValue = $(this).val();
-      const selectedProject = projects.find(p => p.name === searchValue);
+      const selectedProject = Picker.find(projects, searchValue);
 
       if (selectedProject) {
         $select.val(selectedProject.id).trigger('change');
@@ -75,7 +66,7 @@ jQuery(document).ready(function($) {
       const projectId = $(this).val();
       if (projectId) {
         const selectedProject = projects.find(p => p.id == projectId);
-        $searchInput.val(selectedProject.name);
+        $searchInput.val(selectedProject.label);
       } else {
         $searchInput.val('');
       }
@@ -93,7 +84,7 @@ jQuery(document).ready(function($) {
 
         // Update drop zone to show selection
         $('#drop-zone')
-          .html(`✓ Project Selected: <strong>${selectedProject.name}</strong>`)
+          .html('✓ Project Selected: ').append($('<strong>').text(selectedProject.label))
           .css('color', '#46b450')
           .css('background-color', '#e8f5e9')
           .css('border-color', '#46b450');
@@ -182,7 +173,6 @@ jQuery(document).ready(function($) {
   $('#timegrow-nexus-entry-form').on('submit', function (e) {
     e.preventDefault();
     const data = $(this).serialize();
-    console.log('Submitting:', data);
 
       $.ajax({
         url: timegrow_ajax.ajax_url,
@@ -190,12 +180,22 @@ jQuery(document).ready(function($) {
         data: data,
         async: true,
         success: function (response) {
-          console.log('AJAX success:', response);
-          alert('Time Recorded Successfully.');
-          window.location.href = 'admin.php?page=timegrow-nexus';
+          const $form = $('#timegrow-nexus-entry-form');
+          const byVoice = $form.data('voice'); // the voice chat reports the result itself
+          if (response && response.success) {
+            $form.trigger('timegrow:saved', [response.data]);
+            if (!byVoice) alert((response.data && response.data.message) || 'Time Recorded Successfully.');
+            setTimeout(() => { window.location.href = 'admin.php?page=timegrow-nexus'; }, byVoice ? 1500 : 0);
+            return;
+          }
+          const message = (response && response.data && (response.data.message || response.data)) || 'unknown error';
+          $form.trigger('timegrow:save-failed', [String(message)]);
+          if (!byVoice) alert('Time not recorded: ' + message);
         },
         error: function (error) {
-          alert('Unable to record time.');
+          const $form = $('#timegrow-nexus-entry-form');
+          $form.trigger('timegrow:save-failed', ['The site could not be reached.']);
+          if (!$form.data('voice')) alert('Unable to record time.');
           console.error('AJAX error:', error);
         }
       });

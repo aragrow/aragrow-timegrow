@@ -22,23 +22,14 @@ jQuery(document).ready(function($) {
    * Create searchable dropdown for project selection
    */
   function createProjectDropdown() {
-    // Collect all projects from tiles
-    const projects = [];
-    $('.timegrow-project-tile').each(function() {
-      projects.push({
-        id: $(this).data('project-id'),
-        name: $(this).data('project-name'),
-        desc: $(this).data('project-desc')
-      });
-    });
+    // Projects from the tiles, with their client, sorted by client then name
+    const Picker = window.TimeGrowProjectClients;
+    const projects = Picker.collect();
 
     // Only create if there are projects and dropdown doesn't exist
     if (projects.length === 0 || $('#clock-project-selector').length > 0) {
       return;
     }
-
-    // Sort alphabetically
-    projects.sort((a, b) => a.name.localeCompare(b.name));
 
     // Create dropdown wrapper
     const $wrapper = $('<div id="clock-project-selector-wrapper" style="margin-bottom: 20px;"></div>');
@@ -47,12 +38,9 @@ jQuery(document).ready(function($) {
     const $datalist = $('<datalist id="clock-projects-datalist"></datalist>');
     const $select = $('<select id="clock-project-selector" style="width: 100%; min-height: 50px; padding: 12px; font-size: 16px; border: 2px solid #ddd; border-radius: 8px; box-sizing: border-box;"></select>');
 
-    // Add options
+    // Add options ("Project (Client)")
     $select.append('<option value="">-- Choose a Project --</option>');
-    projects.forEach(function(project) {
-      $select.append(`<option value="${project.id}">${project.name}</option>`);
-      $datalist.append(`<option value="${project.name}" data-id="${project.id}">${project.name}</option>`);
-    });
+    Picker.fill($select, $datalist, projects);
 
     $searchInput.attr('list', 'clock-projects-datalist');
 
@@ -66,10 +54,13 @@ jQuery(document).ready(function($) {
       $('#timegrow-nexus-entry-form').prepend($wrapper);
     }
 
+    // Client dropdown and keyword search above the tiles (left column)
+    Picker.addTileFilters(projects, 'clock');
+
     // Handle search input
     $searchInput.on('input change', function() {
       const searchValue = $(this).val();
-      const selectedProject = projects.find(p => p.name === searchValue);
+      const selectedProject = Picker.find(projects, searchValue);
       if (selectedProject) {
         $select.val(selectedProject.id).trigger('change');
         $(this).blur();
@@ -81,7 +72,7 @@ jQuery(document).ready(function($) {
       const projectId = $(this).val();
       if (projectId) {
         const selectedProject = projects.find(p => p.id == projectId);
-        $searchInput.val(selectedProject.name);
+        $searchInput.val(selectedProject.label);
       } else {
         $searchInput.val('');
       }
@@ -100,7 +91,7 @@ jQuery(document).ready(function($) {
         // Update drop zone with green styling (same as manual entry)
         if ($('#drop-zone').length > 0) {
           $('#drop-zone')
-            .html(`✓ Project Selected: <strong>${selectedProject.name}</strong>`)
+            .html('✓ Project Selected: ').append($('<strong>').text(selectedProject.label))
             .css('color', '#46b450')
             .css('background-color', '#e8f5e9')
             .css('border-color', '#46b450');
@@ -217,13 +208,21 @@ jQuery(document).ready(function($) {
         data: payload,
         async: true,
         success: function (response) {
-          console.log('AJAX success:', response);
-          alert('Time Recorded Successfully.');
-          window.location.href = 'admin.php?page=timegrow-nexus';
+          if (response && response.success) {
+            alert((response.data && response.data.message) || 'Time Recorded Successfully.');
+            window.location.href = 'admin.php?page=timegrow-nexus';
+            return;
+          }
+          // The server refused it (for example a project that isn't yours): say why, and let them try again
+          alert('Time not recorded: ' + ((response && response.data && (response.data.message || response.data)) || 'unknown error'));
+          $clockInButton.prop('disabled', false);
+          $clockOutButton.prop('disabled', false);
         },
         error: function (error) {
           alert('Unable to record time.');
           console.error('AJAX error:', error);
+          $clockInButton.prop('disabled', false);
+          $clockOutButton.prop('disabled', false);
         }
     });
   });
