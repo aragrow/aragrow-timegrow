@@ -51,7 +51,9 @@ Features:
 **Location:** `modules/woocommerce-integration/`
 
 Features:
-- Custom order statuses (Invoice Paid, Invoice Sent, Partial Paid)
+- Custom order statuses (Invoice Paid, Invoice Sent, Partial Paid, To Be Mailed)
+- Per-client invoice delivery (Email, PayPal, Print and mail) with one Send invoice action
+- Invoice cancelling and refunds: PayPal checked first, time released for billing again, paid orders only move to Refunded then Cancelled
 - Manual payment recording
 - PDF invoice integration
 - User EIN/SSN fields
@@ -67,6 +69,7 @@ Features:
 - Sandbox and Live environment support
 - Encrypted API credentials storage
 - Custom order status (Send Invoice to PayPal, Invoice Sent to PayPal)
+- Payment sync (webhook, schedule, Sync Payments page) and PayPal invoice cancel on invoice cancel
 
 ## Installation
 

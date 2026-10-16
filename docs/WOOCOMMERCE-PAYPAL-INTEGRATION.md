@@ -18,7 +18,9 @@ Time entries ──> Order creator ──> Pending payment ──> Invoice Sent 
                 (real hours)              │
                                           ├──> Send Invoice to PayPal ──> Invoice Sent to PayPal
                                           │
-                                          └──> Partial Paid / Invoice Paid
+                                          └──> Partial Paid / Invoice Paid ──> Refunded ──> Cancelled
+
+Any unpaid invoice ──> Cancelled (PayPal invoice cancelled first, time released)
 ```
 
 The order creator and the **hours invoice** editor both work in real hours. Quantity on a time invoice is the hours worked.
@@ -112,6 +114,50 @@ One order action, **Send invoice (<method>)**, sends the order the client's way:
 
 Process Time still sets new orders to Processing, so WooCommerce's Processing order email goes out for every client, including Print and mail ones, while that email is on.
 
+### Cancelling an invoice
+
+Code: `modules/woocommerce-integration/includes/class-order-cancellation.php`. A TimeGrow invoice (an order with `_timekeeping_invoice`) is cancelled from the site: the **Cancel invoice** order action (offered while the invoice is unpaid), the status dropdown, a bulk action or the REST API. All of them run the same checks: the action calls `cancel()`, the others are caught by a guard on `woocommerce_before_order_object_save` that calls `prepare_cancel()` and undoes the status change (no status hooks or emails) when a check fails.
+
+The steps, in order. If a step refuses, nothing after it runs and the order keeps its status (with an order note and an admin notice):
+
+1. **Refuses when paid:** status Partial Paid or Invoice Paid, or any `_payment_amount` above 0. Refund the payment instead.
+2. **PayPal first** (orders with a `_paypal_invoice_id`): reads the invoice from PayPal.
+
+   | PayPal status | What happens |
+   |---|---|
+   | DRAFT | The draft is deleted (`DELETE /v2/invoicing/invoices/{id}`). The client never saw it. |
+   | SENT, UNPAID, SCHEDULED, PAYMENT_PENDING | The invoice is cancelled (`POST .../cancel`). PayPal tells the client when **Tell the client** is on in PayPal settings (on by default). |
+   | CANCELLED | Nothing to do. |
+   | PAID, MARKED_AS_PAID, PARTIALLY_PAID, any refund status | Refused. The payment sync runs so the payment is recorded on the order. |
+
+   Missing PayPal keys or an API error also refuse, so an invoice the client can still pay is never left behind a cancelled order. `_paypal_invoice_status` becomes `DELETED` or `CANCELLED`; cancelling again later (after a reopen) skips PayPal.
+3. **Cancels the order** (WooCommerce's Cancelled status and its hooks).
+4. **Releases the time** (on `woocommerce_order_status_cancelled`): the order's time entries go back to unbilled, so the next Process Time bills them on a new invoice. Their IDs are kept in `_timegrow_released_entries`. The cancelled order keeps its invoice number and PDF.
+
+**Paid money moves one way: paid, then Refunded, then Cancelled.** The same guard (rules in `LOCKED_MOVES` and `moves_for()`) undoes any other change, with an order note and a notice:
+
+| From | May move to | Applies to |
+|---|---|---|
+| Partial Paid | Invoice Paid, Refunded | Every order |
+| Invoice Paid | Refunded | Every order |
+| Refunded | Cancelled | TimeGrow invoices |
+| Cancelled after a refund | Nothing (closed) | TimeGrow invoices |
+
+On the order edit screen the status dropdown lists only those statuses plus the current one (`wc_order_statuses` filter, page loads only, so saving still validates against the full list). A full refund from the order items moves the order to Refunded on its own (WooCommerce).
+
+**A PayPal invoice is refunded in PayPal first.** For an order with a `_paypal_invoice_id`, TimeGrow reads the invoice from PayPal before:
+
+- **a WooCommerce refund** (`woocommerce_create_refund`, before it is saved): refused when PayPal's refunded amount (`refunds.refund_amount`, or the whole invoice for a REFUNDED / MARKED_AS_REFUNDED status without one) is less than the order's refunds including this one. `wc_create_refund()` turns the exception into an error, so the refund screen shows the message and nothing is saved.
+- **Refunded set by hand:** refused unless PayPal shows the full order total refunded.
+
+Missing PayPal keys or an API error also refuse. Rule: `paypal_refund_shortfall()`; amount: `Aragrow_TimeGrow_PayPal_Payment_Sync::refunded_amount()`.
+
+**A full refund releases the time** like a cancel (on `woocommerce_order_status_refunded`, TimeGrow invoices only). A partial refund leaves the order in its paid status and the time billed.
+
+**Reopening** a cancelled invoice that was never paid (any other status) is refused by the same guard when any released entry is billed again on another invoice. Otherwise it is allowed, and the released entries are billed to it again. Its PayPal invoice stays cancelled.
+
+An invoice cancelled in PayPal does not cancel the order. The payment sync only adds a note (see [When the client pays](#when-the-client-pays)).
+
 ### Manual payments
 
 A **Manual Payment Details** box sits in the side column of the order editor. It stores `_payment_date`, `_payment_amount`, `_payment_type` and `_payment_trans_id` on the order.
@@ -144,6 +190,7 @@ Settings page: **Settings > PayPal Integration**, stored in the `wc_pp_auto_invo
 | Client ID, Client Secret | PayPal REST credentials. Stored encrypted with AES-256-CBC. The page shows only the last 8 characters; click **Update** next to a field to replace it. Saving without Update keeps the saved value. |
 | Send behavior | "Create & Send invoice" or "Create only". |
 | Merchant email | Optional. |
+| When an order is cancelled: Tell the client | `cancel_notify`, on by default. When **Cancel invoice** cancels a sent PayPal invoice, PayPal emails the client that no payment is due. Deleted drafts never notify. |
 
 **Encryption key:** define `WC_PAYPAL_SECRET_KEY` in `wp-config.php`. Without it, saving the settings stores empty credentials. Keep the key out of version control.
 
@@ -186,7 +233,7 @@ The sync step always reads the invoice from PayPal's API (a webhook message is n
 |---|---|
 | PAID, MARKED_AS_PAID | Payment date, amount, transaction ID and type "PayPal" are recorded, then the order moves to **Invoice Paid** (the client gets the paid email). |
 | PARTIALLY_PAID | Amount paid so far is recorded, order moves to **Partial Paid**. |
-| CANCELLED, REFUNDED, PARTIALLY_REFUNDED, MARKED_AS_REFUNDED | Order note only; the status is left for you to decide. |
+| CANCELLED, REFUNDED, PARTIALLY_REFUNDED, MARKED_AS_REFUNDED | Order note only; the status is left for you to decide. A TimeGrow invoice is cancelled from the site, after a PayPal check (see [Cancelling an invoice](#cancelling-an-invoice)). |
 | Anything else (DRAFT, SENT, UNPAID, ...) | Nothing changes. |
 
 Each check saves `_paypal_invoice_status` and `_paypal_last_checked` on the order, so the same payment or note is never applied twice.

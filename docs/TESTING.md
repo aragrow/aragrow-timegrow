@@ -21,6 +21,8 @@ composer test        # or: vendor/bin/phpunit
 | `tests/unit/HoursLinesTest.php` | Saving hours invoice lines: repricing only when hours change, quantity stays 1, discounts kept, hand-edited prices become the line rate, rounding is not an edit, 0 hours keeps the rate, regular orders untouched. |
 | `tests/unit/InvoiceLinesTest.php` | PayPal quantity and rate for hours and regular lines, shipping and tax lines, and the PDF invoice line numbers. |
 | `tests/unit/PayPalPaymentSyncTest.php` | What each PayPal invoice status does to the order: paid, marked paid, partial payments (and not recording the same amount twice), cancelled and refunded notes (once), and open invoices changing nothing. |
+| `tests/unit/InvoiceDeliveryTest.php` | Each client's invoice delivery: Email by default and for unknown values, the saved choice, and orders following their customer. |
+| `tests/unit/OrderCancellationTest.php` | Cancel invoice: which statuses can be cancelled, refusal when a payment is recorded, paid orders only moving to Refunded (Partial Paid also to Invoice Paid) and refunded invoices only to Cancelled, the amount PayPal shows as refunded, and what each PayPal status means (draft deleted, sent cancelled, paid stops the cancel). |
 | `tests/unit/OrderCreatorTest.php` | Time entries to invoice lines: which entries count, hours for manual and clock entries (open clock entries skipped), rate order with the 75 fallback, line rounding, and which pending order is reused. |
 
 Not covered yet: the PayPal API calls, the order creator's database and WooCommerce steps, and the reports (their SQL and HTML).
