@@ -118,7 +118,7 @@ Process Time still sets new orders to Processing, so WooCommerce's Processing or
 
 Code: `modules/woocommerce-integration/includes/class-order-cancellation.php`. A TimeGrow invoice (an order with `_timekeeping_invoice`) is cancelled from the site: the **Cancel invoice** order action (offered while the invoice is unpaid), the status dropdown, a bulk action or the REST API. All of them run the same checks: the action calls `cancel()`, the others are caught by a guard on `woocommerce_before_order_object_save` that calls `prepare_cancel()` and undoes the status change (no status hooks or emails) when a check fails.
 
-The steps, in order. If a step refuses, nothing after it runs and the order keeps its status (with an order note and an admin notice):
+The steps, in order. If a step refuses, nothing after it runs and the order keeps its status (with an order note and a notice). On the order edit screen the notice is printed inside the order data box, above the Status dropdown (`woocommerce_admin_order_data_after_payment_info`), because WooCommerce's own "Order updated" message still appears; elsewhere (orders list) it is a normal admin notice:
 
 1. **Refuses when paid:** status Partial Paid or Invoice Paid, or any `_payment_amount` above 0. Refund the payment instead.
 2. **PayPal first** (orders with a `_paypal_invoice_id`): reads the invoice from PayPal.
@@ -150,7 +150,7 @@ On the order edit screen the status dropdown lists only those statuses plus the 
 - **a WooCommerce refund** (`woocommerce_create_refund`, before it is saved): refused when PayPal's refunded amount (`refunds.refund_amount`, or the whole invoice for a REFUNDED / MARKED_AS_REFUNDED status without one) is less than the order's refunds including this one. `wc_create_refund()` turns the exception into an error, so the refund screen shows the message and nothing is saved.
 - **Refunded set by hand:** refused unless PayPal shows the full order total refunded.
 
-Missing PayPal keys or an API error also refuse. Rule: `paypal_refund_shortfall()`; amount: `Aragrow_TimeGrow_PayPal_Payment_Sync::refunded_amount()`.
+The message names the invoice: "The PayPal invoice INV2-... is not refunded yet. Refund it in PayPal first, then refund it here." (or how much is refunded so far, for a partial one). On a paid order the **PayPal Invoice** box also warns that the PayPal invoice is not refunded yet, from the last PayPal status seen. Missing PayPal keys or an API error also refuse. Rule: `paypal_refund_shortfall()`; amount: `Aragrow_TimeGrow_PayPal_Payment_Sync::refunded_amount()`.
 
 **A full refund releases the time** like a cancel (on `woocommerce_order_status_refunded`, TimeGrow invoices only). A partial refund leaves the order in its paid status and the time billed.
 
