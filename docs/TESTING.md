@@ -43,3 +43,28 @@ Not covered yet: the PayPal API calls, the order creator's database and WooComme
 3. If the code needs a WordPress function that is not stubbed yet, add it to `tests/bootstrap.php`.
 
 Keep billing math in small methods (like `invoice_line_values()` and `line_quantity_and_rate()`) so it can be tested this way.
+
+## End-to-end test (real site, PayPal sandbox)
+
+`tests/e2e/paypal-flow.php` runs the whole billing flow inside your WordPress site and stops after each phase so you can look at what it made. It creates real records, so use it on your Local site, never on the live site.
+
+| Phase | What it creates |
+|---|---|
+| Team members | Maria, Santiago and Eva (users + team member records), created on the first run and reused after. Each run picks one, two or all three at random to log the time |
+| 1. Client | A new random client (WooCommerce customer): sometimes a person, sometimes a company, with billing details and a client rate |
+| 2. Projects | Two projects: one with its own rate (120), one using the client rate, each with its WooCommerce product |
+| 3. Time | 30 hours on weekdays in the last 14 days (18 + 12), mixed manual and clock entries |
+| 4. Invoice | Runs Process Time for the client and checks the order: one hours invoice, quantity 1, total = hours x rate, every entry billed |
+| 5. Send | Runs the **Send invoice** action for the client's delivery method. PayPal: reads the invoice back from the sandbox (status, total, quantities, view links). Email: checks one client email with the PDF attached and the order in Invoice Sent to Client. Print and mail: checks no email went out and the order is To Be Mailed and listed on Print & Mail |
+| 6. Payment (optional, PayPal only) | After you pay as the sandbox buyer, syncs the payment back to the order |
+
+Run it from the plugin folder in Local's site shell (Local > right-click the site > Open site shell):
+
+```bash
+wp eval-file tests/e2e/paypal-flow.php            # pause after each phase (Enter = next, q = stop)
+wp eval-file tests/e2e/paypal-flow.php auto       # no pauses
+wp eval-file tests/e2e/paypal-flow.php no-paypal  # stop after the invoice
+wp eval-file tests/e2e/paypal-flow.php delivery=mail  # client delivery: paypal (default), email, mail or random
+```
+
+Options can be combined, for example `auto delivery=email`. It refuses to run against PayPal unless **Settings > PayPal Integration** is set to Sandbox, with sending on and keys saved. Everything a run creates is tagged with its run ID (user meta `_timegrow_e2e_run`, project descriptions, an order note).
