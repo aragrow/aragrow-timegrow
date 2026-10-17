@@ -43,6 +43,17 @@ It retries twice (after 1 and 2 seconds) on no connection, 408, 429 and 5xx. Fai
 
 **Voice entry from any admin page.** `TimeGrowNexusVoice::enqueue()` loads `voice-entry.js` and `voice-entry.css` on every admin page when AI Voice Entry is on and the user may record time, with the person's projects (only projects whose client exists). A round mic icon opens the chat; away from Manual Time Entry it saves through `save_time_entry` with `client_id`. Speech uses the browser's most natural voice (`voiceScore()`: Natural/neural, Premium, Enhanced, then Google voices; joke voices and other languages never), spoken sentence by sentence at rate 1.03, with shorter spoken wording and a varied acknowledgement before each question. Each person can pick a voice under **Voice** in the chat (saved in the browser).
 
+**Voice questions and adding (`TimeGrowNexusAssistant`).** The chat's first request can also be a question or a request to add a client or project. `local_intent()` reads plain wording without AI ("how many hours this week", "projects for Birchway", "add a client called …"); otherwise the AI gets the allowed intents and questions for this person only and returns an intent, which `check_intent()` limits to that list (anything else = `unknown`, not allowed = `denied`). Questions run as read-only lookups written from templates; the data found never goes to the AI.
+
+| Question | Who |
+|---|---|
+| `last_entry`, `recent_entries`, `hours` (own), `clients`, `projects_for_client`, `latest_projects`, `clock_status` | Everyone who can record time (own entries, projects they may use) |
+| `hours` with `who: team`, `unbilled_hours`, `expenses`, `unpaid_invoices` (WooCommerce) | Owners (`TIMEGROW_OWNER_CAP`) |
+| Add a client (Customer user, username `client_MMDD_HHMMSS_xxxx`, no email sent) | Owners who can `create_users` |
+| Add a project (with its WooCommerce product, as on Add Project) | Owners |
+
+Adding is a chat form (client: name, email, company; project: client, name, rate, billable), then a summary and **Create**. `timegrow_voice_create` checks the capability again and `client_problem()` / `project_problem()` (name, valid unused email, no duplicate client or project name, rate 0–10,000, no instruction-like text).
+
 **Limits.** Per user per hour: 30 receipt reads, 120 voice answers (`timegrow_ai_rate_limit` filter, arguments `$limit, $user_id, $bucket`). Voice sends at most 500 characters per answer and asks for at most 300 output tokens.
 
 ---
