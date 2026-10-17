@@ -188,6 +188,21 @@
     border-bottom-right-radius: 4px;
 }
 .timegrow-voice-thinking { color: var(--tgv-muted); }
+.timegrow-voice-list {
+    margin: 0;
+    padding: 6px 13px;
+    list-style: none;
+}
+.timegrow-voice-list li {
+    display: flex;
+    flex-direction: column;
+    padding: 5px 0;
+    border-bottom: 1px solid var(--tgv-line);
+}
+.timegrow-voice-list li:last-child { border-bottom: 0; }
+.timegrow-voice-list a { color: var(--tgv-end); font-weight: 600; text-decoration: none; }
+.timegrow-voice-list a:hover { text-decoration: underline; }
+.timegrow-voice-list span { color: var(--tgv-muted); font-size: 12px; }
 
 .timegrow-voice-chips {
     display: flex;

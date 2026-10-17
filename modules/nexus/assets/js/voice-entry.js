@@ -4,6 +4,9 @@
 // (TimeGrowNexusVoice.php); short answers and taps are read here. Nothing is saved until the person
 // confirms.
 // A round mic icon floats in the bottom-right corner of every admin page; it opens the chat above it.
+// The first thing said can also be a question about TimeGrow data ("how many hours this week?") or,
+// for people allowed to, a request to add a client or project (TimeGrowNexusAssistant.php). The
+// server decides what is allowed and writes the answers; adding always asks for a confirmation.
 // - Manual Time Entry page: the normal form saves the entry.
 // - Any other admin page: it saves through the same AJAX action (save_time_entry) without leaving the page.
 jQuery(document).ready(function($) {
@@ -30,6 +33,8 @@ jQuery(document).ready(function($) {
   const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
   let fields = {};
+  let draft = null;         // a client or project being added: { type, values }
+  const allClients = Array.isArray(cfg.allClients) ? cfg.allClients.map(c => ({ id: Number(c.id), name: String(c.name) })) : [];
   let asking = '';          // field being asked, '' for the opening, 'confirm' or 'change'
   let voiceMode = false;    // the person is talking: listen again after each question
   let muted = cfg.speak !== undefined && !on(cfg.speak); // Settings > Voice Entry default; each person's choice wins
@@ -433,6 +438,8 @@ jQuery(document).ready(function($) {
     $chips.empty();
     $text.val('');
 
+    if (draft) return answerDraft(text, chip);
+
     if (asking === 'confirm') {
       const v = chip ? chip.value : (/^(save|yes|yeah|yep|ok|okay|sure)\b/i.test(text) ? 'save' : /change|edit|fix/i.test(text) ? 'change' : /start over|restart|again/i.test(text) ? 'restart' : '');
       if (v === 'save') return save();
@@ -460,8 +467,9 @@ jQuery(document).ready(function($) {
     if (strict !== null) { setField(asking, strict); return next(); }
     const local = asking ? readLocally(asking, text) : null; // fallback when the AI can't help
 
-    if (!on(cfg.aiReady)) {
-      if (!asking) return next(); // no AI: just ask the questions
+    // The first request always goes to the server: it may be a question or adding something, which
+    // it can read without AI too. Later answers only go there when the AI is on.
+    if (!on(cfg.aiReady) && asking) {
       if (local !== null) { setField(asking, local); return next(); }
       return retry();
     }
@@ -470,6 +478,7 @@ jQuery(document).ready(function($) {
     $.post(cfg.ajaxUrl, { action: 'timegrow_voice_parse', nonce: cfg.nonce, transcript: text, asking: asking, known: JSON.stringify(fields) })
       .done(res => {
         $thinking.remove();
+        if (res && res.success && res.data && !asking && res.data.intent && res.data.intent !== 'record_time') return handleIntent(res.data);
         if (res && res.success && res.data && res.data.fields) {
           const before = asking ? fields[asking] : null;
           ORDER.forEach(k => { if (res.data.fields[k] !== null && res.data.fields[k] !== undefined) fields[k] = res.data.fields[k]; });
@@ -489,6 +498,180 @@ jQuery(document).ready(function($) {
         if (asking && local !== null) { setField(asking, local); return next(); }
         return asking ? retry() : next();
       });
+  }
+
+  // ------------------------------------------------------------------
+  // Questions and adding (the server checks what this person may do)
+  // ------------------------------------------------------------------
+
+  const suggestionChips = (n) => (Array.isArray(cfg.suggestions) ? cfg.suggestions : []).slice(0, n).map(t => ({ label: t, value: '__say', say: t }));
+
+  function handleIntent(data) {
+    ackNext = false;
+    if (data.intent === 'question' || data.intent === 'denied') return showAnswer(data.answer || {});
+    if (data.intent === 'add_client') return startDraft('client', data.draft);
+    if (data.intent === 'add_project') return startDraft('project', data.draft);
+    asking = '';
+    say('I can record your time or answer questions about TimeGrow. Try one of these, or tell me what you worked on.',
+      [{ label: 'Record time', value: '__questions' }].concat(suggestionChips(6)),
+      'I can record your time, or answer questions about TimeGrow. What would you like?');
+  }
+
+  /** The answer, with its list (links open in the same tab only for pages the person can use). */
+  function showAnswer(a) {
+    asking = '';
+    bubble('bot', a.text || '');
+    if (Array.isArray(a.rows) && a.rows.length) {
+      const $list = $('<ul>', { class: 'timegrow-voice-msg timegrow-voice-bot timegrow-voice-list' });
+      a.rows.forEach(r => {
+        const $li = $('<li>');
+        $li.append(r.url ? $('<a>', { href: r.url, text: r.title }) : $('<strong>', { text: r.title }));
+        if (r.meta) $li.append($('<span>', { text: r.meta }));
+        $list.append($li);
+      });
+      $log.append($list);
+      $log.scrollTop($log[0].scrollHeight);
+    }
+    $chips.empty();
+    [{ label: 'Record time', value: '__questions' }].concat(suggestionChips(3)).forEach(c => $chips.append($('<button>', { type: 'button', class: 'button timegrow-voice-chip', text: c.label }).data('chip', c)));
+    speak(a.spoken || a.text || '');
+  }
+
+  const DRAFTS = {
+    client: { order: ['name', 'email', 'company'], labels: { name: 'name', email: 'email', company: 'company' } },
+    project: { order: ['client_id', 'name', 'rate', 'billable'], labels: { client_id: 'client', name: 'name', rate: 'rate', billable: 'billable' } },
+  };
+  const SKIP = /^(skip|no|none|nope|no thanks|skip it|not now)$/;
+  const blank = v => v === null || v === undefined || v === '';
+
+  function startDraft(type, values) {
+    draft = { type: type, values: {} };
+    Object.keys(values || {}).forEach(k => { if (!blank(values[k])) draft.values[k] = values[k]; });
+    if (type === 'project' && draft.values.client_id && !allClients.some(c => c.id === Number(draft.values.client_id))) delete draft.values.client_id;
+    askDraft();
+  }
+
+  function askDraft() {
+    const key = DRAFTS[draft.type].order.find(k => blank(draft.values[k]));
+    if (!key) return confirmDraft();
+    asking = 'draft:' + key;
+    const a = ack();
+    const skip = [{ label: 'Skip', value: 'skip' }];
+    const Q = {
+      'client:name': ['What is the client\'s name?', null, 'What is the new client\'s name?'],
+      'client:email': ['What is their email address? Invoices are sent there. You can skip this.', skip, 'What is their email address? Or say skip.'],
+      'client:company': ['Company name? You can skip this.', skip, 'And the company name? Or say skip.'],
+      'project:client_id': ['Which client is the project for?', allClients.map(c => ({ label: c.name, value: c.id })), 'Which client is the project for?'],
+      'project:name': ['What should the project be called?', null, 'What should the project be called?'],
+      'project:rate': ['Hourly rate? Skip to use the client\'s or company rate.', skip, 'What is the hourly rate? Or say skip to use the usual rate.'],
+      'project:billable': ['Is it billable?', [{ label: 'Yes', value: 1 }, { label: 'No', value: 0 }], 'Is it billable?'],
+    }[draft.type + ':' + key];
+    say(Q[0], Q[1], a + Q[2]);
+  }
+
+  function readDraft(key, text) {
+    const t = norm(text);
+    switch (draft.type + ':' + key) {
+      case 'client:name': case 'project:name': {
+        const v = String(text).trim().replace(/[.!?]+$/, '');
+        if (v.length < 2) return null;
+        return v === v.toLowerCase() ? v.replace(/\b\w/g, c => c.toUpperCase()) : v; // speech comes in lower case
+      }
+      case 'client:email': {
+        if (SKIP.test(t)) return 'skip';
+        const v = String(text).toLowerCase().replace(/\s+at\s+/g, '@').replace(/\s+dot\s+/g, '.').replace(/\s+/g, '').replace(/\.$/, '');
+        return /^[^@\s]+@[^@\s]+\.[a-z]{2,}$/.test(v) ? v : null;
+      }
+      case 'client:company': return SKIP.test(t) ? 'skip' : (String(text).trim().length > 1 ? String(text).trim().replace(/[.]+$/, '') : null);
+      case 'project:client_id': { const c = matchOne(text, allClients, c => c.name); return c ? c.id : null; }
+      case 'project:rate': {
+        if (SKIP.test(t)) return 'skip';
+        const m = String(text).replace(/,/g, '').match(/(\d+(?:\.\d+)?)/);
+        return m && +m[1] >= 0 && +m[1] <= 10000 ? +m[1] : null;
+      }
+      case 'project:billable': return parseBillable(text);
+    }
+    return null;
+  }
+
+  function draftSummary() {
+    const v = draft.values, real = x => (x === 'skip' ? '' : x);
+    if (draft.type === 'client') {
+      return 'New client: ' + v.name + (real(v.email) ? ', ' + v.email : ', no email') + (real(v.company) ? ', ' + v.company : '') + '.';
+    }
+    const client = (allClients.find(c => c.id === Number(v.client_id)) || {}).name || '';
+    return 'New project: ' + v.name + ' for ' + client + ', ' + (real(v.rate) !== '' && v.rate !== undefined ? '$' + v.rate + ' an hour' : 'the usual rate') + ', ' + (+v.billable ? 'billable' : 'not billable') + '.';
+  }
+
+  function confirmDraft() {
+    asking = 'draft:confirm';
+    say(draftSummary() + ' Create it?', [{ label: 'Create', value: 'create' }, { label: 'Change something', value: 'change' }, { label: 'Cancel', value: 'cancel' }],
+      ack() + draftSummary() + ' Should I create it?');
+  }
+
+  function answerDraft(text, chip) {
+    if (asking === 'draft:creating') return;
+    if (asking === 'draft:confirm') {
+      const v = chip ? chip.value : (/^(create|yes|yeah|yep|ok|okay|sure|do it|add it)\b/i.test(text) ? 'create' : /change|edit|fix/i.test(text) ? 'change' : /cancel|stop|never ?mind|no\b/i.test(text) ? 'cancel' : '');
+      if (v === 'create') return createDraft();
+      if (v === 'cancel') { draft = null; asking = ''; return say('Okay, nothing was added.', suggestionChips(3)); }
+      if (v === 'change') {
+        asking = 'draft:change';
+        const labels = DRAFTS[draft.type].labels;
+        return say('What do you want to change?', DRAFTS[draft.type].order.map(k => ({ label: labels[k][0].toUpperCase() + labels[k].slice(1), value: k })));
+      }
+      return say('Say "create", "change something" or "cancel".', [{ label: 'Create', value: 'create' }, { label: 'Change something', value: 'change' }, { label: 'Cancel', value: 'cancel' }]);
+    }
+    if (asking === 'draft:change') {
+      const labels = DRAFTS[draft.type].labels;
+      const key = chip ? chip.value : DRAFTS[draft.type].order.find(k => norm(text).indexOf(labels[k]) !== -1);
+      if (!key) return say('Which part? For example "name".');
+      delete draft.values[key];
+      return askDraft();
+    }
+    const key = asking.slice(6);
+    const value = chip ? chip.value : readDraft(key, text);
+    if (value === null || value === undefined) {
+      bubble('bot', `Sorry, I didn't get the ${DRAFTS[draft.type].labels[key]}.`);
+      ackNext = false;
+      return askDraft();
+    }
+    draft.values[key] = value;
+    ackNext = true;
+    askDraft();
+  }
+
+  function createDraft() {
+    asking = 'draft:creating';
+    say('Adding it now.');
+    const values = {};
+    Object.keys(draft.values).forEach(k => { values[k] = draft.values[k] === 'skip' ? '' : draft.values[k]; });
+    const type = draft.type;
+    $.post(cfg.ajaxUrl, { action: 'timegrow_voice_create', nonce: cfg.nonce, type: type, values: JSON.stringify(values) })
+      .done(res => {
+        if (res && res.success) {
+          const d = res.data || {};
+          draft = null;
+          asking = '';
+          if (d.client) allClients.push({ id: Number(d.client.id), name: String(d.client.name) });
+          if (d.project) {
+            const p = { id: d.project.id, name: d.project.name, clientId: String(d.project.clientId), clientName: String(d.project.clientName) };
+            p.label = p.name + ' (' + p.clientName + ')';
+            projects.push(p);
+            if (!clients.some(c => c.id === p.clientId)) clients.push({ id: p.clientId, name: p.clientName });
+          }
+          const next = [{ label: 'Record time', value: '__questions' }];
+          if (d.client && on(cfg.canAddProject)) next.unshift({ label: 'Add a project for them', value: '__project_for', clientId: Number(d.client.id) });
+          next.push({ label: 'Close', value: '__close' });
+          showAnswer({ text: d.message, spoken: 'Done. ' + d.message, rows: d.url ? [{ title: 'Open it', meta: '', url: d.url }] : [] });
+          $chips.empty();
+          next.forEach(c => $chips.append($('<button>', { type: 'button', class: 'button timegrow-voice-chip', text: c.label }).data('chip', c)));
+          return;
+        }
+        asking = 'draft:confirm';
+        say(`That wasn't added: ${(res && res.data && res.data.message) || 'unknown error'}`, [{ label: 'Change something', value: 'change' }, { label: 'Cancel', value: 'cancel' }]);
+      })
+      .fail(() => { asking = 'draft:confirm'; say("That wasn't added: the site could not be reached.", [{ label: 'Create', value: 'create' }, { label: 'Cancel', value: 'cancel' }]); });
   }
 
   function retry() {
@@ -563,10 +746,11 @@ jQuery(document).ready(function($) {
 
   function start() {
     fields = {}; ORDER.forEach(k => { fields[k] = null; });
+    draft = null;
     asking = '';
     say('Tell me what you worked on, for example: "Two hours yesterday on the SEO audit for Copperleaf, keyword research." Or answer my questions one at a time.',
-      [{ label: 'Ask me the questions', value: '__questions' }],
-      'Hi! What did you work on? You can tell me in one go, or I can ask you step by step.');
+      [{ label: 'Ask me the questions', value: '__questions' }].concat(suggestionChips(2)),
+      'Hi! What did you work on? You can tell me in one go, or ask me something about TimeGrow.');
   }
 
   // ------------------------------------------------------------------
@@ -618,9 +802,11 @@ jQuery(document).ready(function($) {
   });
   $card.on('click', '.timegrow-voice-chip', function() {
     const chip = $(this).data('chip');
-    if (chip.value === '__questions') { bubble('me', chip.label); $chips.empty(); return next(); }
+    if (chip.value === '__questions') { bubble('me', chip.label); $chips.empty(); draft = null; ackNext = false; return next(); }
     if (chip.value === '__restart') return start();
     if (chip.value === '__close') return close();
+    if (chip.value === '__say') return answer(chip.say);                       // a suggested question
+    if (chip.value === '__project_for') { bubble('me', chip.label); $chips.empty(); ackNext = false; return startDraft('project', { client_id: chip.clientId }); }
     answer('', chip);
   });
   $mic.on('click', function() { voiceMode = true; listen(); });

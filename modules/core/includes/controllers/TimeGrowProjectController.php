@@ -104,7 +104,7 @@ class TimeGrowProjectController{
      * Pass an existing product ID to update it. Returns the product ID, or 0 when
      * WooCommerce or the products integration is off.
      */
-    private function sync_client_product(array $data, $product_id = 0) {
+    public static function sync_client_product(array $data, $product_id = 0) {
         $settings = get_option('timegrow_integration_settings') ?: [];
         if (empty($settings['wc_products']) || !class_exists('WC_Product_Simple')) return 0;
 

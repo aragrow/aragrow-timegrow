@@ -55,6 +55,11 @@ class TimeGrowNexusVoice {
             'projects'     => array_map(function ($c) {
                 return ['id' => $c['id'], 'name' => $c['name'], 'clientId' => (string) $c['client_id'], 'clientName' => $c['client_name']];
             }, self::candidates_for_current_user()),
+            // Questions and adding (TimeGrowNexusAssistant): only what this person may do
+            'suggestions'   => TimeGrowNexusAssistant::suggestions(),
+            'canAddClient'  => TimeGrowNexusAssistant::can_add_client(),
+            'canAddProject' => TimeGrowNexusAssistant::can_add_project(),
+            'allClients'    => TimeGrowNexusAssistant::all_clients(), // empty unless they may add projects
         ]);
     }
 
@@ -220,8 +225,8 @@ RULES;
      *
      * @throws Exception "no_ai" when no AI is set up, otherwise the error.
      */
-    public static function ask_ai($prompt) {
-        $answer = TimeGrowAI::request(['feature' => 'voice', 'system' => self::instructions(), 'prompt' => $prompt, 'json' => true, 'max_tokens' => 300, 'timeout' => 20]);
+    public static function ask_ai($prompt, $system = null) {
+        $answer = TimeGrowAI::request(['feature' => 'voice', 'system' => $system ?? self::instructions(), 'prompt' => $prompt, 'json' => true, 'max_tokens' => 300, 'timeout' => 20]);
         if (is_wp_error($answer)) {
             throw new Exception($answer->get_error_code() === 'no_ai' ? 'no_ai' : $answer->get_error_message());
         }
@@ -259,26 +264,47 @@ RULES;
         }
 
         $voice = class_exists('TimeGrowSettings') ? TimeGrowSettings::voice_settings() : ['enabled' => 'yes', 'use_ai' => 'yes'];
-        if ($voice['enabled'] !== 'yes' || $voice['use_ai'] !== 'yes') {
-            wp_send_json_error(['code' => 'no_ai', 'message' => __('Reading sentences with AI is turned off.', 'timegrow')]);
+        if ($voice['enabled'] !== 'yes') {
+            wp_send_json_error(['code' => 'off', 'message' => __('Voice entry is turned off.', 'timegrow')]);
         }
 
         // Direct prompt injection: words that read like instructions to the AI are not sent to it.
         // The chat goes on without AI (it asks the questions and reads short answers itself).
         if (TimeGrowAI::looks_like_injection($transcript)) {
             timegrow_log(sprintf('Voice entry: answer from user %d looked like instructions to the AI and was not sent', get_current_user_id())); // not the words themselves
-            wp_send_json_error(['code' => 'blocked', 'message' => __('I can only help record your own time, so I did not send that to the AI.', 'timegrow')]);
+            wp_send_json_error(['code' => 'blocked', 'message' => __('I can only help with TimeGrow, so I did not send that to the AI.', 'timegrow')]);
+        }
+
+        $candidates = self::candidates_for_current_user();
+        $today      = current_time('Y-m-d');
+        $first      = $asking === ''; // the person's first request: time, a question, or adding something
+        if ($first) {
+            $questions = TimeGrowNexusAssistant::allowed_questions();
+            $actions   = TimeGrowNexusAssistant::allowed_actions();
+            $clients   = self::clients_to_name($candidates);
+            // Plain requests ("how many hours this week", "add a client") need no AI
+            $local = TimeGrowNexusAssistant::local_intent($transcript, $questions, $actions, $clients);
+            if ($local) {
+                self::send_intent($local, $candidates);
+            }
+        }
+
+        $ai_on = $voice['use_ai'] === 'yes' && TimeGrowAI::is_configured('voice');
+        if (!$ai_on) {
+            if ($first) {
+                wp_send_json_success(['intent' => 'record_time', 'fields' => self::merge($known, [], $candidates, $today)]); // the chat asks the questions
+            }
+            wp_send_json_error(['code' => 'no_ai', 'message' => __('Reading sentences with AI is turned off.', 'timegrow')]);
         }
 
         if (!TimeGrowAI::rate_limit_ok(get_current_user_id(), 'voice')) {
             wp_send_json_error(['code' => 'rate_limit', 'message' => __('Too many voice requests this hour. Answer the questions instead, or try again later.', 'timegrow')]);
         }
 
-        $candidates = self::candidates_for_current_user();
-        $today      = current_time('Y-m-d');
-
         try {
-            $heard = self::ask_ai(self::build_prompt($transcript, $known, $asking, $candidates, $today));
+            $heard = $first
+                ? self::ask_ai(TimeGrowNexusAssistant::build_prompt($transcript, $candidates, $clients, $questions, $actions, $today), TimeGrowNexusAssistant::instructions())
+                : self::ask_ai(self::build_prompt($transcript, $known, $asking, $candidates, $today));
         } catch (Exception $e) {
             if ($e->getMessage() !== 'no_ai') {
                 timegrow_log('Voice entry AI error: ' . $e->getMessage());
@@ -286,7 +312,40 @@ RULES;
             wp_send_json_error(['code' => $e->getMessage() === 'no_ai' ? 'no_ai' : 'ai_error', 'message' => __('The AI could not read that.', 'timegrow')]);
         }
 
+        if ($first) {
+            // The AI only picks from the allowed list; anything else is "unknown" or "denied"
+            $intent = TimeGrowNexusAssistant::check_intent($heard, $questions, $actions, $clients, $candidates);
+            if ($intent['intent'] !== 'record_time') {
+                self::send_intent($intent, $candidates);
+            }
+        }
+
         // A known start time of "skip" or a known field stays unless a new valid value came in
-        wp_send_json_success(['fields' => self::merge($known, $heard, $candidates, $today)]);
+        wp_send_json_success(['intent' => 'record_time', 'fields' => self::merge($known, $heard, $candidates, $today)]);
+    }
+
+    /** Clients the person may name: their projects' clients, plus every client for owners adding projects. */
+    private static function clients_to_name(array $candidates) {
+        $clients = [];
+        foreach (array_merge(TimeGrowNexusAssistant::my_clients($candidates), TimeGrowNexusAssistant::all_clients()) as $c) {
+            $clients[$c['id']] = $c;
+        }
+        return array_values($clients);
+    }
+
+    /** Answer a question, refuse, or start adding a client or project; ends the request. */
+    private static function send_intent(array $intent, array $candidates) {
+        switch ($intent['intent']) {
+            case 'question':
+                wp_send_json_success(['intent' => 'question', 'answer' => TimeGrowNexusAssistant::answer($intent['question'], $candidates)]);
+            case 'denied':
+                $text = TimeGrowNexusAssistant::denied_text($intent['question']['name'] ?? '');
+                wp_send_json_success(['intent' => 'denied', 'answer' => ['text' => $text, 'spoken' => $text, 'rows' => []]]);
+            case 'add_client':
+                wp_send_json_success(['intent' => 'add_client', 'draft' => $intent['new_client'] ?? []]);
+            case 'add_project':
+                wp_send_json_success(['intent' => 'add_project', 'draft' => $intent['new_project'] ?? []]);
+        }
+        wp_send_json_success(['intent' => 'unknown']);
     }
 }
