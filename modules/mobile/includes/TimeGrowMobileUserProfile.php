@@ -138,8 +138,8 @@ class TimeGrowMobileUserProfile {
     public static function render_mobile_pin_section($user) {
         // Check permissions
         $can_edit = (current_user_can('administrator') || get_current_user_id() === $user->ID);
-        if (!$can_edit) {
-            return;
+        if (!$can_edit || !TimeGrowMobileAccess::allowed($user)) {
+            return; // only administrators and team members can use TimeGrow remotely
         }
 
         // Get capabilities from WordPress user meta
@@ -352,7 +352,7 @@ class TimeGrowMobileUserProfile {
 
         // Check permissions
         $can_edit = (current_user_can('administrator') || get_current_user_id() === $user_id);
-        if (!$can_edit) {
+        if (!$can_edit || !TimeGrowMobileAccess::allowed($user_id)) {
             timegrow_log("TimeGrow PIN: Permission denied for user {$user_id}");
             return;
         }
@@ -390,7 +390,7 @@ class TimeGrowMobileUserProfile {
         // Handle PIN generation
         if ($action === 'generate' && isset($_POST['timegrow_new_pin'])) {
             $new_pin = sanitize_text_field($_POST['timegrow_new_pin']);
-            timegrow_log("TimeGrow PIN: Attempting to generate PIN: {$new_pin}");
+            timegrow_log("TimeGrow PIN: Attempting to generate a PIN for user {$user_id}"); // never log the PIN
 
             // Validate PIN format (6 alphanumeric characters)
             if (preg_match('/^[A-Z0-9]{6}$/i', $new_pin)) {
@@ -403,7 +403,7 @@ class TimeGrowMobileUserProfile {
 
                     // Store PIN temporarily for display in admin notice
                     set_transient('timegrow_pin_generated_' . $user_id, $new_pin, 60); // Store for 60 seconds
-                    timegrow_log("TimeGrow PIN: Transient set for user {$user_id}: {$new_pin}");
+                    timegrow_log("TimeGrow PIN: Transient set for user {$user_id}");
 
                     // Send SMS notification if phone number is set
                     $phone = get_user_meta($user_id, 'timegrow_mobile_phone', true);
@@ -414,7 +414,7 @@ class TimeGrowMobileUserProfile {
                     timegrow_log("TimeGrow PIN: Failed to create PIN in database");
                 }
             } else {
-                timegrow_log("TimeGrow PIN: Invalid PIN format: {$new_pin}");
+                timegrow_log("TimeGrow PIN: Invalid PIN format for user {$user_id}"); // never log the PIN
             }
         }
 
@@ -451,7 +451,7 @@ class TimeGrowMobileUserProfile {
         do_action('timegrow_send_pin_sms', $phone, $message, $user_id, $pin);
 
         // Log for debugging (remove in production)
-        timegrow_log("TimeGrow PIN SMS would be sent to {$phone}: {$message}");
+        timegrow_log("TimeGrow PIN SMS queued for user {$user_id}"); // never log the PIN or the message
     }
 
     /**
@@ -496,8 +496,8 @@ class TimeGrowMobileUserProfile {
 
         // Check permissions
         $can_edit = (current_user_can('administrator') || get_current_user_id() === $user_id);
-        if (!$can_edit) {
-            wp_send_json_error(['message' => 'Permission denied']);
+        if (!$can_edit || !TimeGrowMobileAccess::allowed($user_id)) {
+            wp_send_json_error(['message' => 'Only administrators and team members can use TimeGrow remotely.']);
             return;
         }
 

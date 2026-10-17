@@ -1,4 +1,21 @@
 <?php
+
+if ( ! function_exists( 'timegrow_remote_access_allowed' ) ) {
+    /**
+     * Only administrators and team members may use TimeGrow remotely (the app token routes below and
+     * the mobile PIN login). Uses TimeGrowMobileAccess when the mobile module is loaded.
+     *
+     * @param int|WP_User $user
+     */
+    function timegrow_remote_access_allowed( $user ) {
+        if ( class_exists( 'TimeGrowMobileAccess' ) ) {
+            return TimeGrowMobileAccess::allowed( $user );
+        }
+        $user = $user instanceof WP_User ? $user : get_userdata( (int) $user );
+        return $user && (bool) array_intersect( array( 'administrator', 'team_member' ), (array) $user->roles );
+    }
+}
+
 /**
  * File: class-nexus-custom-endpoints.php
  * Description: Handles custom REST API endpoints for the Nexus plugin.
@@ -183,6 +200,9 @@ class Nexus_Custom_Endpoints {
                     return new WP_Error( 'rest_invalid_user_in_token', __( 'Invalid user identifier in token payload.', 'timegrow' ), array( 'status' => 401 ) );
                 }
 
+                if ( ! timegrow_remote_access_allowed( $user_id ) ) {
+                    return new WP_Error( 'rest_forbidden_role', __( 'Only administrators and team members can use the TimeGrow app.', 'timegrow' ), array( 'status' => 403 ) );
+                }
                 timegrow_log('AUTH-ME: Permission callback - JWT validation SUCCESS. User ID from token: ' . $user_id);
                 $request->set_param('validated_user_id', $user_id); // Store for the main callback
                 return true;
@@ -396,6 +416,9 @@ class Nexus_Custom_Endpoints {
         // Check for a capability that allows submitting queries.
         // 'read' might be sufficient if queries are read-only, but use a custom capability
         // if queries can trigger modifications ('nexus_query' or specific action capabilities).
+        if ( ! timegrow_remote_access_allowed( get_current_user_id() ) ) {
+            return new WP_Error( 'rest_forbidden_role', __( 'Only administrators and team members can use the TimeGrow app.', 'timegrow' ), array( 'status' => 403 ) );
+        }
         if ( ! current_user_can( 'read' ) ) { // Example: any logged-in user can submit read queries
             return new WP_Error( 'rest_forbidden', __( 'You do not have permission to submit queries.', 'timegrow' ), array( 'status' => 403 ) );
         }
@@ -453,6 +476,12 @@ class Nexus_Custom_Endpoints {
         if ( ! $user instanceof WP_User ) {
             timegrow_log("Login for user: " . $username . " - Unknown error, wp_authenticate returned non-WP_User, non-WP_Error.");
             return new WP_Error( 'nexus_auth_unknown_error', __( 'An unknown error occurred during authentication.', 'timegrow' ), array( 'status' => 500 ) );
+        }
+
+        // Only administrators and team members get an app token
+        if ( ! timegrow_remote_access_allowed( $user ) ) {
+            timegrow_log("App login refused for user ID " . $user->ID . ": role not allowed");
+            return new WP_Error( 'rest_forbidden_role', __( 'Only administrators and team members can use the TimeGrow app.', 'timegrow' ), array( 'status' => 403 ) );
         }
 
         timegrow_log("Login successful for user: " . $user->user_login . " (ID: " . $user->ID . ")");

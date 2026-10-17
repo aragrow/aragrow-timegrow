@@ -62,7 +62,7 @@ class TimeGrowSMSNotifications {
 
             default:
                 // Log only mode (for development/testing)
-                timegrow_log("TimeGrow SMS to {$phone}: {$message}");
+                timegrow_log("TimeGrow SMS (log-only mode) for user {$user_id}"); // never log the text: it can hold a PIN
                 break;
         }
     }

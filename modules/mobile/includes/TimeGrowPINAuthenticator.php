@@ -70,6 +70,10 @@ class TimeGrowPINAuthenticator {
      * @return bool Success status
      */
     public function create_pin_for_user($user_id, $pin) {
+        // Only administrators and team members can have a PIN
+        if (!TimeGrowMobileAccess::allowed($user_id)) {
+            return false;
+        }
         // Validate PIN format (6 alphanumeric characters)
         if (!preg_match('/^[A-Z0-9]{6}$/i', $pin)) {
             return false;
@@ -102,6 +106,11 @@ class TimeGrowPINAuthenticator {
                 'success' => false,
                 'message' => 'Invalid PIN format. Must be 6 characters (letters and numbers).',
             ];
+        }
+
+        // Only administrators and team members may log in remotely (also for PINs made before this rule)
+        if (!TimeGrowMobileAccess::allowed($user_id)) {
+            return ['success' => false, 'message' => TimeGrowMobileAccess::refused_message()];
         }
 
         // Normalize to uppercase

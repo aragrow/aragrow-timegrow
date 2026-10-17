@@ -100,6 +100,13 @@ class TimeGrowMobileLoginView {
             return;
         }
 
+        // Only administrators and team members may log in remotely; others get the same message as a wrong PIN
+        if (!TimeGrowMobileAccess::allowed($user)) {
+            timegrow_log(sprintf('Mobile login refused for user %d: role not allowed', $user->ID));
+            $this->error_message = TimeGrowMobileAccess::refused_message();
+            return;
+        }
+
         // Verify PIN first
         $result = $this->authenticator->verify_pin($user->ID, $pin);
 
@@ -613,6 +620,6 @@ class TimeGrowMobileLoginView {
         do_action('timegrow_send_login_sms', $phone, $message, $user_id);
 
         // Log for debugging (remove in production)
-        timegrow_log("TimeGrow Login SMS would be sent to {$phone}: {$message}");
+        timegrow_log("TimeGrow login SMS queued for user {$user_id}"); // no phone number or text in the log
     }
 }
