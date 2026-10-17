@@ -4,9 +4,12 @@
 // (TimeGrowNexusVoice.php); short answers and taps are read here. Nothing is saved until the person
 // confirms.
 // A round mic icon floats in the bottom-right corner of every admin page; it opens the chat above it.
-// The first thing said can also be a question about TimeGrow data ("how many hours this week?") or,
-// for people allowed to, a request to add a client or project (TimeGrowNexusAssistant.php). The
-// server decides what is allowed and writes the answers; adding always asks for a confirmation.
+// It can also answer questions about TimeGrow data ("how many hours this week?") and, for people
+// allowed to, add a client or project (TimeGrowNexusAssistant.php). The server decides what is
+// allowed and writes the answers; adding always asks for a confirmation.
+// With AI on it is a conversation: every message goes to the AI with a short history (what the
+// person said and what the chat asked, never the data in answers) and what is in progress, so
+// people can give several details at once, correct things, follow up or switch topic.
 // - Manual Time Entry page: the normal form saves the entry.
 // - Any other admin page: it saves through the same AJAX action (save_time_entry) without leaving the page.
 jQuery(document).ready(function($) {
@@ -34,6 +37,52 @@ jQuery(document).ready(function($) {
 
   let fields = {};
   let draft = null;         // a client or project being added: { type, values }
+  let session = 0;          // one conversation: from opening the chat until it is closed or the page reloads
+  // Saved for review (Settings > AI Conversations) when on: messages go to the server with each
+  // request, or on their own a few seconds later, and when the chat closes or the page is left
+  const saving = on(cfg.saveConversations);
+  let sessionKey = null;
+  let logQueue = [];
+  let logTimer = null;
+  function newKey() {
+    try { if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID(); } catch (e) {}
+    return 'tg-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 12);
+  }
+  function logTurn(who, text) {
+    if (!saving || !String(text || '').trim()) return;
+    if (!sessionKey) sessionKey = newKey();
+    logQueue.push({ who: who, text: String(text).slice(0, 2000) });
+    clearTimeout(logTimer);
+    logTimer = setTimeout(flushLog, 4000);
+  }
+  /** Adds the session and the waiting messages to a request, so they are saved in order. */
+  function withLog(data) {
+    if (!saving || !sessionKey) return data;
+    clearTimeout(logTimer);
+    data.session_key = sessionKey;
+    data.log_turns = JSON.stringify(logQueue.splice(0));
+    return data;
+  }
+  function flushLog(end) {
+    if (!saving || !sessionKey || (!logQueue.length && !end)) return;
+    const data = withLog({ action: 'timegrow_voice_log', nonce: cfg.nonce });
+    if (end) data.end = 1;
+    $.post(cfg.ajaxUrl, data);
+  }
+  window.addEventListener('pagehide', () => {
+    if (!saving || !sessionKey || !navigator.sendBeacon) return;
+    const form = new FormData();
+    const data = withLog({ action: 'timegrow_voice_log', nonce: cfg.nonce, end: 1 });
+    Object.keys(data).forEach(k => form.append(k, data[k]));
+    navigator.sendBeacon(cfg.ajaxUrl, form);
+  });
+  let lastQuestion = null;  // the last question answered, for follow-ups ("and last week?")
+  const history = [];       // what was said and asked, for the AI's context
+  let appendSpeech = false; // the next spoken text waits for the current one instead of cutting it off
+  function remember(who, text) {
+    history.push({ who: who, text: String(text || '').slice(0, 200) });
+    while (history.length > 9) history.shift();
+  }
   const allClients = Array.isArray(cfg.allClients) ? cfg.allClients.map(c => ({ id: Number(c.id), name: String(c.name) })) : [];
   let asking = '';          // field being asked, '' for the opening, 'confirm' or 'change'
   let voiceMode = false;    // the person is talking: listen again after each question
@@ -204,6 +253,7 @@ jQuery(document).ready(function($) {
         </div>
         <div class="timegrow-voice-log" aria-live="polite"></div>
         <div class="timegrow-voice-chips"></div>
+        ${saving ? '<div class="timegrow-voice-saved">Conversations are saved so administrators can review how the assistant works.</div>' : ''}
         <div class="timegrow-voice-bar">
           <button type="button" class="timegrow-voice-mic button" aria-label="Speak"><span class="dashicons dashicons-microphone"></span></button>
           <input type="text" class="timegrow-voice-text" placeholder="Type or tap the mic" />
@@ -219,12 +269,15 @@ jQuery(document).ready(function($) {
   setMuteLabel();
 
   function bubble(who, text) {
+    logTurn(who, text);
     $log.append($('<div>', { class: 'timegrow-voice-msg timegrow-voice-' + who }).text(text));
     $log.scrollTop($log[0].scrollHeight);
   }
 
   /** Show a message; read it aloud as `spoken` when given (shorter and more natural to hear). */
   function say(text, chips, spoken) {
+    const options = (chips || []).filter(c => c.value !== '__say' && String(c.value).indexOf('__') !== 0).map(c => c.label).slice(0, 8);
+    remember('bot', text + (options.length ? ' Options: ' + options.join(', ') + '.' : ''));
     bubble('bot', text);
     $chips.empty();
     (chips || []).forEach(c => $chips.append($('<button>', { type: 'button', class: 'button timegrow-voice-chip', text: c.label }).data('chip', c)));
@@ -287,7 +340,8 @@ jQuery(document).ready(function($) {
 
   function speak(text) {
     if (muted || !synth) { if (voiceMode) setTimeout(listen, 300); return; }
-    synth.cancel();
+    if (!appendSpeech) synth.cancel();
+    appendSpeech = false;
     const parts = sentences(text);
     parts.forEach((part, i) => {
       const u = new window.SpeechSynthesisUtterance(part);
@@ -435,9 +489,21 @@ jQuery(document).ready(function($) {
     if (asking === 'saving') return;
     if (asking === 'done') { fields = {}; ORDER.forEach(k => { fields[k] = null; }); asking = ''; } // a new entry
     bubble('me', chip ? chip.label : text);
+    remember('me', chip ? chip.label : text);
     $chips.empty();
     $text.val('');
 
+    // With AI: a conversation (taps and plainly simple answers are still read here)
+    if (!chip && on(cfg.aiReady)) {
+      const strict = !draft && ORDER.includes(asking) ? readStrict(asking, text) : null;
+      if (strict !== null) { ackNext = true; setField(asking, strict); return next(); }
+      return converse(text);
+    }
+    answerLocally(text, chip);
+  }
+
+  /** Without AI, for taps, and when the AI can't be reached: the chat reads the answer itself. */
+  function answerLocally(text, chip) {
     if (draft) return answerDraft(text, chip);
 
     if (asking === 'confirm') {
@@ -467,16 +533,17 @@ jQuery(document).ready(function($) {
     if (strict !== null) { setField(asking, strict); return next(); }
     const local = asking ? readLocally(asking, text) : null; // fallback when the AI can't help
 
-    // The first request always goes to the server: it may be a question or adding something, which
-    // it can read without AI too. Later answers only go there when the AI is on.
-    if (!on(cfg.aiReady) && asking) {
+    // A first request goes to the server, which reads questions and adding without AI too
+    if (asking) {
       if (local !== null) { setField(asking, local); return next(); }
       return retry();
     }
 
     const $thinking = $('<div>', { class: 'timegrow-voice-msg timegrow-voice-bot timegrow-voice-thinking', text: '...' }).appendTo($log);
-    $.post(cfg.ajaxUrl, { action: 'timegrow_voice_parse', nonce: cfg.nonce, transcript: text, asking: asking, known: JSON.stringify(fields) })
+    const s0 = session; // replies from a closed session are ignored
+    $.post(cfg.ajaxUrl, withLog({ action: 'timegrow_voice_parse', nonce: cfg.nonce, transcript: text, asking: asking, known: JSON.stringify(fields), local_only: 1 }))
       .done(res => {
+        if (s0 !== session) return;
         $thinking.remove();
         if (res && res.success && res.data && !asking && res.data.intent && res.data.intent !== 'record_time') return handleIntent(res.data);
         if (res && res.success && res.data && res.data.fields) {
@@ -494,10 +561,113 @@ jQuery(document).ready(function($) {
         return asking ? retry() : next();
       })
       .fail(() => {
+        if (s0 !== session) return;
         $thinking.remove();
         if (asking && local !== null) { setField(asking, local); return next(); }
         return asking ? retry() : next();
       });
+  }
+
+  // ------------------------------------------------------------------
+  // Conversation (AI on): every message read with what came before
+  // ------------------------------------------------------------------
+
+  function conversationState() {
+    const timeStarted = ORDER.some(k => !blank(fields[k])) || ORDER.includes(asking);
+    const values = {};
+    if (draft) Object.keys(draft.values).forEach(k => { values[k] = draft.values[k] === 'skip' ? null : draft.values[k]; });
+    return {
+      mode: draft ? (asking === 'draft:confirm' ? 'confirm_new' : 'adding_' + draft.type)
+        : asking === 'confirm' ? 'confirm_time' : timeStarted ? 'time' : 'idle',
+      asking: draft ? asking.replace(/^draft:/, '') : (ORDER.includes(asking) || asking === 'confirm' ? asking : ''),
+      fields: fields,
+      draftType: draft ? draft.type : null,
+      draft: draft ? values : null,
+      lastQuestion: lastQuestion,
+      history: history.slice(0, -1), // the new message goes on its own
+    };
+  }
+
+  function converse(text) {
+    const $thinking = $('<div>', { class: 'timegrow-voice-msg timegrow-voice-bot timegrow-voice-thinking', text: '...' }).appendTo($log);
+    $log.scrollTop($log[0].scrollHeight);
+    const s0 = session; // replies from a closed session are ignored
+    $.post(cfg.ajaxUrl, withLog({ action: 'timegrow_voice_parse', nonce: cfg.nonce, transcript: text, asking: asking, known: JSON.stringify(fields), conversation: JSON.stringify(conversationState()) }))
+      .done(res => {
+        if (s0 !== session) return;
+        $thinking.remove();
+        if (res && res.success && res.data) return handleTurn(res.data, text);
+        if (res && res.data && res.data.code === 'blocked') bubble('bot', res.data.message); // looked like instructions to the AI
+        answerLocally(text, null); // the AI could not help: read it here
+      })
+      .fail(() => {
+        if (s0 !== session) return; $thinking.remove(); answerLocally(text, null); });
+  }
+
+  function handleTurn(data, text) {
+    switch (data.intent) {
+      case 'question':
+      case 'denied':
+        if (data.question) lastQuestion = data.question;
+        showAnswer(data.answer || {});
+        return resumeFlow();
+      case 'time': {
+        if (draft) draft = null; // they moved on to recording time
+        const before = ORDER.includes(asking) ? fields[asking] : null;
+        ORDER.forEach(k => { const v = data.fields ? data.fields[k] : null; if (v !== null && v !== undefined) fields[k] = v; });
+        if (fields.project_id) { const p = project(); if (p) fields.client_id = p.clientId; else fields.project_id = null; } // client always the project's
+        if (ORDER.includes(asking) && blank(fields[asking]) && blank(before)) {
+          const local = readLocally(asking, text); // the AI missed it; our reading may still have it
+          if (local !== null) setField(asking, local);
+        }
+        ackNext = true;
+        return next(); // asks what is missing, or shows the summary again after a correction
+      }
+      case 'add_client':
+      case 'add_project': {
+        const type = data.intent === 'add_client' ? 'client' : 'project';
+        if (!draft || draft.type !== type) draft = { type: type, values: {} };
+        const key = asking.indexOf('draft:') === 0 ? asking.slice(6) : '';
+        Object.keys(data.draft || {}).forEach(k => { if (!blank(data.draft[k])) draft.values[k] = data.draft[k]; });
+        if (type === 'project' && draft.values.client_id && !allClients.some(c => c.id === Number(draft.values.client_id))) delete draft.values.client_id;
+        if (key && DRAFTS[type].order.includes(key) && blank(draft.values[key])) {
+          const local = readDraft(key, text);
+          if (local !== null) draft.values[key] = local;
+        }
+        ackNext = true;
+        return askDraft();
+      }
+      case 'confirm':
+        if (asking === 'confirm') return save();
+        if (asking === 'draft:confirm') return createDraft();
+        return resumeFlow() || handleIntent({ intent: 'unknown' });
+      case 'change':
+        if (draft) { asking = 'draft:confirm'; return answerDraft('', { value: 'change' }); }
+        if (ORDER.some(k => !blank(fields[k]))) {
+          asking = 'change';
+          return say('What do you want to change?', ORDER.map(k => ({ label: LABELS[k][0].toUpperCase() + LABELS[k].slice(1), value: k })));
+        }
+        return handleIntent({ intent: 'unknown' });
+      case 'cancel':
+        draft = null;
+        fields = {}; ORDER.forEach(k => { fields[k] = null; });
+        asking = '';
+        return say('Okay, I dropped that. What else can I do?', [{ label: 'Record time', value: '__questions' }].concat(suggestionChips(3)), 'Okay, dropped it. What else can I do?');
+      default:
+        if (draft || ORDER.includes(asking) || asking === 'confirm') return answerLocally(text, null);
+        return handleIntent({ intent: 'unknown' });
+    }
+  }
+
+  /** After answering a question in the middle of something, pick it up again. */
+  function resumeFlow() {
+    ackNext = false;
+    appendSpeech = true; // after the answer is read out
+    if (draft && asking !== 'draft:creating') { if (asking === 'draft:confirm') return confirmDraft(), true; return askDraft(), true; }
+    if (asking === 'confirm') return next(), true;
+    if (ORDER.includes(asking)) return ask(asking), true;
+    appendSpeech = false;
+    return false;
   }
 
   // ------------------------------------------------------------------
@@ -508,7 +678,7 @@ jQuery(document).ready(function($) {
 
   function handleIntent(data) {
     ackNext = false;
-    if (data.intent === 'question' || data.intent === 'denied') return showAnswer(data.answer || {});
+    if (data.intent === 'question' || data.intent === 'denied') { asking = ''; if (data.question) lastQuestion = data.question; return showAnswer(data.answer || {}); }
     if (data.intent === 'add_client') return startDraft('client', data.draft);
     if (data.intent === 'add_project') return startDraft('project', data.draft);
     asking = '';
@@ -519,9 +689,9 @@ jQuery(document).ready(function($) {
 
   /** The answer, with its list (links open in the same tab only for pages the person can use). */
   function showAnswer(a) {
-    asking = '';
     bubble('bot', a.text || '');
     if (Array.isArray(a.rows) && a.rows.length) {
+      logTurn('bot', a.rows.map(r => '• ' + r.title + (r.meta ? ' (' + r.meta + ')' : '')).join('\n'));
       const $list = $('<ul>', { class: 'timegrow-voice-msg timegrow-voice-bot timegrow-voice-list' });
       a.rows.forEach(r => {
         const $li = $('<li>');
@@ -647,8 +817,10 @@ jQuery(document).ready(function($) {
     const values = {};
     Object.keys(draft.values).forEach(k => { values[k] = draft.values[k] === 'skip' ? '' : draft.values[k]; });
     const type = draft.type;
-    $.post(cfg.ajaxUrl, { action: 'timegrow_voice_create', nonce: cfg.nonce, type: type, values: JSON.stringify(values) })
+    const s0 = session; // replies from a closed session are ignored
+    $.post(cfg.ajaxUrl, withLog({ action: 'timegrow_voice_create', nonce: cfg.nonce, type: type, values: JSON.stringify(values) }))
       .done(res => {
+        if (s0 !== session) return;
         if (res && res.success) {
           const d = res.data || {};
           draft = null;
@@ -671,7 +843,8 @@ jQuery(document).ready(function($) {
         asking = 'draft:confirm';
         say(`That wasn't added: ${(res && res.data && res.data.message) || 'unknown error'}`, [{ label: 'Change something', value: 'change' }, { label: 'Cancel', value: 'cancel' }]);
       })
-      .fail(() => { asking = 'draft:confirm'; say("That wasn't added: the site could not be reached.", [{ label: 'Create', value: 'create' }, { label: 'Cancel', value: 'cancel' }]); });
+      .fail(() => {
+        if (s0 !== session) return; asking = 'draft:confirm'; say("That wasn't added: the site could not be reached.", [{ label: 'Create', value: 'create' }, { label: 'Cancel', value: 'cancel' }]); });
   }
 
   function retry() {
@@ -700,7 +873,11 @@ jQuery(document).ready(function($) {
     $hours.find('option').filter((i, o) => +o.value === +fields.hours).prop('selected', true);
     $('#description').val(fields.description);
     $('#nexus-manual_billable').prop('checked', !!+fields.billable);
-    $form.find('input[name="start_time"], input[name="client_id"]').remove();
+    $form.find('input[name="start_time"], input[name="client_id"], input[name="source"]').remove();
+    $form.append($('<input>', { type: 'hidden', name: 'source', value: 'voice' })); // voice saves have their own hourly limit
+    $form.find('input[name="session_key"], input[name="log_turns"]').remove();
+    const logged = withLog({});
+    Object.keys(logged).forEach(k => $form.append($('<input>', { type: 'hidden', name: k, value: logged[k] })));
     $form.append($('<input>', { type: 'hidden', name: 'client_id', value: fields.client_id })); // the save checks it is the project's client
     if (fields.start_time && fields.start_time !== 'skip') {
       $form.append($('<input>', { type: 'hidden', name: 'start_time', value: fields.start_time }));
@@ -728,20 +905,22 @@ jQuery(document).ready(function($) {
       say(`That wasn't saved: ${message}`, [{ label: 'Save entry', value: 'save' }, { label: 'Change something', value: 'change' }]);
     };
     const data = {
-      action: 'save_time_entry', entry_type: 'MAN', time_entry_id: 0, member_id: 0,
+      action: 'save_time_entry', source: 'voice', entry_type: 'MAN', time_entry_id: 0, member_id: 0,
       timegrow_time_nexus_nonce_field: cfg.saveNonce, project_id: fields.project_id, client_id: fields.client_id, date: fields.date,
       hours: fields.hours, billable: fields.billable ? 1 : 0, description: fields.description,
     };
     if (fields.start_time && fields.start_time !== 'skip') data.start_time = fields.start_time;
-    $.ajax({ url: cfg.ajaxUrl, method: 'POST', data: data })
+    const s0 = session; // replies from a closed session are ignored
+    $.ajax({ url: cfg.ajaxUrl, method: 'POST', data: withLog(data) })
       .done(res => {
+        if (s0 !== session) return;
         if (res && res.success) {
           asking = 'done';
           return say('Saved: ' + summary(), [{ label: 'Record another', value: '__restart' }, { label: 'Close', value: '__close' }], 'All done. It\'s saved. Anything else?');
         }
         failed(String((res && res.data && (res.data.message || res.data)) || 'unknown error'));
       })
-      .fail(() => failed('The site could not be reached.'));
+      .fail(() => s0 === session && failed('The site could not be reached.'));
   }
 
   function start() {
@@ -769,7 +948,20 @@ jQuery(document).ready(function($) {
     $text.trigger('focus');
   }
 
+  /** Closing (the mic icon, the close button or Esc) ends the conversation: nothing is remembered. */
   function close() {
+    flushLog(true); // the conversation ends here
+    sessionKey = null;
+    logQueue = [];
+    session++;
+    history.length = 0;
+    lastQuestion = null;
+    draft = null;
+    fields = {}; ORDER.forEach(k => { fields[k] = null; });
+    asking = '';
+    $log.empty();
+    $chips.empty();
+    $text.val('');
     $panel.prop('hidden', true);
     $card.removeClass('is-open is-listening').find('.timegrow-voice-fab').attr({ 'aria-expanded': 'false', 'aria-label': 'Record time by voice', title: 'Record time by voice' });
     voiceMode = false;

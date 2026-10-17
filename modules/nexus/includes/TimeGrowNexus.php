@@ -181,6 +181,13 @@ class TimeGrowNexus{
             $isBillable  = isset($_POST['billable']) ? intval($_POST['billable']) : 0;
             $start_time  = isset($_POST['start_time']) ? sanitize_text_field($_POST['start_time']) : ''; // optional, HH:MM (voice entry)
             $client_id   = isset($_POST['client_id']) ? intval($_POST['client_id']) : 0; // optional (voice entry): must be the project's client
+            $by_voice = ($_POST['source'] ?? '') === 'voice';
+            if ($by_voice) {
+                TimeGrowAILog::from_request(); // saves the chat messages sent with the save
+            }
+            if ($by_voice && !TimeGrowAI::rate_limit_ok(get_current_user_id(), 'voice_save')) {
+                wp_send_json_error(['message' => __('Too many time entries saved by voice this hour. Use the Manual Time Entry form, or try again later.', 'timegrow')]);
+            }
             if (
                 !isset($nonce) ||
                 !wp_verify_nonce($nonce, 'timegrow_time_nexus_nonce')
@@ -263,6 +270,9 @@ class TimeGrowNexus{
             $id = $entry_model->create($data, $format);
             if (!$id) {
                 wp_send_json_error(['message' => __('The time entry could not be saved.', 'timegrow')]);
+            }
+            if ($by_voice) {
+                TimeGrowAILog::outcome(sprintf(__('Time saved: %1$s h, entry #%2$d', 'timegrow'), $hours, $id));
             }
             wp_send_json_success(['id' => (int) $id, 'message' => __('Time entry saved.', 'timegrow')]);
 

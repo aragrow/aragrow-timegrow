@@ -226,6 +226,12 @@
     color: #fff;
 }
 
+.timegrow-voice-saved {
+    flex-shrink: 0;
+    padding: 4px 14px 0;
+    font-size: 11px;
+    color: var(--tgv-muted);
+}
 .timegrow-voice-bar {
     flex-shrink: 0;
     display: flex;
