@@ -25,7 +25,7 @@ class ReceiptReaderTest extends TestCase {
 
         $this->assertStringContainsString( '- 25|office_expense: Office Expense (supplies)', $prompt );
         $this->assertStringContainsString( '- 31|online_web_fees: Online and Web Fees', $prompt );
-        $this->assertStringContainsString( 'category_id', $prompt );
+        $this->assertStringContainsString( 'category_id', TimeGrowAIReceiptAnalyzer::default_instructions(), 'the keys are asked for in the instructions' );
     }
 
     public function test_answer_with_a_valid_category_id() {
