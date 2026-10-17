@@ -553,6 +553,10 @@ class TimeGrowSettings {
             $this->render_voice_settings_form();
         } elseif ($active_tab === 'receipts') {
             $this->render_receipt_settings_form();
+        } elseif ($active_tab === 'prompts') {
+            TimeGrowAIPromptsPage::render();
+        } elseif ($active_tab === 'conversations') {
+            TimeGrowAIReviewPage::render();
         }
     }
 
@@ -699,7 +703,7 @@ class TimeGrowSettings {
                     </div>
                     <div class="timegrow-card-body">
                         <p class="timegrow-card-description">
-                            <?php esc_html_e('Let team members record time by talking to a chat on the Manual Time Entry page.', 'timegrow'); ?>
+                            <?php esc_html_e('A voice and chat assistant on every admin page: records time, answers questions about your data, adds clients and projects.', 'timegrow'); ?>
                         </p>
                         <div class="timegrow-features">
                             <div class="timegrow-feature-badge">
@@ -708,7 +712,7 @@ class TimeGrowSettings {
                             </div>
                             <div class="timegrow-feature-badge">
                                 <span class="dashicons dashicons-analytics"></span>
-                                <span><?php echo $voice['use_ai'] === 'yes' && TimeGrowAI::is_configured('voice') ? esc_html__('Reads sentences with AI', 'timegrow') : esc_html__('Asks each question', 'timegrow'); ?></span>
+                                <span><?php echo $voice['use_ai'] === 'yes' && TimeGrowAI::is_configured('voice') ? esc_html__('Understands conversation', 'timegrow') : esc_html__('Asks each question', 'timegrow'); ?></span>
                             </div>
                         </div>
                         <div class="timegrow-card-footer">
@@ -1320,13 +1324,15 @@ class TimeGrowSettings {
     public static function receipt_settings() {
         $saved = get_option(self::RECEIPT_OPTION, null);
         if (is_array($saved)) {
-            return wp_parse_args($saved, ['auto_analysis' => 'yes', 'confidence_threshold' => 0.7, 'ai_config_id' => 0]);
+            return wp_parse_args($saved, ['auto_analysis' => 'yes', 'confidence_threshold' => 0.7, 'ai_config_id' => 0, 'save_for_review' => 'yes', 'keep_days' => 90]);
         }
         $row = class_exists('TimeGrowAIConfigModel') ? (new TimeGrowAIConfigModel())->get_active() : null;
         return [
             'auto_analysis'        => ($row === null || !empty($row['enable_auto_analysis'])) ? 'yes' : 'no',
             'confidence_threshold' => isset($row['confidence_threshold']) ? (float) $row['confidence_threshold'] : 0.7,
             'ai_config_id'         => 0, // 0 = the default AI configuration
+            'save_for_review'      => 'yes', // readings saved for Settings > AI Conversations
+            'keep_days'            => 90,
         ];
     }
 
@@ -1337,7 +1343,54 @@ class TimeGrowSettings {
             'auto_analysis'        => ($input['auto_analysis'] ?? '') === 'yes' ? 'yes' : 'no',
             'confidence_threshold' => round(max(0.0, min(1.0, (float) ($input['confidence_threshold'] ?? 0.7))), 2),
             'ai_config_id'         => self::valid_ai_config_id($input['ai_config_id'] ?? 0),
+            'save_for_review'      => ($input['save_for_review'] ?? '') === 'yes' ? 'yes' : 'no',
+            'keep_days'            => self::valid_keep_days($input['keep_days'] ?? 90),
         ];
+    }
+
+    /** Days to keep saved AI activity: 0 (keep) to 3650. */
+    private static function valid_keep_days($days) {
+        return max(0, min(3650, (int) $days));
+    }
+
+    /**
+     * "Save for review" and "Keep for" for an AI tool, with a link to its saved sessions
+     * (Settings > AI Conversations).
+     */
+    private function render_review_settings($feature, $option, array $settings) {
+        $voice = $feature === 'voice';
+        ?>
+        <div class="timegrow-card">
+            <div class="timegrow-card-header">
+                <div class="timegrow-icon timegrow-icon-primary"><span class="dashicons dashicons-format-chat"></span></div>
+                <div class="timegrow-card-title"><h2><?php esc_html_e('Review', 'timegrow'); ?></h2></div>
+            </div>
+            <div class="timegrow-card-body">
+                <div class="timegrow-feature-item">
+                    <label class="timegrow-toggle-switch">
+                        <input type="checkbox" name="<?php echo esc_attr($option); ?>[save_for_review]" value="yes" <?php checked($settings['save_for_review'] ?? 'yes', 'yes'); ?>>
+                        <span class="timegrow-toggle-slider"></span>
+                    </label>
+                    <div class="timegrow-feature-info">
+                        <strong><?php echo $voice ? esc_html__('Save conversations for review', 'timegrow') : esc_html__('Save receipt readings for review', 'timegrow'); ?></strong>
+                        <p><?php echo $voice
+                            ? esc_html__('Each conversation is saved: what was said, how the AI read each message, tokens and time, and what was saved. Administrators can read and rate them under AI Conversations. The chat tells people their conversations are saved.', 'timegrow')
+                            : esc_html__('Each receipt reading is saved: the file name, what the AI read, what was filled in, tokens and time. Administrators can read and rate them under AI Conversations. The image itself is not copied.', 'timegrow'); ?></p>
+                    </div>
+                </div>
+                <table class="form-table" role="presentation">
+                    <tr>
+                        <th scope="row"><label for="timegrow_<?php echo esc_attr($feature); ?>_keep_days"><?php esc_html_e('Keep for', 'timegrow'); ?></label></th>
+                        <td>
+                            <input type="number" id="timegrow_<?php echo esc_attr($feature); ?>_keep_days" name="<?php echo esc_attr($option); ?>[keep_days]" min="0" max="3650" step="1" value="<?php echo esc_attr((int) ($settings['keep_days'] ?? 90)); ?>" class="small-text"> <?php esc_html_e('days', 'timegrow'); ?>
+                            <p class="description"><?php esc_html_e('Older ones are deleted each day. 0 keeps them until you delete them.', 'timegrow'); ?>
+                                <a href="<?php echo esc_url(TimeGrowAIReviewPage::url(['feature' => $feature])); ?>"><?php esc_html_e('Open AI Conversations', 'timegrow'); ?></a></p>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+        <?php
     }
 
     /** A saved AI configuration's ID, or 0 (use the default) for anything else. */
@@ -1472,6 +1525,8 @@ class TimeGrowSettings {
                     </div>
                 </div>
 
+                <?php $this->render_review_settings('receipts', self::RECEIPT_OPTION, $settings); ?>
+
                 <div class="timegrow-footer">
                     <?php submit_button(__('Save Settings', 'timegrow'), 'primary large', 'submit', false); ?>
                     <a href="?page=<?php echo TIMEGROW_PARENT_MENU; ?>-settings" class="button button-secondary large">
@@ -1496,6 +1551,8 @@ class TimeGrowSettings {
             'ask_start_time' => 'yes', // ask what time the work started
             'language'       => '',    // speech recognition language; '' = the site language
             'ai_config_id'   => 0,     // AI to use: 0 = the default AI configuration
+            'save_for_review' => 'yes', // conversations saved for Settings > AI Conversations
+            'keep_days'      => 90,
         ];
     }
 
@@ -1529,13 +1586,14 @@ class TimeGrowSettings {
     public function sanitize_voice_settings($input) {
         $input = is_array($input) ? $input : [];
         $out   = [];
-        foreach (['enabled', 'use_ai', 'speak', 'ask_start_time'] as $key) {
+        foreach (['enabled', 'use_ai', 'speak', 'ask_start_time', 'save_for_review'] as $key) {
             // Only "yes" (the checkbox value) is on: WordPress runs this twice when the option is first created
             $out[$key] = ($input[$key] ?? '') === 'yes' ? 'yes' : 'no';
         }
         $lang            = sanitize_text_field($input['language'] ?? '');
         $out['language'] = array_key_exists($lang, self::voice_languages()) ? $lang : '';
         $out['ai_config_id'] = self::valid_ai_config_id($input['ai_config_id'] ?? 0);
+        $out['keep_days']    = self::valid_keep_days($input['keep_days'] ?? 90);
         return $out;
     }
 
@@ -1570,14 +1628,14 @@ class TimeGrowSettings {
 
         $words = [
             'voice' => [
-                'without'  => __('the chat asks each question one by one', 'timegrow'),
-                'off'      => [__('Reading sentences with AI is off', 'timegrow'), __('The chat asks each question one by one. Turn the switch above on to let it fill several answers from one sentence.', 'timegrow')],
-                'ready'    => __('Voice entry understands whole sentences with %1$s (%2$s). Checked just now.', 'timegrow'),
-                'uses'     => __('Voice entry still uses AI.', 'timegrow'),
-                'ai_ok'    => __('Understands whole sentences', 'timegrow'),
+                'without'  => __('the chat asks each question one by one and only understands plain questions', 'timegrow'),
+                'off'      => [__('Conversation with AI is off', 'timegrow'), __('The chat asks each question one by one and only understands plain questions like "how many hours this week". Turn the switch above on to talk to it naturally.', 'timegrow')],
+                'ready'    => __('The voice assistant holds a conversation with %1$s (%2$s): it records time from what you say, answers questions about your TimeGrow data, and adds clients and projects for administrators, always after you confirm. Checked just now.', 'timegrow'),
+                'uses'     => __('The voice assistant still uses AI.', 'timegrow'),
+                'ai_ok'    => __('Understands the conversation', 'timegrow'),
                 'ai_no'    => __('Asking each question', 'timegrow'),
-                'steps'    => [['microphone', __('Your voice', 'timegrow'), __('Turned into text', 'timegrow')],
-                               ['clock', __('Time entry', 'timegrow'), __('Saved after you confirm', 'timegrow')]],
+                'steps'    => [['microphone', __('You talk or type', 'timegrow'), __('From any admin page', 'timegrow')],
+                               ['yes-alt', __('Done for you', 'timegrow'), __('Time, answers, clients and projects', 'timegrow')]],
             ],
             'receipts' => [
                 'without'  => __('receipts aren\'t read automatically, so expenses are filled in by hand', 'timegrow'),
@@ -1666,6 +1724,7 @@ class TimeGrowSettings {
                 <?php if ($ai['config_name'] !== ''): ?>
                     <span class="tg-ai-status__chip"><span class="dashicons dashicons-admin-settings" aria-hidden="true"></span><?php esc_html_e('Configuration', 'timegrow'); ?> <b><?php echo esc_html($ai['config_name']); ?></b></span>
                 <?php endif; ?>
+                <span class="tg-ai-status__chip"><span class="dashicons dashicons-editor-code" aria-hidden="true"></span><?php esc_html_e('Prompt', 'timegrow'); ?> <b><?php echo esc_html(TimeGrowAIPromptsPage::in_use_label($feature)); ?></b></span>
             </div>
             <?php endif; ?>
 
@@ -1678,6 +1737,8 @@ class TimeGrowSettings {
                 <?php if ($status !== null && $use_ai): ?>
                     <a href="<?php echo esc_url($again_url); ?>" class="button"><span class="dashicons dashicons-update" aria-hidden="true"></span><?php esc_html_e('Check again', 'timegrow'); ?></a>
                 <?php endif; ?>
+                <a href="<?php echo esc_url(TimeGrowAIPromptsPage::url(['feature' => $feature])); ?>" class="button"><span class="dashicons dashicons-editor-code" aria-hidden="true"></span><?php esc_html_e('Edit prompt', 'timegrow'); ?></a>
+                <a href="<?php echo esc_url(TimeGrowAIReviewPage::url(['feature' => $feature])); ?>" class="button"><span class="dashicons dashicons-format-chat" aria-hidden="true"></span><?php esc_html_e('Review conversations', 'timegrow'); ?></a>
             </div>
         </div>
         <?php
@@ -1703,7 +1764,7 @@ class TimeGrowSettings {
             <div class="timegrow-modern-header">
                 <div class="timegrow-header-content">
                     <h1><?php esc_html_e('AI Voice Entry', 'timegrow'); ?></h1>
-                    <p class="subtitle"><?php esc_html_e('Record time by talking to a chat on the Manual Time Entry page', 'timegrow'); ?></p>
+                    <p class="subtitle"><?php esc_html_e('Talk to TimeGrow from any admin page: record time, ask about your data, add clients and projects', 'timegrow'); ?></p>
                 </div>
                 <div class="timegrow-header-illustration">
                     <span class="dashicons dashicons-microphone"></span>
@@ -1725,7 +1786,7 @@ class TimeGrowSettings {
                     <div class="timegrow-card-body">
                         <?php
                         $this->voice_toggle('enabled', __('Turn voice entry on', 'timegrow'),
-                            __('Shows a "Speak an entry" button on the Manual Time Entry page. The chat asks for the client, project, day, start time, hours, billable and description, and nothing is saved until the person confirms. Speech is turned into text by the browser: in Chrome and Edge that is done by Google or Microsoft, in Safari by Apple. People can always type instead.', 'timegrow'), $settings);
+                            __('Shows a microphone icon in the corner of every admin page for people who can record time. The chat records time (client, project, day, start time, hours, billable and description), answers questions about TimeGrow data, and lets administrators add clients and projects. Nothing is saved until the person confirms. Speech is turned into text by the browser: in Chrome and Edge that is done by Google or Microsoft, in Safari by Apple. People can always type instead.', 'timegrow'), $settings);
                         $this->voice_toggle('speak', __('Speak the questions out loud', 'timegrow'),
                             __('The chat reads its questions aloud. Each person can still turn the sound off in the chat; their choice is remembered on their device.', 'timegrow'), $settings);
                         $this->voice_toggle('ask_start_time', __('Ask for a start time', 'timegrow'),
@@ -1756,13 +1817,15 @@ class TimeGrowSettings {
                     </div>
                     <div class="timegrow-card-body">
                         <?php
-                        $this->voice_toggle('use_ai', __('Read whole sentences with AI', 'timegrow'),
-                            __('A sentence like "two hours yesterday on the SEO audit for Copperleaf" fills several answers at once. Only the person\'s own projects are sent, with what they said. When off, or when the AI is not working, the chat asks each question.', 'timegrow'), $settings);
+                        $this->voice_toggle('use_ai', __('Hold a conversation with AI', 'timegrow'),
+                            __('People talk naturally: several details at once ("two hours yesterday on the SEO audit for Copperleaf"), corrections ("actually three hours"), follow-ups ("and last week?") and questions in the middle of an entry. The AI only works out what they mean; TimeGrow checks their permissions and finds the answers, and the data found is not sent to the AI. Only the person\'s own projects, their clients and the conversation are sent. When off, or when the AI is not working, the chat asks each question.', 'timegrow'), $settings);
                         ?>
                         <?php $this->render_ai_choice('voice', self::VOICE_OPTION, $settings['ai_config_id']); ?>
                         <?php $this->render_ai_status('voice', $settings['use_ai'] === 'yes', $ai, $status, $ai_url, admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-settings&tab=voice')); ?>
                     </div>
                 </div>
+
+                <?php $this->render_review_settings('voice', self::VOICE_OPTION, $settings); ?>
 
                 <div class="timegrow-footer">
                     <?php submit_button(__('Save Settings', 'timegrow'), 'primary large', 'submit', false); ?>
