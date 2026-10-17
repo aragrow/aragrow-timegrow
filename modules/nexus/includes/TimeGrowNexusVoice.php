@@ -32,7 +32,13 @@ class TimeGrowNexusVoice {
     public static function available_for_current_user() {
         $voice = class_exists('TimeGrowSettings') ? TimeGrowSettings::voice_settings() : ['enabled' => 'no'];
         return $voice['enabled'] === 'yes'
-            && (current_user_can('access_nexus_manual_entry') || current_user_can('administrator'));
+            && (current_user_can('access_nexus_manual_entry') || current_user_can('administrator'))
+            && self::mobile_allowed();
+    }
+
+    /** In the mobile app (PIN session), the voice assistant needs the AI Voice mobile capability. */
+    public static function mobile_allowed() {
+        return !class_exists('TimeGrowMobileAccess') || TimeGrowMobileAccess::mobile_allows('access_mobile_ai_voice');
     }
 
     /**
@@ -261,6 +267,9 @@ RULES;
         check_ajax_referer(self::NONCE, 'nonce');
         if (!current_user_can('access_nexus_manual_entry') && !current_user_can('administrator')) {
             wp_send_json_error(['message' => __('You are not allowed to record time.', 'timegrow')], 403);
+        }
+        if (!self::mobile_allowed()) {
+            wp_send_json_error(['message' => __('The voice assistant is not turned on for you in the mobile app.', 'timegrow')], 403);
         }
 
         TimeGrowAILog::from_request(); // saves the messages sent with this request, when saving is on

@@ -83,8 +83,14 @@ class TimeGrow_Ajax_Handler {
         if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'timegrow_ajax_nonce')) {
             wp_send_json_error('Security check failed');
         }
-        if (!current_user_can(TIMEGROW_OWNER_CAP)) {
-            wp_send_json_error('You are not allowed to add expenses.', 403);
+        // Owners, or people given the AI Receipt Reader mobile capability; in the mobile app (PIN
+        // session) that capability is always needed
+        $mobile  = class_exists('TimeGrowMobileAccess') && TimeGrowMobileAccess::in_mobile_session();
+        $allowed = $mobile
+            ? current_user_can('access_mobile_ai_receipts')
+            : (current_user_can(TIMEGROW_OWNER_CAP) || (current_user_can('access_mobile_ai_receipts') && class_exists('TimeGrowMobileAccess') && TimeGrowMobileAccess::allowed(get_current_user_id())));
+        if (!$allowed) {
+            wp_send_json_error('You are not allowed to read receipts with AI.', 403);
         }
         if (empty($_FILES['receipt_file'])) {
             wp_send_json_error('No file uploaded');

@@ -185,23 +185,26 @@ class TimeGrowMobileSettingsView {
      * Generate new PIN for user
      */
     private function handle_generate_pin($user_id) {
-        $has_time = isset($_POST['has_time_tracking']) && $_POST['has_time_tracking'] === '1';
-        $has_expenses = isset($_POST['has_expenses']) && $_POST['has_expenses'] === '1';
+        if (!TimeGrowMobileAccess::allowed($user_id)) {
+            $this->error_message = 'Only administrators and team members can use TimeGrow remotely.';
+            return;
+        }
 
         // Generate PIN
         $pin = $this->authenticator->generate_pin();
 
         // Create PIN for user
-        if ($this->authenticator->create_pin_for_user($user_id, $pin, $has_time, $has_expenses)) {
-            // Also add WordPress capabilities
+        if ($this->authenticator->create_pin_for_user($user_id, $pin)) {
+            // The mobile capabilities ticked in the form (Time tracking, Expenses, AI Voice, AI Receipt Reader)
             $user = get_user_by('id', $user_id);
             if ($user) {
                 $user->add_cap('access_mobile_only_mode');
-                if ($has_time) {
-                    $user->add_cap('access_mobile_time_tracking');
-                }
-                if ($has_expenses) {
-                    $user->add_cap('access_mobile_expenses');
+                foreach (array_keys(TimeGrowMobileAccess::capabilities()) as $cap) {
+                    if (($_POST['caps'][$cap] ?? '') === '1') {
+                        $user->add_cap($cap);
+                    } elseif (isset($_POST['caps'])) {
+                        $user->remove_cap($cap);
+                    }
                 }
             }
 
@@ -216,12 +219,18 @@ class TimeGrowMobileSettingsView {
      * Toggle user capability
      */
     private function handle_toggle_capability($user_id) {
-        $capability = isset($_POST['capability']) ? $_POST['capability'] : '';
+        $capability = isset($_POST['capability']) ? sanitize_key($_POST['capability']) : '';
         $enabled = isset($_POST['enabled']) && $_POST['enabled'] === '1';
 
+        // Only the mobile capabilities can be changed here
+        if (!TimeGrowMobileAccess::is_capability($capability)) {
+            $this->error_message = 'Unknown capability.';
+            return;
+        }
+
         $user = get_user_by('id', $user_id);
-        if (!$user) {
-            $this->error_message = 'User not found.';
+        if (!$user || !TimeGrowMobileAccess::allowed($user)) {
+            $this->error_message = 'Only administrators and team members can use TimeGrow remotely.';
             return;
         }
 
@@ -232,27 +241,7 @@ class TimeGrowMobileSettingsView {
             $user->remove_cap($capability);
         }
 
-        // Update database flags
-        $record = $this->model->get_by_user_id($user_id);
-        if ($record) {
-            $has_time = $capability === 'access_mobile_time_tracking' && $enabled
-                ? true
-                : ($record->has_time_tracking == 1);
-
-            $has_expenses = $capability === 'access_mobile_expenses' && $enabled
-                ? true
-                : ($record->has_expenses == 1);
-
-            if ($capability === 'access_mobile_time_tracking' && !$enabled) {
-                $has_time = false;
-            }
-            if ($capability === 'access_mobile_expenses' && !$enabled) {
-                $has_expenses = false;
-            }
-
-            $this->model->update_capabilities($user_id, $has_time, $has_expenses);
-        }
-
+        // The capabilities live on the WordPress user only (the PIN table has no capability columns)
         $this->success_message = 'Capability updated successfully.';
     }
 
@@ -276,6 +265,8 @@ class TimeGrowMobileSettingsView {
             $user->remove_cap('access_mobile_only_mode');
             $user->remove_cap('access_mobile_time_tracking');
             $user->remove_cap('access_mobile_expenses');
+            $user->remove_cap('access_mobile_ai_voice');
+            $user->remove_cap('access_mobile_ai_receipts');
         }
 
         if ($this->model->set_active($user_id, false)) {
@@ -291,11 +282,12 @@ class TimeGrowMobileSettingsView {
     private function render() {
         // Get all users with mobile access
         $mobile_users = $this->get_mobile_users();
-        $all_users = get_users(['orderby' => 'display_name']);
+        $all_users = get_users(['orderby' => 'display_name', 'role__in' => TimeGrowMobileAccess::ROLES]); // only they can use TimeGrow remotely
 
         ?>
         <div class="wrap">
             <h1>Mobile Access Management</h1>
+            <p><a href="<?php echo esc_url(admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-settings')); ?>">&larr; <?php esc_html_e('Back to Settings', 'timegrow'); ?></a></p>
 
             <?php if ($this->error_message): ?>
                 <div class="notice notice-error is-dismissible">
@@ -341,15 +333,20 @@ class TimeGrowMobileSettingsView {
                             <th scope="row">Grant Capabilities</th>
                             <td>
                                 <fieldset>
-                                    <label>
-                                        <input type="checkbox" name="has_time_tracking" value="1" checked>
-                                        Time Tracking (Clock In/Out, Manual Entry)
-                                    </label>
-                                    <br>
-                                    <label>
-                                        <input type="checkbox" name="has_expenses" value="1" checked>
-                                        Expenses (Record expenses with receipts)
-                                    </label>
+                                    <?php
+                                    $hints = [
+                                        'access_mobile_time_tracking' => 'Clock In/Out, Manual Entry',
+                                        'access_mobile_expenses'      => 'Record expenses with receipts',
+                                        'access_mobile_ai_voice'      => 'Talk to the voice assistant: record time, ask questions',
+                                        'access_mobile_ai_receipts'   => 'Read receipts with AI to fill in expenses',
+                                    ];
+                                    foreach (TimeGrowMobileAccess::capabilities() as $cap => $label): ?>
+                                        <label>
+                                            <input type="checkbox" name="caps[<?php echo esc_attr($cap); ?>]" value="1" checked>
+                                            <?php echo esc_html($label); ?> (<?php echo esc_html($hints[$cap]); ?>)
+                                        </label><br>
+                                    <?php endforeach; ?>
+                                    <p class="description">Only administrators and team members are listed: no one else can use TimeGrow remotely.</p>
                                 </fieldset>
                             </td>
                         </tr>
@@ -392,14 +389,18 @@ class TimeGrowMobileSettingsView {
                                     <small><?php echo esc_html($user->user_login); ?></small>
                                 </td>
                                 <td>
-                                    <?php if ($mu->has_time_tracking): ?>
-                                        <span class="dashicons dashicons-clock" title="Time Tracking"></span> Time
-                                    <?php endif; ?>
-                                    <?php if ($mu->has_expenses): ?>
-                                        <span class="dashicons dashicons-money-alt" title="Expenses"></span> Expenses
-                                    <?php endif; ?>
-                                    <?php if (!$mu->has_time_tracking && !$mu->has_expenses): ?>
-                                        <span style="color: #999;">No capabilities</span>
+                                    <?php if (!TimeGrowMobileAccess::allowed($user)): ?>
+                                        <span style="color: #d63638;">Blocked: not an administrator or team member</span>
+                                    <?php else: ?>
+                                        <?php
+                                        $icons = ['access_mobile_time_tracking' => 'clock', 'access_mobile_expenses' => 'money-alt', 'access_mobile_ai_voice' => 'microphone', 'access_mobile_ai_receipts' => 'media-document'];
+                                        $any   = false;
+                                        foreach (TimeGrowMobileAccess::capabilities() as $cap => $label):
+                                            if (!user_can($user, $cap)) continue;
+                                            $any = true; ?>
+                                            <span class="dashicons dashicons-<?php echo esc_attr($icons[$cap]); ?>" title="<?php echo esc_attr($label); ?>"></span> <?php echo esc_html($label); ?><br>
+                                        <?php endforeach; ?>
+                                        <?php if (!$any): ?><span style="color: #999;">No capabilities</span><?php endif; ?>
                                     <?php endif; ?>
                                 </td>
                                 <td>
@@ -428,8 +429,9 @@ class TimeGrowMobileSettingsView {
                                         <?php wp_nonce_field('timegrow_mobile_settings', 'timegrow_mobile_settings_nonce'); ?>
                                         <input type="hidden" name="action" value="generate_pin">
                                         <input type="hidden" name="user_id" value="<?php echo esc_attr($mu->user_id); ?>">
-                                        <input type="hidden" name="has_time_tracking" value="<?php echo $mu->has_time_tracking ? '1' : '0'; ?>">
-                                        <input type="hidden" name="has_expenses" value="<?php echo $mu->has_expenses ? '1' : '0'; ?>">
+                                        <?php foreach (array_keys(TimeGrowMobileAccess::capabilities()) as $cap): ?>
+                                            <input type="hidden" name="caps[<?php echo esc_attr($cap); ?>]" value="<?php echo user_can($user, $cap) ? '1' : '0'; ?>">
+                                        <?php endforeach; ?>
                                         <button type="submit" class="button button-small">Reset PIN</button>
                                     </form>
 

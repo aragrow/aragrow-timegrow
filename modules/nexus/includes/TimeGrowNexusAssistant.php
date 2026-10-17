@@ -842,6 +842,9 @@ RULES;
     /** AJAX timegrow_voice_create: add a client or project the person confirmed in the chat. */
     public static function handle_create() {
         check_ajax_referer(self::NONCE, 'nonce');
+        if (!TimeGrowNexusVoice::mobile_allowed()) {
+            wp_send_json_error(['message' => __('The voice assistant is not turned on for you in the mobile app.', 'timegrow')], 403);
+        }
         $type   = sanitize_key($_POST['type'] ?? '');
         $values = json_decode(wp_unslash($_POST['values'] ?? '{}'), true);
         $values = is_array($values) ? $values : [];
