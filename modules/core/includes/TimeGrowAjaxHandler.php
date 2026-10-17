@@ -126,11 +126,13 @@ class TimeGrow_Ajax_Handler {
         $confidence = (float) ($analysis['confidence'] ?? 0);
         $low        = $confidence < $threshold;
 
-        $message = !empty($analysis['suspicious'])
+        $message = !empty($analysis['refund'])
+            ? 'This receipt is a refund or return, so the amount was left blank. Record the refund yourself, for example by editing the original expense.'
+            : (!empty($analysis['suspicious'])
             ? 'The receipt has text that reads like instructions to the AI. That text was ignored. Check every field before saving.'
             : ($low
                 ? sprintf('AI confidence is only %d%% (threshold %d%%). Check every field before saving.', round($confidence * 100), round($threshold * 100))
-                : sprintf('Receipt analyzed with %d%% confidence', round($confidence * 100)));
+                : sprintf('Receipt analyzed with %d%% confidence', round($confidence * 100))));
         if (class_exists('TimeGrowAILog')) {
             // What the person was shown, then the reading is closed
             TimeGrowAILog::say('assistant', $message . sprintf(' Filled in: %s, %s, %s.', $analysis['expense_name'] ?? '', $analysis['amount'] ?? 0, $analysis['expense_date'] ?? ''));
@@ -149,6 +151,7 @@ class TimeGrow_Ajax_Handler {
             'threshold'           => $threshold,
             'low_confidence'      => $low,
             'suspicious'          => !empty($analysis['suspicious']),
+            'refund'              => !empty($analysis['refund']),
             'token_usage'         => $analysis['token_usage'] ?? null,
             'model_used'          => $analysis['model_used'] ?? null,
             'file_url'            => $upload['url'], // the file's location on the server is not sent

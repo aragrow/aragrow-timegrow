@@ -57,4 +57,32 @@ class ReceiptReaderTest extends TestCase {
         $this->assertSame( 1.0, $f['confidence'] );
         $this->assertSame( 0.0, $f['amount'] );
     }
+
+    public function test_headings_are_not_offered_as_categories() {
+        $rows = [
+            (object) [ 'ID' => 1, 'slug' => 'schedule_c_part_ii', 'name' => 'Schedule C - Part II', 'parent_id' => null, 'schedule_c_part' => 'Part II' ],
+            (object) [ 'ID' => 13, 'slug' => 'office_expense', 'name' => 'Office Expense', 'parent_id' => '1', 'schedule_c_part' => 'Part II' ],
+            (object) [ 'ID' => 24, 'slug' => 'schedule_c_part_v', 'name' => 'Schedule C - Part V', 'parent_id' => null, 'schedule_c_part' => 'Part V' ],
+            (object) [ 'ID' => 25, 'slug' => 'online_web_fees', 'name' => 'Online Web Fees', 'parent_id' => '24', 'schedule_c_part' => 'Part V' ],
+        ];
+        $cats = TimeGrowAIReceiptAnalyzer::usable_categories( $rows );
+        $this->assertSame( [ 13, 25 ], array_column( $cats, 'id' ) );
+        $this->assertSame( [ 'part_ii', 'part_v' ], array_column( $cats, 'section' ), 'Part II and Part V are read from schedule_c_part' );
+    }
+
+    public function test_a_refund_leaves_the_amount_for_the_person() {
+        $f = TimeGrowAIReceiptAnalyzer::fields_from_answer( [ 'amount' => null, 'vendor' => 'Best Buy', 'description' => 'USB-C Hub', 'refund' => true, 'confidence' => 0.95 ], $this->categories );
+        $this->assertTrue( $f['refund'] );
+        $this->assertSame( 0.0, $f['amount'] );
+        $this->assertSame( 'Refund: USB-C Hub', $f['expense_description'] );
+        $this->assertLessThanOrEqual( 0.3, $f['confidence'] );
+        $this->assertTrue( TimeGrowAIReceiptAnalyzer::fields_from_answer( [ 'amount' => -53.61 ], $this->categories )['refund'], 'a negative total is a refund too' );
+    }
+
+    public function test_text_addressed_to_the_ai_is_flagged() {
+        $f = TimeGrowAIReceiptAnalyzer::fields_from_answer( [ 'amount' => 19.84, 'vendor' => 'FedEx Office', 'instructions_found' => true, 'confidence' => 0.95 ], $this->categories );
+        $this->assertTrue( $f['suspicious'] );
+        $this->assertLessThanOrEqual( 0.3, $f['confidence'] );
+        $this->assertSame( 19.84, $f['amount'], 'the real total is kept' );
+    }
 }
