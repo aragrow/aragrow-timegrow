@@ -126,6 +126,8 @@ class TimeGrowMobile {
             $admin_role->add_cap('access_mobile_only_mode');
             $admin_role->add_cap('access_mobile_time_tracking');
             $admin_role->add_cap('access_mobile_expenses');
+            $admin_role->add_cap('access_mobile_ai_voice');
+            $admin_role->add_cap('access_mobile_ai_receipts');
         }
     }
 
@@ -134,6 +136,7 @@ class TimeGrowMobile {
      */
     private static function load_dependencies() {
         // Load model
+        require_once TIMEGROW_MOBILE_INCLUDES_DIR . 'TimeGrowMobileAccess.php'; // who may use TimeGrow remotely
         require_once TIMEGROW_MOBILE_INCLUDES_DIR . 'models/TimeGrowMobilePINModel.php';
 
         // Load authenticator
@@ -257,18 +260,25 @@ class TimeGrowMobile {
     }
 
     /**
-     * Add mobile access admin menu
+     * Mobile Access page: not in the menu, opened from its card on TimeGrow > Settings.
      */
     public static function add_admin_menu() {
         if (current_user_can('administrator')) {
             add_submenu_page(
-                TIMEGROW_PARENT_MENU, // shown in the TimeGrow menu
+                null, // hidden from the menu: TimeGrow > Settings > Mobile Access card
                 'Mobile Access',
                 'Mobile Access',
                 'manage_options',
                 'timegrow-mobile-settings',
                 [__CLASS__, 'render_settings_page']
             );
+            // Keep TimeGrow > Settings highlighted while on this page
+            add_filter('parent_file', function ($parent) {
+                return (($_GET['page'] ?? '') === 'timegrow-mobile-settings') ? TIMEGROW_PARENT_MENU : $parent;
+            });
+            add_filter('submenu_file', function ($file) {
+                return (($_GET['page'] ?? '') === 'timegrow-mobile-settings') ? TIMEGROW_PARENT_MENU . '-settings' : $file;
+            });
         }
     }
 

@@ -740,12 +740,16 @@ class TimeGrowSettings {
                     </div>
                     <div class="timegrow-card-body">
                         <p class="timegrow-card-description">
-                            <?php esc_html_e('Mobile login with a PIN for team members, and text message alerts.', 'timegrow'); ?>
+                            <?php esc_html_e('Mobile login with a PIN for administrators and team members, what each person can use on mobile, and text message alerts.', 'timegrow'); ?>
                         </p>
                         <div class="timegrow-features">
                             <div class="timegrow-feature-badge">
                                 <span class="dashicons dashicons-lock"></span>
                                 <span><?php esc_html_e('PIN login', 'timegrow'); ?></span>
+                            </div>
+                            <div class="timegrow-feature-badge">
+                                <span class="dashicons dashicons-microphone"></span>
+                                <span><?php esc_html_e('AI Voice and AI Receipt Reader', 'timegrow'); ?></span>
                             </div>
                             <div class="timegrow-feature-badge">
                                 <span class="dashicons dashicons-email"></span>
