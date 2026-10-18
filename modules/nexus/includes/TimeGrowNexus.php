@@ -95,7 +95,7 @@ class TimeGrowNexus{
         );
 
         add_submenu_page(
-            null,
+            TIMEGROW_PARENT_MENU, // in the menu, under Work (TimeFlies_Admin_Menu orders it)
             __('Reports', 'timegrow'),         // Page title
             __('Reports', 'timegrow'),         // Menu title
             'access_nexus_view_reports',
