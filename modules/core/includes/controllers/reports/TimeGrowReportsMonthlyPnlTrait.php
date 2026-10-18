@@ -235,15 +235,6 @@ trait TimeGrowReportsMonthlyPnlTrait {
         $company_name = get_bloginfo('name');
         $company_tagline = get_bloginfo('description');
 
-        // Report Header
-        echo '<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; margin-bottom: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">';
-        echo '<h1 style="margin: 0 0 10px 0; font-size: 36px; color: white; text-align: center; font-weight: bold;">📊 Monthly Profit & Loss Report ' . esc_html($selected_year) . '</h1>';
-        echo '<p style="margin: 0; font-size: 18px; text-align: center; color: #f0f0f0;">' . esc_html($company_name) . '</p>';
-        if (!empty($company_tagline)) {
-            echo '<p style="margin: 5px 0 0 0; font-size: 14px; text-align: center; color: #e0e0e0;">' . esc_html($company_tagline) . '</p>';
-        }
-        echo '<p style="margin: 10px 0 0 0; font-size: 12px; text-align: center; color: #d0d0d0;">Generated on ' . date('F j, Y') . '</p>';
-        echo '</div>';
 
         // Year selector form
         echo '<div class="pnl-report-controls" style="margin-bottom: 20px; padding: 15px; background: #f9f9f9; border: 1px solid #ddd; border-radius: 4px;">';
@@ -265,8 +256,37 @@ trait TimeGrowReportsMonthlyPnlTrait {
         echo '</div>';
         echo '</div>';
 
+        // Same layout as the Personal Productivity reports: who and when on one line (kept for printing)
+        echo '<p class="timegrow-report-meta" style="margin: 0 0 20px 0; color: #555;"><strong>' . esc_html(sprintf(__('Year %s', 'timegrow'), $selected_year)) . '</strong> · '
+            . esc_html($company_name) . (!empty($company_tagline) ? ' · ' . esc_html($company_tagline) : '')
+            . ' · ' . esc_html(sprintf(__('Generated on %s', 'timegrow'), date_i18n('F j, Y'))) . '</p>';
+
         // Get monthly data
         $monthly_data = $this->get_monthly_pnl_data($selected_year);
+
+        // Summary cards, like the other reports
+        $sum_income   = array_sum(array_map('floatval', (array) $monthly_data['income']['invoices']));
+        $sum_expenses = 0;
+        foreach ((array) $monthly_data['expenses'] as $parent_data) {
+            foreach ((array) ($parent_data['categories'] ?? []) as $months) {
+                $sum_expenses += array_sum(array_map('floatval', (array) $months));
+            }
+        }
+        $sum_net = $sum_income - $sum_expenses;
+        $cards = [
+            ['Total Income', '$' . number_format($sum_income, 2), '#e8f5e9', '#2e7d32'],
+            ['Total Expenses', '$' . number_format($sum_expenses, 2), '#fff3e0', '#e65100'],
+            ['Net Profit', ($sum_net < 0 ? '-$' : '$') . number_format(abs($sum_net), 2), $sum_net < 0 ? '#fce4ec' : '#e3f2fd', $sum_net < 0 ? '#c2185b' : '#1565c0'],
+            ['Profit Margin', $sum_income > 0 ? number_format($sum_net / $sum_income * 100, 1) . '%' : '—', '#f3e5f5', '#7b1fa2'],
+        ];
+        echo '<div class="tax-report-summary" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 30px;">';
+        foreach ($cards as [$label, $value, $bg, $color]) {
+            echo '<div class="summary-card" style="background: ' . $bg . '; padding: 20px; border-radius: 5px; text-align: center;">';
+            echo '<h3 style="margin: 0 0 10px 0; color: ' . $color . ';">' . esc_html($label) . '</h3>';
+            echo '<p style="font-size: 24px; font-weight: bold; margin: 0;">' . esc_html($value) . '</p>';
+            echo '</div>';
+        }
+        echo '</div>';
 
         // Debug output
         if (timegrow_debug()):

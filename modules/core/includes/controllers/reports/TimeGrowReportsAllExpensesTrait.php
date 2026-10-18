@@ -172,6 +172,8 @@ trait TimeGrowReportsAllExpensesTrait {
 
             <!-- Filters -->
             <div class="tax-report-controls" style="margin-bottom: 20px; padding: 15px; background: #f9f9f9; border: 1px solid #ddd; border-radius: 4px;">
+                <?php TimeGrowDateRanges::render(array_filter(['page' => sanitize_key($_GET['page']), 'report_slug' => 'all_expenses_overview',
+                    'filter_category' => $filter_category, 'filter_payment_method' => $filter_payment_method, 'filter_assigned_to' => $filter_assigned_to], 'strlen'), $start_date, $end_date); // keeps the other filters ?>
                 <form method="get" action="<?php echo esc_url(admin_url('admin.php')); ?>" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
                     <input type="hidden" name="page" value="<?php echo esc_attr($_GET['page']); ?>" />
                     <input type="hidden" name="report_slug" value="all_expenses_overview" />
@@ -191,8 +193,8 @@ trait TimeGrowReportsAllExpensesTrait {
                         <select name="filter_category" id="filter_category" style="width: 100%; padding: 8px 12px;">
                             <option value="">All Categories</option>
                             <?php foreach ($all_categories as $cat): ?>
-                                <option value="<?php echo esc_attr($cat); ?>" <?php selected($filter_category, $cat); ?>>
-                                    <?php echo esc_html(ucfirst($cat)); ?>
+                                <option value="<?php echo esc_attr($cat->slug); ?>" <?php selected($filter_category, $cat->slug); ?>>
+                                    <?php echo esc_html($cat->name); ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
@@ -242,8 +244,8 @@ trait TimeGrowReportsAllExpensesTrait {
 
             <!-- Summary Cards -->
             <div class="tax-report-summary" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 30px;">
-                <div class="summary-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 5px; text-align: center; color: white;">
-                    <h3 style="margin: 0 0 10px 0; color: white;">Total Expenses</h3>
+                <div class="summary-card" style="background: #ede7f6; padding: 20px; border-radius: 5px; text-align: center;">
+                    <h3 style="margin: 0 0 10px 0; color: #512da8;">Total Expenses</h3>
                     <p style="font-size: 28px; font-weight: bold; margin: 0;">$<?php echo number_format($total_amount, 2); ?></p>
                 </div>
 

@@ -72,7 +72,7 @@ trait TimeGrowReportsMyExpensesTrait {
 
             $user_projects_query = $wpdb->prepare(
                 "SELECT DISTINCT project_id FROM {$time_entry_table} WHERE member_id = %d",
-                $current_user->ID
+                TimeGrowTimeEntryRules::member_id(0) // the team member's ID, not the WordPress user ID
             );
             $user_projects = $wpdb->get_col($user_projects_query);
 
@@ -149,6 +149,7 @@ trait TimeGrowReportsMyExpensesTrait {
 
             <!-- Date Range Filter -->
             <div class="tax-report-controls" style="margin-bottom: 20px; padding: 15px; background: #f9f9f9; border: 1px solid #ddd; border-radius: 4px;">
+                <?php TimeGrowDateRanges::render(['page' => sanitize_key($_GET['page']), 'report_slug' => 'my_expenses_report'], $start_date, $end_date); ?>
                 <form method="get" action="<?php echo esc_url(admin_url('admin.php')); ?>" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
                     <input type="hidden" name="page" value="<?php echo esc_attr($_GET['page']); ?>" />
                     <input type="hidden" name="report_slug" value="my_expenses_report" />
@@ -318,7 +319,7 @@ trait TimeGrowReportsMyExpensesTrait {
             $time_entry_table = $wpdb->prefix . TIMEGROW_PREFIX . 'time_entry_tracker';
             $user_projects_query = $wpdb->prepare(
                 "SELECT DISTINCT project_id FROM {$time_entry_table} WHERE member_id = %d",
-                $current_user->ID
+                TimeGrowTimeEntryRules::member_id(0) // the team member's ID, not the WordPress user ID
             );
             $user_projects = $wpdb->get_col($user_projects_query);
 
@@ -430,7 +431,7 @@ trait TimeGrowReportsMyExpensesTrait {
             $time_entry_table = $wpdb->prefix . TIMEGROW_PREFIX . 'time_entry_tracker';
             $user_projects_query = $wpdb->prepare(
                 "SELECT DISTINCT project_id FROM {$time_entry_table} WHERE member_id = %d",
-                $current_user->ID
+                TimeGrowTimeEntryRules::member_id(0) // the team member's ID, not the WordPress user ID
             );
             $user_projects = $wpdb->get_col($user_projects_query);
 

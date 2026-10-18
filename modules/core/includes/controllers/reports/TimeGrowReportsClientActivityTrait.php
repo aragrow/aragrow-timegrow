@@ -142,11 +142,11 @@ trait TimeGrowReportsClientActivityTrait {
         if (!empty($start_date) || !empty($end_date)) {
             $query .= " AND (1=1";
             if (!empty($start_date)) {
-                $query .= " AND COALESCE(te.date, DATE(te.clock_in_date)) >= %s";
+                $query .= " AND COALESCE(DATE(te.date), DATE(te.clock_in_date)) >= %s";
                 $params[] = $start_date;
             }
             if (!empty($end_date)) {
-                $query .= " AND COALESCE(te.date, DATE(te.clock_in_date)) <= %s";
+                $query .= " AND COALESCE(DATE(te.date), DATE(te.clock_in_date)) <= %s";
                 $params[] = $end_date;
             }
             $query .= ")";
@@ -226,6 +226,7 @@ trait TimeGrowReportsClientActivityTrait {
 
             <!-- Filters -->
             <div class="tax-report-controls" style="margin-bottom: 20px; padding: 15px; background: #f9f9f9; border: 1px solid #ddd; border-radius: 4px;">
+                <?php TimeGrowDateRanges::render(array_filter(['page' => sanitize_key($_GET['page']), 'report_slug' => 'client_activity_summary', 'filter_client' => $filter_client]), $start_date, $end_date); // keeps the client filter ?>
                 <form method="get" action="<?php echo esc_url(admin_url('admin.php')); ?>" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
                     <input type="hidden" name="page" value="<?php echo esc_attr($_GET['page']); ?>" />
                     <input type="hidden" name="report_slug" value="client_activity_summary" />
@@ -264,8 +265,8 @@ trait TimeGrowReportsClientActivityTrait {
 
             <!-- Summary Cards -->
             <div class="tax-report-summary" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 30px;">
-                <div class="summary-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 5px; text-align: center; color: white;">
-                    <h3 style="margin: 0 0 10px 0; color: white;">Active Clients</h3>
+                <div class="summary-card" style="background: #ede7f6; padding: 20px; border-radius: 5px; text-align: center;">
+                    <h3 style="margin: 0 0 10px 0; color: #512da8;">Active Clients</h3>
                     <p style="font-size: 28px; font-weight: bold; margin: 0;"><?php echo count($results); ?></p>
                 </div>
 
@@ -418,7 +419,7 @@ trait TimeGrowReportsClientActivityTrait {
                         te.*,
                         p.name as project_name,
                         m.name as member_name,
-                        COALESCE(te.date, DATE(te.clock_in_date)) as entry_date,
+                        COALESCE(DATE(te.date), DATE(te.clock_in_date)) as entry_date,
                         CASE
                             WHEN te.hours IS NOT NULL AND te.hours > 0 THEN te.hours
                             WHEN te.clock_in_date IS NOT NULL AND te.clock_out_date IS NOT NULL
@@ -439,12 +440,12 @@ trait TimeGrowReportsClientActivityTrait {
         $time_params = [$client_id];
 
         if (!empty($start_date)) {
-            $time_query .= " AND COALESCE(te.date, DATE(te.clock_in_date)) >= %s";
+            $time_query .= " AND COALESCE(DATE(te.date), DATE(te.clock_in_date)) >= %s";
             $time_params[] = $start_date;
         }
 
         if (!empty($end_date)) {
-            $time_query .= " AND COALESCE(te.date, DATE(te.clock_in_date)) <= %s";
+            $time_query .= " AND COALESCE(DATE(te.date), DATE(te.clock_in_date)) <= %s";
             $time_params[] = $end_date;
         }
 
@@ -779,11 +780,11 @@ trait TimeGrowReportsClientActivityTrait {
         if (!empty($start_date) || !empty($end_date)) {
             $query .= " AND (1=1";
             if (!empty($start_date)) {
-                $query .= " AND COALESCE(te.date, DATE(te.clock_in_date)) >= %s";
+                $query .= " AND COALESCE(DATE(te.date), DATE(te.clock_in_date)) >= %s";
                 $params[] = $start_date;
             }
             if (!empty($end_date)) {
-                $query .= " AND COALESCE(te.date, DATE(te.clock_in_date)) <= %s";
+                $query .= " AND COALESCE(DATE(te.date), DATE(te.clock_in_date)) <= %s";
                 $params[] = $end_date;
             }
             $query .= ")";

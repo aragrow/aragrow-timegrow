@@ -407,14 +407,10 @@ trait TimeGrowReportsYearlyTaxTrait {
         $company_name = get_bloginfo('name');
         $company_tagline = get_bloginfo('description');
 
-        echo '<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; margin-bottom: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">';
-        echo '<h1 style="margin: 0 0 10px 0; font-size: 36px; color: white; text-align: center; font-weight: bold;">📊 Annual Tax Report ' . esc_html($selected_year) . '</h1>';
-        echo '<p style="margin: 0; font-size: 18px; text-align: center; color: #f0f0f0;">' . esc_html($company_name) . '</p>';
-        if (!empty($company_tagline)) {
-            echo '<p style="margin: 5px 0 0 0; font-size: 14px; text-align: center; color: #e0e0e0; font-style: italic;">' . esc_html($company_tagline) . '</p>';
-        }
-        echo '<p style="margin: 15px 0 0 0; font-size: 12px; text-align: center; color: #f0f0f0; opacity: 0.9;">Generated on ' . date('F j, Y \a\t g:i A') . '</p>';
-        echo '</div>';
+        // Same layout as the Personal Productivity reports: who and when on one line (kept for printing)
+        echo '<p class="timegrow-report-meta" style="margin: 0 0 20px 0; color: #555;"><strong>' . esc_html(sprintf(__('Tax year %s', 'timegrow'), $selected_year)) . '</strong> · '
+            . esc_html($company_name) . (!empty($company_tagline) ? ' · ' . esc_html($company_tagline) : '')
+            . ' · ' . esc_html(sprintf(__('Generated on %s', 'timegrow'), date_i18n('F j, Y g:i A'))) . '</p>';
 
         // Display summary
         echo '<div class="tax-report-summary" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 30px;">';
@@ -759,6 +755,7 @@ trait TimeGrowReportsYearlyTaxTrait {
      * Export yearly tax report to PDF
      */
     private function export_yearly_tax_report_pdf($year, $time_entries, $expenses, $total_hours, $total_billable_hours, $total_expenses, $invoices, $total_invoice_amount) {
+        self::begin_download(); // this report prints its page before exporting
         // Check if DomPDF is available (optional, can be installed via composer)
         // For now, we'll use a simple HTML approach that works with wkhtmltopdf or browser print
 
@@ -1088,6 +1085,7 @@ trait TimeGrowReportsYearlyTaxTrait {
      * Export yearly tax report to CSV
      */
     private function export_yearly_tax_report_csv($year, $expenses, $invoices) {
+        self::begin_download(); // this report prints its page before exporting
         $filename = 'tax_report_' . $year . '_' . date('Y-m-d') . '.csv';
 
         header('Content-Type: text/csv');

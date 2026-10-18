@@ -78,17 +78,17 @@ trait TimeGrowReportsMyHoursTrait {
         // Filter by member_id only if not administrator
         if (!current_user_can('administrator')) {
             $query .= " AND te.member_id = %d";
-            $params[] = $current_user->ID;
+            $params[] = TimeGrowTimeEntryRules::member_id(0); // the team member's ID, not the WordPress user ID
         }
 
         // Add date filters if provided
         if (!empty($start_date)) {
-            $query .= " AND COALESCE(te.date, DATE(te.clock_in_date)) >= %s";
+            $query .= " AND COALESCE(DATE(te.date), DATE(te.clock_in_date)) >= %s";
             $params[] = $start_date;
         }
 
         if (!empty($end_date)) {
-            $query .= " AND COALESCE(te.date, DATE(te.clock_in_date)) <= %s";
+            $query .= " AND COALESCE(DATE(te.date), DATE(te.clock_in_date)) <= %s";
             $params[] = $end_date;
         }
 
@@ -128,6 +128,7 @@ trait TimeGrowReportsMyHoursTrait {
             <?php endif; ?>
             <!-- Date Range Filter -->
             <div class="tax-report-controls" style="margin-bottom: 20px; padding: 15px; background: #f9f9f9; border: 1px solid #ddd; border-radius: 4px;">
+                <?php TimeGrowDateRanges::render(['page' => sanitize_key($_GET['page']), 'report_slug' => 'my_hours_by_project'], $start_date, $end_date); ?>
                 <form method="get" action="<?php echo esc_url(admin_url('admin.php')); ?>" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
                     <input type="hidden" name="page" value="<?php echo esc_attr($_GET['page']); ?>" />
                     <input type="hidden" name="report_slug" value="my_hours_by_project" />
@@ -254,9 +255,9 @@ trait TimeGrowReportsMyHoursTrait {
     private function export_my_hours_by_project_csv($current_user) {
         global $wpdb;
 
-        $time_entry_table = $wpdb->prefix . 'timegrow_time_entries';
-        $project_table = $wpdb->prefix . 'timegrow_projects';
-        $client_table = $wpdb->prefix . 'timegrow_clients';
+        $time_entry_table = $wpdb->prefix . TIMEGROW_PREFIX . 'time_entry_tracker';
+        $project_table = $wpdb->prefix . TIMEGROW_PREFIX . 'project_tracker';
+        $client_table = $wpdb->prefix . 'users'; // Clients are stored in WordPress users table
 
         $start_date = isset($_GET['start_date']) ? sanitize_text_field($_GET['start_date']) : '';
         $end_date = isset($_GET['end_date']) ? sanitize_text_field($_GET['end_date']) : '';
@@ -296,16 +297,16 @@ trait TimeGrowReportsMyHoursTrait {
 
         if (!current_user_can('administrator')) {
             $query .= " AND te.member_id = %d";
-            $params[] = $current_user->ID;
+            $params[] = TimeGrowTimeEntryRules::member_id(0); // the team member's ID, not the WordPress user ID
         }
 
         if (!empty($start_date)) {
-            $query .= " AND COALESCE(te.date, DATE(te.clock_in_date)) >= %s";
+            $query .= " AND COALESCE(DATE(te.date), DATE(te.clock_in_date)) >= %s";
             $params[] = $start_date;
         }
 
         if (!empty($end_date)) {
-            $query .= " AND COALESCE(te.date, DATE(te.clock_in_date)) <= %s";
+            $query .= " AND COALESCE(DATE(te.date), DATE(te.clock_in_date)) <= %s";
             $params[] = $end_date;
         }
 
@@ -390,9 +391,9 @@ trait TimeGrowReportsMyHoursTrait {
     private function export_my_hours_by_project_pdf($current_user) {
         global $wpdb;
 
-        $time_entry_table = $wpdb->prefix . 'timegrow_time_entries';
-        $project_table = $wpdb->prefix . 'timegrow_projects';
-        $client_table = $wpdb->prefix . 'timegrow_clients';
+        $time_entry_table = $wpdb->prefix . TIMEGROW_PREFIX . 'time_entry_tracker';
+        $project_table = $wpdb->prefix . TIMEGROW_PREFIX . 'project_tracker';
+        $client_table = $wpdb->prefix . 'users'; // Clients are stored in WordPress users table
 
         $start_date = isset($_GET['start_date']) ? sanitize_text_field($_GET['start_date']) : '';
         $end_date = isset($_GET['end_date']) ? sanitize_text_field($_GET['end_date']) : '';
@@ -432,16 +433,16 @@ trait TimeGrowReportsMyHoursTrait {
 
         if (!current_user_can('administrator')) {
             $query .= " AND te.member_id = %d";
-            $params[] = $current_user->ID;
+            $params[] = TimeGrowTimeEntryRules::member_id(0); // the team member's ID, not the WordPress user ID
         }
 
         if (!empty($start_date)) {
-            $query .= " AND COALESCE(te.date, DATE(te.clock_in_date)) >= %s";
+            $query .= " AND COALESCE(DATE(te.date), DATE(te.clock_in_date)) >= %s";
             $params[] = $start_date;
         }
 
         if (!empty($end_date)) {
-            $query .= " AND COALESCE(te.date, DATE(te.clock_in_date)) <= %s";
+            $query .= " AND COALESCE(DATE(te.date), DATE(te.clock_in_date)) <= %s";
             $params[] = $end_date;
         }
 

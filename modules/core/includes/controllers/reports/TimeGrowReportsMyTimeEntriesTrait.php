@@ -49,7 +49,7 @@ trait TimeGrowReportsMyTimeEntriesTrait {
                     te.billable,
                     te.billed,
                     te.description,
-                    COALESCE(te.date, DATE(te.clock_in_date)) as entry_date,
+                    COALESCE(DATE(te.date), DATE(te.clock_in_date)) as entry_date,
                     CASE
                         WHEN te.hours IS NOT NULL AND te.hours > 0 THEN te.hours
                         WHEN te.clock_in_date IS NOT NULL AND te.clock_out_date IS NOT NULL
@@ -73,17 +73,17 @@ trait TimeGrowReportsMyTimeEntriesTrait {
         // Filter by member_id only if not administrator
         if (!current_user_can('administrator')) {
             $query .= " AND te.member_id = %d";
-            $params[] = $current_user->ID;
+            $params[] = TimeGrowTimeEntryRules::member_id(0); // the team member's ID, not the WordPress user ID
         }
 
         // Add date filters if provided
         if (!empty($start_date)) {
-            $query .= " AND COALESCE(te.date, DATE(te.clock_in_date)) >= %s";
+            $query .= " AND COALESCE(DATE(te.date), DATE(te.clock_in_date)) >= %s";
             $params[] = $start_date;
         }
 
         if (!empty($end_date)) {
-            $query .= " AND COALESCE(te.date, DATE(te.clock_in_date)) <= %s";
+            $query .= " AND COALESCE(DATE(te.date), DATE(te.clock_in_date)) <= %s";
             $params[] = $end_date;
         }
 
@@ -138,6 +138,7 @@ trait TimeGrowReportsMyTimeEntriesTrait {
 
             <!-- Date Range Filter -->
             <div class="tax-report-controls" style="margin-bottom: 20px; padding: 15px; background: #f9f9f9; border: 1px solid #ddd; border-radius: 4px;">
+                <?php TimeGrowDateRanges::render(['page' => sanitize_key($_GET['page']), 'report_slug' => 'my_time_entries_detailed'], $start_date, $end_date); ?>
                 <form method="get" action="<?php echo esc_url(admin_url('admin.php')); ?>" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
                     <input type="hidden" name="page" value="<?php echo esc_attr($_GET['page']); ?>" />
                     <input type="hidden" name="report_slug" value="my_time_entries_detailed" />
@@ -303,7 +304,7 @@ trait TimeGrowReportsMyTimeEntriesTrait {
                     te.billable,
                     te.billed,
                     te.description,
-                    COALESCE(te.date, DATE(te.clock_in_date)) as entry_date,
+                    COALESCE(DATE(te.date), DATE(te.clock_in_date)) as entry_date,
                     CASE
                         WHEN te.hours IS NOT NULL AND te.hours > 0 THEN te.hours
                         WHEN te.clock_in_date IS NOT NULL AND te.clock_out_date IS NOT NULL
@@ -323,16 +324,16 @@ trait TimeGrowReportsMyTimeEntriesTrait {
 
         if (!current_user_can('administrator')) {
             $query .= " AND te.member_id = %d";
-            $params[] = $current_user->ID;
+            $params[] = TimeGrowTimeEntryRules::member_id(0); // the team member's ID, not the WordPress user ID
         }
 
         if (!empty($start_date)) {
-            $query .= " AND COALESCE(te.date, DATE(te.clock_in_date)) >= %s";
+            $query .= " AND COALESCE(DATE(te.date), DATE(te.clock_in_date)) >= %s";
             $params[] = $start_date;
         }
 
         if (!empty($end_date)) {
-            $query .= " AND COALESCE(te.date, DATE(te.clock_in_date)) <= %s";
+            $query .= " AND COALESCE(DATE(te.date), DATE(te.clock_in_date)) <= %s";
             $params[] = $end_date;
         }
 
@@ -408,7 +409,7 @@ trait TimeGrowReportsMyTimeEntriesTrait {
                     te.billable,
                     te.billed,
                     te.description,
-                    COALESCE(te.date, DATE(te.clock_in_date)) as entry_date,
+                    COALESCE(DATE(te.date), DATE(te.clock_in_date)) as entry_date,
                     CASE
                         WHEN te.hours IS NOT NULL AND te.hours > 0 THEN te.hours
                         WHEN te.clock_in_date IS NOT NULL AND te.clock_out_date IS NOT NULL
@@ -430,16 +431,16 @@ trait TimeGrowReportsMyTimeEntriesTrait {
 
         if (!current_user_can('administrator')) {
             $query .= " AND te.member_id = %d";
-            $params[] = $current_user->ID;
+            $params[] = TimeGrowTimeEntryRules::member_id(0); // the team member's ID, not the WordPress user ID
         }
 
         if (!empty($start_date)) {
-            $query .= " AND COALESCE(te.date, DATE(te.clock_in_date)) >= %s";
+            $query .= " AND COALESCE(DATE(te.date), DATE(te.clock_in_date)) >= %s";
             $params[] = $start_date;
         }
 
         if (!empty($end_date)) {
-            $query .= " AND COALESCE(te.date, DATE(te.clock_in_date)) <= %s";
+            $query .= " AND COALESCE(DATE(te.date), DATE(te.clock_in_date)) <= %s";
             $params[] = $end_date;
         }
 
