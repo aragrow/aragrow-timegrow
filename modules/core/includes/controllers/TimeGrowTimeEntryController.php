@@ -40,8 +40,14 @@ class TimeGrowTimeEntryController{
             'billed'          => isset($_POST['billed']) ? 1 : 0,
             'description'     => sanitize_textarea_field($_POST['description']),
             'entry_type'      => sanitize_text_field($_POST['entry_type']),
-            'updated_at'      => current_time('mysql')
+            'updated_at'      => current_time('mysql'),
+            'status'          => (isset($_POST['status']) && (string) $_POST['status'] === '0') ? 0 : 1,
         ];
+        $problem = TimeGrowTimeEntryModel::status_problem($data['status'], $data['billed']);
+        if ($problem !== '') {
+            echo '<div class="notice notice-error is-dismissible"><p>' . esc_html($problem) . '</p></div>';
+            $data['status'] = 1;
+        }
        
         if ($data['entry_type'] == 'MAN') {
             $data['date'] = sanitize_text_field($_POST['date']);
@@ -63,6 +69,7 @@ class TimeGrowTimeEntryController{
             '%s',   // description (string)
             '%s',   // entry_type (string)
             '%s',   // updated_at (datetime string)
+            '%d',   // status (1 active, 0 inactive)
             '%s',   // date (string )
             '%f',   // hours (float)
             '%s',   // clock_in_date (string)
@@ -112,7 +119,21 @@ class TimeGrowTimeEntryController{
         $filter_billable = isset($_GET['filter_billable']) ? sanitize_text_field($_GET['filter_billable']) : '';
         $filter_billed = isset($_GET['filter_billed']) ? sanitize_text_field($_GET['filter_billed']) : '';
         $filter_entry_type = isset($_GET['filter_entry_type']) ? sanitize_text_field($_GET['filter_entry_type']) : '';
+        $filter_status = isset($_GET['filter_status']) && in_array((string) $_GET['filter_status'], ['0', '1'], true) ? (string) $_GET['filter_status'] : '';
         $filter_search = isset($_GET['s']) ? sanitize_text_field($_GET['s']) : '';
+        // Date range (the quick ranges set both): the day worked, or the clock-in day
+        $valid_day = function ($key) {
+            $v = isset($_GET[$key]) ? sanitize_text_field($_GET[$key]) : '';
+            return preg_match('/^\d{4}-\d{2}-\d{2}$/', $v) ? $v : '';
+        };
+        $start_date = $valid_day('start_date');
+        $end_date   = $valid_day('end_date');
+        if ($start_date !== '') {
+            $where_conditions[] = $wpdb->prepare('COALESCE(DATE(te.date), DATE(te.clock_in_date)) >= %s', $start_date);
+        }
+        if ($end_date !== '') {
+            $where_conditions[] = $wpdb->prepare('COALESCE(DATE(te.date), DATE(te.clock_in_date)) <= %s', $end_date);
+        }
 
         if (!empty($filter_search)) {
             $search_term = '%' . $wpdb->esc_like($filter_search) . '%';
@@ -130,14 +151,17 @@ class TimeGrowTimeEntryController{
         if (!empty($filter_member)) {
             $where_conditions[] = $wpdb->prepare("te.member_id = %d", intval($filter_member));
         }
-        if (!empty($filter_billable)) {
+        if ($filter_billable !== '') {
             $where_conditions[] = $wpdb->prepare("te.billable = %d", intval($filter_billable));
         }
-        if (!empty($filter_billed)) {
+        if ($filter_billed !== '') {
             $where_conditions[] = $wpdb->prepare("te.billed = %d", intval($filter_billed));
         }
         if (!empty($filter_entry_type)) {
             $where_conditions[] = $wpdb->prepare("te.entry_type = %s", $filter_entry_type);
+        }
+        if ($filter_status !== '') {
+            $where_conditions[] = $wpdb->prepare('te.status = %d', (int) $filter_status);
         }
 
         // Get orderby and order parameters
@@ -145,7 +169,7 @@ class TimeGrowTimeEntryController{
         $order = isset($_GET['order']) ? sanitize_text_field($_GET['order']) : 'DESC';
 
         // Validate orderby column
-        $allowed_orderby = ['date', 'project_name', 'client_name', 'member_name', 'hours', 'billable', 'billed'];
+        $allowed_orderby = ['date', 'project_name', 'client_name', 'member_name', 'hours', 'billable', 'billed', 'status'];
         if (!in_array($orderby, $allowed_orderby)) {
             $orderby = 'date';
         }
@@ -158,7 +182,7 @@ class TimeGrowTimeEntryController{
 
         // Map orderby to actual column names
         $orderby_column = $orderby;
-        if ($orderby == 'date' || $orderby == 'hours' || $orderby == 'billable' || $orderby == 'billed') {
+        if ($orderby == 'date' || $orderby == 'hours' || $orderby == 'billable' || $orderby == 'billed' || $orderby == 'status') {
             $orderby_column = 'te.' . $orderby;
         } elseif ($orderby == 'project_name') {
             $orderby_column = 'p.name';
@@ -211,7 +235,10 @@ class TimeGrowTimeEntryController{
             'filter_billable' => $filter_billable,
             'filter_billed' => $filter_billed,
             'filter_entry_type' => $filter_entry_type,
-            'filter_search' => $filter_search
+            'filter_status' => $filter_status,
+            'filter_search' => $filter_search,
+            'start_date' => $start_date,
+            'end_date' => $end_date,
         ]);
     }
 

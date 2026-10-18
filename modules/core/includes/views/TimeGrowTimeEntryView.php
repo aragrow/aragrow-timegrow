@@ -19,7 +19,10 @@ class TimeGrowTimeEntryView {
             'filter_billable' => '',
             'filter_billed' => '',
             'filter_entry_type' => '',
-            'filter_search' => ''
+            'filter_status' => '',
+            'filter_search' => '',
+            'start_date' => '',
+            'end_date' => '',
         ], $current_filters);
 
         // Helper function for sortable column headers
@@ -31,8 +34,19 @@ class TimeGrowTimeEntryView {
 
         // Check if any filters are active
         $has_filters = !empty($current_filters['filter_project']) || !empty($current_filters['filter_client']) || !empty($current_filters['filter_member']) ||
-                       !empty($current_filters['filter_billable']) || !empty($current_filters['filter_billed']) ||
-                       !empty($current_filters['filter_entry_type']) || !empty($current_filters['filter_search']);
+                       (string) $current_filters['filter_billable'] !== '' || (string) $current_filters['filter_billed'] !== '' || (string) $current_filters['filter_status'] !== '' ||
+                       !empty($current_filters['filter_entry_type']) || !empty($current_filters['filter_search']) ||
+                       !empty($current_filters['start_date']) || !empty($current_filters['end_date']);
+        // The quick ranges keep the other filters and the sort
+        $range_base = array_filter([
+            'page' => TIMEGROW_PARENT_MENU . '-time-entries-list',
+            's' => $current_filters['filter_search'],
+            'filter_project' => $current_filters['filter_project'], 'filter_client' => $current_filters['filter_client'],
+            'filter_member' => $current_filters['filter_member'], 'filter_billable' => $current_filters['filter_billable'],
+            'filter_billed' => $current_filters['filter_billed'], 'filter_entry_type' => $current_filters['filter_entry_type'],
+            'filter_status' => $current_filters['filter_status'],
+            'orderby' => $current_filters['orderby'], 'order' => $current_filters['order'],
+        ], 'strlen');
         ?>
         <div class="wrap timegrow-page">
         <!-- Modern Header -->
@@ -53,10 +67,19 @@ class TimeGrowTimeEntryView {
             <br class="clear">
         </div>
 
-        <div class="tablenav top">
-            <div class="alignleft actions">
-                <input type="search" id="filter_search" name="s" value="<?php echo esc_attr($current_filters['filter_search']); ?>" placeholder="<?php esc_attr_e('Search time entries...', 'timegrow'); ?>">
-
+        <!-- Filters: quick ranges, then the filters with the keyword last -->
+        <div class="tg-te-filters">
+            <div class="tg-te-range-row">
+                <?php if (class_exists('TimeGrowDateRanges')) TimeGrowDateRanges::render($range_base, $current_filters['start_date'], $current_filters['end_date']); ?>
+                <div class="tg-te-dates">
+                <label for="filter_start_date" class="screen-reader-text"><?php esc_html_e('From', 'timegrow'); ?></label>
+                <input type="date" id="filter_start_date" value="<?php echo esc_attr($current_filters['start_date']); ?>" title="<?php esc_attr_e('From', 'timegrow'); ?>">
+                <span class="tg-te-to" aria-hidden="true">to</span>
+                <label for="filter_end_date" class="screen-reader-text"><?php esc_html_e('To', 'timegrow'); ?></label>
+                <input type="date" id="filter_end_date" value="<?php echo esc_attr($current_filters['end_date']); ?>" title="<?php esc_attr_e('To', 'timegrow'); ?>">
+                </div>
+            </div>
+            <div class="tg-te-filter-row">
                 <select id="filter_project" name="filter_project">
                     <option value=""><?php esc_html_e('All Projects', 'timegrow'); ?></option>
                     <?php foreach ($filter_options['projects'] as $id => $name) : ?>
@@ -96,6 +119,12 @@ class TimeGrowTimeEntryView {
                     <option value="0" <?php selected($current_filters['filter_billed'], '0'); ?>><?php esc_html_e('Not Billed', 'timegrow'); ?></option>
                 </select>
 
+                <select id="filter_status" name="filter_status">
+                    <option value=""><?php esc_html_e('All Statuses', 'timegrow'); ?></option>
+                    <option value="1" <?php selected($current_filters['filter_status'], '1'); ?>><?php esc_html_e('Active', 'timegrow'); ?></option>
+                    <option value="0" <?php selected($current_filters['filter_status'], '0'); ?>><?php esc_html_e('Inactive', 'timegrow'); ?></option>
+                </select>
+
                 <select id="filter_entry_type" name="filter_entry_type">
                     <option value=""><?php esc_html_e('All Types', 'timegrow'); ?></option>
                     <option value="MAN" <?php selected($current_filters['filter_entry_type'], 'MAN'); ?>><?php esc_html_e('Manual', 'timegrow'); ?></option>
@@ -103,14 +132,29 @@ class TimeGrowTimeEntryView {
                     <option value="OUT" <?php selected($current_filters['filter_entry_type'], 'OUT'); ?>><?php esc_html_e('Clock Out', 'timegrow'); ?></option>
                 </select>
 
-                <button type="button" id="filter_time_entries" class="button"><?php esc_html_e('Filter', 'timegrow'); ?></button>
+                <label for="filter_search" class="screen-reader-text"><?php esc_html_e('Search time entries', 'timegrow'); ?></label>
+                <input type="search" id="filter_search" name="s" value="<?php echo esc_attr($current_filters['filter_search']); ?>" placeholder="<?php esc_attr_e('Keyword...', 'timegrow'); ?>">
+
+                <button type="button" id="filter_time_entries" class="button button-primary"><?php esc_html_e('Filter', 'timegrow'); ?></button>
 
                 <?php if ($has_filters) : ?>
                     <a href="<?php echo admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-time-entries-list'); ?>" class="button"><?php esc_html_e('Clear Filters', 'timegrow'); ?></a>
                 <?php endif; ?>
             </div>
-            <br class="clear">
         </div>
+        <style>
+            .tg-te-filters { margin: 10px 0 12px; padding: 10px 12px; background: #f9f9f9; border: 1px solid #dcdcde; border-radius: 4px; }
+            .tg-te-range-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+            .tg-te-filters .timegrow-date-presets { margin: 0 !important; gap: 4px !important; }
+            .tg-te-filters .timegrow-date-presets .button { min-height: 26px; line-height: 24px; padding: 0 8px; font-size: 12px; }
+            .tg-te-dates, .tg-te-filter-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+            .tg-te-filters select, .tg-te-filters input[type="date"], .tg-te-filters input[type="search"] { min-height: 30px; height: 30px; font-size: 13px; line-height: 28px; margin: 0; }
+            .tg-te-filters select { padding: 0 22px 0 8px; max-width: 128px; }
+            .tg-te-filters input[type="date"] { padding: 0 6px; width: 130px; }
+            .tg-te-filters input[type="search"] { padding: 0 8px; width: 150px; }
+            .tg-te-filters .tg-te-filter-row .button { min-height: 30px; line-height: 28px; margin: 0; }
+            .tg-te-to { color: #646970; font-size: 12px; }
+        </style>
 
         <table class="wp-list-table widefat fixed striped table-view-list clients">
             <thead>
@@ -136,6 +180,9 @@ class TimeGrowTimeEntryView {
                     </th>
                     <th scope="col" class="manage-column column-document sortable <?php echo ($current_filters['orderby'] == 'billed') ? 'sorted ' . strtolower($current_filters['order']) : ''; ?>">
                         <?php echo $sortable_link('billed', __('Billed', 'timegrow')); ?>
+                    </th>
+                    <th scope="col" class="manage-column column-document sortable <?php echo ($current_filters['orderby'] == 'status') ? 'sorted ' . strtolower($current_filters['order']) : ''; ?>">
+                        <?php echo $sortable_link('status', __('Status', 'timegrow')); ?>
                     </th>
                 </tr>
             </thead>
@@ -198,11 +245,18 @@ class TimeGrowTimeEntryView {
                                     <span class="timegrow-badge timegrow-badge-inactive"><?php esc_html_e('No', 'timegrow'); ?></span>
                                 <?php endif; ?>
                             </td> 
+                            <td class="column-document" data-colname="status">
+                                <?php if ((int) ($item->status ?? 1) === 1) : ?>
+                                    <span class="timegrow-badge timegrow-badge-active"><?php esc_html_e('Active', 'timegrow'); ?></span>
+                                <?php else : ?>
+                                    <span class="timegrow-badge timegrow-badge-inactive"><?php esc_html_e('Inactive', 'timegrow'); ?></span>
+                                <?php endif; ?>
+                            </td>
                         </tr>
                     <?php endforeach; ?>
                 <?php else : ?>
                     <tr>
-                        <td colspan="8">No time entries found.</td>
+                        <td colspan="9">No time entries found.</td>
                     </tr>
                 <?php endif; ?>
             </tbody>
@@ -216,6 +270,7 @@ class TimeGrowTimeEntryView {
                     <th scope="col" class="manage-column column-hours" style="text-align: right; width: 80px;">Hours</th>
                     <th scope="col" class="manage-column column-document">Billable</th>
                     <th scope="col" class="manage-column column-document">Billed</th>
+                    <th scope="col" class="manage-column column-document">Status</th>
                 </tr>
             </tfoot>
         </table>

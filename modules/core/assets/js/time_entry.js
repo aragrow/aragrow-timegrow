@@ -103,6 +103,9 @@ jQuery(document).ready(function($) {
         var filterBillable = $('#filter_billable').val();
         var filterBilled = $('#filter_billed').val();
         var filterEntryType = $('#filter_entry_type').val();
+        var filterStatus = $('#filter_status').val();
+        var startDate = $('#filter_start_date').val();
+        var endDate = $('#filter_end_date').val();
 
         var url = new URL(window.location.href);
         url.searchParams.delete('s');
@@ -112,6 +115,9 @@ jQuery(document).ready(function($) {
         url.searchParams.delete('filter_billable');
         url.searchParams.delete('filter_billed');
         url.searchParams.delete('filter_entry_type');
+        url.searchParams.delete('filter_status');
+        url.searchParams.delete('start_date');
+        url.searchParams.delete('end_date');
 
         if (filterSearch) url.searchParams.set('s', filterSearch);
         if (filterProject) url.searchParams.set('filter_project', filterProject);
@@ -120,12 +126,15 @@ jQuery(document).ready(function($) {
         if (filterBillable) url.searchParams.set('filter_billable', filterBillable);
         if (filterBilled) url.searchParams.set('filter_billed', filterBilled);
         if (filterEntryType) url.searchParams.set('filter_entry_type', filterEntryType);
+        if (filterStatus) url.searchParams.set('filter_status', filterStatus);
+        if (startDate) url.searchParams.set('start_date', startDate);
+        if (endDate) url.searchParams.set('end_date', endDate);
 
         window.location.href = url.toString();
     });
 
     // Allow Enter key to trigger filter
-    $('#filter_search, #filter_project, #filter_client, #filter_member, #filter_billable, #filter_billed, #filter_entry_type').on('keypress', function(e) {
+    $('#filter_search, #filter_project, #filter_client, #filter_member, #filter_billable, #filter_billed, #filter_entry_type, #filter_status, #filter_start_date, #filter_end_date').on('keypress', function(e) {
         if (e.which === 13) {
             e.preventDefault();
             $('#filter_time_entries').click();
