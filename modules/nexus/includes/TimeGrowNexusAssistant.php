@@ -22,7 +22,7 @@ class TimeGrowNexusAssistant {
 
     const NONCE    = 'timegrow_voice_nonce'; // same as TimeGrowNexusVoice
     const PERIODS  = ['today', 'yesterday', 'this_week', 'last_week', 'this_month', 'last_month', 'this_year', 'last_year'];
-    const EVERYONE = ['last_entry', 'recent_entries', 'hours', 'clients', 'projects_for_client', 'latest_projects', 'clock_status', 'lookup'];
+    const EVERYONE = ['last_entry', 'recent_entries', 'hours', 'clients', 'projects_for_client', 'latest_projects', 'clock_status', 'lookup', 'help'];
     const OWNERS   = ['unbilled_hours', 'expenses', 'unpaid_invoices', 'billed_amount'];
     const UNPAID_STATUSES = ['invoice_sent', 'inv_sent2paypal', 'inv_draft2paypal', 'partial_paid', 'to_be_mailed'];
     // "Billed" = invoices sent to the client (not drafts, pending, cancelled or refunded)
@@ -139,6 +139,7 @@ class TimeGrowNexusAssistant {
             'unpaid_invoices' => 'Which invoices are unpaid?',
             'billed_amount'   => 'Billed this year by client',
             'expenses'        => 'Expenses this month',
+            'help'            => 'What can you do?',
         ];
         $out = [];
         foreach (self::allowed_questions() as $q) {
@@ -259,6 +260,9 @@ class TimeGrowNexusAssistant {
         if (preg_match('/\b(am i|are we) (clocked in|on the clock|clocked)\b|\bclock status\b/', $t)) {
             return $q('clock_status');
         }
+        if (self::is_how_to($t)) {
+            return $q('help', ['help' => $text]);
+        }
         if ($action = self::clock_action($t)) {
             return ['intent' => 'clock_' . $action, 'clock' => []];
         }
@@ -306,13 +310,21 @@ class TimeGrowNexusAssistant {
      */
     public static function clock_action($text) {
         $t = strtolower(trim((string) $text));
-        if (preg_match('/\b(am i|are we|was i|is my|did i)\b|\?\s*$/', $t)) {
+        if (preg_match('/\b(am i|are we|was i|is my|did i)\b|\?\s*$/', $t) || self::is_how_to($t)) {
             return null;
         }
         if (preg_match('/\b(punch|clock|check)(ing)?( me)? (in|out)\b|\b(start|stop|end)( the| my)? (clock|timer|shift)\b/', $t, $m)) {
             return (($m[4] ?? '') === 'out' || in_array($m[5] ?? '', ['stop', 'end'], true)) ? 'out' : 'in';
         }
         return null;
+    }
+
+    /** True for "how do I…", "how to…", "where do I…", "what does … do", "what can you do", "help". Pure. */
+    public static function is_how_to($text) {
+        $t = strtolower(trim((string) $text));
+        // "What is the billed amount for…" is a data question: only "what does X do / mean" and "what is the X report/page…" are help
+        return (bool) preg_match('/^(how (do|can|should|would) (i|we|you)|how to|where (do|can|is|are) (i|we|the)?|what does .{2,40} (do|mean)\b|what is (the |a |an )?[a-z& ]{2,30} (report|page|tab|button|feature|setting|card|menu)s?\b|what is timegrow|what (else )?can (you|i ask)|what are you able|who are you|help( me)?\b|i need help|explain how)/', $t)
+            && !preg_match('/^how (many|much)\b/', $t);
     }
 
     private static function title_case($s) {
@@ -380,6 +392,8 @@ class TimeGrowNexusAssistant {
                 'lookup'     => $name === 'lookup' && is_array($raw['lookup'] ?? null) ? $raw['lookup'] : null,
                 // "...and why?": a short written explanation of the results, by the AI, from data with names hidden
                 'explain'    => is_string($raw['explain'] ?? null) && trim($raw['explain']) !== '' ? (function_exists('mb_substr') ? mb_substr(trim($raw['explain']), 0, 200) : substr(trim($raw['explain']), 0, 200)) : null,
+                // A help question: what they want to know, in their words (the help topics are searched with it)
+                'help'       => $name === 'help' && is_string($raw['help'] ?? null) && trim($raw['help']) !== '' ? (function_exists('mb_substr') ? mb_substr(trim(wp_strip_all_tags($raw['help'])), 0, 300) : substr(trim(wp_strip_all_tags($raw['help'])), 0, 300)) : null,
             ]];
         }
 
@@ -514,7 +528,7 @@ Intents (use only those in the allowed list):
 - "cancel": they want to stop what is in progress.
 - "unknown": anything else.
 
-Return one JSON object: {"intent", "time": {...} or null, "clock": {...} or null, "question": {"name", "period", "client_id", "project_id", "who", "lookup" (only for "lookup"), "explain" (or null)} or null, "new_client": {...} or null, "new_project": {...} or null}. Use null for anything not said. Never invent IDs: use only IDs from the lists.
+Return one JSON object: {"intent", "time": {...} or null, "clock": {...} or null, "question": {"name", "period", "client_id", "project_id", "who", "lookup" (only for "lookup"), "explain" (or null), "help" (only for "help": their question in a few words)} or null, "new_client": {...} or null, "new_project": {...} or null}. Use null for anything not said. Never invent IDs: use only IDs from the lists.
 Periods: today, yesterday, this_week, last_week, this_month, last_month, this_year, last_year. Time and invoice data only goes back 3 months: still fill the period or dates they asked for (TimeGrow tells them the limit and links the reports). "who" is "me", or "team" when they ask about everyone.
 
 # LOOKUP AND EXPLAIN
@@ -602,6 +616,7 @@ RULES
             'billed_amount'       => 'the amount billed (invoices sent to clients) in a period, by client, and how much is paid (optional client_id). Use this for "billed", "invoiced", "how much did we bill", revenue by client',
             'lookup'              => 'a flexible read-only lookup, ONLY for data questions no question above covers; put the details in question.lookup (see LOOKUP)',
             'expenses'            => 'a list of expenses in a period. For totals by category, client, project or month, use lookup',
+            'help'                => 'how to use TimeGrow, what a page or feature does, or what you can do ("how do I upload a receipt?", "what is the unbilled report?", "what can you do?"). Put their question in a few words in question.help',
         ];
     }
 
@@ -829,6 +844,10 @@ RULES;
         if (!in_array($name, self::allowed_questions(), true)) {
             return self::reply(self::denied_text($name));
         }
+        if ($name === 'help') {
+            return TimeGrowNexusHelp::answer((string) ($question['help'] ?? ''), self::is_owner(), self::allowed_questions(), self::allowed_actions(),
+                current_user_can('access_nexus_clock') || TimeGrowTimeEntryRules::is_admin());
+        }
         $today  = current_time('Y-m-d');
         $member = TimeGrowTimeEntryRules::member_id(0);
         $needs_member = in_array($name, ['last_entry', 'recent_entries', 'clock_status'], true)
@@ -1051,7 +1070,7 @@ RULES;
                 [$from, $to] = self::period_range($period, $today);
                 global $wpdb;
                 $table = $wpdb->prefix . TIMEGROW_PREFIX . 'expense_tracker';
-                $rows = $wpdb->get_results($wpdb->prepare("SELECT ID, expense_name, amount, expense_date FROM {$table} WHERE expense_date BETWEEN %s AND %s ORDER BY expense_date DESC, ID DESC", $from, $to));
+                $rows = $wpdb->get_results($wpdb->prepare("SELECT ID, expense_name, amount, expense_date FROM {$table} WHERE status = 1 AND expense_date BETWEEN %s AND %s ORDER BY expense_date DESC, ID DESC", $from, $to));
                 $total = array_sum(array_map(function ($r) { return (float) $r->amount; }, (array) $rows));
                 if (!$rows) return self::reply(sprintf(__('No expenses %s.', 'timegrow'), self::period_words($period)));
                 return self::reply(sprintf(_n('%1$d expense %2$s, %3$s in total:', '%1$d expenses %2$s, %3$s in total:', count($rows), 'timegrow'), count($rows), self::period_words($period), self::money($total)),

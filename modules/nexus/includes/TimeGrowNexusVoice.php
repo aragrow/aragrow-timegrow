@@ -17,6 +17,8 @@ if (!defined('ABSPATH')) {
 class TimeGrowNexusVoice {
 
     const NONCE  = 'timegrow_voice_nonce';
+    /** What the person said in this request (after the assistant's name is removed). */
+    private static $heard = '';
     /** The assistant's name when none is set (Settings > AI Voice Entry). */
     const AGENT_NAME = 'Sam Spade';
 
@@ -308,6 +310,7 @@ RULES;
         if ($asking !== 'description') {
             $transcript = self::without_address($transcript); // "Sam, how many hours..." → "how many hours..."
         }
+        self::$heard = $transcript; // for help questions the AI did not word
         $known_json = wp_unslash($_POST['known'] ?? '{}');
         $known_raw  = strlen($known_json) <= 4000 ? json_decode($known_json, true) : [];
         $known      = [];
@@ -502,6 +505,9 @@ RULES;
     private static function send_intent(array $intent, array $candidates) {
         switch ($intent['intent']) {
             case 'question':
+                if (($intent['question']['name'] ?? '') === 'help' && empty($intent['question']['help'])) {
+                    $intent['question']['help'] = self::$heard; // search the help with their own words
+                }
                 $question = TimeGrowNexusAssistant::effective_question($intent['question']); // remembered as answered, period included
                 wp_send_json_success(['intent' => 'question', 'question' => $question, 'answer' => TimeGrowNexusAssistant::answer($question, $candidates)]);
             case 'denied':

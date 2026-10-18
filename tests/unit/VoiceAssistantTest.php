@@ -345,4 +345,15 @@ class VoiceAssistantTest extends TestCase {
         $p = TimeGrowNexusAssistant::conversation_prompt( 'hi', $this->state( [] ), $this->candidates, $this->clients, $this->everyone, [], self::TODAY );
         $this->assertStringContainsString( "You are Sam Spade, TimeGrow's assistant.", $p );
     }
+
+    public function test_how_to_questions_are_help_not_actions() {
+        $this->assertSame( [ 'question', 'help' ], [ $this->local( 'how do I punch in?' )['intent'], $this->local( 'how do I punch in?' )['question']['name'] ] );
+        $this->assertNull( TimeGrowNexusAssistant::clock_action( 'how do I punch in' ), 'not a clock in' );
+        $this->assertSame( 'help', $this->local( 'what can you do' )['question']['name'] );
+        $this->assertSame( 'help', $this->local( 'where do I upload receipts' )['question']['name'] );
+        $this->assertSame( 'hours', $this->local( 'how many hours this week' )['question']['name'], 'a data question stays one' );
+        $this->assertSame( 'clock_in', $this->local( 'punch in' )['intent'] );
+        $c = $this->check( [ 'intent' => 'question', 'question' => [ 'name' => 'help', 'help' => '<b>how do I add a client</b>' ] ] );
+        $this->assertSame( 'how do I add a client', $c['question']['help'] );
+    }
 }
