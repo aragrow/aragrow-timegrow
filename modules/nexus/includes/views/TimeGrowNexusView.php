@@ -14,7 +14,7 @@ class TimeGrowNexusView {
         // If capabilities not registered, show all cards (fallback for first-time access)
         $show_all = !$caps_registered;
 ?>
-        <div class="wrap timegrow-modern-wrapper">
+        <div class="wrap timegrow-modern-wrapper timegrow-nexus-dashboard">
             <!-- Modern Header -->
             <div class="timegrow-modern-header">
                 <div class="timegrow-header-content">
@@ -27,6 +27,8 @@ class TimeGrowNexusView {
             </div>
 
             <?php settings_errors('timegrow_messages'); // Display any general admin notices ?>
+
+            <?php if (class_exists('TimeGrowNexusKpis')) TimeGrowNexusKpis::render(); // My Time, and Team & Business for administrators ?>
 
             <!-- Time Tracking Section -->
             <?php if ($show_all || current_user_can('access_nexus_clock') || current_user_can('access_nexus_manual_entry')) : ?>
@@ -302,6 +304,24 @@ class TimeGrowNexusView {
             .timegrow-section-row .timegrow-cards-container {
                 grid-template-columns: 1fr;
             }
+
+            /* Compact cards on this dashboard: icon, title and a short description on one row */
+            .timegrow-nexus-dashboard .timegrow-section { margin-bottom: 24px; }
+            .timegrow-nexus-dashboard .timegrow-section-title { font-size: 16px; margin-bottom: 12px; padding-bottom: 8px; }
+            .timegrow-nexus-dashboard .timegrow-section-title .dashicons { font-size: 20px; width: 20px; height: 20px; }
+            .timegrow-nexus-dashboard .timegrow-cards-container { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; margin-bottom: 0; }
+            .timegrow-nexus-dashboard .timegrow-section-row { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+            .timegrow-nexus-dashboard .timegrow-card { display: grid; grid-template-columns: 36px 1fr; column-gap: 12px; align-items: center; padding: 12px 14px; border-radius: 8px; border-width: 1px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); animation: none; }
+            .timegrow-nexus-dashboard .timegrow-card:hover { transform: none; box-shadow: 0 2px 8px rgba(0,0,0,0.10); }
+            .timegrow-nexus-dashboard .timegrow-card-header { display: contents; } /* icon on the left, title and description on the right */
+            .timegrow-nexus-dashboard .timegrow-icon { grid-column: 1; grid-row: 1 / span 2; width: 36px; height: 36px; border-radius: 8px; }
+            .timegrow-nexus-dashboard .timegrow-icon .dashicons { font-size: 20px; width: 20px; height: 20px; }
+            .timegrow-nexus-dashboard .timegrow-card-title { grid-column: 2; min-width: 0; }
+            .timegrow-nexus-dashboard .timegrow-card-title h2 { font-size: 14px; margin: 0; }
+            .timegrow-nexus-dashboard .timegrow-card-title .timegrow-badge { display: none; }
+            .timegrow-nexus-dashboard .timegrow-card-body { grid-column: 2; padding: 0; min-width: 0; }
+            .timegrow-nexus-dashboard .timegrow-card-description { margin: 2px 0 0; font-size: 12px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+            .timegrow-nexus-dashboard .timegrow-card-footer { display: none; } /* the whole card is the link */
             @media (max-width: 1024px) {
                 .timegrow-section-row {
                     grid-template-columns: 1fr;
