@@ -381,7 +381,7 @@ RULES;
         $state = TimeGrowNexusAssistant::read_state($conversation, $candidates, $clients, $questions, $actions, $today);
         try {
             $heard = self::ask_ai(
-                TimeGrowNexusAssistant::conversation_prompt($transcript, $state, $candidates, $clients, $questions, $actions, $today),
+                TimeGrowNexusAssistant::conversation_prompt($transcript, $state, $candidates, $clients, $questions, $actions, $today, TimeGrowNexusAssistant::company_name()),
                 TimeGrowNexusAssistant::conversation_instructions()
             );
         } catch (Exception $e) {

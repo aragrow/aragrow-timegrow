@@ -23,8 +23,10 @@ class TimeGrowNexusAssistant {
     const NONCE    = 'timegrow_voice_nonce'; // same as TimeGrowNexusVoice
     const PERIODS  = ['today', 'yesterday', 'this_week', 'last_week', 'this_month', 'last_month', 'this_year'];
     const EVERYONE = ['last_entry', 'recent_entries', 'hours', 'clients', 'projects_for_client', 'latest_projects', 'clock_status'];
-    const OWNERS   = ['unbilled_hours', 'expenses', 'unpaid_invoices'];
+    const OWNERS   = ['unbilled_hours', 'expenses', 'unpaid_invoices', 'billed_amount'];
     const UNPAID_STATUSES = ['invoice_sent', 'inv_sent2paypal', 'inv_draft2paypal', 'partial_paid', 'to_be_mailed'];
+    // "Billed" = invoices sent to the client (not drafts, pending, cancelled or refunded)
+    const BILLED_STATUSES = ['invoice_sent', 'inv_sent2paypal', 'to_be_mailed', 'partial_paid', 'invoice_paid'];
     const MAX_RATE = 10000;
 
     public static function init() {
@@ -55,6 +57,7 @@ class TimeGrowNexusAssistant {
             $questions[] = 'expenses';
             if (function_exists('wc_get_orders')) {
                 $questions[] = 'unpaid_invoices';
+                $questions[] = 'billed_amount';
             }
         }
         return $questions;
@@ -80,6 +83,7 @@ class TimeGrowNexusAssistant {
             'latest_projects' => 'Newest projects',
             'unbilled_hours'  => 'Who has unbilled hours?',
             'unpaid_invoices' => 'Which invoices are unpaid?',
+            'billed_amount'   => 'Billed this year by client',
             'expenses'        => 'Expenses this month',
         ];
         $out = [];
@@ -214,11 +218,17 @@ class TimeGrowNexusAssistant {
         if (preg_match('/\bunbilled\b|\bnot (been )?billed\b/', $t)) {
             return $q('unbilled_hours');
         }
+        if ((preg_match('/\b(billed|invoiced|billing|revenue|income)\b/', $t) || preg_match('/\bhow much\b.{0,30}\b(bill|invoice|charge)d?\b/', $t)) && !preg_match('/\bunbilled\b|\bnot (been )?billed\b/', $t)) {
+            return $q('billed_amount', ['period' => self::period_in($t, 'this_year'), 'client_id' => $for_client]);
+        }
         if (preg_match('/\b(unpaid|open|outstanding) invoices?\b|\binvoices?\b.*\b(unpaid|outstanding|not (been )?paid)\b|\bwho owes\b/', $t)) {
             return $q('unpaid_invoices');
         }
         if (preg_match('/\bexpenses?\b/', $t)) {
             return $q('expenses', ['period' => self::period_in($t, 'this_month')]);
+        }
+        if (preg_match('/\bprojects?\b.{0,30}\b(i|we)\b.{0,12}\b(worked|work|working)\b|\bwhere did (my|our) time go\b/', $t)) {
+            return $q('hours', ['period' => self::period_in($t, 'this_week'), 'who' => preg_match('/\bwe\b/', $t) ? 'team' : 'me', 'client_id' => $for_client]);
         }
         if (preg_match('/\b(latest|newest|new|recent) projects\b/', $t)) {
             return $q('latest_projects');
@@ -407,13 +417,20 @@ Intents (use only those in the allowed list):
 
 Return one JSON object: {"intent", "time": {...} or null, "question": {"name", "period", "client_id", "project_id", "who"} or null, "new_client": {...} or null, "new_project": {...} or null}. Use null for anything not said. Never invent IDs: use only IDs from the lists.
 Periods: today, yesterday, this_week, last_week, this_month, last_month, this_year. "who" is "me", or "team" when they ask about everyone.
+
+# COMPANY, TEAM AND FILTERS
+- The company block is the person's own company, not a client. Its name or a short form of it ("Aragrow" for "Aragrow, LLC"), "the company", "everyone", "the whole team" or "all of us" means the whole team: question.who = "team" with client_id and project_id null, even if a client has a similar name.
+- A question filter is removed by saying so: "X is not a client", "not that client", "all clients", "all projects", "everyone", "the whole company" → repeat state.last_question with that filter null. The question payload is complete, so null removes the filter.
+- "I'm part of the team" or "what about me" right after a team answer keeps the same question; the team answer already counts them.
+- "Which projects did I work on", "what did I work on this week", "where did my time go" → question "hours" for that period (it lists hours by project), not "latest_projects". "latest_projects" is only for newly created projects and has no period.
+
 Time entry fields:
 RULES
             . "\n" . TimeGrowNexusVoice::field_rules();
     }
 
     /** The request text for one message: allowed intents, then state, conversation, lists and the message as data. Pure. */
-    public static function conversation_prompt($transcript, array $state, array $candidates, array $clients, array $questions, array $actions, $today) {
+    public static function conversation_prompt($transcript, array $state, array $candidates, array $clients, array $questions, array $actions, $today, $company = '') {
         $names = [];
         foreach ($candidates as $c) {
             $names[(int) $c['id']] = $c['name'] . ' (' . $c['client_name'] . ')';
@@ -434,7 +451,12 @@ RULES
         $lines    = array_map(function ($q) use ($describe) { return "- {$q}: " . ($describe[$q] ?? $q); }, $questions);
         return "Today is {$today} ({$weekday}).\n"
             . 'Allowed intents: time, question' . ($actions ? ', ' . implode(', ', $actions) : '') . ", confirm, change, cancel, unknown.\n"
-            . "Allowed questions:\n" . implode("\n", $lines) . "\n\n"
+            . "Allowed questions:\n" . implode("\n", $lines) . "\n"
+            . (($admin_only = array_values(array_diff(array_merge(self::EVERYONE, self::OWNERS), $questions)))
+                ? 'Questions only administrators may ask (if this person asks one, still use its name; TimeGrow will tell them it is not available): ' . implode(', ', $admin_only) . ".\n"
+                : '')
+            . "\n"
+            . ($company !== '' ? "The person's own company (not a client):\n" . TimeGrowAI::untrusted('company', $company) . "\n\n" : '')
             . "Current state:\n" . TimeGrowAI::untrusted('state', $context) . "\n\n"
             . "Conversation so far (oldest first):\n" . TimeGrowAI::untrusted('conversation', $state['history']) . "\n\n"
             . "The person's projects:\n" . TimeGrowAI::untrusted('projects', array_map(function ($c) {
@@ -451,15 +473,25 @@ RULES
         return [
             'last_entry'          => 'the last time entry they recorded (optional client_id, project_id)',
             'recent_entries'      => 'their recent time entries (optional period, client_id, project_id)',
-            'hours'               => 'how many hours were worked in a period (optional client_id, project_id; who = me or team)',
+            'hours'               => 'how many hours were worked in a period, listed by project (also "which projects did I work on"; optional client_id, project_id; who = me or team)',
             'clients'             => 'the clients they work for',
             'projects_for_client' => 'the projects for one client (client_id)',
-            'latest_projects'     => 'the newest projects',
+            'latest_projects'     => 'the newest projects created (not the ones worked on; no period)',
             'clock_status'        => 'whether they are clocked in',
             'unbilled_hours'      => 'billable hours not yet invoiced, by client',
             'unpaid_invoices'     => 'invoices not paid yet',
+            'billed_amount'       => 'the amount billed (invoices sent to clients) in a period, by client, and how much is paid (optional client_id)',
             'expenses'            => 'expenses in a period',
         ];
+    }
+
+    /** The person's company name (their team member's company, else the site name), for the AI. */
+    public static function company_name() {
+        global $wpdb;
+        $member = class_exists('TimeGrowTeamMemberModel') ? (new TimeGrowTeamMemberModel())->get_by_user_id(get_current_user_id()) : null;
+        $table  = $wpdb->prefix . TIMEGROW_PREFIX . 'company_tracker';
+        $name   = $member ? $wpdb->get_var($wpdb->prepare("SELECT name FROM {$table} WHERE ID = %d", (int) $member->company_id)) : null;
+        return (string) ($name ?: $wpdb->get_var("SELECT name FROM {$table} ORDER BY ID LIMIT 1") ?: get_bloginfo('name'));
     }
 
     // ------------------------------------------------------------------
@@ -530,7 +562,7 @@ RULES;
         $mins = (int) round($hours * 60);
         $h = intdiv($mins, 60);
         $m = $mins % 60;
-        return $h && $m ? "{$h} h {$m} min" : ($h ? "{$h} h" : "{$m} min");
+        return $h && $m ? "{$h} h {$m} min" : ($h || !$m ? "{$h} h" : "{$m} min"); // 0 shows as "0 h"
     }
 
     /** "2 and a half hours" to be spoken. Pure. */
@@ -607,14 +639,29 @@ RULES;
                     $key = $team ? ($e->member_name ?: '?') : $e->project_name . ' (' . self::client_name($e->client_id) . ')';
                     $by[$key] = ($by[$key] ?? 0) + $h;
                 }
+                // In team answers the person always sees themselves, even with no hours
+                $me = '';
+                if ($team && $member) {
+                    $row = (new TimeGrowTeamMemberModel())->get_by_user_id(get_current_user_id());
+                    $me  = $row ? (string) $row->name : '';
+                    if ($me !== '' && !isset($by[$me])) {
+                        $by[$me] = 0.0;
+                    }
+                }
                 arsort($by);
-                $who    = $team ? __('The team', 'timegrow') : __('You', 'timegrow');
-                $scope  = !empty($question['project_id']) ? ' ' . sprintf(__('on %s', 'timegrow'), self::project_name($question['project_id'])) : (!empty($question['client_id']) ? ' ' . sprintf(__('for %s', 'timegrow'), self::client_name($question['client_id'])) : '');
-                $text   = sprintf(__('%1$s logged %2$s%3$s %4$s.', 'timegrow'), $who, $total > 0 ? self::hours_text($total) : __('no time', 'timegrow'), $scope, self::period_words($period));
-                $spoken = sprintf('%s logged %s%s %s.', $team ? 'The team' : 'You', $total > 0 ? self::hours_spoken($total) : 'no time', $scope, self::period_words($period));
-                $list   = [];
-                foreach (array_slice($by, 0, 6, true) as $label => $h) {
-                    $list[] = ['title' => $label, 'meta' => self::hours_text($h), 'url' => ''];
+                $who      = $team ? __('The team', 'timegrow') : __('You', 'timegrow');
+                $filtered = !empty($question['project_id']) || !empty($question['client_id']);
+                $scope    = !empty($question['project_id']) ? ' ' . sprintf(__('on the project %s', 'timegrow'), self::project_name($question['project_id'])) : (!empty($question['client_id']) ? ' ' . sprintf(__('on the client %s', 'timegrow'), self::client_name($question['client_id'])) : '');
+                $text     = sprintf(__('%1$s logged %2$s%3$s %4$s.', 'timegrow'), $who, $total > 0 ? self::hours_text($total) : __('no time', 'timegrow'), $scope, self::period_words($period))
+                    . ($filtered ? ' ' . __('Say "all clients" to see everything.', 'timegrow') : '');
+                $spoken   = sprintf('%s logged %s%s %s.', $team ? 'The team' : 'You', $total > 0 ? self::hours_spoken($total) : 'no time', $scope, self::period_words($period));
+                $list     = [];
+                $shown    = array_slice($by, 0, 6, true);
+                if ($me !== '' && !isset($shown[$me])) {
+                    $shown[$me] = $by[$me];
+                }
+                foreach ($shown as $label => $h) {
+                    $list[] = ['title' => $label === $me ? sprintf(__('You (%s)', 'timegrow'), $label) : $label, 'meta' => self::hours_text($h), 'url' => ''];
                 }
                 return self::reply($text, $spoken, $list);
 
@@ -647,7 +694,7 @@ RULES;
                 $ids = array_map('intval', array_column($candidates, 'id'));
                 $rows = self::latest_projects($ids, 5);
                 if (!$rows) return self::reply(__('There are no projects you can use yet.', 'timegrow'));
-                return self::reply(__('The newest projects:', 'timegrow'),
+                return self::reply(__('The newest projects:', 'timegrow') . (!empty($question['period']) ? ' ' . __('(newly created projects; to see the projects you worked on, ask "what did I work on this week")', 'timegrow') : ''),
                     sprintf('The newest is %s for %s.', $rows[0]->name, self::client_name($rows[0]->client_id)),
                     array_map(function ($p) { return ['title' => $p->name, 'meta' => self::client_name($p->client_id) . ($p->created_at ? ' · ' . mysql2date(get_option('date_format'), $p->created_at) : ''), 'url' => self::project_url($p->ID)]; }, $rows));
 
@@ -675,6 +722,46 @@ RULES;
                 return self::reply(sprintf(__('%1$s unbilled across %2$d clients:', 'timegrow'), self::hours_text($total), count($by)),
                     sprintf('There are %s unbilled across %d %s. The most is for %s.', self::hours_spoken($total), count($by), count($by) === 1 ? 'client' : 'clients', array_key_first($by)),
                     array_map(function ($name, $h) { return ['title' => $name, 'meta' => self::hours_text($h), 'url' => admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-nexus-process-time')]; }, array_keys($by), $by));
+
+            case 'billed_amount':
+                $period = $question['period'] ?: 'this_year';
+                [$from, $to] = self::period_range($period, $today);
+                $args = ['status' => self::BILLED_STATUSES, 'limit' => -1, 'date_created' => $from . '...' . $to . ' 23:59:59'];
+                if (!empty($question['client_id'])) {
+                    $args['customer_id'] = (int) $question['client_id'];
+                }
+                $orders  = wc_get_orders($args);
+                $for     = !empty($question['client_id']) ? ' ' . sprintf(__('to the client %s', 'timegrow'), self::client_name($question['client_id'])) : '';
+                if (!$orders) {
+                    return self::reply(sprintf(__('Nothing was billed%1$s %2$s.', 'timegrow'), $for, self::period_words($period)));
+                }
+                $billed = $paid = 0.0;
+                $by     = [];
+                foreach ($orders as $o) {
+                    $cid   = (int) $o->get_customer_id();
+                    $key   = $cid ?: ('guest-' . $o->get_id());
+                    $name  = $cid ? self::client_name($cid) : ($o->get_formatted_billing_full_name() ?: __('No client', 'timegrow'));
+                    $total = (float) $o->get_total();
+                    $is_paid = $o->get_status() === 'invoice_paid';
+                    $by[$key] = $by[$key] ?? ['name' => $name, 'id' => $cid, 'billed' => 0.0, 'paid' => 0.0, 'n' => 0, 'partial' => 0];
+                    $by[$key]['billed'] += $total;
+                    $by[$key]['paid']   += $is_paid ? $total : 0;
+                    $by[$key]['n']++;
+                    $by[$key]['partial'] += $o->get_status() === 'partial_paid' ? 1 : 0;
+                    $billed += $total;
+                    $paid   += $is_paid ? $total : 0;
+                }
+                uasort($by, function ($a, $b) { return $b['billed'] <=> $a['billed']; });
+                $text = sprintf(_n('Billed %1$s%2$s %3$s across %4$d invoice; %5$s paid.', 'Billed %1$s%2$s %3$s across %4$d invoices; %5$s paid.', count($orders), 'timegrow'),
+                    self::money($billed), $for, self::period_words($period), count($orders), self::money($paid));
+                $spoken = sprintf('You billed %s%s %s, and %s of it is paid.', self::money($billed), $for, self::period_words($period), self::money($paid));
+                $list = [];
+                foreach ($by as $c) {
+                    $meta = sprintf(_n('%1$s billed · %2$s paid · %3$d invoice', '%1$s billed · %2$s paid · %3$d invoices', $c['n'], 'timegrow'), self::money($c['billed']), self::money($c['paid']), $c['n'])
+                        . ($c['partial'] ? ' · ' . sprintf(_n('%d partly paid', '%d partly paid', $c['partial'], 'timegrow'), $c['partial']) : '');
+                    $list[] = ['title' => $c['name'], 'meta' => $meta, 'url' => $c['id'] ? admin_url('admin.php?page=wc-orders&_customer_user=' . $c['id']) : ''];
+                }
+                return self::reply($text, $spoken, $list);
 
             case 'unpaid_invoices':
                 $orders = wc_get_orders(['status' => self::UNPAID_STATUSES, 'limit' => 20, 'orderby' => 'date', 'order' => 'DESC']);

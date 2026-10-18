@@ -545,7 +545,7 @@ jQuery(document).ready(function($) {
       .done(res => {
         if (s0 !== session) return;
         $thinking.remove();
-        if (res && res.success && res.data && !asking && res.data.intent && res.data.intent !== 'record_time') return handleIntent(res.data);
+        if (res && res.success && res.data && !asking && res.data.intent && res.data.intent !== 'record_time') return handleIntent(res.data, text);
         if (res && res.success && res.data && res.data.fields) {
           const before = asking ? fields[asking] : null;
           ORDER.forEach(k => { if (res.data.fields[k] !== null && res.data.fields[k] !== undefined) fields[k] = res.data.fields[k]; });
@@ -655,7 +655,7 @@ jQuery(document).ready(function($) {
         return say('Okay, I dropped that. What else can I do?', [{ label: 'Record time', value: '__questions' }].concat(suggestionChips(3)), 'Okay, dropped it. What else can I do?');
       default:
         if (draft || ORDER.includes(asking) || asking === 'confirm') return answerLocally(text, null);
-        return handleIntent({ intent: 'unknown' });
+        return handleIntent({ intent: 'unknown' }, text);
     }
   }
 
@@ -676,12 +676,18 @@ jQuery(document).ready(function($) {
 
   const suggestionChips = (n) => (Array.isArray(cfg.suggestions) ? cfg.suggestions : []).slice(0, n).map(t => ({ label: t, value: '__say', say: t }));
 
-  function handleIntent(data) {
+  function handleIntent(data, text) {
     ackNext = false;
     if (data.intent === 'question' || data.intent === 'denied') { asking = ''; if (data.question) lastQuestion = data.question; return showAnswer(data.answer || {}); }
     if (data.intent === 'add_client') return startDraft('client', data.draft);
     if (data.intent === 'add_project') return startDraft('project', data.draft);
     asking = '';
+    // A question it has no answer for: say so, instead of sounding like it didn't understand
+    if (/\?\s*$|^\s*(what|how|which|who|when|where|can you|could you|show|give|list|provide|tell me)\b/i.test(String(text || ''))) {
+      return say("I can't answer that one yet. Here's what I can answer:",
+        suggestionChips(8).concat([{ label: 'Record time', value: '__questions' }]),
+        "Sorry, I can't answer that one yet. Here's what I can answer.");
+    }
     say('I can record your time or answer questions about TimeGrow. Try one of these, or tell me what you worked on.',
       [{ label: 'Record time', value: '__questions' }].concat(suggestionChips(6)),
       'I can record your time, or answer questions about TimeGrow. What would you like?');

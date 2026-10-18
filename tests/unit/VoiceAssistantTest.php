@@ -119,6 +119,7 @@ class VoiceAssistantTest extends TestCase {
     public function test_hours_wording() {
         $this->assertSame( '2 h 30 min', TimeGrowNexusAssistant::hours_text( 2.5 ) );
         $this->assertSame( '45 min', TimeGrowNexusAssistant::hours_text( 0.75 ) );
+        $this->assertSame( '0 h', TimeGrowNexusAssistant::hours_text( 0 ) );
         $this->assertSame( '2 and a half hours', TimeGrowNexusAssistant::hours_spoken( 2.5 ) );
         $this->assertSame( '1 hour', TimeGrowNexusAssistant::hours_spoken( 1 ) );
     }
@@ -189,7 +190,8 @@ class VoiceAssistantTest extends TestCase {
         $this->assertStringContainsString( '"project":"SEO Audit (Frank Ruiz)"', $prompt, 'the project in progress is named, for "the same project"' );
         $this->assertStringContainsString( 'Allowed intents: time, question, confirm, change, cancel, unknown.', $prompt );
         $this->assertStringNotContainsString( 'add_client', $prompt, 'team members are not offered adding' );
-        $this->assertStringNotContainsString( 'unpaid_invoices', $prompt );
+        $allowed = substr( $prompt, 0, strpos( $prompt, 'Questions only administrators' ) );
+        $this->assertStringNotContainsString( 'unpaid_invoices', $allowed, 'listed only as administrators-only' );
         $this->assertStringNotContainsString( 'SEO Audit', TimeGrowNexusAssistant::conversation_instructions(), 'no data in the instructions' );
     }
 
@@ -224,5 +226,51 @@ class VoiceAssistantTest extends TestCase {
     public function test_the_safety_rules_forbid_bulk_and_deleting() {
         $this->assertStringContainsString( 'at most ONE record per message', TimeGrowAI::SAFETY_RULES );
         $this->assertStringContainsString( 'change or delete saved records', TimeGrowAI::SAFETY_RULES );
+    }
+
+    // ---- From a reviewed conversation (session 41): the company is not a client, filters can be cleared
+
+    public function test_projects_i_worked_on_means_my_hours() {
+        $q = $this->local( 'can you give me a list of the projects that I have worked this week?' );
+        $this->assertSame( 'hours', $q['question']['name'] );
+        $this->assertSame( 'this_week', $q['question']['period'] );
+        $this->assertSame( 'hours', $this->local( 'where did my time go last month' )['question']['name'] );
+        $this->assertSame( 'latest_projects', $this->local( 'newest projects' )['question']['name'], 'newly created projects still work' );
+    }
+
+    public function test_the_company_goes_in_its_own_block_and_the_rules_explain_it() {
+        $st = $this->state( [ 'mode' => 'idle' ] );
+        $prompt = TimeGrowNexusAssistant::conversation_prompt( 'what about the entire aragrow?', $st, $this->candidates, $this->clients, $this->everyone, [], self::TODAY, 'Aragrow, LLC' );
+        $this->assertStringContainsString( "The person's own company (not a client):\n<untrusted_data name=\"company\">\nAragrow, LLC", $prompt );
+        $rules = TimeGrowNexusAssistant::default_conversation_instructions();
+        $this->assertStringContainsString( 'COMPANY, TEAM AND FILTERS', $rules );
+        $this->assertStringContainsString( 'null removes the filter', $rules );
+        $this->assertStringContainsString( 'not "latest_projects"', $rules );
+    }
+
+    // ---- From a reviewed conversation (session 42): billed amounts
+
+    public function test_billed_amount_questions() {
+        $q = $this->local( 'can you give me current amount billed for this year, by client', true );
+        $this->assertSame( [ 'name' => 'billed_amount', 'period' => 'this_year', 'client_id' => null ], $q['question'] );
+        $this->assertSame( 'this_week', $this->local( 'what is the billed amount for this week', true )['question']['period'] );
+        $this->assertSame( 40, $this->local( 'how much have we billed for Birchway this year', true )['question']['client_id'] );
+        $this->assertSame( 'unbilled_hours', $this->local( 'who has unbilled hours', true )['question']['name'], 'unbilled stays unbilled' );
+        $this->assertSame( 'denied', $this->local( 'what is the billed amount for this week' )['intent'], 'team members cannot see billing' );
+        $this->assertContains( 'billed_amount', TimeGrowNexusAssistant::OWNERS );
+    }
+
+    public function test_billed_means_sent_to_the_client() {
+        $this->assertSame( [ 'invoice_sent', 'inv_sent2paypal', 'to_be_mailed', 'partial_paid', 'invoice_paid' ], TimeGrowNexusAssistant::BILLED_STATUSES );
+    }
+
+    public function test_team_members_hear_admin_only_rather_than_unknown() {
+        $st = $this->state( [ 'mode' => 'idle' ] );
+        $prompt = TimeGrowNexusAssistant::conversation_prompt( 'billed this year', $st, $this->candidates, $this->clients, $this->everyone, [], self::TODAY );
+        $this->assertStringContainsString( 'Questions only administrators may ask', $prompt );
+        $this->assertStringContainsString( 'billed_amount', $prompt );
+        $this->assertSame( 'denied', $this->check( [ 'intent' => 'question', 'question' => [ 'name' => 'billed_amount' ] ] )['intent'] );
+        $owner = TimeGrowNexusAssistant::conversation_prompt( 'billed this year', $st, $this->candidates, $this->clients, $this->owner, [], self::TODAY );
+        $this->assertStringNotContainsString( 'Questions only administrators may ask', $owner );
     }
 }
