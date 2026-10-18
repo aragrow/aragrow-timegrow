@@ -179,6 +179,7 @@ function timegrow_register_report_capabilities() {
         'view_all_expenses_overview',        // All Expenses Overview
         'view_time_entry_audit_log',         // Time Entry Audit Log
         'view_monthly_profit_loss',          // Monthly Profit & Loss Report
+        'view_unbilled_time',                // Unbilled Time (WIP)
         'manage_expense_categories',         // Manage Expense Categories
     ];
 
@@ -205,11 +206,25 @@ function timegrow_register_report_capabilities() {
     }
 }
 
+// The time entry audit trail's table (Reports > Time Entry Audit Log)
+add_action('admin_init', function() {
+    if (class_exists('TimeGrowTimeEntryAudit')) {
+        TimeGrowTimeEntryAudit::maybe_create_table();
+    }
+});
+
+// Report CSV / PDF exports: sent before WordPress prints the admin page (TimeGrowReportsController::maybe_export)
+add_action('admin_init', function() {
+    if (class_exists('TimeGrowReportsController')) {
+        TimeGrowReportsController::maybe_export();
+    }
+}, 20); // after the capabilities below are registered
+
 // Ensure capabilities are registered on every admin init (for existing installs)
 add_action('admin_init', function() {
     // Check if capabilities have been registered
     $admin = get_role('administrator');
-    if ($admin && (!$admin->has_cap('view_client_activity_report') || !$admin->has_cap('view_monthly_profit_loss') || !$admin->has_cap('manage_expense_categories'))) {
+    if ($admin && (!$admin->has_cap('view_client_activity_report') || !$admin->has_cap('view_monthly_profit_loss') || !$admin->has_cap('manage_expense_categories') || !$admin->has_cap('view_unbilled_time'))) {
         // Capabilities not registered yet, register them now
         timegrow_register_report_capabilities();
     }
@@ -230,6 +245,7 @@ function timegrow_publishpress_capabilities($plugin_caps) {
         'view_all_expenses_overview',
         'view_time_entry_audit_log',
         'view_monthly_profit_loss',
+        'view_unbilled_time',
 
         // Management Capabilities - Admin Only
         'manage_expense_categories',

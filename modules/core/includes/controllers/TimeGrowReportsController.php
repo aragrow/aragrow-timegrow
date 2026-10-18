@@ -14,6 +14,9 @@ require_once __DIR__ . '/reports/TimeGrowReportsMyTimeEntriesTrait.php';
 require_once __DIR__ . '/reports/TimeGrowReportsMyExpensesTrait.php';
 require_once __DIR__ . '/reports/TimeGrowReportsAllExpensesTrait.php';
 require_once __DIR__ . '/reports/TimeGrowReportsClientActivityTrait.php';
+require_once __DIR__ . '/reports/TimeGrowReportsTeamHoursTrait.php';
+require_once __DIR__ . '/reports/TimeGrowReportsUnbilledTrait.php';
+require_once __DIR__ . '/reports/TimeGrowReportsAuditLogTrait.php';
 
 class TimeGrowReportsController {
     use TimeGrowReportsYearlyTaxTrait,
@@ -22,8 +25,47 @@ class TimeGrowReportsController {
         TimeGrowReportsMyTimeEntriesTrait,
         TimeGrowReportsMyExpensesTrait,
         TimeGrowReportsAllExpensesTrait,
-        TimeGrowReportsClientActivityTrait;
+        TimeGrowReportsClientActivityTrait,
+        TimeGrowReportsTeamHoursTrait,
+        TimeGrowReportsUnbilledTrait,
+        TimeGrowReportsAuditLogTrait;
 
+    /** True while a CSV / PDF export runs from admin_init: the page frame is not printed. */
+    private static $exporting = false;
+
+    /**
+     * CSV and PDF exports run on admin_init, before WordPress prints the admin page, so the file
+     * downloads on its own (the report checks the person's access as usual). The export ends the request.
+     */
+    public static function maybe_export() {
+        if (($_GET['page'] ?? '') !== TIMEGROW_PARENT_MENU . '-nexus-a-report' || !in_array($_GET['export'] ?? '', ['csv', 'pdf'], true)) {
+            return;
+        }
+        if (!current_user_can('access_nexus_view_reports') && !current_user_can('administrator')) {
+            return;
+        }
+        // Drop anything printed while loading (stray whitespace from a theme or plugin), so the file starts clean
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+        self::$exporting = true;
+        self::$export_level = 0;
+        ob_start();
+        (new self())->render_individual_report_page(); // exits when the report has this export
+        ob_end_clean(); // no export for this report: the page shows normally
+        self::$exporting = false;
+    }
+
+    /** During an export, drop the page output buffered so far, so the file holds only the export. */
+    private static function begin_download() {
+        if (self::$exporting) {
+            while (ob_get_level() > self::$export_level) {
+                ob_end_clean();
+            }
+        }
+    }
+
+    private static $export_level = 0;
 
     private $view;
     private $all_reports_definitions;
@@ -48,8 +90,16 @@ class TimeGrowReportsController {
                 'icon' => 'dashicons-groups',
                 'roles' => ['administrator'],
                 'capability' => 'view_team_hours_summary',
-                'category' => 'Team & Performance',
-                'coming_soon' => true
+                'category' => 'Team & Performance'
+            ],
+            [
+                'slug' => 'unbilled_time',
+                'title' => 'Unbilled Time (WIP)',
+                'description' => 'Billable time not invoiced yet, by client and project, with the amount it would bill.',
+                'icon' => 'dashicons-clock',
+                'roles' => ['administrator'],
+                'capability' => 'view_unbilled_time',
+                'category' => 'Financial & Project'
             ],
             [
                 'slug' => 'project_profitability',
@@ -86,8 +136,7 @@ class TimeGrowReportsController {
                 'icon' => 'dashicons-shield-alt',
                 'roles' => ['administrator'],
                 'capability' => 'view_time_entry_audit_log',
-                'category' => 'Team & Performance',
-                'coming_soon' => true
+                'category' => 'Team & Performance'
             ],
             [
                 'slug' => 'yearly_tax_report',
@@ -207,6 +256,14 @@ class TimeGrowReportsController {
             }
         }
 
+        if (self::$exporting) {
+            // An export from admin_init: only the file, no page frame
+            if ($report_definition && empty($report_definition['coming_soon'])) {
+                $this->run_report($report_slug, $current_user);
+            }
+            return;
+        }
+
         echo '<div class="wrap timegrow-page timegrow-page-container timegrow-individual-report-page">';
         if ($report_definition) {
             echo '<h1>' . esc_html($report_definition['title']) . '</h1>';
@@ -216,34 +273,7 @@ class TimeGrowReportsController {
             if (isset($report_definition['coming_soon']) && $report_definition['coming_soon']) {
                  echo '<p class="notice notice-warning inline">This report is currently under development. Check back soon!</p>';
             } else {
-                // Route to specific report generation methods
-                switch($report_slug) {
-                    case 'yearly_tax_report':
-                        $this->generate_yearly_tax_report();
-                        break;
-                    case 'monthly_profit_loss':
-                        $this->generate_monthly_profit_loss();
-                        break;
-                    case 'my_hours_by_project':
-                        $this->generate_my_hours_by_project($current_user);
-                        break;
-                    case 'my_time_entries_detailed':
-                        $this->generate_my_time_entries_detailed($current_user);
-                        break;
-                    case 'my_expenses_report':
-                        $this->generate_my_expenses_report($current_user);
-                        break;
-                    case 'all_expenses_overview':
-                        $this->generate_all_expenses_overview($current_user);
-                        break;
-                    case 'client_activity_summary':
-                        $this->generate_client_activity_summary($current_user);
-                        break;
-                    default:
-                        echo '<p><strong>Report Slug:</strong> ' . esc_html($report_slug) . '</p>';
-                        echo '<p>Report generation logic for "'. esc_html($report_slug) .'" would go here.</p>';
-                        echo '<p>This could involve querying the database for time entries, expenses, etc., based on the slug and user permissions, then displaying charts, tables, or data exports.</p>';
-                }
+                $this->run_report($report_slug, $current_user);
             }
 
         } else {
@@ -252,6 +282,46 @@ class TimeGrowReportsController {
         }
         echo '<p><a href="' . admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-nexus-reports') . '">« Back to Reports Dashboard</a></p>';
         echo '</div>';
+    }
+
+    /** Route to the report's generation method. */
+    private function run_report($report_slug, $current_user) {
+        switch($report_slug) {
+            case 'yearly_tax_report':
+                $this->generate_yearly_tax_report();
+                break;
+            case 'monthly_profit_loss':
+                $this->generate_monthly_profit_loss();
+                break;
+            case 'my_hours_by_project':
+                $this->generate_my_hours_by_project($current_user);
+                break;
+            case 'my_time_entries_detailed':
+                $this->generate_my_time_entries_detailed($current_user);
+                break;
+            case 'my_expenses_report':
+                $this->generate_my_expenses_report($current_user);
+                break;
+            case 'all_expenses_overview':
+                $this->generate_all_expenses_overview($current_user);
+                break;
+            case 'team_summary_hours':
+                $this->generate_team_summary_hours($current_user);
+                break;
+            case 'unbilled_time':
+                $this->generate_unbilled_time($current_user);
+                break;
+            case 'time_entry_audit_log':
+                $this->generate_time_entry_audit_log($current_user);
+                break;
+            case 'client_activity_summary':
+                $this->generate_client_activity_summary($current_user);
+                break;
+            default:
+                echo '<p><strong>Report Slug:</strong> ' . esc_html($report_slug) . '</p>';
+                echo '<p>Report generation logic for "'. esc_html($report_slug) .'" would go here.</p>';
+                echo '<p>This could involve querying the database for time entries, expenses, etc., based on the slug and user permissions, then displaying charts, tables, or data exports.</p>';
+        }
     }
 
     /**
@@ -308,11 +378,11 @@ class TimeGrowReportsController {
         if (!empty($start_date) || !empty($end_date)) {
             $query .= " AND (1=1";
             if (!empty($start_date)) {
-                $query .= " AND COALESCE(te.date, DATE(te.clock_in_date)) >= %s";
+                $query .= " AND COALESCE(DATE(te.date), DATE(te.clock_in_date)) >= %s";
                 $params[] = $start_date;
             }
             if (!empty($end_date)) {
-                $query .= " AND COALESCE(te.date, DATE(te.clock_in_date)) <= %s";
+                $query .= " AND COALESCE(DATE(te.date), DATE(te.clock_in_date)) <= %s";
                 $params[] = $end_date;
             }
             $query .= ")";

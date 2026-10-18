@@ -138,6 +138,7 @@ class TimeGrowTimeEntryModel {
                 }
             }
             $id = intval($id); // Sanitize ID
+            $before = TimeGrowTimeEntryAudit::row($id); // for the audit log
             // Ensure all required fields are present
             if (empty($sanitized_data['entry_type']) ) {
                 wp_die( 'Error: validation not passed.1', array( 'back_link' => true ) );
@@ -162,6 +163,10 @@ class TimeGrowTimeEntryModel {
                 $format, 
                 '%d'  // integer
             );
+            if ($result !== false && $before) {
+                $after = TimeGrowTimeEntryAudit::row($id);
+                TimeGrowTimeEntryAudit::log($id, TimeGrowTimeEntryAudit::update_action($before, TimeGrowTimeEntryAudit::diff($before, (array) $after)), $before, $after);
+            }
 
             return $id;
 
@@ -228,7 +233,9 @@ class TimeGrowTimeEntryModel {
                 return false;
             }
 
-            return $this->wpdb->insert_id;
+            $id = (int) $this->wpdb->insert_id;
+            TimeGrowTimeEntryAudit::log($id, 'created', null, TimeGrowTimeEntryAudit::row($id));
+            return $id;
         } catch (Exception $e) {
             // Handle general exceptions
             timegrow_log("Exception: " . $e->getMessage());
@@ -320,6 +327,7 @@ class TimeGrowTimeEntryModel {
             }
             // Optionally, you can log the success or perform other actions
             timegrow_log('Entry ID: ' . $entry->ID . ' marked as billed successfully.');
+            TimeGrowTimeEntryAudit::log_many([(int) $entry->ID], 'billed', (int) $entry->billed_order_id);
         }
 
         return $entries_by_order;
@@ -409,6 +417,13 @@ class TimeGrowTimeEntryModel {
 
         if ($result === false) {
             timegrow_log('Failed to bill time entries again for order #' . $order_id . ': ' . $wpdb->last_error);
+        } elseif ($result > 0) {
+            // Only the entries that are now on this order (some may have been billed elsewhere)
+            $now = $wpdb->get_col($wpdb->prepare(
+                "SELECT ID FROM {$this->table_name} WHERE billed_order_id = %d AND ID IN ($placeholders)",
+                array_merge([(int) $order_id], $ids)
+            ));
+            TimeGrowTimeEntryAudit::log_many($now, 'rebilled', (int) $order_id);
         }
         return $result;
     }
@@ -426,6 +441,9 @@ class TimeGrowTimeEntryModel {
             timegrow_log('Invalid order ID provided to unbill_entries_for_order: ' . $order_id);
             return false;
         }
+
+        // The entries on this order, for the audit log
+        $on_order = $wpdb->get_col($wpdb->prepare("SELECT ID FROM {$this->table_name} WHERE billed_order_id = %d", (int) $order_id));
 
         // Reset billed status for all time entries associated with this order
         $result = $wpdb->update(
@@ -447,6 +465,7 @@ class TimeGrowTimeEntryModel {
 
         if ($result > 0) {
             timegrow_log('Successfully unbilled ' . $result . ' time entries for deleted/trashed order #' . $order_id);
+            TimeGrowTimeEntryAudit::log_many($on_order, 'unbilled', (int) $order_id);
         }
 
         return $result;

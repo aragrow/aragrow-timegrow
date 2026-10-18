@@ -54,6 +54,7 @@ class TimeGrowNexusAssistant {
         $all = [
             'invoices'  => $owner ? ['client_activity_summary' => __('Client Activity Report', 'timegrow'), 'yearly_tax_report' => __('Yearly Tax Report', 'timegrow'), 'monthly_profit_loss' => __('Monthly Profit & Loss Report', 'timegrow')] : [],
             'time_team' => $owner ? ['team_summary_hours' => __('Team Hours Summary', 'timegrow'), 'time_entry_audit_log' => __('Time Entry Audit Log', 'timegrow')] : [],
+            'unbilled'  => $owner ? ['unbilled_time' => __('Unbilled Time (WIP)', 'timegrow')] : [],
             'time_me'   => ['my_hours_by_project' => __('My Hours by Project', 'timegrow'), 'my_time_entries_detailed' => __('My Detailed Time Log', 'timegrow')],
         ];
         $rows = [];
@@ -964,7 +965,7 @@ RULES;
                 return self::reply(__('You are not clocked in.', 'timegrow'), 'No, you are not clocked in.');
 
             case 'unbilled_hours':
-                self::$clip_topic = 'time_team';
+                self::$clip_topic = 'unbilled';
                 $rows = self::entries(0, '1970-01-01', $today, ['unbilled' => true]);
                 $by = [];
                 $total = 0.0;
