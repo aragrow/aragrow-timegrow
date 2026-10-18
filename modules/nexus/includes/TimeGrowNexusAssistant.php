@@ -22,12 +22,26 @@ class TimeGrowNexusAssistant {
 
     const NONCE    = 'timegrow_voice_nonce'; // same as TimeGrowNexusVoice
     const PERIODS  = ['today', 'yesterday', 'this_week', 'last_week', 'this_month', 'last_month', 'this_year'];
-    const EVERYONE = ['last_entry', 'recent_entries', 'hours', 'clients', 'projects_for_client', 'latest_projects', 'clock_status'];
+    const EVERYONE = ['last_entry', 'recent_entries', 'hours', 'clients', 'projects_for_client', 'latest_projects', 'clock_status', 'lookup'];
     const OWNERS   = ['unbilled_hours', 'expenses', 'unpaid_invoices', 'billed_amount'];
     const UNPAID_STATUSES = ['invoice_sent', 'inv_sent2paypal', 'inv_draft2paypal', 'partial_paid', 'to_be_mailed'];
     // "Billed" = invoices sent to the client (not drafts, pending, cancelled or refunded)
     const BILLED_STATUSES = ['invoice_sent', 'inv_sent2paypal', 'to_be_mailed', 'partial_paid', 'invoice_paid'];
     const MAX_RATE = 10000;
+    // Time entries and invoices / payments / refunds the assistant looks at: the last 3 months only,
+    // so answers (which go to the AI with later messages) stay small
+    const AI_DATA_MONTHS = 3;
+    private static $clipped = false;
+
+    /** The earliest date the assistant reads time and invoice data from. Pure. */
+    public static function data_floor($today) {
+        return date('Y-m-d', strtotime($today . ' -' . self::AI_DATA_MONTHS . ' months'));
+    }
+
+    /** Note added to an answer whose period was shortened to the last 3 months. */
+    public static function window_note() {
+        return sprintf(__('(The assistant only looks at the last %d months.)', 'timegrow'), self::AI_DATA_MONTHS);
+    }
 
     public static function init() {
         add_action('wp_ajax_timegrow_voice_create', [__CLASS__, 'handle_create']);
@@ -304,6 +318,10 @@ class TimeGrowNexusAssistant {
                 'client_id'  => isset($client_ok[(int) ($raw['client_id'] ?? 0)]) ? (int) $raw['client_id'] : null,
                 'project_id' => isset($project_ok[(int) ($raw['project_id'] ?? 0)]) ? (int) $raw['project_id'] : null,
                 'who'        => ($raw['who'] ?? 'me') === 'team' ? 'team' : 'me',
+                // A flexible lookup's description, checked by TimeGrowNexusLookup::spec() before it runs
+                'lookup'     => $name === 'lookup' && is_array($raw['lookup'] ?? null) ? $raw['lookup'] : null,
+                // "...and why?": a short written explanation of the results, by the AI, from data with names hidden
+                'explain'    => is_string($raw['explain'] ?? null) && trim($raw['explain']) !== '' ? (function_exists('mb_substr') ? mb_substr(trim($raw['explain']), 0, 200) : substr(trim($raw['explain']), 0, 200)) : null,
             ]];
         }
 
@@ -342,7 +360,7 @@ class TimeGrowNexusAssistant {
 
     const MODES       = ['idle', 'time', 'confirm_time', 'adding_client', 'adding_project', 'confirm_new'];
     const MAX_HISTORY = 8;   // messages kept for context
-    const MAX_LINE    = 200; // characters per message kept
+    const MAX_LINE    = 600; // characters per message kept (an answer's headline and its lines)
 
     /**
      * The conversation state sent by the browser, checked like everything else from it: time fields
@@ -415,8 +433,16 @@ Intents (use only those in the allowed list):
 - "cancel": they want to stop what is in progress.
 - "unknown": anything else.
 
-Return one JSON object: {"intent", "time": {...} or null, "question": {"name", "period", "client_id", "project_id", "who"} or null, "new_client": {...} or null, "new_project": {...} or null}. Use null for anything not said. Never invent IDs: use only IDs from the lists.
+Return one JSON object: {"intent", "time": {...} or null, "question": {"name", "period", "client_id", "project_id", "who", "lookup" (only for "lookup"), "explain" (or null)} or null, "new_client": {...} or null, "new_project": {...} or null}. Use null for anything not said. Never invent IDs: use only IDs from the lists.
 Periods: today, yesterday, this_week, last_week, this_month, last_month, this_year. "who" is "me", or "team" when they ask about everyone.
+
+# LOOKUP AND EXPLAIN
+- When no other allowed question fits a data question, use question name "lookup" and describe it in question.lookup:
+  {"entity": "time_entries" | "projects" | "clients" | "expenses" | "invoices", "metric": "hours" | "amount" | "count" | "list", "group_by": "none" | "client" | "project" | "person" | "month" | "billable" | "category" | "status", "filters": {"client_id", "project_id", "member_id", "billable", "billed", "category_id", "status" ("billed", "unpaid", "paid" or a status), "min_amount", "max_amount", "active"}, "period": a period or null, "from": "YYYY-MM-DD" or null, "to": "YYYY-MM-DD" or null, "limit": up to 25}
+  Examples: "hours by client for Q3" → time_entries, hours, group_by client, from 2026-07-01, to 2026-09-30. "unpaid invoices over 1000" → invoices, list, filters {"status": "unpaid", "min_amount": 1000}. "expenses by category this year" → expenses, amount, group_by category, period this_year. "which projects did [Person 14] work on this week" → time_entries, hours, group_by project, filters {"member_id": 14}, period this_week.
+- Use only IDs from the lists. TimeGrow decides what the person may see; describe what they ask, even if you think they can't see it.
+- When the person asks why, which is best or most, a comparison, or an opinion about the results ("which client brought in the most, and why?"), also set question.explain to their question in a few words. TimeGrow then shows the results and a short explanation.
+- Names are stand-ins such as [Client 31], [Person 14] or [Your company]: use them exactly as given.
 
 # COMPANY, TEAM AND FILTERS
 - The company block is the person's own company, not a client. Its name or a short form of it ("Aragrow" for "Aragrow, LLC"), "the company", "everyone", "the whole team" or "all of us" means the whole team: question.who = "team" with client_id and project_id null, even if a client has a similar name.
@@ -430,7 +456,7 @@ RULES
     }
 
     /** The request text for one message: allowed intents, then state, conversation, lists and the message as data. Pure. */
-    public static function conversation_prompt($transcript, array $state, array $candidates, array $clients, array $questions, array $actions, $today, $company = '') {
+    public static function conversation_prompt($transcript, array $state, array $candidates, array $clients, array $questions, array $actions, $today, $company = '', array $members = [], $role = '') {
         $names = [];
         foreach ($candidates as $c) {
             $names[(int) $c['id']] = $c['name'] . ' (' . $c['client_name'] . ')';
@@ -449,7 +475,13 @@ RULES
         $weekday  = date('l', strtotime($today));
         $describe = self::question_descriptions();
         $lines    = array_map(function ($q) use ($describe) { return "- {$q}: " . ($describe[$q] ?? $q); }, $questions);
+        // "Aragrow" always means the company: a client with the company's name is not offered as a client
+        if ($company !== '' && class_exists('TimeGrowAIPrivacy')) {
+            $clients = array_values(array_filter($clients, function ($c) use ($company) { return !TimeGrowAIPrivacy::same_as_company($c['name'], $company); }));
+        }
+        $roles = ['owner' => 'The person is an administrator: TimeGrow lets them see all TimeGrow and WooCommerce data.', 'member' => 'The person is a team member: TimeGrow only shows them their own time, projects and clients.'];
         return "Today is {$today} ({$weekday}).\n"
+            . (isset($roles[$role]) ? $roles[$role] . " TimeGrow enforces this; just describe what they ask.\n" : '')
             . 'Allowed intents: time, question' . ($actions ? ', ' . implode(', ', $actions) : '') . ", confirm, change, cancel, unknown.\n"
             . "Allowed questions:\n" . implode("\n", $lines) . "\n"
             . (($admin_only = array_values(array_diff(array_merge(self::EVERYONE, self::OWNERS), $questions)))
@@ -465,6 +497,9 @@ RULES
             . "Clients:\n" . TimeGrowAI::untrusted('clients', array_map(function ($c) {
                 return ['client_id' => $c['id'], 'client' => $c['name']];
             }, $clients)) . "\n\n"
+            . ($members ? "Team members:\n" . TimeGrowAI::untrusted('team_members', array_map(function ($m) {
+                return ['member_id' => $m['id'], 'person' => $m['name']];
+            }, $members)) . "\n\n" : '')
             . "The new message:\n" . TimeGrowAI::untrusted('new_message', (string) $transcript) . "\n\n"
             . 'Return the JSON object.';
     }
@@ -472,16 +507,17 @@ RULES
     private static function question_descriptions() {
         return [
             'last_entry'          => 'the last time entry they recorded (optional client_id, project_id)',
-            'recent_entries'      => 'their recent time entries (optional period, client_id, project_id)',
-            'hours'               => 'how many hours were worked in a period, listed by project (also "which projects did I work on"; optional client_id, project_id; who = me or team)',
+            'recent_entries'      => 'their own recent time entries (optional period, client_id, project_id). For another person\'s entries, use lookup',
+            'hours'               => 'how many hours the person (who = me) or the whole team (who = team) worked in a period, listed by project (also "which projects did I work on"; optional client_id, project_id). For ONE other person, or a breakdown by client, month or person, use lookup',
             'clients'             => 'the clients they work for',
             'projects_for_client' => 'the projects for one client (client_id)',
             'latest_projects'     => 'the newest projects created (not the ones worked on; no period)',
             'clock_status'        => 'whether they are clocked in',
             'unbilled_hours'      => 'billable hours not yet invoiced, by client',
             'unpaid_invoices'     => 'invoices not paid yet',
-            'billed_amount'       => 'the amount billed (invoices sent to clients) in a period, by client, and how much is paid (optional client_id)',
-            'expenses'            => 'expenses in a period',
+            'billed_amount'       => 'the amount billed (invoices sent to clients) in a period, by client, and how much is paid (optional client_id). Use this for "billed", "invoiced", "how much did we bill", revenue by client',
+            'lookup'              => 'a flexible read-only lookup, ONLY for data questions no question above covers; put the details in question.lookup (see LOOKUP)',
+            'expenses'            => 'a list of expenses in a period. For totals by category, client, project or month, use lookup',
         ];
     }
 
@@ -591,6 +627,119 @@ RULES;
      * @return array { text, spoken, rows: [{ title, meta, url }] }
      */
     public static function answer(array $question, array $candidates) {
+        self::$clipped = false;
+        $reply = self::answer_data($question, $candidates);
+        if (self::$clipped) {
+            $reply['text']   .= ' ' . self::window_note();
+            $reply['spoken'] .= ' I only look at the last ' . self::AI_DATA_MONTHS . ' months.';
+        }
+        if (!empty($question['explain']) && !empty($reply['rows']) || (!empty($question['explain']) && $question['name'] !== 'lookup')) {
+            $reply = self::explain((string) $question['explain'], $reply);
+        }
+        return $reply;
+    }
+
+    /** The period a question uses when none is said, so the remembered question matches the answer. */
+    const DEFAULT_PERIODS = ['hours' => 'this_week', 'expenses' => 'this_month', 'billed_amount' => 'this_year'];
+
+    /**
+     * The question as it is answered: a missing period filled with the one used. The chat keeps this
+     * for follow-ups ("and last week?", "I mean the whole team"), so they build on a complete question. Pure.
+     */
+    public static function effective_question(array $q) {
+        if (empty($q['period']) && isset(self::DEFAULT_PERIODS[$q['name'] ?? ''])) {
+            $q['period'] = self::DEFAULT_PERIODS[$q['name']];
+        }
+        return $q;
+    }
+
+    /**
+     * A clear follow-up to the last question, read without AI, for when the AI couldn't place it:
+     * "the team" / "everyone" / the company → the whole team; "what about me" → the person;
+     * "not a client" / "all clients" → no client or project filter; "I'm part of the team" → the same
+     * question; a period word → that period. Null when the text is not such a follow-up. Pure.
+     */
+    public static function followup($text, $last, $company = '') {
+        if (!is_array($last) || empty($last['name'])) {
+            return null;
+        }
+        $t = strtolower((string) $text);
+        $q = $last;
+        $changed = false;
+        $company_words = array_filter([strtolower(trim((string) $company)), strtolower(trim(preg_replace('/[,.]?\s*(llc|inc|ltd|corp|co)\.?$/i', '', (string) $company)))]);
+        $mentions_company = false;
+        foreach ($company_words as $w) {
+            if ($w !== '' && strpos($t, $w) !== false) {
+                $mentions_company = true;
+            }
+        }
+        if (preg_match('/\bnot (a |my |our )?client\b|\ball (the )?clients\b|\ball (the )?projects\b|\bno (client|filter)\b/', $t)) {
+            $q['client_id'] = null;
+            $q['project_id'] = null;
+            $changed = true;
+        }
+        if (preg_match('/\b(part of the team|i am (on|in) the team|i\'m (on|in|part of) the team)\b/', $t) && !$mentions_company) {
+            $changed = true; // the team answer already counts them: repeat it
+        } elseif ($mentions_company || preg_match('/\b(the (whole |entire )?team|all (the )?team members|everyone|everybody|all of us|whole company|entire company)\b/', $t)) {
+            $q['who'] = 'team';
+            if ($mentions_company) {
+                $q['client_id'] = null;
+                $q['project_id'] = null;
+            }
+            $changed = true;
+        } elseif (preg_match('/\b(what about me|and me|just me|only me|my own|mine)\b/', $t)) {
+            $q['who'] = 'me';
+            $changed = true;
+        }
+        $period = self::period_in($t);
+        if ($period) {
+            $q['period'] = $period;
+            $changed = true;
+        }
+        return $changed ? $q : null;
+    }
+
+    /** Team members for owners (ID and name), so a lookup can name a person; empty for others. */
+    public static function team_members() {
+        if (!self::is_owner() || !class_exists('TimeGrowTeamMemberModel')) {
+            return [];
+        }
+        return array_map(function ($m) { return ['id' => (int) $m->ID, 'name' => (string) $m->name]; }, (array) (new TimeGrowTeamMemberModel())->select());
+    }
+
+    /**
+     * A short written explanation of an answer, by the AI. The answer's text and rows go through the
+     * privacy layer first (names → stand-ins) and come back with the real names. On any problem the
+     * plain answer is kept.
+     */
+    public static function explain($ask, array $reply) {
+        $privacy = class_exists('TimeGrowNexusVoice') ? TimeGrowNexusVoice::privacy() : null;
+        if (!$privacy || !class_exists('TimeGrowAI') || !TimeGrowAI::is_configured('voice')) {
+            return $reply;
+        }
+        $data = ['answer' => $reply['text'], 'rows' => array_map(function ($r) { return ['title' => $r['title'], 'detail' => $r['meta']]; }, $reply['rows'])];
+        $answer = TimeGrowAI::request([
+            'feature'    => 'voice',
+            'system'     => "Task: answer the person's question in 1 to 3 short sentences, using only the results given. Names are stand-ins like [Client 31] or [Person 14]: copy them exactly, never guess real names. No numbers that are not in the results, and never move a number from one line or from the overall total to another line. Return JSON: {\"answer\": \"...\"}.",
+            'prompt'     => $privacy->mask("The person asked:\n" . TimeGrowAI::untrusted('question', $ask) . "\n\nResults from TimeGrow:\n" . TimeGrowAI::untrusted('results', $data) . "\n\nReturn the JSON object."),
+            'json'       => true,
+            'max_tokens' => 220,
+            'timeout'    => 20,
+        ]);
+        if (is_wp_error($answer)) {
+            return $reply;
+        }
+        $json = TimeGrowAI::json_from_text($answer['text']);
+        $text = is_string($json['answer'] ?? null) ? trim(wp_strip_all_tags($json['answer'])) : '';
+        if ($text === '') {
+            return $reply;
+        }
+        $text = $privacy->unmask($text);
+        return ['text' => $text, 'spoken' => $text, 'rows' => $reply['rows']];
+    }
+
+    /** The answer from TimeGrow's own data (templates). */
+    private static function answer_data(array $question, array $candidates) {
         $name = $question['name'];
         if (!in_array($name, self::allowed_questions(), true)) {
             return self::reply(self::denied_text($name));
@@ -604,6 +753,25 @@ RULES;
         }
 
         switch ($name) {
+            case 'lookup':
+                $owner = self::is_owner();
+                $ok = [
+                    'clients'    => $owner ? array_column(self::all_clients(), 'id') : array_column(self::my_clients($candidates), 'id'),
+                    'projects'   => $owner ? array_map('intval', (array) $GLOBALS['wpdb']->get_col("SELECT ID FROM {$GLOBALS['wpdb']->prefix}" . TIMEGROW_PREFIX . 'project_tracker')) : array_map('intval', array_column($candidates, 'id')),
+                    'members'    => $owner ? array_column(self::team_members(), 'id') : ($member ? [$member] : []),
+                    'categories' => class_exists('TimeGrowAIReceiptAnalyzer') ? array_column(TimeGrowAIReceiptAnalyzer::active_categories(), 'id') : [],
+                    'statuses'   => function_exists('wc_get_order_statuses') ? array_map(function ($x) { return preg_replace('/^wc-/', '', $x); }, array_keys(wc_get_order_statuses())) : [],
+                    'me'         => (int) $member,
+                ];
+                $spec = TimeGrowNexusLookup::spec($question['lookup'] ?? null, $owner, $ok, $today);
+                if ($spec === null) {
+                    return self::reply(__('I couldn\'t work out what to look up. Try naming what you want, for example "hours by client this year".', 'timegrow'));
+                }
+                if (!empty($spec['denied'])) {
+                    return self::reply(self::denied_text('lookup'));
+                }
+                return TimeGrowNexusLookup::run($spec, $candidates, $owner);
+
             case 'last_entry':
                 $filters = array_filter(['client_id' => $question['client_id'] ?? null, 'project_id' => $question['project_id'] ?? null]);
                 $rows = self::entries($member, '1970-01-01', $today, $filters, 1);
@@ -726,7 +894,11 @@ RULES;
             case 'billed_amount':
                 $period = $question['period'] ?: 'this_year';
                 [$from, $to] = self::period_range($period, $today);
-                $args = ['status' => self::BILLED_STATUSES, 'limit' => -1, 'date_created' => $from . '...' . $to . ' 23:59:59'];
+                if ($from < self::data_floor($today)) {
+                    $from = self::data_floor($today);
+                    self::$clipped = true;
+                }
+                $args = ['type' => 'shop_order', 'status' => self::BILLED_STATUSES, 'limit' => -1, 'date_created' => $from . '...' . $to . ' 23:59:59'];
                 if (!empty($question['client_id'])) {
                     $args['customer_id'] = (int) $question['client_id'];
                 }
@@ -764,7 +936,8 @@ RULES;
                 return self::reply($text, $spoken, $list);
 
             case 'unpaid_invoices':
-                $orders = wc_get_orders(['status' => self::UNPAID_STATUSES, 'limit' => 20, 'orderby' => 'date', 'order' => 'DESC']);
+                $orders = wc_get_orders(['type' => 'shop_order', 'status' => self::UNPAID_STATUSES, 'limit' => 20, 'orderby' => 'date', 'order' => 'DESC', 'date_created' => '>=' . self::data_floor($today)]);
+                self::$clipped = true;
                 if (!$orders) return self::reply(__('There are no unpaid invoices.', 'timegrow'), 'There are no unpaid invoices.');
                 $total = 0.0;
                 $list = [];
@@ -810,6 +983,11 @@ RULES;
         $p     = $wpdb->prefix . TIMEGROW_PREFIX;
         $day   = 'COALESCE(e.date, e.clock_in_date)';
         $where = ["{$day} >= %s", "{$day} < %s"];
+        $floor = self::data_floor(current_time('Y-m-d'));
+        if ($from < $floor) {
+            $from = $floor; // the last 3 months only
+            self::$clipped = self::$clipped || $limit !== 1; // "your last entry" needs no note
+        }
         $args  = [$from . ' 00:00:00', date('Y-m-d', strtotime($to . ' +1 day')) . ' 00:00:00'];
         if ($member_id) { $where[] = 'e.member_id = %d'; $args[] = (int) $member_id; }
         if (!empty($filters['client_id'])) { $where[] = 'p.client_id = %d'; $args[] = (int) $filters['client_id']; }

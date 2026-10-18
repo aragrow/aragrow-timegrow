@@ -8,7 +8,8 @@
 // allowed to, add a client or project (TimeGrowNexusAssistant.php). The server decides what is
 // allowed and writes the answers; adding always asks for a confirmation.
 // With AI on it is a conversation: every message goes to the AI with a short history (what the
-// person said and what the chat asked, never the data in answers) and what is in progress, so
+// person said, what the chat asked and the answers' headlines; names are replaced by the server's
+// privacy layer before anything reaches the AI) and what is in progress, so
 // people can give several details at once, correct things, follow up or switch topic.
 // - Manual Time Entry page: the normal form saves the entry.
 // - Any other admin page: it saves through the same AJAX action (save_time_entry) without leaving the page.
@@ -80,7 +81,7 @@ jQuery(document).ready(function($) {
   const history = [];       // what was said and asked, for the AI's context
   let appendSpeech = false; // the next spoken text waits for the current one instead of cutting it off
   function remember(who, text) {
-    history.push({ who: who, text: String(text || '').slice(0, 200) });
+    history.push({ who: who, text: String(text || '').slice(0, 600) });
     while (history.length > 9) history.shift();
   }
   const allClients = Array.isArray(cfg.allClients) ? cfg.allClients.map(c => ({ id: Number(c.id), name: String(c.name) })) : [];
@@ -695,6 +696,9 @@ jQuery(document).ready(function($) {
 
   /** The answer, with its list (links open in the same tab only for pages the person can use). */
   function showAnswer(a) {
+    // The answer and its lines (the TimeGrow / WooCommerce data found) go to the AI with later messages, so
+    // follow-ups have context; the server's privacy layer replaces names and contact details first
+    remember('bot', [a.text || ''].concat((Array.isArray(a.rows) ? a.rows : []).slice(0, 8).map(r => '• ' + r.title + (r.meta ? ': ' + r.meta : ''))).join('\n'));
     bubble('bot', a.text || '');
     if (Array.isArray(a.rows) && a.rows.length) {
       logTurn('bot', a.rows.map(r => '• ' + r.title + (r.meta ? ' (' + r.meta + ')' : '')).join('\n'));

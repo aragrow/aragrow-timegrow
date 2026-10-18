@@ -242,14 +242,31 @@ RULES;
      *
      * @throws Exception "no_ai" when no AI is set up, otherwise the error.
      */
+    /** The privacy layer for this request (names of clients, team members and the company → stand-ins). */
+    public static function privacy() {
+        static $layer = null;
+        if ($layer === null) {
+            $layer = class_exists('TimeGrowAIPrivacy')
+                ? TimeGrowAIPrivacy::for_site(class_exists('TimeGrowNexusAssistant') ? TimeGrowNexusAssistant::company_name() : '')
+                : null;
+        }
+        return $layer;
+    }
+
     public static function ask_ai($prompt, $system = null) {
         $started = microtime(true);
+        // Identity data never reaches the AI: names become stand-ins like [Client 31], and come back after
+        $privacy = self::privacy();
+        if ($privacy) {
+            $prompt = $privacy->mask($prompt);
+        }
         $answer = TimeGrowAI::request(['feature' => 'voice', 'system' => $system ?? self::instructions(), 'prompt' => $prompt, 'json' => true, 'max_tokens' => 300, 'timeout' => 20]);
         self::$last_call = ['usage' => is_wp_error($answer) ? null : ($answer['usage'] ?? null), 'ms' => (int) round((microtime(true) - $started) * 1000)];
         if (is_wp_error($answer)) {
             throw new Exception($answer->get_error_code() === 'no_ai' ? 'no_ai' : $answer->get_error_message());
         }
-        return self::json_from_text($answer['text']);
+        $heard = self::json_from_text($answer['text']);
+        return $privacy ? $privacy->unmask($heard) : $heard;
     }
 
     /**
@@ -317,7 +334,7 @@ RULES;
 
         // With AI: a conversation. Every message is read with what came before.
         $conversation_json = wp_unslash($_POST['conversation'] ?? '');
-        if ($ai_on && $conversation_json !== '' && strlen($conversation_json) <= 8000) {
+        if ($ai_on && $conversation_json !== '' && strlen($conversation_json) <= 16000) {
             self::converse($transcript, json_decode($conversation_json, true), $candidates, $clients, $questions, $actions, $today);
         }
 
@@ -381,7 +398,8 @@ RULES;
         $state = TimeGrowNexusAssistant::read_state($conversation, $candidates, $clients, $questions, $actions, $today);
         try {
             $heard = self::ask_ai(
-                TimeGrowNexusAssistant::conversation_prompt($transcript, $state, $candidates, $clients, $questions, $actions, $today, TimeGrowNexusAssistant::company_name()),
+                TimeGrowNexusAssistant::conversation_prompt($transcript, $state, $candidates, $clients, $questions, $actions, $today, TimeGrowNexusAssistant::company_name(),
+                    TimeGrowNexusAssistant::team_members(), TimeGrowNexusAssistant::is_owner() ? 'owner' : 'member'),
                 TimeGrowNexusAssistant::conversation_instructions()
             );
         } catch (Exception $e) {
@@ -399,6 +417,23 @@ RULES;
             wp_send_json_success(['intent' => 'time', 'fields' => $fields]);
         }
         TimeGrowAILog::ai($intent['intent'], $heard, $intent, self::$last_call['usage'], self::$last_call['ms']);
+        // A clear follow-up the AI couldn't place ("I mean all the team members"): build it on the last question
+        if ($intent['intent'] === 'unknown' && !empty($state['last_question'])) {
+            $next = TimeGrowNexusAssistant::followup($transcript, $state['last_question'], TimeGrowNexusAssistant::company_name());
+            if ($next) {
+                TimeGrowAILog::system(__('Read as a follow-up to the last question, without AI.', 'timegrow'), 'local');
+                self::send_intent(['intent' => 'question', 'question' => $next], $candidates);
+            }
+        }
+        // A name that fits several clients ("Copperleaf"): ask which one instead of "I can't answer that"
+        if ($intent['intent'] === 'unknown' && self::privacy() && ($groups = self::privacy()->ambiguous(self::privacy()->mask($transcript)))) {
+            $names = $groups[0];
+            wp_send_json_success(['intent' => 'question', 'answer' => [
+                'text'   => __('Which one do you mean?', 'timegrow'),
+                'spoken' => sprintf(__('Which one do you mean? I found %d.', 'timegrow'), count($names)),
+                'rows'   => array_map(function ($n) { return ['title' => $n, 'meta' => '', 'url' => '']; }, $names),
+            ]]);
+        }
         self::send_intent($intent, $candidates);
     }
 
@@ -415,7 +450,8 @@ RULES;
     private static function send_intent(array $intent, array $candidates) {
         switch ($intent['intent']) {
             case 'question':
-                wp_send_json_success(['intent' => 'question', 'question' => $intent['question'], 'answer' => TimeGrowNexusAssistant::answer($intent['question'], $candidates)]);
+                $question = TimeGrowNexusAssistant::effective_question($intent['question']); // remembered as answered, period included
+                wp_send_json_success(['intent' => 'question', 'question' => $question, 'answer' => TimeGrowNexusAssistant::answer($question, $candidates)]);
             case 'denied':
                 $text = TimeGrowNexusAssistant::denied_text($intent['question']['name'] ?? '');
                 wp_send_json_success(['intent' => 'denied', 'answer' => ['text' => $text, 'spoken' => $text, 'rows' => []]]);
