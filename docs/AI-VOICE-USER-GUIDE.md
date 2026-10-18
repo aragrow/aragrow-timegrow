@@ -64,7 +64,14 @@ Ask about your own time and projects at any moment, even in the middle of record
 | "Newest projects" | The latest projects |
 | "Am I clocked in?" | Your clock status |
 
-Periods it knows: today, yesterday, this week, last week, this month, last month and this year.
+Periods it knows: today, yesterday, this week, last week, this month, last month, this year and last year.
+
+The assistant only looks at time entries and invoices from the last 3 months. If you ask for more, it tells you:
+
+- **Partly older** ("how much did we bill this year"): you get the last 3 months, a note saying so, and links to the reports for the full period.
+- **All older** ("give me last year's total invoiced"): it says it can't answer and links the reports that cover any period, such as the Client Activity Report or Yearly Tax Report.
+
+Expenses are not limited.
 
 Administrators can also ask about the whole team, unbilled hours, unpaid invoices and expenses, and can add clients and projects by voice ("Add a client called Jane Doe"). If you ask for something only administrators can see, it tells you so.
 
