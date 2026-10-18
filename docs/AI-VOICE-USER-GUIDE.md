@@ -15,6 +15,12 @@ The assistant remembers the conversation while the chat is open. Closing it, or 
 
 If you don't see the microphone icon, ask your administrator to turn on AI Voice for you.
 
+## Its name and voice
+
+The assistant is called **Sam Spade** unless your administrator renamed it (Settings > AI Voice Entry > Assistant name). You can call it by name: "Sam, how many hours this week?" works the same as the question on its own.
+
+It speaks with the voice your administrator chose, or the most natural voice your device has. To use a different one on your device, click **Voice** at the top of the chat and pick one; voices marked ★ sound the most natural. Your pick is remembered on that device and wins over the site's choice.
+
 ## Record your time
 
 Say what you did in one sentence. The assistant fills in what it understood and only asks for what is missing: client, project, day, hours, billable and what you worked on. Because you give the hours, it doesn't ask for a start time. If you say one ("from 9 to 11"), it keeps it.
