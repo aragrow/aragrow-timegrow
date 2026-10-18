@@ -16,7 +16,8 @@ class TimeGrowExpenseView {
             'filter_assigned_to' => '',
             'filter_date_from' => '',
             'filter_date_to' => '',
-            'filter_search' => ''
+            'filter_search' => '',
+            'filter_status' => '',
         ], $current_filters);
 
         // Helper function for sortable column headers
@@ -29,7 +30,15 @@ class TimeGrowExpenseView {
         // Check if any filters are active
         $has_filters = !empty($current_filters['filter_assigned_to']) ||
                        !empty($current_filters['filter_date_from']) || !empty($current_filters['filter_date_to']) ||
-                       !empty($current_filters['filter_search']);
+                       !empty($current_filters['filter_search']) || (string) $current_filters['filter_status'] !== '';
+        // The quick ranges keep the other filters and the sort
+        $range_base = array_filter([
+            'page' => TIMEGROW_PARENT_MENU . '-expenses-list',
+            's' => $current_filters['filter_search'],
+            'filter_assigned_to' => $current_filters['filter_assigned_to'],
+            'filter_status' => $current_filters['filter_status'],
+            'orderby' => $current_filters['orderby'], 'order' => $current_filters['order'],
+        ], 'strlen');
         ?>
         <div class="wrap timegrow-page">
         <!-- Modern Header -->
@@ -50,10 +59,19 @@ class TimeGrowExpenseView {
             <br class="clear">
         </div>
 
-        <div class="tablenav top">
-            <div class="alignleft actions">
-                <input type="search" id="filter_search" name="s" value="<?php echo esc_attr($current_filters['filter_search']); ?>" placeholder="<?php esc_attr_e('Search expenses...', 'timegrow'); ?>">
-
+        <!-- Filters: quick ranges and dates, then the filters with the keyword last -->
+        <div class="tg-te-filters">
+            <div class="tg-te-range-row">
+                <?php if (class_exists('TimeGrowDateRanges')) TimeGrowDateRanges::render($range_base, $current_filters['filter_date_from'], $current_filters['filter_date_to'], ['filter_date_from', 'filter_date_to']); ?>
+                <div class="tg-te-dates">
+                    <label for="filter_date_from" class="screen-reader-text"><?php esc_html_e('From', 'timegrow'); ?></label>
+                    <input type="date" id="filter_date_from" name="filter_date_from" value="<?php echo esc_attr($current_filters['filter_date_from']); ?>" title="<?php esc_attr_e('From', 'timegrow'); ?>">
+                    <span class="tg-te-to" aria-hidden="true">to</span>
+                    <label for="filter_date_to" class="screen-reader-text"><?php esc_html_e('To', 'timegrow'); ?></label>
+                    <input type="date" id="filter_date_to" name="filter_date_to" value="<?php echo esc_attr($current_filters['filter_date_to']); ?>" title="<?php esc_attr_e('To', 'timegrow'); ?>">
+                </div>
+            </div>
+            <div class="tg-te-filter-row">
                 <select id="filter_assigned_to" name="filter_assigned_to">
                     <option value=""><?php esc_html_e('All Types', 'timegrow'); ?></option>
                     <option value="client" <?php selected($current_filters['filter_assigned_to'], 'client'); ?>><?php esc_html_e('Client', 'timegrow'); ?></option>
@@ -61,17 +79,35 @@ class TimeGrowExpenseView {
                     <option value="general" <?php selected($current_filters['filter_assigned_to'], 'general'); ?>><?php esc_html_e('General', 'timegrow'); ?></option>
                 </select>
 
-                <input type="date" id="filter_date_from" name="filter_date_from" value="<?php echo esc_attr($current_filters['filter_date_from']); ?>" placeholder="<?php esc_attr_e('From Date', 'timegrow'); ?>">
-                <input type="date" id="filter_date_to" name="filter_date_to" value="<?php echo esc_attr($current_filters['filter_date_to']); ?>" placeholder="<?php esc_attr_e('To Date', 'timegrow'); ?>">
+                <select id="filter_status" name="filter_status">
+                    <option value=""><?php esc_html_e('All Statuses', 'timegrow'); ?></option>
+                    <option value="1" <?php selected($current_filters['filter_status'], '1'); ?>><?php esc_html_e('Active', 'timegrow'); ?></option>
+                    <option value="0" <?php selected($current_filters['filter_status'], '0'); ?>><?php esc_html_e('Inactive', 'timegrow'); ?></option>
+                </select>
 
-                <button type="button" id="filter_expenses" class="button"><?php esc_html_e('Filter', 'timegrow'); ?></button>
+                <label for="filter_search" class="screen-reader-text"><?php esc_html_e('Search expenses', 'timegrow'); ?></label>
+                <input type="search" id="filter_search" name="s" value="<?php echo esc_attr($current_filters['filter_search']); ?>" placeholder="<?php esc_attr_e('Keyword...', 'timegrow'); ?>">
+
+                <button type="button" id="filter_expenses" class="button button-primary"><?php esc_html_e('Filter', 'timegrow'); ?></button>
 
                 <?php if ($has_filters) : ?>
                     <a href="<?php echo admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-expenses-list'); ?>" class="button"><?php esc_html_e('Clear Filters', 'timegrow'); ?></a>
                 <?php endif; ?>
             </div>
-            <br class="clear">
         </div>
+        <style>
+            .tg-te-filters { margin: 10px 0 12px; padding: 10px 12px; background: #f9f9f9; border: 1px solid #dcdcde; border-radius: 4px; }
+            .tg-te-range-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+            .tg-te-filters .timegrow-date-presets { margin: 0 !important; gap: 4px !important; }
+            .tg-te-filters .timegrow-date-presets .button { min-height: 26px; line-height: 24px; padding: 0 8px; font-size: 12px; }
+            .tg-te-dates, .tg-te-filter-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+            .tg-te-filters select, .tg-te-filters input[type="date"], .tg-te-filters input[type="search"] { min-height: 30px; height: 30px; font-size: 13px; line-height: 28px; margin: 0; }
+            .tg-te-filters select { padding: 0 22px 0 8px; max-width: 140px; }
+            .tg-te-filters input[type="date"] { padding: 0 6px; width: 130px; }
+            .tg-te-filters input[type="search"] { padding: 0 8px; width: 170px; }
+            .tg-te-filters .tg-te-filter-row .button { min-height: 30px; line-height: 28px; margin: 0; }
+            .tg-te-to { color: #646970; font-size: 12px; }
+        </style>
 
         <table class="wp-list-table widefat fixed striped table-view-list clients">
             <thead>
@@ -90,6 +126,9 @@ class TimeGrowExpenseView {
                     </th>
                     <th scope="col" class="manage-column column-category sortable <?php echo ($current_filters['orderby'] == 'category') ? 'sorted ' . strtolower($current_filters['order']) : ''; ?>">
                         <?php echo $sortable_link('category', __('Category', 'timegrow')); ?>
+                    </th>
+                    <th scope="col" class="manage-column column-status sortable <?php echo ($current_filters['orderby'] == 'status') ? 'sorted ' . strtolower($current_filters['order']) : ''; ?>">
+                        <?php echo $sortable_link('status', __('Status', 'timegrow')); ?>
                     </th>
                 </tr>
             </thead>
@@ -121,11 +160,18 @@ class TimeGrowExpenseView {
                                 ?>
                             </td>
                             <td class="column-category" data-colname="Category"><?php echo esc_html($item->category_name ?? 'N/A'); ?></td>
+                            <td class="column-status" data-colname="Status">
+                                <?php if ((int) ($item->status ?? 1) === 1) : ?>
+                                    <span class="timegrow-badge timegrow-badge-active"><?php esc_html_e('Active', 'timegrow'); ?></span>
+                                <?php else : ?>
+                                    <span class="timegrow-badge timegrow-badge-inactive"><?php esc_html_e('Inactive', 'timegrow'); ?></span>
+                                <?php endif; ?>
+                            </td>
                         </tr>
                     <?php endforeach; ?>
                 <?php else : ?>
                     <tr>
-                        <td colspan="5">No expenses found.</td>
+                        <td colspan="6">No expenses found.</td>
                     </tr>
                 <?php endif; ?>
             </tbody>
@@ -136,6 +182,7 @@ class TimeGrowExpenseView {
                     <th scope="col" class="manage-column column-amount">Amount</th>
                     <th scope="col" class="manage-column column-assigned-to">Assigned To</th>
                     <th scope="col" class="manage-column column-category">Category</th>
+                    <th scope="col" class="manage-column column-status">Status</th>
                 </tr>
             </tfoot>
         </table>
@@ -371,12 +418,20 @@ class TimeGrowExpenseView {
                                     </th>
                                     <td>
                                         <select name="expense_payment_method" id="expense_payment_method" required>
-                                            <option value="personal_card">Personal Card (Reimbursable)</option>
-                                            <option value="company_card">Company Card</option>
-                                            <option value="cash">Cash</option>
-                                            <option value="bank_transfer">Bank Transfer</option>
-                                            <option value="other">Other</option>
+                                            <?php foreach (['personal_card' => 'Personal Card (Reimbursable)', 'company_card' => 'Company Card', 'cash' => 'Cash', 'bank_transfer' => 'Bank Transfer', 'other' => 'Other'] as $method => $label) : ?>
+                                                <option value="<?php echo esc_attr($method); ?>" <?php selected($expense->expense_payment_method ?? '', $method); ?>><?php echo esc_html($label); ?></option>
+                                            <?php endforeach; ?>
                                         </select>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th scope="row"><label for="status">Status</label></th>
+                                    <td>
+                                        <select id="status" name="status">
+                                            <option value="1" <?php selected((int) ($expense->status ?? 1), 1); ?>>Active</option>
+                                            <option value="0" <?php selected((int) ($expense->status ?? 1), 0); ?>>Inactive</option>
+                                        </select>
+                                        <p class="description">Inactive expenses stay here but are left out of every report and total.</p>
                                     </td>
                                 </tr>
                                 </table>

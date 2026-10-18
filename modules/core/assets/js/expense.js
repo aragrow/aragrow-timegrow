@@ -352,23 +352,26 @@ jQuery(document).ready(function($) {
         var filterAssignedTo = $('#filter_assigned_to').val();
         var filterDateFrom = $('#filter_date_from').val();
         var filterDateTo = $('#filter_date_to').val();
+        var filterStatus = $('#filter_status').val();
 
         var url = new URL(window.location.href);
         url.searchParams.delete('s');
         url.searchParams.delete('filter_assigned_to');
         url.searchParams.delete('filter_date_from');
         url.searchParams.delete('filter_date_to');
+        url.searchParams.delete('filter_status');
 
         if (filterSearch) url.searchParams.set('s', filterSearch);
         if (filterAssignedTo) url.searchParams.set('filter_assigned_to', filterAssignedTo);
         if (filterDateFrom) url.searchParams.set('filter_date_from', filterDateFrom);
         if (filterDateTo) url.searchParams.set('filter_date_to', filterDateTo);
+        if (filterStatus) url.searchParams.set('filter_status', filterStatus);
 
         window.location.href = url.toString();
     });
 
     // Allow Enter key to trigger filter
-    $('#filter_search, #filter_assigned_to, #filter_date_from, #filter_date_to').on('keypress', function(e) {
+    $('#filter_search, #filter_assigned_to, #filter_status, #filter_date_from, #filter_date_to').on('keypress', function(e) {
         if (e.which === 13) {
             e.preventDefault();
             $('#filter_expenses').click();

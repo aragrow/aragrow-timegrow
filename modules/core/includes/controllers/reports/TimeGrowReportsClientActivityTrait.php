@@ -96,7 +96,7 @@ trait TimeGrowReportsClientActivityTrait {
                     END) as billed_amount,
                     (SELECT COUNT(*) FROM {$expense_table} e
                      INNER JOIN {$project_table} p2 ON e.assigned_to = 'project' AND e.assigned_to_id = p2.ID
-                     WHERE p2.client_id = c.ID";
+                     WHERE p2.client_id = c.ID AND e.status = 1";
 
         $params = [];
 
@@ -113,7 +113,7 @@ trait TimeGrowReportsClientActivityTrait {
         $query .= ") as expense_count,
                     (SELECT COALESCE(SUM(e.amount), 0) FROM {$expense_table} e
                      INNER JOIN {$project_table} p2 ON e.assigned_to = 'project' AND e.assigned_to_id = p2.ID
-                     WHERE p2.client_id = c.ID";
+                     WHERE p2.client_id = c.ID AND e.status = 1";
 
         if (!empty($start_date)) {
             $query .= " AND e.expense_date >= %s";
@@ -462,7 +462,7 @@ trait TimeGrowReportsClientActivityTrait {
                             p.name as project_name
                         FROM {$expense_table} e
                         INNER JOIN {$project_table} p ON e.assigned_to = 'project' AND e.assigned_to_id = p.ID
-                        WHERE p.client_id = %d";
+                        WHERE p.client_id = %d AND e.status = 1";
 
         $expense_params = [$client_id];
 
@@ -758,10 +758,10 @@ trait TimeGrowReportsClientActivityTrait {
                     END) as billable_hours,
                     (SELECT COUNT(*) FROM {$expense_table} e
                      INNER JOIN {$project_table} p2 ON e.assigned_to = 'project' AND e.assigned_to_id = p2.ID
-                     WHERE p2.client_id = c.ID) as expense_count,
+                     WHERE p2.client_id = c.ID AND e.status = 1) as expense_count,
                     (SELECT COALESCE(SUM(e.amount), 0) FROM {$expense_table} e
                      INNER JOIN {$project_table} p2 ON e.assigned_to = 'project' AND e.assigned_to_id = p2.ID
-                     WHERE p2.client_id = c.ID) as total_expenses,
+                     WHERE p2.client_id = c.ID AND e.status = 1) as total_expenses,
                     MIN(COALESCE(te.date, te.clock_in_date)) as first_activity,
                     MAX(COALESCE(te.date, te.clock_in_date)) as last_activity
                 FROM {$client_table} c

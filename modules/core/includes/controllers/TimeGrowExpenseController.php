@@ -44,7 +44,8 @@ class TimeGrowExpenseController{
             'expense_category_id' => intval($_POST['expense_category_id']),
             'assigned_to' => sanitize_text_field($_POST['assigned_to']),
             'assigned_to_id' => intval($_POST['assigned_to_id']),
-            'updated_at' => $current_date
+            'updated_at' => $current_date,
+            'status' => (isset($_POST['status']) && (string) $_POST['status'] === '0') ? 0 : 1,
         ];
 
         $format = [
@@ -57,6 +58,7 @@ class TimeGrowExpenseController{
             '%s',  // assigned_to (string)
             '%d',  // assigned_to_id (integer)
             '%s',  // updated_at (datetime string)
+            '%d',  // status (1 active, 0 inactive)
         ];
 
         $id = intval($_POST['expense_id']);
@@ -76,9 +78,9 @@ class TimeGrowExpenseController{
             $result = $this->expense_model->update($id, $data, $format);
 
             if ($result) {
-                echo '<div class="notice notice-success is-dismissible"><p>Expense added successfully!</p></div>';
+                echo '<div class="notice notice-success is-dismissible"><p>Expense updated successfully!</p></div>';
             } else {
-                echo '<div class="notice notice-error is-dismissible"><p>Error adding expense.</p></div>';
+                echo '<div class="notice notice-error is-dismissible"><p>Error updating expense.</p></div>';
             }
 
         }
@@ -116,6 +118,10 @@ class TimeGrowExpenseController{
         $filter_date_from = isset($_GET['filter_date_from']) ? sanitize_text_field($_GET['filter_date_from']) : '';
         $filter_date_to = isset($_GET['filter_date_to']) ? sanitize_text_field($_GET['filter_date_to']) : '';
         $filter_search = isset($_GET['s']) ? sanitize_text_field($_GET['s']) : '';
+        $filter_status = isset($_GET['filter_status']) && in_array((string) $_GET['filter_status'], ['0', '1'], true) ? (string) $_GET['filter_status'] : '';
+        if ($filter_status !== '') {
+            $where_conditions[] = $wpdb->prepare('e.status = %d', (int) $filter_status);
+        }
 
         if (!empty($filter_search)) {
             $search_term = '%' . $wpdb->esc_like($filter_search) . '%';
@@ -139,7 +145,7 @@ class TimeGrowExpenseController{
         $order = isset($_GET['order']) ? sanitize_text_field($_GET['order']) : 'DESC';
 
         // Validate orderby column
-        $allowed_orderby = ['expense_date', 'amount', 'expense_name', 'assigned_to', 'expense_category_id'];
+        $allowed_orderby = ['expense_date', 'amount', 'expense_name', 'assigned_to', 'expense_category_id', 'status'];
         if (!in_array($orderby, $allowed_orderby)) {
             $orderby = 'expense_date';
         }
@@ -152,7 +158,7 @@ class TimeGrowExpenseController{
 
         // Map orderby to actual column names
         $orderby_column = $orderby;
-        if ($orderby == 'expense_date' || $orderby == 'amount' || $orderby == 'expense_name' || $orderby == 'assigned_to' || $orderby == 'expense_category_id') {
+        if ($orderby == 'status' || $orderby == 'expense_date' || $orderby == 'amount' || $orderby == 'expense_name' || $orderby == 'assigned_to' || $orderby == 'expense_category_id') {
             $orderby_column = 'e.' . $orderby;
         }
 
@@ -204,7 +210,8 @@ class TimeGrowExpenseController{
             'filter_assigned_to' => $filter_assigned_to,
             'filter_date_from' => $filter_date_from,
             'filter_date_to' => $filter_date_to,
-            'filter_search' => $filter_search
+            'filter_search' => $filter_search,
+            'filter_status' => $filter_status,
         ]);
     }
 

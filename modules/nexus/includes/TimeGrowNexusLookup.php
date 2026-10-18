@@ -347,7 +347,7 @@ class TimeGrowNexusLookup {
     private static function run_expenses(array $spec) {
         global $wpdb;
         $t     = $wpdb->prefix . TIMEGROW_PREFIX . 'expense_tracker';
-        $where = ['expense_date BETWEEN %s AND %s'];
+        $where = ['expense_date BETWEEN %s AND %s', 'status = 1']; // inactive expenses are not counted
         $args  = [$spec['from'], $spec['to']];
         $f     = $spec['filters'];
         if (!empty($f['category_id'])) { $where[] = 'expense_category_id = %d'; $args[] = $f['category_id']; }

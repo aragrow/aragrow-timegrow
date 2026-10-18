@@ -358,10 +358,10 @@ class TimeGrowReportsController {
                     END) as billable_hours,
                     (SELECT COUNT(*) FROM {$expense_table} e
                      INNER JOIN {$project_table} p2 ON e.assigned_to = 'project' AND e.assigned_to_id = p2.ID
-                     WHERE p2.client_id = c.ID) as expense_count,
+                     WHERE p2.client_id = c.ID AND e.status = 1) as expense_count,
                     (SELECT COALESCE(SUM(e.amount), 0) FROM {$expense_table} e
                      INNER JOIN {$project_table} p2 ON e.assigned_to = 'project' AND e.assigned_to_id = p2.ID
-                     WHERE p2.client_id = c.ID) as total_expenses
+                     WHERE p2.client_id = c.ID AND e.status = 1) as total_expenses
                 FROM {$client_table} c
                 INNER JOIN {$project_table} p ON c.ID = p.client_id
                 LEFT JOIN {$time_entry_table} te ON p.ID = te.project_id AND te.status = 1

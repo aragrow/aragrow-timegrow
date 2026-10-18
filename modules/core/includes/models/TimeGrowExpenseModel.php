@@ -26,6 +26,7 @@ class TimeGrowExpenseModel {
                                 'assigned_to_id',
                                 'expense_description',
                                 'expense_payment_method',
+                                'status',
                                 'updated_at',
                                 'created_at'];
     }
@@ -42,13 +43,36 @@ class TimeGrowExpenseModel {
             category VARCHAR(255) NOT NULL,
             assigned_to ENUM('project', 'client', 'general') NOT NULL,
             assigned_to_id mediumint(9) NULL,
+            status tinyint(1) NOT NULL DEFAULT 1,
             created_at timestamp,
             updated_at timestamp,
             PRIMARY KEY (id)
         ) $this->charset_collate;";
 
         dbDelta($sql);
+        self::maybe_add_status_column();
+    }
 
+    /**
+     * The status column (1 = active, 0 = inactive) on sites created before it: added once, every
+     * existing expense active. Inactive expenses stay in the database but are left out of every
+     * report total and the Voice AI.
+     */
+    public static function maybe_add_status_column() {
+        if (get_option('timegrow_expense_status_db') === '1') {
+            return;
+        }
+        global $wpdb;
+        $table = $wpdb->prefix . TIMEGROW_PREFIX . 'expense_tracker';
+        if ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $table)) !== $table) {
+            return; // created later by initialize(), with the column
+        }
+        if (!$wpdb->get_var($wpdb->prepare("SHOW COLUMNS FROM {$table} LIKE %s", 'status'))) {
+            $wpdb->query("ALTER TABLE {$table} ADD COLUMN status tinyint(1) NOT NULL DEFAULT 1 AFTER assigned_to_id");
+        }
+        if ($wpdb->get_var($wpdb->prepare("SHOW COLUMNS FROM {$table} LIKE %s", 'status'))) {
+            update_option('timegrow_expense_status_db', '1', false);
+        }
     }
 
     /**

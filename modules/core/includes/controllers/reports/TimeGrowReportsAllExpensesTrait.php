@@ -62,7 +62,7 @@ trait TimeGrowReportsAllExpensesTrait {
                 LEFT JOIN {$category_table} ec ON e.expense_category_id = ec.ID
                 LEFT JOIN {$project_table} p ON (e.assigned_to = 'project' AND e.assigned_to_id = p.ID)
                 LEFT JOIN {$client_table} c ON (e.assigned_to = 'client' AND e.assigned_to_id = c.ID)
-                WHERE 1=1";
+                WHERE e.status = 1"; // inactive expenses are not counted
 
         $params = [];
 
@@ -473,7 +473,7 @@ trait TimeGrowReportsAllExpensesTrait {
                 LEFT JOIN {$category_table} ec ON e.expense_category_id = ec.ID
                 LEFT JOIN {$project_table} p ON (e.assigned_to = 'project' AND e.assigned_to_id = p.ID)
                 LEFT JOIN {$client_table} c ON (e.assigned_to = 'client' AND e.assigned_to_id = c.ID)
-                WHERE 1=1";
+                WHERE e.status = 1"; // inactive expenses are not counted
 
         $params = [];
 
@@ -580,7 +580,7 @@ trait TimeGrowReportsAllExpensesTrait {
                 LEFT JOIN {$category_table} ec ON e.expense_category_id = ec.ID
                 LEFT JOIN {$project_table} p ON (e.assigned_to = 'project' AND e.assigned_to_id = p.ID)
                 LEFT JOIN {$client_table} c ON (e.assigned_to = 'client' AND e.assigned_to_id = c.ID)
-                WHERE 1=1";
+                WHERE e.status = 1"; // inactive expenses are not counted
 
         $params = [];
 

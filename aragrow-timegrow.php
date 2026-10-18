@@ -211,6 +211,9 @@ add_action('admin_init', function() {
     if (class_exists('TimeGrowTimeEntryModel')) {
         TimeGrowTimeEntryModel::maybe_add_status_column();
     }
+    if (class_exists('TimeGrowExpenseModel')) {
+        TimeGrowExpenseModel::maybe_add_status_column();
+    }
     if (class_exists('TimeGrowTimeEntryAudit')) {
         TimeGrowTimeEntryAudit::maybe_create_table();
     }

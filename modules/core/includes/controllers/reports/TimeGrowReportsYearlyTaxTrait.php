@@ -705,7 +705,7 @@ trait TimeGrowReportsYearlyTaxTrait {
                     ec.schedule_c_part
              FROM {$expense_table} e
              LEFT JOIN {$category_table} ec ON e.expense_category_id = ec.ID
-             WHERE YEAR(e.expense_date) = %d
+             WHERE YEAR(e.expense_date) = %d AND e.status = 1
              ORDER BY e.expense_date ASC",
             $year
         );

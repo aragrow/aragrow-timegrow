@@ -324,7 +324,7 @@ trait TimeGrowReportsMonthlyPnlTrait {
                 FROM {$expense_table} e
                 LEFT JOIN {$category_table} ec ON e.expense_category_id = ec.ID
                 LEFT JOIN {$category_table} parent ON ec.parent_id = parent.ID
-                WHERE YEAR(e.expense_date) = %d
+                WHERE YEAR(e.expense_date) = %d AND e.status = 1
                 GROUP BY MONTH(e.expense_date), e.expense_category_id, ec.ID, ec.name, ec.slug, ec.parent_id, parent.name, parent.schedule_c_part
                 ORDER BY parent.sort_order, parent.name, ec.sort_order, ec.name, MONTH(e.expense_date)
             ", $selected_year);
@@ -535,7 +535,7 @@ trait TimeGrowReportsMonthlyPnlTrait {
             FROM {$expense_table} e
             LEFT JOIN {$category_table} ec ON e.expense_category_id = ec.ID
             LEFT JOIN {$category_table} parent ON ec.parent_id = parent.ID
-            WHERE YEAR(e.expense_date) = %d
+            WHERE YEAR(e.expense_date) = %d AND e.status = 1
             GROUP BY MONTH(e.expense_date), e.expense_category_id, ec.ID, ec.name, ec.slug, ec.parent_id, parent.name, parent.schedule_c_part
             ORDER BY parent.sort_order, parent.name, ec.sort_order, ec.name, MONTH(e.expense_date)
         ";

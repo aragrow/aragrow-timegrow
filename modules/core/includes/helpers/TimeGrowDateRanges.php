@@ -46,14 +46,15 @@ class TimeGrowDateRanges {
      * One button per preset, linking to the report with its start_date and end_date. The current one is highlighted.
      *
      * @param array $base Query arguments of the report (page, report_slug...).
+     * @param array $keys The two query parameters for the dates (start_date / end_date unless the page uses others).
      */
-    public static function render(array $base, $from, $to) {
+    public static function render(array $base, $from, $to, array $keys = ['start_date', 'end_date']) {
         $today  = current_time('Y-m-d');
         $active = self::active($from, $to, $today);
         echo '<div class="timegrow-date-presets" style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px;">';
         echo '<span style="font-weight: bold; align-self: center; margin-right: 4px;">' . esc_html__('Quick range:', 'timegrow') . '</span>';
         foreach (self::presets($today) as $key => [$label, $start, $end]) {
-            $url = add_query_arg(array_merge($base, ['start_date' => $start, 'end_date' => $end]), admin_url('admin.php'));
+            $url = add_query_arg(array_merge($base, [$keys[0] => $start, $keys[1] => $end]), admin_url('admin.php'));
             printf('<a href="%s" class="button%s"%s>%s</a>', esc_url($url), $key === $active ? ' button-primary' : '',
                 $key === $active ? ' aria-current="true"' : '', esc_html($label));
         }
