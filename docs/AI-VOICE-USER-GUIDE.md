@@ -90,6 +90,10 @@ Expenses are not limited.
 
 Administrators can also ask about the whole team, unbilled hours, unpaid invoices and expenses, and can add clients and projects by voice ("Add a client called Jane Doe"). If you ask for something only administrators can see, it tells you so.
 
+## Ask how to use TimeGrow
+
+Ask it how things work: "How do I upload a receipt?", "What is the unbilled report?", "Where do I put my AI key?" or "What can you do?". It answers from TimeGrow's own help and links the page. You only get help for what your role can do; for administrator tasks it tells you to ask your administrator.
+
 ## Tips for the best results
 
 - **Say the client and project by name.** "The audit for Copperleaf" is clearer than "the usual project".
