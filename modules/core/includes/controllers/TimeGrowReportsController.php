@@ -17,6 +17,7 @@ require_once __DIR__ . '/reports/TimeGrowReportsClientActivityTrait.php';
 require_once __DIR__ . '/reports/TimeGrowReportsTeamHoursTrait.php';
 require_once __DIR__ . '/reports/TimeGrowReportsUnbilledTrait.php';
 require_once __DIR__ . '/reports/TimeGrowReportsAuditLogTrait.php';
+require_once __DIR__ . '/reports/TimeGrowReportsProjectFinancialsTrait.php';
 
 class TimeGrowReportsController {
     use TimeGrowReportsYearlyTaxTrait,
@@ -28,7 +29,8 @@ class TimeGrowReportsController {
         TimeGrowReportsClientActivityTrait,
         TimeGrowReportsTeamHoursTrait,
         TimeGrowReportsUnbilledTrait,
-        TimeGrowReportsAuditLogTrait;
+        TimeGrowReportsAuditLogTrait,
+        TimeGrowReportsProjectFinancialsTrait;
 
     /** True while a CSV / PDF export runs from admin_init: the page frame is not printed. */
     private static $exporting = false;
@@ -104,12 +106,11 @@ class TimeGrowReportsController {
             [
                 'slug' => 'project_profitability',
                 'title' => 'Project Financials',
-                'description' => 'Overview of hours, expenses, and (if applicable) billing for projects.',
+                'description' => 'Per project: hours and their value, billed and not billed, expenses, net, and how much of the hour estimate is used.',
                 'icon' => 'dashicons-money-alt',
                 'roles' => ['administrator'],
                 'capability' => 'view_project_financials',
-                'category' => 'Financial & Project',
-                'coming_soon' => true
+                'category' => 'Financial & Project'
             ],
             [
                 'slug' => 'client_activity_summary',
@@ -310,6 +311,9 @@ class TimeGrowReportsController {
                 break;
             case 'unbilled_time':
                 $this->generate_unbilled_time($current_user);
+                break;
+            case 'project_profitability':
+                $this->generate_project_profitability($current_user);
                 break;
             case 'time_entry_audit_log':
                 $this->generate_time_entry_audit_log($current_user);
