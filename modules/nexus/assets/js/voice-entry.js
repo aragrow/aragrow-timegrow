@@ -17,6 +17,8 @@
 // - Any other admin page: it saves through the same AJAX action (save_time_entry) without leaving the page.
 jQuery(document).ready(function($) {
   const cfg = window.timegrowVoice || {};
+  const NAME = String(cfg.agentName || 'Sam Spade'); // TimeGrowNexusVoice::AGENT_NAME
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const on = v => v === true || v === 1 || v === '1'; // wp_localize_script sends true / false as "1" / ""
   const $form = $('#timegrow-nexus-entry-form');
   const floating = !$form.length;
@@ -240,13 +242,13 @@ jQuery(document).ready(function($) {
   const MIC = '<svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 14.5a3.5 3.5 0 0 0 3.5-3.5V5.5a3.5 3.5 0 1 0-7 0V11a3.5 3.5 0 0 0 3.5 3.5Z"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M18.5 11a6.5 6.5 0 0 1-13 0M12 17.5V21M8.5 21h7"/></svg>';
   const $card = $(`
     <div class="timegrow-voice">
-      <button type="button" class="timegrow-voice-fab" aria-expanded="false" aria-label="Record time by voice" title="Record time by voice">
+      <button type="button" class="timegrow-voice-fab" aria-expanded="false" aria-label="Talk to ${esc(NAME)}" title="Talk to ${esc(NAME)}">
         <span class="timegrow-voice-fab-icon">${MIC}</span>
         <span class="timegrow-voice-fab-close" aria-hidden="true">&times;</span>
       </button>
-      <div class="timegrow-voice-panel" role="dialog" aria-label="Voice time entry" hidden>
+      <div class="timegrow-voice-panel" role="dialog" aria-label="${esc(NAME)}, TimeGrow assistant" hidden>
         <div class="timegrow-voice-head">
-          <span class="timegrow-voice-title"><span class="timegrow-voice-avatar">${MIC}</span><strong>Voice time entry</strong></span>
+          <span class="timegrow-voice-title"><span class="timegrow-voice-avatar">${MIC}</span><strong>${esc(NAME)}</strong></span>
           <span>
             <button type="button" class="timegrow-voice-voices button-link" aria-expanded="false">Voice</button>
             <button type="button" class="timegrow-voice-mute button-link"></button>
@@ -332,7 +334,8 @@ jQuery(document).ready(function($) {
     if (!voices.length) return;
     let savedName = null;
     try { savedName = window.localStorage.getItem('timegrowVoiceName'); } catch (e) {}
-    chosenVoice = voices.find(v => v.name === savedName) || bestVoice(voices, speechLang());
+    // The person's own pick in the chat, else the site's (Settings > AI Voice Entry), else the most natural one
+    chosenVoice = voices.find(v => v.name === savedName) || voices.find(v => cfg.voiceName && v.name === cfg.voiceName) || bestVoice(voices, speechLang());
     const usable = voices.filter(v => voiceScore(v, speechLang()) > 0).sort((a, b) => voiceScore(b, speechLang()) - voiceScore(a, speechLang()));
     const $pick = $card.find('.timegrow-voice-pick').empty();
     usable.forEach(v => $pick.append($('<option>', { value: v.name, text: v.name.replace(/\s*\(.*\)$/, '') + (voiceScore(v, speechLang()) >= 40 ? ' ★' : '') })));
@@ -1150,9 +1153,9 @@ jQuery(document).ready(function($) {
     draft = null;
     clock = null;
     asking = '';
-    say('Tell me what you worked on, for example: "Two hours yesterday on the SEO audit for Copperleaf, keyword research." Or say "punch in" or "punch out", or answer my questions one at a time.',
+    say(`Hi, I'm ${NAME}. Tell me what you worked on, for example:` + ' "Two hours yesterday on the SEO audit for Copperleaf, keyword research." Or say "punch in" or "punch out", or answer my questions one at a time.',
       [{ label: 'Ask me the questions', value: '__questions' }].concat(suggestionChips(2)),
-      'Hi! What did you work on? You can tell me in one go, or ask me something about TimeGrow.');
+      `Hi, I'm ${NAME.split(' ')[0]}. What did you work on? You can tell me in one go, or ask me something about TimeGrow.`);
   }
 
   // ------------------------------------------------------------------
@@ -1162,7 +1165,7 @@ jQuery(document).ready(function($) {
   function open() {
     if (!$panel.prop('hidden')) { $text.trigger('focus'); return; } // already open: keep the conversation
     $panel.prop('hidden', false);
-    $card.addClass('is-open').find('.timegrow-voice-fab').attr({ 'aria-expanded': 'true', 'aria-label': 'Close voice entry', title: 'Close voice entry' });
+    $card.addClass('is-open').find('.timegrow-voice-fab').attr({ 'aria-expanded': 'true', 'aria-label': 'Close ' + NAME, title: 'Close ' + NAME });
     if (!projects.length) {
       $card.find('.timegrow-voice-bar').hide();
       return say("You don't have any projects to record time on yet. Ask an administrator to add you to a project.");
@@ -1187,7 +1190,7 @@ jQuery(document).ready(function($) {
     $chips.empty();
     $text.val('');
     $panel.prop('hidden', true);
-    $card.removeClass('is-open is-listening').find('.timegrow-voice-fab').attr({ 'aria-expanded': 'false', 'aria-label': 'Record time by voice', title: 'Record time by voice' });
+    $card.removeClass('is-open is-listening').find('.timegrow-voice-fab').attr({ 'aria-expanded': 'false', 'aria-label': 'Talk to ' + NAME, title: 'Talk to ' + NAME });
     voiceMode = false;
     try { if (recognizer) recognizer.abort(); } catch (e) {}
     if (window.speechSynthesis) window.speechSynthesis.cancel();
@@ -1206,7 +1209,7 @@ jQuery(document).ready(function($) {
     const v = synth ? (synth.getVoices() || []).find(x => x.name === this.value) : null;
     if (v) { chosenVoice = v; try { window.localStorage.setItem('timegrowVoiceName', v.name); } catch (e) {} }
   });
-  $card.on('click', '.timegrow-voice-try', () => { const was = muted; muted = false; speak("Hi! This is how I'll sound when I ask about your time."); muted = was; });
+  $card.on('click', '.timegrow-voice-try', () => { const was = muted; muted = false; speak(`Hi, I'm ${NAME.split(' ')[0]}. This is how I'll sound when I ask about your time.`); muted = was; });
   if (synth) { loadVoices(); if ('onvoiceschanged' in synth) synth.addEventListener('voiceschanged', loadVoices); }
   if (!synth) $card.find('.timegrow-voice-voices').hide();
 

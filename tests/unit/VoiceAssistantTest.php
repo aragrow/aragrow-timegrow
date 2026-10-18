@@ -329,4 +329,20 @@ class VoiceAssistantTest extends TestCase {
         $this->assertStringContainsString( 'It is never asked for', TimeGrowNexusVoice::field_rules() );
         $this->assertStringContainsString( 'no start time is needed', TimeGrowNexusAssistant::default_conversation_instructions() );
     }
+
+    public function test_the_assistant_name_in_front_is_not_part_of_the_request() {
+        foreach ( [ 'Sam, how many hours this week?', 'Hey Sam, how many hours this week?', 'Sam Spade: how many hours this week?', 'ok sam how many hours this week?' ] as $s ) {
+            $this->assertSame( 'how many hours this week?', TimeGrowNexusVoice::without_address( $s, 'Sam Spade' ), $s );
+        }
+        $this->assertSame( 'Samantha called about the audit', TimeGrowNexusVoice::without_address( 'Samantha called about the audit', 'Sam Spade' ), 'only the name itself' );
+        $this->assertSame( 'two hours for Sam', TimeGrowNexusVoice::without_address( 'two hours for Sam', 'Sam Spade' ), 'only in front' );
+        $this->assertSame( 'Sam?', TimeGrowNexusVoice::without_address( 'Sam?', 'Sam Spade' ), 'just the name stays' );
+        $this->assertSame( 'log two hours', TimeGrowNexusVoice::without_address( 'Nora, log two hours', 'Nora' ), 'a renamed assistant' );
+        $this->assertSame( 'Sam Spade', TimeGrowNexusVoice::AGENT_NAME );
+    }
+
+    public function test_the_prompt_tells_the_ai_its_name() {
+        $p = TimeGrowNexusAssistant::conversation_prompt( 'hi', $this->state( [] ), $this->candidates, $this->clients, $this->everyone, [], self::TODAY );
+        $this->assertStringContainsString( "You are Sam Spade, TimeGrow's assistant.", $p );
+    }
 }

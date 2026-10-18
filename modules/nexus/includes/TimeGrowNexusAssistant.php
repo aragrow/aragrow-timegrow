@@ -562,7 +562,9 @@ RULES
             $clients = array_values(array_filter($clients, function ($c) use ($company) { return !TimeGrowAIPrivacy::same_as_company($c['name'], $company); }));
         }
         $roles = ['owner' => 'The person is an administrator: TimeGrow lets them see all TimeGrow and WooCommerce data.', 'member' => 'The person is a team member: TimeGrow only shows them their own time, projects and clients.'];
+        $agent = class_exists('TimeGrowNexusVoice') ? TimeGrowNexusVoice::agent_name() : '';
         return "Today is {$today} ({$weekday}).\n"
+            . ($agent !== '' ? "You are {$agent}, TimeGrow's assistant. People may call you by name; the name is not part of the request.\n" : '')
             . (isset($roles[$role]) ? $roles[$role] . " TimeGrow enforces this; just describe what they ask.\n" : '')
             . 'Allowed intents: time, clock_in, clock_out, question' . ($actions ? ', ' . implode(', ', $actions) : '') . ", confirm, change, cancel, unknown.\n"
             . "Allowed questions:\n" . implode("\n", $lines) . "\n"

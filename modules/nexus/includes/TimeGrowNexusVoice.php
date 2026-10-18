@@ -17,6 +17,14 @@ if (!defined('ABSPATH')) {
 class TimeGrowNexusVoice {
 
     const NONCE  = 'timegrow_voice_nonce';
+    /** The assistant's name when none is set (Settings > AI Voice Entry). */
+    const AGENT_NAME = 'Sam Spade';
+
+    /** The assistant's name: the setting, else the default. */
+    public static function agent_name() {
+        $name = class_exists('TimeGrowSettings') ? (string) (TimeGrowSettings::voice_settings()['agent_name'] ?? '') : '';
+        return $name !== '' ? $name : self::AGENT_NAME;
+    }
 
     /** The last AI call's token use and time, for the conversation log. */
     private static $last_call = ['usage' => null, 'ms' => 0];
@@ -62,6 +70,8 @@ class TimeGrowNexusVoice {
             'now'          => current_time('mysql'), // site time, for punching in and out "now"
             'canClock'     => current_user_can('access_nexus_clock') || TimeGrowTimeEntryRules::is_admin(),
             'lang'         => TimeGrowSettings::voice_language(),
+            'agentName'    => self::agent_name(),
+            'voiceName'    => (string) $voice['voice_name'], // the default voice; '' = the most natural one
             'projects'     => array_map(function ($c) {
                 return ['id' => $c['id'], 'name' => $c['name'], 'clientId' => (string) $c['client_id'], 'clientName' => $c['client_name']];
             }, self::candidates_for_current_user()),
@@ -295,6 +305,9 @@ RULES;
         $transcript = sanitize_textarea_field(wp_unslash($_POST['transcript'] ?? ''));
         $transcript = function_exists('mb_substr') ? mb_substr($transcript, 0, self::MAX_TRANSCRIPT) : substr($transcript, 0, self::MAX_TRANSCRIPT);
         $asking     = sanitize_key($_POST['asking'] ?? '');
+        if ($asking !== 'description') {
+            $transcript = self::without_address($transcript); // "Sam, how many hours..." → "how many hours..."
+        }
         $known_json = wp_unslash($_POST['known'] ?? '{}');
         $known_raw  = strlen($known_json) <= 4000 ? json_decode($known_json, true) : [];
         $known      = [];
@@ -463,6 +476,17 @@ RULES;
             'since'      => date('Y-m-d H:i:s', $since),
             'since_text' => date_i18n(get_option('time_format'), $since),
         ];
+    }
+
+    /**
+     * The words without the assistant's name in front ("Hey Sam,", "Sam Spade:", "OK Sam"), so the
+     * request reads the same either way. Only a leading name is removed. Pure.
+     */
+    public static function without_address($text, $agent = null) {
+        $parts = array_map(function ($w) { return preg_quote($w, '/'); }, preg_split('/\s+/', trim($agent ?? self::agent_name())));
+        $name  = $parts[0] . (count($parts) > 1 ? '(?:\s+' . implode('\s+', array_slice($parts, 1)) . ')?' : '');
+        $out   = preg_replace('/^\s*(?:(?:hey|hi|hello|ok|okay)[\s,]+)?' . $name . '\b[\s,:;.!-]*/iu', '', (string) $text);
+        return preg_match('/[\p{L}\p{N}]/u', (string) $out) ? $out : (string) $text; // just "Sam?" stays as it is
     }
 
     /** Clients the person may name: their projects' clients, plus every client for owners adding projects. */

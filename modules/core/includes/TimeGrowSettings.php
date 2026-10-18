@@ -1554,6 +1554,8 @@ class TimeGrowSettings {
             'speak'          => 'yes', // speak the questions out loud by default
             'ask_start_time' => 'yes', // ask what time the work started
             'language'       => '',    // speech recognition language; '' = the site language
+            'agent_name'     => 'Sam Spade', // the assistant's name, in the chat and known to the AI
+            'voice_name'     => '',    // the voice it speaks with (a browser voice name); '' = the most natural one available
             'ai_config_id'   => 0,     // AI to use: 0 = the default AI configuration
             'save_for_review' => 'yes', // conversations saved for Settings > AI Conversations
             'keep_days'      => 90,
@@ -1596,9 +1598,20 @@ class TimeGrowSettings {
         }
         $lang            = sanitize_text_field($input['language'] ?? '');
         $out['language'] = array_key_exists($lang, self::voice_languages()) ? $lang : '';
+        $out['agent_name']   = self::valid_agent_name($input['agent_name'] ?? '');
+        $out['voice_name']   = mb_substr(sanitize_text_field($input['voice_name'] ?? ''), 0, 200);
         $out['ai_config_id'] = self::valid_ai_config_id($input['ai_config_id'] ?? 0);
         $out['keep_days']    = self::valid_keep_days($input['keep_days'] ?? 90);
         return $out;
+    }
+
+    /** The assistant's name: letters, spaces, apostrophes, periods and hyphens, up to 40 characters; else the default. Pure. */
+    public static function valid_agent_name($name) {
+        $name = trim(preg_replace('/\s+/', ' ', wp_strip_all_tags((string) $name)));
+        if ($name === '' || mb_strlen($name) > 40 || !preg_match("/^[\p{L}][\p{L}\p{M} '.\-]*$/u", $name)) {
+            return self::voice_defaults()['agent_name'];
+        }
+        return $name;
     }
 
     private function voice_toggle($key, $title, $description, $settings) {
@@ -1795,6 +1808,54 @@ class TimeGrowSettings {
                             __('The chat reads its questions aloud. Each person can still turn the sound off in the chat; their choice is remembered on their device.', 'timegrow'), $settings);
                         ?>
                         <table class="form-table" role="presentation">
+                            <tr>
+                                <th scope="row"><label for="timegrow_voice_agent_name"><?php esc_html_e('Assistant name', 'timegrow'); ?></label></th>
+                                <td>
+                                    <input type="text" id="timegrow_voice_agent_name" class="regular-text" maxlength="40" name="<?php echo esc_attr(self::VOICE_OPTION); ?>[agent_name]" value="<?php echo esc_attr($settings['agent_name']); ?>" />
+                                    <p class="description"><?php esc_html_e('Shown in the chat and used when it introduces itself. People can call it by name ("Sam, how many hours this week?"). Letters only, up to 40 characters.', 'timegrow'); ?></p>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th scope="row"><label for="timegrow_voice_voice_name"><?php esc_html_e('Voice', 'timegrow'); ?></label></th>
+                                <td>
+                                    <select id="timegrow_voice_voice_name" name="<?php echo esc_attr(self::VOICE_OPTION); ?>[voice_name]" data-lang="<?php echo esc_attr(self::voice_language()); ?>">
+                                        <option value=""><?php esc_html_e('Automatic: the most natural voice on each device', 'timegrow'); ?></option>
+                                        <?php if ($settings['voice_name'] !== '') : ?>
+                                            <option value="<?php echo esc_attr($settings['voice_name']); ?>" selected><?php echo esc_html($settings['voice_name']); ?></option>
+                                        <?php endif; ?>
+                                    </select>
+                                    <button type="button" class="button" id="timegrow_voice_try"><?php esc_html_e('Try it', 'timegrow'); ?></button>
+                                    <p class="description"><?php esc_html_e('Voices come from each person\'s browser and device, so the list shows the voices on this one (★ = natural sounding). When someone\'s device doesn\'t have the chosen voice, the most natural one it has is used. Each person can still pick their own voice in the chat.', 'timegrow'); ?></p>
+                                    <script>
+                                    (function () {
+                                        var sel = document.getElementById('timegrow_voice_voice_name'), synth = window.speechSynthesis;
+                                        if (!sel || !synth) { return; }
+                                        var saved = <?php echo wp_json_encode($settings['voice_name']); ?>, lang = (sel.getAttribute('data-lang') || 'en-US').toLowerCase().split('-')[0];
+                                        var natural = function (v) { return /natural|neural|premium|enhanced|^google/i.test(v.name); };
+                                        function fill() {
+                                            var voices = (synth.getVoices() || []).filter(function (v) { return String(v.lang || '').toLowerCase().indexOf(lang) === 0; });
+                                            if (!voices.length) { return; }
+                                            voices.sort(function (a, b) { return (natural(b) - natural(a)) || a.name.localeCompare(b.name); });
+                                            while (sel.options.length > 1) { sel.remove(1); }
+                                            voices.forEach(function (v) { var o = new Option(v.name.replace(/\s*\(.*\)$/, '') + ' (' + v.lang + ')' + (natural(v) ? ' ★' : ''), v.name); sel.add(o); });
+                                            if (saved && !voices.some(function (v) { return v.name === saved; })) { sel.add(new Option(saved + ' (not on this device)', saved)); }
+                                            sel.value = saved || '';
+                                        }
+                                        fill();
+                                        if ('onvoiceschanged' in synth) { synth.addEventListener('voiceschanged', fill); }
+                                        sel.addEventListener('change', function () { saved = sel.value; });
+                                        document.getElementById('timegrow_voice_try').addEventListener('click', function () {
+                                            var name = (document.getElementById('timegrow_voice_agent_name').value || 'Sam Spade').split(' ')[0];
+                                            var u = new SpeechSynthesisUtterance("Hi, I'm " + name + ". This is how I'll sound when I ask about your time.");
+                                            var v = (synth.getVoices() || []).filter(function (x) { return x.name === sel.value; })[0];
+                                            if (v) { u.voice = v; u.lang = v.lang; }
+                                            u.rate = 1.03;
+                                            synth.cancel(); synth.speak(u);
+                                        });
+                                    })();
+                                    </script>
+                                </td>
+                            </tr>
                             <tr>
                                 <th scope="row"><label for="timegrow_voice_language"><?php esc_html_e('Speech language', 'timegrow'); ?></label></th>
                                 <td>
