@@ -93,6 +93,8 @@ class TimeGrowNexusView {
             </div><!-- .timegrow-section -->
             <?php endif; ?>
 
+            <!-- Expenses and Reporting: one card each, side by side -->
+            <div class="timegrow-section-row">
             <!-- Expense Management Section -->
             <?php if ($show_all || current_user_can('access_nexus_record_expenses')) : ?>
             <div class="timegrow-section">
@@ -164,6 +166,7 @@ class TimeGrowNexusView {
                 </div><!-- .timegrow-cards-container -->
             </div><!-- .timegrow-section -->
             <?php endif; ?>
+            </div><!-- .timegrow-section-row -->
 
             <!-- Administration Section (Admin Only) -->
             <?php if ($show_all || current_user_can('access_nexus_settings') || current_user_can('access_nexus_process_time')) : ?>
@@ -289,6 +292,21 @@ class TimeGrowNexusView {
         <style>
             .timegrow-section {
                 margin-bottom: 40px;
+            }
+            /* Two one-card sections on one row, lined up with the two-card rows above and below */
+            .timegrow-section-row {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(450px, 1fr));
+                gap: 30px;
+            }
+            .timegrow-section-row .timegrow-cards-container {
+                grid-template-columns: 1fr;
+            }
+            @media (max-width: 1024px) {
+                .timegrow-section-row {
+                    grid-template-columns: 1fr;
+                    gap: 0;
+                }
             }
             .timegrow-section-title {
                 font-size: 20px;

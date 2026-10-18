@@ -67,7 +67,7 @@
 /* Cards Container */
 .timegrow-cards-container {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(450px, 1fr)); /* auto-fill: a lone card keeps the width of a column instead of stretching */
     gap: 30px;
     margin-bottom: 30px;
 }
