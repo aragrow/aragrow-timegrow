@@ -21,7 +21,7 @@ if (!defined('ABSPATH')) {
 class TimeGrowNexusAssistant {
 
     const NONCE    = 'timegrow_voice_nonce'; // same as TimeGrowNexusVoice
-    const PERIODS  = ['today', 'yesterday', 'this_week', 'last_week', 'this_month', 'last_month', 'this_year'];
+    const PERIODS  = ['today', 'yesterday', 'this_week', 'last_week', 'this_month', 'last_month', 'this_year', 'last_year'];
     const EVERYONE = ['last_entry', 'recent_entries', 'hours', 'clients', 'projects_for_client', 'latest_projects', 'clock_status', 'lookup'];
     const OWNERS   = ['unbilled_hours', 'expenses', 'unpaid_invoices', 'billed_amount'];
     const UNPAID_STATUSES = ['invoice_sent', 'inv_sent2paypal', 'inv_draft2paypal', 'partial_paid', 'to_be_mailed'];
@@ -41,6 +41,45 @@ class TimeGrowNexusAssistant {
     /** Note added to an answer whose period was shortened to the last 3 months. */
     public static function window_note() {
         return sprintf(__('(The assistant only looks at the last %d months.)', 'timegrow'), self::AI_DATA_MONTHS);
+    }
+
+    private static $clip_topic = 'time_me';
+
+    /**
+     * The reports that cover older data for a topic, as answer lines with links. Topics: "invoices"
+     * (billing, payments, refunds), "time_team", "time_me". Only reports the person's role can open.
+     */
+    public static function reports_for($topic) {
+        $owner = self::is_owner();
+        $all = [
+            'invoices'  => $owner ? ['client_activity_summary' => __('Client Activity Report', 'timegrow'), 'yearly_tax_report' => __('Yearly Tax Report', 'timegrow'), 'monthly_profit_loss' => __('Monthly Profit & Loss Report', 'timegrow')] : [],
+            'time_team' => $owner ? ['team_summary_hours' => __('Team Hours Summary', 'timegrow'), 'time_entry_audit_log' => __('Time Entry Audit Log', 'timegrow')] : [],
+            'time_me'   => ['my_hours_by_project' => __('My Hours by Project', 'timegrow'), 'my_time_entries_detailed' => __('My Detailed Time Log', 'timegrow')],
+        ];
+        $rows = [];
+        foreach ($all[$topic] ?? [] as $slug => $title) {
+            $rows[] = ['title' => $title, 'meta' => __('Report: any period', 'timegrow'), 'url' => admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-nexus-a-report&report_slug=' . $slug)];
+        }
+        return $rows;
+    }
+
+    /** The reply when everything asked for is older than the last 3 months: say so, and point to the reports. */
+    public static function out_of_window_reply($topic) {
+        $reports = self::reports_for($topic);
+        $text = sprintf(__('I can only look at the last %d months, so I can\'t answer that.', 'timegrow'), self::AI_DATA_MONTHS)
+            . ($reports ? ' ' . __('Use these reports for older data:', 'timegrow') : '');
+        $spoken = sprintf('I can only look at the last %d months, so I can\'t answer that.', self::AI_DATA_MONTHS) . ($reports ? ' The reports listed below cover any period.' : '');
+        return ['text' => $text, 'spoken' => $spoken, 'rows' => $reports];
+    }
+
+    /** The note and report links added when a period was shortened to the last 3 months. */
+    public static function add_window_note(array $reply, $topic) {
+        $reports = self::reports_for($topic);
+        $reply['text']   .= ' ' . sprintf(__('(I can only look at the last %d months, so this covers %s to today.', 'timegrow'), self::AI_DATA_MONTHS, mysql2date(get_option('date_format'), self::data_floor(current_time('Y-m-d'))))
+            . ($reports ? ' ' . __('For the full period, use the reports below.)', 'timegrow') : ')');
+        $reply['spoken'] .= ' I can only look at the last ' . self::AI_DATA_MONTHS . ' months.' . ($reports ? ' The reports below cover the full period.' : '');
+        $reply['rows']    = array_merge($reply['rows'], $reports);
+        return $reply;
     }
 
     public static function init() {
@@ -434,7 +473,7 @@ Intents (use only those in the allowed list):
 - "unknown": anything else.
 
 Return one JSON object: {"intent", "time": {...} or null, "question": {"name", "period", "client_id", "project_id", "who", "lookup" (only for "lookup"), "explain" (or null)} or null, "new_client": {...} or null, "new_project": {...} or null}. Use null for anything not said. Never invent IDs: use only IDs from the lists.
-Periods: today, yesterday, this_week, last_week, this_month, last_month, this_year. "who" is "me", or "team" when they ask about everyone.
+Periods: today, yesterday, this_week, last_week, this_month, last_month, this_year, last_year. Time and invoice data only goes back 3 months: still fill the period or dates they asked for (TimeGrow tells them the limit and links the reports). "who" is "me", or "team" when they ask about everyone.
 
 # LOOKUP AND EXPLAIN
 - When no other allowed question fits a data question, use question name "lookup" and describe it in question.lookup:
@@ -543,7 +582,7 @@ This is the person's first request, so first work out what they want:
 - "add_client" or "add_project": they ask to create one. Fill new_client {name, email, company} or new_project {client_id, name, rate, billable} with what they said.
 - "unknown": anything else, including anything not in the allowed lists. Never invent a question or action.
 Return one JSON object with the key "intent", the keys "question", "new_client" and "new_project" (null when not used), and the time entry fields.
-Periods: today, yesterday, this_week, last_week, this_month, last_month, this_year. "who" is "me", or "team" when they ask about everyone.
+Periods: today, yesterday, this_week, last_week, this_month, last_month, this_year, last_year. Time and invoice data only goes back 3 months: still fill the period or dates they asked for (TimeGrow tells them the limit and links the reports). "who" is "me", or "team" when they ask about everyone.
 RULES;
     }
 
@@ -582,6 +621,7 @@ RULES;
             case 'this_month': return [$d->format('Y-m-01'), $d->format('Y-m-d')];
             case 'last_month': $l = $d->modify('first day of last month'); return [$l->format('Y-m-d'), $l->modify('last day of this month')->format('Y-m-d')];
             case 'this_year':  return [$d->format('Y-01-01'), $d->format('Y-m-d')];
+            case 'last_year':  $y = (int) $d->format('Y') - 1; return ["{$y}-01-01", "{$y}-12-31"];
             case 'this_week':
             default:           return [$d->modify('monday this week')->format('Y-m-d'), $d->format('Y-m-d')];
         }
@@ -589,7 +629,7 @@ RULES;
 
     public static function period_words($period) {
         $words = ['today' => 'today', 'yesterday' => 'yesterday', 'this_week' => 'this week', 'last_week' => 'last week',
-                  'this_month' => 'this month', 'last_month' => 'last month', 'this_year' => 'this year'];
+                  'this_month' => 'this month', 'last_month' => 'last month', 'this_year' => 'this year', 'last_year' => 'last year'];
         return $words[$period] ?? 'this week';
     }
 
@@ -628,10 +668,10 @@ RULES;
      */
     public static function answer(array $question, array $candidates) {
         self::$clipped = false;
+        self::$clip_topic = ($question['who'] ?? 'me') === 'team' ? 'time_team' : 'time_me';
         $reply = self::answer_data($question, $candidates);
         if (self::$clipped) {
-            $reply['text']   .= ' ' . self::window_note();
-            $reply['spoken'] .= ' I only look at the last ' . self::AI_DATA_MONTHS . ' months.';
+            $reply = self::add_window_note($reply, self::$clip_topic);
         }
         if (!empty($question['explain']) && !empty($reply['rows']) || (!empty($question['explain']) && $question['name'] !== 'lookup')) {
             $reply = self::explain((string) $question['explain'], $reply);
@@ -785,6 +825,9 @@ RULES;
 
             case 'recent_entries':
                 [$from, $to] = !empty($question['period']) ? self::period_range($question['period'], $today) : ['1970-01-01', $today];
+                if ($to < self::data_floor($today)) {
+                    return self::out_of_window_reply('time_me');
+                }
                 $filters = array_filter(['client_id' => $question['client_id'] ?? null, 'project_id' => $question['project_id'] ?? null]);
                 $rows = self::entries($member, $from, $to, $filters, 5);
                 $for  = !empty($filters['project_id']) ? ' ' . sprintf(__('on %s', 'timegrow'), self::project_name($filters['project_id'])) : (!empty($filters['client_id']) ? ' ' . sprintf(__('for %s', 'timegrow'), self::client_name($filters['client_id'])) : '');
@@ -797,6 +840,9 @@ RULES;
                 $team   = ($question['who'] ?? 'me') === 'team';
                 $period = $question['period'] ?: 'this_week';
                 [$from, $to] = self::period_range($period, $today);
+                if ($to < self::data_floor($today)) {
+                    return self::out_of_window_reply($team ? 'time_team' : 'time_me');
+                }
                 $rows   = self::entries($team ? 0 : $member, $from, $to, array_filter(['client_id' => $question['client_id'] ?? null, 'project_id' => $question['project_id'] ?? null]));
                 $total  = 0.0;
                 $by     = [];
@@ -876,6 +922,7 @@ RULES;
                 return self::reply(__('You are not clocked in.', 'timegrow'), 'No, you are not clocked in.');
 
             case 'unbilled_hours':
+                self::$clip_topic = 'time_team';
                 $rows = self::entries(0, '1970-01-01', $today, ['unbilled' => true]);
                 $by = [];
                 $total = 0.0;
@@ -894,6 +941,10 @@ RULES;
             case 'billed_amount':
                 $period = $question['period'] ?: 'this_year';
                 [$from, $to] = self::period_range($period, $today);
+                self::$clip_topic = 'invoices';
+                if ($to < self::data_floor($today)) {
+                    return self::out_of_window_reply('invoices');
+                }
                 if ($from < self::data_floor($today)) {
                     $from = self::data_floor($today);
                     self::$clipped = true;
@@ -938,6 +989,7 @@ RULES;
             case 'unpaid_invoices':
                 $orders = wc_get_orders(['type' => 'shop_order', 'status' => self::UNPAID_STATUSES, 'limit' => 20, 'orderby' => 'date', 'order' => 'DESC', 'date_created' => '>=' . self::data_floor($today)]);
                 self::$clipped = true;
+                self::$clip_topic = 'invoices';
                 if (!$orders) return self::reply(__('There are no unpaid invoices.', 'timegrow'), 'There are no unpaid invoices.');
                 $total = 0.0;
                 $list = [];

@@ -116,10 +116,13 @@ class TimeGrowNexusLookup {
         // Time entries and invoices: the last 3 months only (by default, and as the earliest date)
         $windowed = in_array($entity, ['time_entries', 'invoices'], true);
         $clipped  = false;
+        $out_of_window = false;
         if ($windowed) {
             $floor = TimeGrowNexusAssistant::data_floor($today);
             if (!$from) {
                 [$from, $to, $period] = [$floor, $today, null];
+            } elseif ($to < $floor) {
+                $out_of_window = true; // everything asked for is older than the last 3 months
             } elseif ($from < $floor) {
                 [$from, $clipped] = [$floor, true];
                 $period = null;
@@ -161,6 +164,7 @@ class TimeGrowNexusLookup {
             'limit'    => $limit,
             'own_only' => $own_only, // a team member asked about someone else: they are told they see their own time
             'clipped'  => $clipped,  // the period asked for went back further than 3 months
+            'out_of_window' => $out_of_window, // all of it is older than 3 months: not run, the reports are suggested
         ];
     }
 
@@ -177,11 +181,12 @@ class TimeGrowNexusLookup {
      * @return array { text, spoken, rows }
      */
     public static function run(array $spec, array $candidates, $owner) {
-        $reply = self::run_entity($spec, $candidates, $owner);
-        if (!empty($spec['clipped'])) {
-            $reply['text'] .= ' ' . TimeGrowNexusAssistant::window_note();
+        $topic = $spec['entity'] === 'invoices' ? 'invoices' : ($owner && empty($spec['filters']['member_id']) ? 'time_team' : 'time_me');
+        if (!empty($spec['out_of_window'])) {
+            return TimeGrowNexusAssistant::out_of_window_reply($topic);
         }
-        return $reply;
+        $reply = self::run_entity($spec, $candidates, $owner);
+        return !empty($spec['clipped']) ? TimeGrowNexusAssistant::add_window_note($reply, $topic) : $reply;
     }
 
     private static function run_entity(array $spec, array $candidates, $owner) {

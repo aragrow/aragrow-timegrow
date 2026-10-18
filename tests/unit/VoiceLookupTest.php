@@ -69,4 +69,12 @@ class VoiceLookupTest extends TestCase {
         $this->assertSame( '2026-07-17', $this->spec( [ 'entity' => 'invoices' ] )['from'], 'no period: the last 3 months' );
         $this->assertSame( '2026-07-17', TimeGrowNexusAssistant::data_floor( '2026-10-17' ) );
     }
+
+    public function test_a_request_entirely_older_than_three_months_is_not_run() {
+        $s = $this->spec( [ 'entity' => 'invoices', 'metric' => 'amount', 'from' => '2025-01-01', 'to' => '2025-12-31' ] );
+        $this->assertTrue( $s['out_of_window'], 'last year: the person is told and pointed to the reports' );
+        $this->assertFalse( $this->spec( [ 'entity' => 'invoices', 'period' => 'this_year' ] )['out_of_window'], 'this year: answered for the last 3 months' );
+        $this->assertSame( [ '2025-01-01', '2025-12-31' ], TimeGrowNexusAssistant::period_range( 'last_year', self::TODAY ) );
+        $this->assertContains( 'last_year', TimeGrowNexusAssistant::PERIODS );
+    }
 }
