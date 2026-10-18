@@ -557,6 +557,8 @@ class TimeGrowSettings {
             TimeGrowAIPromptsPage::render();
         } elseif ($active_tab === 'conversations') {
             TimeGrowAIReviewPage::render();
+        } elseif ($active_tab === 'help') {
+            TimeGrowHelpTopicsPage::render();
         }
     }
 
@@ -723,6 +725,34 @@ class TimeGrowSettings {
                         </div>
                     </div>
                 </a>
+
+                <!-- Knowledge Base Card -->
+                <?php if (class_exists('TimeGrowNexusHelp')): $kb = TimeGrowNexusHelp::all_topics(); $kb_changed = count(array_filter($kb, function ($t) { return $t['source'] !== 'built-in' || !empty($t['hidden']); })); ?>
+                <a href="<?php echo esc_url(TimeGrowHelpTopicsPage::url()); ?>" class="timegrow-card">
+                    <div class="timegrow-card-header">
+                        <div class="timegrow-icon timegrow-icon-primary">
+                            <span class="dashicons dashicons-book-alt"></span>
+                        </div>
+                        <div class="timegrow-card-title">
+                            <h2><?php esc_html_e('Knowledge Base', 'timegrow'); ?></h2>
+                            <span class="timegrow-badge timegrow-badge-primary">
+                                <?php echo esc_html(sprintf(_n('%d topic', '%d topics', count($kb), 'timegrow'), count($kb))); ?>
+                            </span>
+                        </div>
+                    </div>
+                    <div class="timegrow-card-body">
+                        <p class="timegrow-card-description">
+                            <?php esc_html_e('What the voice assistant knows about using TimeGrow. Edit the help topics it answers "how do I…?" questions from, or add your own.', 'timegrow'); ?>
+                        </p>
+                        <div class="timegrow-card-footer">
+                            <span class="timegrow-action-link">
+                                <?php echo $kb_changed ? esc_html(sprintf(_n('%d topic changed here', '%d topics changed here', $kb_changed, 'timegrow'), $kb_changed)) : esc_html__('Manage the knowledge base', 'timegrow'); ?>
+                                <span class="dashicons dashicons-arrow-right-alt"></span>
+                            </span>
+                        </div>
+                    </div>
+                </a>
+                <?php endif; ?>
 
                 <!-- Mobile Access Card -->
                 <?php if (current_user_can('manage_options')): $sms_on = get_option('timegrow_mobile_sms_enabled') ? true : false; ?>

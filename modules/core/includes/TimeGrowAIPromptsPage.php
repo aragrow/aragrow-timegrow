@@ -11,16 +11,84 @@ if (!defined('ABSPATH')) {
  * per tool) or Archived (used before, kept as history). Activating a version archives the one in
  * use. To change an active or archived version, duplicate it as a new draft. With no active
  * version, the tool uses the prompt built into TimeGrow.
+ *
+ * Export / Import moves versions between sites (TimeGrowTransfer). Importing never replaces anything:
+ * each version comes in as a new draft (one with the same text as a version here is skipped), and,
+ * when asked, the versions that were active on the other site are activated the usual way (the one in
+ * use is archived, not lost).
  */
 class TimeGrowAIPromptsPage {
 
     const NONCE    = 'timegrow_ai_prompt';
     const MAX_TEXT = 30000;
+    const TYPE     = 'timegrow-ai-prompts';
 
     public static function init() {
         add_action('admin_init', [__CLASS__, 'maybe_create_table']);
         add_action('admin_post_timegrow_ai_prompt_save', [__CLASS__, 'handle_save']);
         add_action('admin_post_timegrow_ai_prompt_do', [__CLASS__, 'handle_action']);
+        add_action('admin_post_timegrow_ai_prompt_export', [__CLASS__, 'handle_export']);
+        add_action('admin_post_timegrow_ai_prompt_import', [__CLASS__, 'handle_import']);
+        add_action('admin_post_timegrow_ai_prompt_import_apply', [__CLASS__, 'handle_import_apply']);
+    }
+
+    /** Download every prompt version (both tools, all statuses). */
+    public static function handle_export() {
+        if (!current_user_can(TIMEGROW_OWNER_CAP)) {
+            wp_die(esc_html__('You are not allowed to change AI prompts.', 'timegrow'), 403);
+        }
+        check_admin_referer(self::NONCE . '_export');
+        $versions = array_map(function ($r) {
+            return array_intersect_key($r, array_flip(['feature', 'name', 'content', 'notes', 'status', 'created_at', 'activated_at']));
+        }, array_reverse((new TimeGrowAIPromptModel())->all())); // oldest first, so they come in in order
+        TimeGrowTransfer::download('timegrow-ai-prompts', self::TYPE, ['prompts' => $versions]);
+    }
+
+    /** Check the uploaded file and show what it would add. */
+    public static function handle_import() {
+        if (!current_user_can(TIMEGROW_OWNER_CAP)) {
+            wp_die(esc_html__('You are not allowed to change AI prompts.', 'timegrow'), 403);
+        }
+        check_admin_referer(self::NONCE . '_import');
+        $data = TimeGrowTransfer::read(TimeGrowTransfer::uploaded('file'), self::TYPE);
+        if (!is_array($data)) {
+            self::back(['msg' => 'import_' . $data]);
+        }
+        TimeGrowTransfer::stash('prompts', ['site' => (string) ($data['site'] ?? ''), 'exported_at' => (string) ($data['exported_at'] ?? ''), 'prompts' => is_array($data['prompts'] ?? null) ? $data['prompts'] : []]);
+        self::back(['import' => 'preview']);
+    }
+
+    /** Add the new versions as drafts; activate the ones active on the other site when asked. */
+    public static function handle_import_apply() {
+        if (!current_user_can(TIMEGROW_OWNER_CAP)) {
+            wp_die(esc_html__('You are not allowed to change AI prompts.', 'timegrow'), 403);
+        }
+        check_admin_referer(self::NONCE . '_import_apply');
+        $file = TimeGrowTransfer::stashed('prompts');
+        if (!$file) {
+            self::back(['msg' => 'import_expired']);
+        }
+        $model     = new TimeGrowAIPromptModel();
+        $model->maybe_create_table();
+        $plan      = TimeGrowTransfer::plan_prompts($model->all(), $file['prompts'], array_keys(TimeGrowAIPrompts::tools()), self::MAX_TEXT);
+        $activate  = !empty($_POST['activate']);
+        $added     = 0;
+        $activated = 0;
+        foreach ($plan as [$feature, $name, $status, $change, $v]) {
+            if ($change !== 'new') {
+                continue;
+            }
+            $from  = sprintf(__('Imported from %1$s on %2$s (%3$s there, created %4$s).', 'timegrow'), $file['site'] ?: __('another site', 'timegrow'), current_time('Y-m-d'), $status, $v['created_at'] ?: '?');
+            $id    = $model->create($feature, $name !== '' ? $name : sprintf('%s %s', TimeGrowAIPrompts::tools()[$feature]['name'], current_time('Y-m-d H:i')), $v['content'], trim($from . "\n" . $v['notes']));
+            $added += $id ? 1 : 0;
+            if ($id && $activate && $status === 'active' && !TimeGrowAIPrompts::missing_keys($feature, $v['content'])) {
+                $model->activate($id);
+                $activated++;
+            }
+        }
+        TimeGrowTransfer::forget('prompts');
+        timegrow_log(sprintf('AI prompts import from %s by user %d: %d added, %d activated', $file['site'], get_current_user_id(), $added, $activated));
+        self::back(['msg' => 'imported', 'n' => $added, 'a' => $activated]);
     }
 
     public static function maybe_create_table() {
@@ -158,7 +226,9 @@ class TimeGrowAIPromptsPage {
             <?php
             self::notice();
             $prompt = $_GET['prompt'] ?? '';
-            if ($prompt !== '') {
+            if (($_GET['import'] ?? '') === 'preview') {
+                self::render_import_preview($model);
+            } elseif ($prompt !== '') {
                 self::render_editor($model, $prompt === 'new' ? null : $model->get((int) $prompt), sanitize_key($_GET['feature'] ?? 'voice'));
             } else {
                 self::render_list($model, sanitize_key($_GET['feature'] ?? ''));
@@ -180,7 +250,11 @@ class TimeGrowAIPromptsPage {
             'not_draft'    => ['error', __('Only drafts can be changed or deleted. Duplicate this version to change it.', 'timegrow')],
             'not_saved'    => ['error', __('The prompt could not be saved.', 'timegrow')],
             'not_found'    => ['error', __('That prompt was not found.', 'timegrow')],
+            'imported'     => ['success', sprintf(__('Imported: %1$d versions added as drafts, %2$d activated.', 'timegrow'), (int) ($_GET['n'] ?? 0), (int) ($_GET['a'] ?? 0))],
         ];
+        foreach (['no_file', 'too_big', 'not_json', 'wrong_type', 'new_version', 'expired'] as $code) {
+            $messages['import_' . $code] = ['error', TimeGrowTransfer::error_text($code)];
+        }
         $msg = sanitize_key($_GET['msg'] ?? '');
         if (isset($messages[$msg])) {
             printf('<div class="notice notice-%s is-dismissible"><p>%s</p></div>', esc_attr($messages[$msg][0]), esc_html($messages[$msg][1]));
@@ -271,6 +345,72 @@ class TimeGrowAIPromptsPage {
                 <?php endforeach; ?>
             </tbody>
         </table>
+        <?php self::render_transfer(); ?>
+        <?php
+    }
+
+    /** Export and import: moving prompt versions between sites. */
+    private static function render_transfer() {
+        ?>
+        <div style="margin-top: 24px; padding: 12px 14px; background: #fff; border: 1px solid #dcdcde; border-radius: 4px;">
+            <h2 style="margin: 0 0 4px; font-size: 15px;"><?php esc_html_e('Move to another site', 'timegrow'); ?></h2>
+            <p style="color: #646970;"><?php esc_html_e('Export downloads every version of both prompts. Import them on another site (for example, from your local site to production): they come in as drafts, nothing here is replaced, and you see the list before anything is saved.', 'timegrow'); ?></p>
+            <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px;">
+                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="margin: 0;">
+                    <?php wp_nonce_field(self::NONCE . '_export'); ?>
+                    <input type="hidden" name="action" value="timegrow_ai_prompt_export">
+                    <button type="submit" class="button"><?php esc_html_e('Export', 'timegrow'); ?></button>
+                </form>
+                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" enctype="multipart/form-data" style="margin: 0; display: flex; align-items: center; gap: 6px;">
+                    <?php wp_nonce_field(self::NONCE . '_import'); ?>
+                    <input type="hidden" name="action" value="timegrow_ai_prompt_import">
+                    <label for="tg-prompt-file" class="screen-reader-text"><?php esc_html_e('Prompts file', 'timegrow'); ?></label>
+                    <input type="file" id="tg-prompt-file" name="file" accept=".json,application/json" required>
+                    <button type="submit" class="button"><?php esc_html_e('Import…', 'timegrow'); ?></button>
+                </form>
+            </div>
+        </div>
+        <?php
+    }
+
+    /** The import preview: each version in the file and whether it comes in, then Import or Cancel. */
+    private static function render_import_preview(TimeGrowAIPromptModel $model) {
+        $file = TimeGrowTransfer::stashed('prompts');
+        if (!$file) {
+            echo '<div class="notice notice-error inline"><p>' . esc_html(TimeGrowTransfer::error_text('expired')) . '</p></div>';
+            return;
+        }
+        $tools  = TimeGrowAIPrompts::tools();
+        $plan   = TimeGrowTransfer::plan_prompts($model->all(), $file['prompts'], array_keys($tools), self::MAX_TEXT);
+        $new    = array_filter($plan, function ($p) { return $p[3] === 'new'; });
+        $active = array_filter($new, function ($p) { return $p[2] === 'active'; });
+        $labels = ['new' => __('Added as a draft', 'timegrow'), 'duplicate' => __('Already here, skipped', 'timegrow'), 'invalid' => __('Skipped: not a prompt TimeGrow can use', 'timegrow')];
+        ?>
+        <h2><?php esc_html_e('Import AI prompts: review', 'timegrow'); ?></h2>
+        <p><?php echo esc_html(sprintf(__('From %1$s, exported %2$s. Nothing on this site is replaced.', 'timegrow'), $file['site'] ?: __('another site', 'timegrow'), $file['exported_at'] ? mysql2date(get_option('date_format'), $file['exported_at']) : '?')); ?></p>
+        <table class="wp-list-table widefat fixed striped">
+            <thead><tr><th style="width: 40%;"><?php esc_html_e('Version', 'timegrow'); ?></th><th><?php esc_html_e('Tool', 'timegrow'); ?></th><th><?php esc_html_e('On the other site', 'timegrow'); ?></th><th><?php esc_html_e('What happens', 'timegrow'); ?></th></tr></thead>
+            <tbody>
+                <?php foreach ($plan as [$feature, $name, $status, $change]) : ?>
+                    <tr><td><?php echo esc_html($name !== '' ? $name : '—'); ?></td>
+                        <td><?php echo esc_html($tools[$feature]['name'] ?? $feature); ?></td>
+                        <td><?php echo esc_html(ucfirst($status)); ?></td>
+                        <td><?php echo esc_html($labels[$change]); ?></td></tr>
+                <?php endforeach; ?>
+                <?php if (!$plan) : ?><tr><td colspan="4"><?php esc_html_e('The file has no prompt versions.', 'timegrow'); ?></td></tr><?php endif; ?>
+            </tbody>
+        </table>
+        <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="margin-top: 16px;">
+            <?php wp_nonce_field(self::NONCE . '_import_apply'); ?>
+            <input type="hidden" name="action" value="timegrow_ai_prompt_import_apply">
+            <?php if ($active) : ?>
+                <p><label><input type="checkbox" name="activate" value="1" checked> <?php esc_html_e('Also use the versions that are active on the other site (the versions in use here are archived, not deleted)', 'timegrow'); ?></label></p>
+            <?php endif; ?>
+            <?php if ($new) : ?>
+                <button type="submit" class="button button-primary"><?php echo esc_html(sprintf(_n('Import %d version', 'Import %d versions', count($new), 'timegrow'), count($new))); ?></button>
+            <?php endif; ?>
+            <a class="button" href="<?php echo esc_url(self::url()); ?>"><?php esc_html_e('Cancel', 'timegrow'); ?></a>
+        </form>
         <?php
     }
 

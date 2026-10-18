@@ -68,6 +68,7 @@ if ( ! isset( $timegrow_report ) ) $timegrow_report = New TimeGrowReport();
 if ( ! isset( $timegrow_settings ) ) $timegrow_settings = New TimeGrowSettings();
 TimeGrowAIPromptsPage::init(); // Settings > AI Prompts: versions of each AI tool's prompt
 TimeGrowAILog::init();         // AI activity saved for review (Settings > AI Conversations)
+TimeGrowHelpTopicsPage::init(); // Settings > Knowledge Base: the topics the voice assistant's help answers from
 TimeGrowAIReviewPage::init();  // Settings > AI Conversations: read and rate saved AI activity
 
 // Enqueue scripts on admin pages
