@@ -300,7 +300,7 @@ class TimeGrowTeamMemberModel {
             );
 
         $result = $this->wpdb->get_results($sql);
-        $item = $result[0];
+        $item = $result[0] ?? null;
 
         // Prepare debug data
         $debug_data = [

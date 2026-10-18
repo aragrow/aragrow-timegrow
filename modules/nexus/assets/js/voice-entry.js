@@ -1,6 +1,8 @@
 // File: assets/js/voice-entry.js
-// Voice entry: a chat that asks for the client, project, day, start time, hours, billable and
-// description, by voice (Web Speech API) or typing. Free-form answers are read by the site's AI
+// Voice entry: a chat that asks for the client, project, day, hours, billable and description, by
+// voice (Web Speech API) or typing. A manual entry has hours, so no start time is asked (one that is
+// said is kept). "Punch in" / "punch out" clocks the person in or out instead, asking the project
+// and the start or end time. Free-form answers are read by the site's AI
 // (TimeGrowNexusVoice.php); short answers and taps are read here. Nothing is saved until the person
 // confirms.
 // A round mic icon floats in the bottom-right corner of every admin page; it opens the chat above it.
@@ -31,13 +33,16 @@ jQuery(document).ready(function($) {
     projects = window.TimeGrowProjectClients.collect();
   }
   if (!floating && !projects.length && !window.TimeGrowProjectClients) return;
-  const ORDER = ['client_id', 'project_id', 'date', 'start_time', 'hours', 'billable', 'description']
-    .filter(k => k !== 'start_time' || cfg.askStartTime === undefined || on(cfg.askStartTime)); // Settings > Voice Entry
+  const ORDER = ['client_id', 'project_id', 'date', 'start_time', 'hours', 'billable', 'description'];
+  const ASKED = ORDER.filter(k => k !== 'start_time'); // a manual entry has hours: the start time is only kept when said
+  const changeChips = () => ASKED.concat(fields.start_time && fields.start_time !== 'skip' ? ['start_time'] : [])
+    .map(k => ({ label: LABELS[k][0].toUpperCase() + LABELS[k].slice(1), value: k }));
   const LABELS = { client_id: 'client', project_id: 'project', date: 'day', start_time: 'start time', hours: 'hours', billable: 'billable', description: 'description' };
   const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
   let fields = {};
   let draft = null;         // a client or project being added: { type, values }
+  let clock = null;         // punching in or out: { action: 'in' | 'out', values: { client_id, project_id, time }, status }
   let session = 0;          // one conversation: from opening the chat until it is closed or the page reloads
   // Saved for review (Settings > AI Conversations) when on: messages go to the server with each
   // request, or on their own a few seconds later, and when the chat closes or the page is left
@@ -466,7 +471,7 @@ jQuery(document).ready(function($) {
 
   function next() {
     autoFill();
-    const missing = ORDER.find(k => fields[k] === null || fields[k] === undefined || fields[k] === '');
+    const missing = ASKED.find(k => fields[k] === null || fields[k] === undefined || fields[k] === '');
     if (missing) return ask(missing);
     asking = 'confirm';
     say('Here is your entry: ' + summary() + ' Save it?', [
@@ -488,11 +493,13 @@ jQuery(document).ready(function($) {
     text = String(text || '').trim();
     if (!text && !chip) return;
     if (asking === 'saving') return;
-    if (asking === 'done') { fields = {}; ORDER.forEach(k => { fields[k] = null; }); asking = ''; } // a new entry
+    if (asking === 'done') { fields = {}; ORDER.forEach(k => { fields[k] = null; }); clock = null; asking = ''; } // a new entry
     bubble('me', chip ? chip.label : text);
     remember('me', chip ? chip.label : text);
     $chips.empty();
     $text.val('');
+
+    if (clock) return answerClock(text, chip);
 
     // With AI: a conversation (taps and plainly simple answers are still read here)
     if (!chip && on(cfg.aiReady)) {
@@ -513,7 +520,7 @@ jQuery(document).ready(function($) {
       if (v === 'restart') return start();
       if (v === 'change') {
         asking = 'change';
-        return say('What do you want to change?', ORDER.map(k => ({ label: LABELS[k][0].toUpperCase() + LABELS[k].slice(1), value: k })));
+        return say('What do you want to change?', changeChips());
       }
       return say('Say "save", "change something" or "start over".', [{ label: 'Save entry', value: 'save' }, { label: 'Change something', value: 'change' }]);
     }
@@ -578,9 +585,12 @@ jQuery(document).ready(function($) {
     const values = {};
     if (draft) Object.keys(draft.values).forEach(k => { values[k] = draft.values[k] === 'skip' ? null : draft.values[k]; });
     return {
-      mode: draft ? (asking === 'draft:confirm' ? 'confirm_new' : 'adding_' + draft.type)
+      mode: clock ? (asking === 'clock:confirm' ? 'confirm_clock' : 'clock_' + clock.action)
+        : draft ? (asking === 'draft:confirm' ? 'confirm_new' : 'adding_' + draft.type)
         : asking === 'confirm' ? 'confirm_time' : timeStarted ? 'time' : 'idle',
-      asking: draft ? asking.replace(/^draft:/, '') : (ORDER.includes(asking) || asking === 'confirm' ? asking : ''),
+      asking: clock ? asking.replace(/^clock:/, '') : draft ? asking.replace(/^draft:/, '') : (ORDER.includes(asking) || asking === 'confirm' ? asking : ''),
+      clockAction: clock ? clock.action : null,
+      clock: clock ? clock.values : null,
       fields: fields,
       draftType: draft ? draft.type : null,
       draft: draft ? values : null,
@@ -612,8 +622,15 @@ jQuery(document).ready(function($) {
         if (data.question) lastQuestion = data.question;
         showAnswer(data.answer || {});
         return resumeFlow();
+      case 'clock_in':
+      case 'clock_out': {
+        const action = data.intent.slice(6);
+        if (clock && clock.action === action) { mergeClock(data.clock); ackNext = true; return askClock(); }
+        return startClock(action, data.clock, data.status);
+      }
       case 'time': {
         if (draft) draft = null; // they moved on to recording time
+        if (clock) clock = null;
         const before = ORDER.includes(asking) ? fields[asking] : null;
         ORDER.forEach(k => { const v = data.fields ? data.fields[k] : null; if (v !== null && v !== undefined) fields[k] = v; });
         if (fields.project_id) { const p = project(); if (p) fields.client_id = p.clientId; else fields.project_id = null; } // client always the project's
@@ -639,22 +656,26 @@ jQuery(document).ready(function($) {
         return askDraft();
       }
       case 'confirm':
+        if (asking === 'clock:confirm') return saveClock();
         if (asking === 'confirm') return save();
         if (asking === 'draft:confirm') return createDraft();
         return resumeFlow() || handleIntent({ intent: 'unknown' });
       case 'change':
+        if (clock) return changeClock();
         if (draft) { asking = 'draft:confirm'; return answerDraft('', { value: 'change' }); }
         if (ORDER.some(k => !blank(fields[k]))) {
           asking = 'change';
-          return say('What do you want to change?', ORDER.map(k => ({ label: LABELS[k][0].toUpperCase() + LABELS[k].slice(1), value: k })));
+          return say('What do you want to change?', changeChips());
         }
         return handleIntent({ intent: 'unknown' });
       case 'cancel':
         draft = null;
+        clock = null;
         fields = {}; ORDER.forEach(k => { fields[k] = null; });
         asking = '';
         return say('Okay, I dropped that. What else can I do?', [{ label: 'Record time', value: '__questions' }].concat(suggestionChips(3)), 'Okay, dropped it. What else can I do?');
       default:
+        if (clock) return askClock();
         if (draft || ORDER.includes(asking) || asking === 'confirm') return answerLocally(text, null);
         return handleIntent({ intent: 'unknown' }, text);
     }
@@ -664,6 +685,7 @@ jQuery(document).ready(function($) {
   function resumeFlow() {
     ackNext = false;
     appendSpeech = true; // after the answer is read out
+    if (clock && asking !== 'clock:saving') { if (asking === 'clock:confirm') return confirmClock(), true; return askClock(), true; }
     if (draft && asking !== 'draft:creating') { if (asking === 'draft:confirm') return confirmDraft(), true; return askDraft(), true; }
     if (asking === 'confirm') return next(), true;
     if (ORDER.includes(asking)) return ask(asking), true;
@@ -682,6 +704,7 @@ jQuery(document).ready(function($) {
     if (data.intent === 'question' || data.intent === 'denied') { asking = ''; if (data.question) lastQuestion = data.question; return showAnswer(data.answer || {}); }
     if (data.intent === 'add_client') return startDraft('client', data.draft);
     if (data.intent === 'add_project') return startDraft('project', data.draft);
+    if (data.intent === 'clock_in' || data.intent === 'clock_out') return startClock(data.intent.slice(6), data.clock, data.status);
     asking = '';
     // A question it has no answer for: say so, instead of sounding like it didn't understand
     if (/\?\s*$|^\s*(what|how|which|who|when|where|can you|could you|show|give|list|provide|tell me)\b/i.test(String(text || ''))) {
@@ -857,6 +880,195 @@ jQuery(document).ready(function($) {
         if (s0 !== session) return; asking = 'draft:confirm'; say("That wasn't added: the site could not be reached.", [{ label: 'Create', value: 'create' }, { label: 'Cancel', value: 'cancel' }]); });
   }
 
+  // ------------------------------------------------------------------
+  // Punching in and out: the project (in only), then the start or end time, then a confirmation
+  // ------------------------------------------------------------------
+
+  const loadedAt = Date.now();
+  /** Site time now (cfg.now is the site's time when the page loaded). */
+  function siteNow() {
+    const m = String(cfg.now || '').match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/);
+    const base = m ? new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]) : new Date(loadedAt);
+    return new Date(base.getTime() + (Date.now() - loadedAt));
+  }
+  const pad = n => String(n).padStart(2, '0');
+  const hm = d => pad(d.getHours()) + ':' + pad(d.getMinutes());
+  /** The clock time to save, YYYY-MM-DD HH:MM:SS: "now", or HH:MM today (site time). */
+  function clockTime(time) {
+    const now = siteNow();
+    return ymd(now) + ' ' + (time === 'now' ? hm(now) + ':' + pad(now.getSeconds()) : time + ':00');
+  }
+  const clockProject = () => projects.find(p => String(p.id) === String(clock.values.project_id));
+  const clockClient = () => (clients.find(c => c.id === String(clock.values.client_id)) || {}).name || '';
+  const clockWhen = v => (v === 'now' ? 'now' : 'at ' + fmtTime(v));
+
+  function mergeClock(values) {
+    Object.keys(values || {}).forEach(k => { if (!blank(values[k])) clock.values[k] = values[k]; });
+    if (clock.values.project_id) {
+      const p = clockProject();
+      if (p) clock.values.client_id = p.clientId; else delete clock.values.project_id;
+    }
+    if (clock.values.client_id && !clients.some(c => c.id === String(clock.values.client_id))) delete clock.values.client_id;
+  }
+
+  function startClock(action, values, status) {
+    status = status || {};
+    ackNext = false;
+    fields = {}; ORDER.forEach(k => { fields[k] = null; }); draft = null;
+    if (cfg.canClock !== undefined && !on(cfg.canClock)) { clock = null; asking = ''; return say('You are not allowed to clock in or out.', suggestionChips(3)); }
+    if (status.member === false) { clock = null; asking = ''; return say("Your user is not set up as a team member, so you can't clock in or out."); }
+    if (action === 'in' && status.clocked_in) {
+      clock = null; asking = '';
+      return say(`You're already clocked in on ${status.project} since ${status.since_text}.`,
+        [{ label: 'Clock out', value: '__say', say: 'clock out' }, { label: 'Close', value: '__close' }],
+        `You're already clocked in on ${status.project}, since ${status.since_text}. Do you want to clock out?`);
+    }
+    if (action === 'out' && !status.clocked_in) {
+      clock = null; asking = '';
+      return say("You're not clocked in.", [{ label: 'Clock in', value: '__say', say: 'clock in' }, { label: 'Record time', value: '__questions' }],
+        "You're not clocked in right now.");
+    }
+    clock = { action: action, values: {}, status: status };
+    mergeClock(values);
+    askClock();
+  }
+
+  function askClock() {
+    const v = clock.values;
+    if (clock.action === 'in') {
+      if (!v.client_id && clients.length === 1) v.client_id = clients[0].id;
+      if (v.client_id && !v.project_id) {
+        const theirs = projects.filter(p => p.clientId === String(v.client_id));
+        if (theirs.length === 1) v.project_id = theirs[0].id;
+      }
+    }
+    const order = clock.action === 'in' ? ['client_id', 'project_id', 'time'] : ['time'];
+    const key = order.find(k => blank(v[k]));
+    if (!key) return confirmClock();
+    asking = 'clock:' + key;
+    const a = ack(), now = [{ label: 'Now', value: 'now' }];
+    if (key === 'client_id') return say('Which client are you clocking in for?', clients.map(c => ({ label: c.name, value: c.id })), a + 'Which client are you clocking in for?');
+    if (key === 'project_id') {
+      const theirs = projects.filter(p => p.clientId === String(v.client_id));
+      return say(`Which project for ${clockClient()}?`, theirs.map(p => ({ label: p.name, value: p.id })), a + `And which project for ${clockClient()}?`);
+    }
+    if (clock.action === 'in') return say('What time did you start? Say "now" or a time like 9:30.', now, a + 'What time did you start? Or just say now.');
+    return say(`What time did you stop? You clocked in on ${clock.status.project} at ${clock.status.since_text}.`, now,
+      a + `What time did you stop? You clocked in at ${clock.status.since_text}. Or just say now.`);
+  }
+
+  /** A short answer while punching in or out, read here. null when it can't tell (it then goes to the AI). */
+  function readClock(key, text) {
+    const t = norm(text);
+    if (key === 'time') {
+      if (/^(now|right now|just now|it s now)$/.test(t) || /^(now|right now)\b/.test(t)) return 'now';
+      const time = parseTime(text);
+      return time && time !== 'skip' ? time : null;
+    }
+    if (key === 'client_id') { const c = matchOne(text, clients, c => c.name); return c ? c.id : null; }
+    if (key === 'project_id') {
+      const pool = projects.filter(p => p.clientId === String(clock.values.client_id));
+      const p = matchOne(text, pool, p => p.name) || matchOne(text, pool, p => p.label);
+      return p ? p.id : null;
+    }
+    return null;
+  }
+
+  /** Why a time can't be used, or ''. Not later than now (10 minutes of slack), and after the clock in. */
+  function clockProblem(time) {
+    if (time === 'now') return '';
+    const at = clockTime(time), now = siteNow();
+    if (new Date(at.replace(' ', 'T')).getTime() > now.getTime() + 10 * 60000) return `${fmtTime(time)} is later than now.`;
+    if (clock.action === 'out' && clock.status.since && at < clock.status.since) return `${fmtTime(time)} is before you clocked in at ${clock.status.since_text}.`;
+    return '';
+  }
+
+  function confirmClock() {
+    const problem = clockProblem(clock.values.time);
+    if (problem) { delete clock.values.time; bubble('bot', problem); ackNext = false; return askClock(); }
+    asking = 'clock:confirm';
+    const p = clockProject();
+    const text = clock.action === 'in'
+      ? `Clock in on ${p ? p.name : ''} for ${clockClient()} ${clockWhen(clock.values.time)}?`
+      : `Clock out of ${clock.status.project} ${clockWhen(clock.values.time)}?`;
+    say(text, [{ label: clock.action === 'in' ? 'Clock in' : 'Clock out', value: 'save' }, { label: 'Change something', value: 'change' }, { label: 'Cancel', value: 'cancel' }],
+      ack() + text.replace(/\?$/, '. Should I go ahead?'));
+  }
+
+  function changeClock() {
+    if (clock.action === 'out') { delete clock.values.time; return askClock(); }
+    asking = 'clock:change';
+    say('What do you want to change?', [{ label: 'Client', value: 'client_id' }, { label: 'Project', value: 'project_id' }, { label: 'Time', value: 'time' }]);
+  }
+
+  function answerClock(text, chip) {
+    if (asking === 'clock:saving') return;
+    const key = asking.slice(6);
+    if (asking === 'clock:confirm') {
+      const v = chip ? chip.value : (/^(yes|yeah|yep|ok|okay|sure|go ahead|do it|save|clock (me )?(in|out)|punch (me )?(in|out))\b/i.test(text) ? 'save'
+        : /change|edit|fix/i.test(text) ? 'change' : /^(cancel|stop|never ?mind|no)\b/i.test(text) ? 'cancel' : '');
+      if (v === 'save') return saveClock();
+      if (v === 'change') return changeClock();
+      if (v === 'cancel') { clock = null; asking = ''; return say("Okay, I didn't clock you " + (/out/.test(text) ? 'out' : 'in or out') + '.', suggestionChips(3)); }
+      if (on(cfg.aiReady)) return converse(text);
+      return confirmClock();
+    }
+    if (asking === 'clock:change') {
+      const k = chip ? chip.value : (/client/i.test(text) ? 'client_id' : /project/i.test(text) ? 'project_id' : /time|start/i.test(text) ? 'time' : '');
+      if (!k) return say('Which part? Client, project or time.');
+      delete clock.values[k];
+      if (k === 'client_id') delete clock.values.project_id;
+      return askClock();
+    }
+    const value = chip ? chip.value : readClock(key, text);
+    if (value !== null && value !== undefined) {
+      clock.values[key] = value;
+      if (key === 'client_id') delete clock.values.project_id;
+      if (key === 'project_id') mergeClock({});
+      ackNext = true;
+      return askClock();
+    }
+    if (on(cfg.aiReady)) return converse(text); // a phrase ("the audit for Copperleaf at half past nine"): the AI reads it
+    bubble('bot', `Sorry, I didn't get the ${key === 'time' ? 'time' : key === 'client_id' ? 'client' : 'project'}.`);
+    ackNext = false;
+    askClock();
+  }
+
+  function saveClock() {
+    const action = clock.action, values = clock.values, status = clock.status;
+    const problem = clockProblem(values.time);
+    if (problem) { delete values.time; bubble('bot', problem); return askClock(); }
+    asking = 'clock:saving';
+    voiceMode = false;
+    const p = clockProject(), at = clockTime(values.time);
+    say(action === 'in' ? 'Clocking you in.' : 'Clocking you out.');
+    const data = {
+      action: 'save_time_entry', source: 'voice', entry_type: action === 'in' ? 'CLOCK_IN' : 'CLOCK_OUT', member_id: 0,
+      time_entry_id: action === 'in' ? 0 : status.entry_id, timegrow_time_nexus_nonce_field: cfg.saveNonce, clock_time: at,
+    };
+    if (action === 'in') data.project_id = values.project_id;
+    const s0 = session; // replies from a closed session are ignored
+    const failed = message => {
+      if (s0 !== session) return;
+      asking = 'clock:confirm';
+      say(`That didn't work: ${message}`, [{ label: 'Try again', value: 'save' }, { label: 'Change something', value: 'change' }, { label: 'Cancel', value: 'cancel' }]);
+    };
+    $.ajax({ url: cfg.ajaxUrl, method: 'POST', data: withLog(data) })
+      .done(res => {
+        if (s0 !== session) return;
+        if (res && res.success) {
+          clock = null;
+          asking = 'done';
+          const when = fmtTime(at.slice(11, 16));
+          const text = action === 'in' ? `Clocked in on ${p ? p.name : ''} at ${when}.` : `Clocked out of ${status.project} at ${when}.`;
+          return say(text, [{ label: action === 'in' ? 'Clock out later' : 'Record time', value: action === 'in' ? '__close' : '__questions' }, { label: 'Close', value: '__close' }],
+            'Done. ' + text);
+        }
+        failed(String((res && res.data && (res.data.message || res.data)) || 'unknown error'));
+      })
+      .fail(() => failed('The site could not be reached.'));
+  }
+
   function retry() {
     const key = asking;
     bubble('bot', `Sorry, I didn't get the ${LABELS[key]}.`);
@@ -936,8 +1148,9 @@ jQuery(document).ready(function($) {
   function start() {
     fields = {}; ORDER.forEach(k => { fields[k] = null; });
     draft = null;
+    clock = null;
     asking = '';
-    say('Tell me what you worked on, for example: "Two hours yesterday on the SEO audit for Copperleaf, keyword research." Or answer my questions one at a time.',
+    say('Tell me what you worked on, for example: "Two hours yesterday on the SEO audit for Copperleaf, keyword research." Or say "punch in" or "punch out", or answer my questions one at a time.',
       [{ label: 'Ask me the questions', value: '__questions' }].concat(suggestionChips(2)),
       'Hi! What did you work on? You can tell me in one go, or ask me something about TimeGrow.');
   }
@@ -967,6 +1180,7 @@ jQuery(document).ready(function($) {
     history.length = 0;
     lastQuestion = null;
     draft = null;
+    clock = null;
     fields = {}; ORDER.forEach(k => { fields[k] = null; });
     asking = '';
     $log.empty();
@@ -1004,7 +1218,7 @@ jQuery(document).ready(function($) {
   });
   $card.on('click', '.timegrow-voice-chip', function() {
     const chip = $(this).data('chip');
-    if (chip.value === '__questions') { bubble('me', chip.label); $chips.empty(); draft = null; ackNext = false; return next(); }
+    if (chip.value === '__questions') { bubble('me', chip.label); $chips.empty(); draft = null; clock = null; ackNext = false; return next(); }
     if (chip.value === '__restart') return start();
     if (chip.value === '__close') return close();
     if (chip.value === '__say') return answer(chip.say);                       // a suggested question
@@ -1016,5 +1230,5 @@ jQuery(document).ready(function($) {
   $text.on('keypress', e => { if (e.which === 13) { e.preventDefault(); voiceMode = false; answer($text.val()); } });
 
   // For tests
-  window.TimeGrowVoiceEntry = { open: open, close: close, voiceScore: voiceScore, bestVoice: bestVoice, sentences: sentences, spokenHours: spokenHours, answer: answer, fields: () => fields, asking: () => asking, readLocally: readLocally, readStrict: readStrict };
+  window.TimeGrowVoiceEntry = { open: open, close: close, voiceScore: voiceScore, bestVoice: bestVoice, sentences: sentences, spokenHours: spokenHours, answer: answer, fields: () => fields, asking: () => asking, clock: () => clock, readLocally: readLocally, readStrict: readStrict };
 });

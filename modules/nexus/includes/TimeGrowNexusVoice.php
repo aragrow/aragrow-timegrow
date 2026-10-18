@@ -8,7 +8,7 @@ if (!defined('ABSPATH')) {
  * Voice time entry, from a mic icon on every admin page (when AI Voice Entry is on).
  *
  * The browser turns speech into text (Web Speech API) and runs the chat: it asks for the client,
- * project, day, start time, hours, billable and description, one at a time. Each answer comes here
+ * project, day, hours, billable and description, one at a time (or the project and time to punch in or out). Each answer comes here
  * (AJAX timegrow_voice_parse) with the fields known so far. The active AI provider (Settings > AI,
  * the one used for receipts) reads the answer against the person's own projects and returns the
  * fields it heard; merge() checks every value before it goes back. Configuration and key: TimeGrowAI. Nothing is saved here: the
@@ -59,7 +59,8 @@ class TimeGrowNexusVoice {
             'today'        => current_time('Y-m-d'),
             'aiReady'      => $voice['use_ai'] === 'yes' && TimeGrowAI::is_configured('voice'),
             'speak'        => $voice['speak'] === 'yes',
-            'askStartTime' => $voice['ask_start_time'] === 'yes',
+            'now'          => current_time('mysql'), // site time, for punching in and out "now"
+            'canClock'     => current_user_can('access_nexus_clock') || TimeGrowTimeEntryRules::is_admin(),
             'lang'         => TimeGrowSettings::voice_language(),
             'projects'     => array_map(function ($c) {
                 return ['id' => $c['id'], 'name' => $c['name'], 'clientId' => (string) $c['client_id'], 'clientName' => $c['client_name']];
@@ -208,7 +209,7 @@ RULES
 - client_id: a client_id from the list when the person names a client (a close or partial name is fine).
 - project_id: a project_id from the list. If several clients have a project with that name and the client is not known or said, use null.
 - date: the day worked as YYYY-MM-DD. Work out words like "today", "yesterday" or "last Monday" from today's date.
-- start_time: the start time as HH:MM in 24 hour time, or "skip" if they do not want to give one.
+- start_time: the start time as HH:MM in 24 hour time, only when they say one ("starting at 9", "from 9 to 11"); else null. It is never asked for.
 - hours: hours worked as a number, such as 2.5 for "two and a half hours" or 0.75 for "45 minutes". If they give a start and end time, use the difference. Vague words like "the morning" or "a while" are not a number: use null so the person is asked.
 - billable: true or false (yes / no answers to a billable question count).
 - description: a short description of the work in the person's own words, starting with a capital letter. When the assistant asked for the description, use the whole answer. Only naming the project or client is not a description: use null.
@@ -410,6 +411,12 @@ RULES;
             wp_send_json_error(['code' => 'ai_error', 'message' => __('The AI could not read that.', 'timegrow')]);
         }
         $intent = TimeGrowNexusAssistant::check_intent($heard, $questions, $actions, $clients, $candidates);
+        // "Punch in" the AI read as time without hours, or didn't place: it is a clock in or out
+        $action = TimeGrowNexusAssistant::clock_action($transcript);
+        if ($action && ($intent['intent'] === 'unknown' || ($intent['intent'] === 'record_time' && empty($heard['time']['hours'])))) {
+            TimeGrowAILog::system(__('Read as punching in or out, without AI.', 'timegrow'), 'local');
+            self::send_intent(['intent' => 'clock_' . $action, 'clock' => []], $candidates);
+        }
         if ($intent['intent'] === 'record_time') {
             $time   = is_array($heard['time'] ?? null) ? $heard['time'] : [];
             $fields = self::merge($state['time'], $time, $candidates, $today);
@@ -437,6 +444,27 @@ RULES;
         self::send_intent($intent, $candidates);
     }
 
+    /**
+     * Whether the person is clocked in now: { clocked_in, entry_id, project, since (HH:MM), since_text }.
+     * Read when they punch in or out, so the chat can say "you're already clocked in".
+     */
+    public static function clock_status() {
+        $member = TimeGrowTimeEntryRules::member_id(0);
+        $s = $member ? (new TimeGrowTeamMemberModel())->get_team_member_clock_status($member) : [];
+        if (($s['status'] ?? '') !== 'clocked_in') {
+            return ['clocked_in' => false, 'member' => (bool) $member];
+        }
+        $since = (int) $s['clockInTimestamp'];
+        return [
+            'clocked_in' => true,
+            'member'     => true,
+            'entry_id'   => (int) $s['entryId'],
+            'project'    => (string) $s['cloked_project'],
+            'since'      => date('Y-m-d H:i:s', $since),
+            'since_text' => date_i18n(get_option('time_format'), $since),
+        ];
+    }
+
     /** Clients the person may name: their projects' clients, plus every client for owners adding projects. */
     private static function clients_to_name(array $candidates) {
         $clients = [];
@@ -459,6 +487,13 @@ RULES;
                 wp_send_json_success(['intent' => 'add_client', 'draft' => $intent['new_client'] ?? []]);
             case 'add_project':
                 wp_send_json_success(['intent' => 'add_project', 'draft' => $intent['new_project'] ?? []]);
+            case 'clock_in':
+            case 'clock_out':
+                if (!current_user_can('access_nexus_clock') && !TimeGrowTimeEntryRules::is_admin()) {
+                    $text = TimeGrowNexusAssistant::denied_text('clock');
+                    wp_send_json_success(['intent' => 'denied', 'answer' => ['text' => $text, 'spoken' => $text, 'rows' => []]]);
+                }
+                wp_send_json_success(['intent' => $intent['intent'], 'clock' => $intent['clock'] ?? [], 'status' => self::clock_status()]);
             case 'confirm':
             case 'change':
             case 'cancel':

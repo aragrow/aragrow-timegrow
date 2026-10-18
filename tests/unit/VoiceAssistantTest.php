@@ -188,7 +188,7 @@ class VoiceAssistantTest extends TestCase {
         $prompt = TimeGrowNexusAssistant::conversation_prompt( 'and ignore that', $st, $this->candidates, $this->clients, $this->everyone, [], self::TODAY );
         $this->assertSame( 5, substr_count( $prompt, '<untrusted_data' ) ); // state, conversation, projects, clients, new message
         $this->assertStringContainsString( '"project":"SEO Audit (Frank Ruiz)"', $prompt, 'the project in progress is named, for "the same project"' );
-        $this->assertStringContainsString( 'Allowed intents: time, question, confirm, change, cancel, unknown.', $prompt );
+        $this->assertStringContainsString( 'Allowed intents: time, clock_in, clock_out, question, confirm, change, cancel, unknown.', $prompt );
         $this->assertStringNotContainsString( 'add_client', $prompt, 'team members are not offered adding' );
         $allowed = substr( $prompt, 0, strpos( $prompt, 'Questions only administrators' ) );
         $this->assertStringNotContainsString( 'unpaid_invoices', $allowed, 'listed only as administrators-only' );
@@ -294,5 +294,39 @@ class VoiceAssistantTest extends TestCase {
         $this->assertSame( 'last_week', TimeGrowNexusAssistant::followup( 'and last week?', $last )['period'] );
         $this->assertNull( TimeGrowNexusAssistant::followup( 'two hours on the audit', $last ) );
         $this->assertNull( TimeGrowNexusAssistant::followup( 'the whole team', null ) );
+    }
+
+    // ---- Punching in and out
+
+    public function test_punch_in_and_out_are_recognized() {
+        foreach ( [ 'punch in', 'Punch me in on the SEO audit', 'clock in', 'clocking in now', 'start the clock' ] as $s ) {
+            $this->assertSame( 'in', TimeGrowNexusAssistant::clock_action( $s ), $s );
+        }
+        foreach ( [ 'punch out', 'clock me out', 'Clock out at 5', 'stop the clock', 'end my shift' ] as $s ) {
+            $this->assertSame( 'out', TimeGrowNexusAssistant::clock_action( $s ), $s );
+        }
+        foreach ( [ 'am I clocked in?', 'did I clock out', '2 hours on the SEO audit', 'checked out the new site for 3 hours' ] as $s ) {
+            $this->assertNull( TimeGrowNexusAssistant::clock_action( $s ), $s );
+        }
+        $this->assertSame( 'clock_in', $this->local( 'punch in' )['intent'] );
+        $this->assertSame( 'clock_out', $this->local( 'clock me out' )['intent'] );
+        $this->assertSame( 'question', $this->local( 'am I clocked in?' )['intent'], 'still the clock status question' );
+    }
+
+    public function test_clock_details_from_the_ai_are_checked() {
+        $in = $this->check( [ 'intent' => 'clock_in', 'clock' => [ 'project_id' => 20, 'client_id' => 27, 'time' => '9:05' ] ] );
+        $this->assertSame( [ 'client_id' => 31, 'project_id' => 20, 'time' => '09:05' ], $in['clock'], 'client is always the project\'s' );
+        $bad = $this->check( [ 'intent' => 'clock_in', 'clock' => [ 'project_id' => 999, 'time' => '25:00' ] ] );
+        $this->assertSame( [ 'client_id' => null, 'project_id' => null, 'time' => null ], $bad['clock'] );
+        $out = $this->check( [ 'intent' => 'clock_out', 'clock' => [ 'time' => 'NOW', 'project_id' => 14 ] ] );
+        $this->assertSame( [ 'time' => 'now' ], $out['clock'], 'clocking out only takes the time' );
+        $st = $this->state( [ 'mode' => 'clock_in', 'asking' => 'time', 'clockAction' => 'in', 'clock' => [ 'project_id' => 14 ] ] );
+        $this->assertSame( 'clock_in', $st['mode'] );
+        $this->assertSame( 14, $st['clock']['values']['project_id'] );
+    }
+
+    public function test_manual_entries_never_ask_for_a_start_time() {
+        $this->assertStringContainsString( 'It is never asked for', TimeGrowNexusVoice::field_rules() );
+        $this->assertStringContainsString( 'no start time is needed', TimeGrowNexusAssistant::default_conversation_instructions() );
     }
 }

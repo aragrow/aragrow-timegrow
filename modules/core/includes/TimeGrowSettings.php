@@ -1790,11 +1790,9 @@ class TimeGrowSettings {
                     <div class="timegrow-card-body">
                         <?php
                         $this->voice_toggle('enabled', __('Turn voice entry on', 'timegrow'),
-                            __('Shows a microphone icon in the corner of every admin page for people who can record time. The chat records time (client, project, day, start time, hours, billable and description), answers questions about TimeGrow data, and lets administrators add clients and projects. Nothing is saved until the person confirms. Speech is turned into text by the browser: in Chrome and Edge that is done by Google or Microsoft, in Safari by Apple. People can always type instead.', 'timegrow'), $settings);
+                            __('Shows a microphone icon in the corner of every admin page for people who can record time. The chat records time (client, project, day, hours, billable and description), punches people in and out, answers questions about TimeGrow data, and lets administrators add clients and projects. Nothing is saved until the person confirms. Speech is turned into text by the browser: in Chrome and Edge that is done by Google or Microsoft, in Safari by Apple. People can always type instead.', 'timegrow'), $settings);
                         $this->voice_toggle('speak', __('Speak the questions out loud', 'timegrow'),
                             __('The chat reads its questions aloud. Each person can still turn the sound off in the chat; their choice is remembered on their device.', 'timegrow'), $settings);
-                        $this->voice_toggle('ask_start_time', __('Ask for a start time', 'timegrow'),
-                            __('Asks what time the work started (people can skip it). When off, entries are saved with the day only.', 'timegrow'), $settings);
                         ?>
                         <table class="form-table" role="presentation">
                             <tr>
