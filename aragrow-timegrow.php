@@ -206,8 +206,11 @@ function timegrow_register_report_capabilities() {
     }
 }
 
-// The time entry audit trail's table (Reports > Time Entry Audit Log)
+// The time entry audit trail's table (Reports > Time Entry Audit Log), and the time entry status column
 add_action('admin_init', function() {
+    if (class_exists('TimeGrowTimeEntryModel')) {
+        TimeGrowTimeEntryModel::maybe_add_status_column();
+    }
     if (class_exists('TimeGrowTimeEntryAudit')) {
         TimeGrowTimeEntryAudit::maybe_create_table();
     }

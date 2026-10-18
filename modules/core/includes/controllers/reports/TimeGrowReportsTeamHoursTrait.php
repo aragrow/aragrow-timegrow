@@ -47,7 +47,7 @@ trait TimeGrowReportsTeamHoursTrait {
                     SUM(CASE WHEN te.clock_in_date IS NOT NULL AND te.clock_out_date IS NULL AND (te.hours IS NULL OR te.hours = 0) THEN 1 ELSE 0 END) AS open_clocks,
                     MAX({$day}) AS last_entry
                 FROM {$p}team_member_tracker m
-                LEFT JOIN {$p}time_entry_tracker te ON te.member_id = m.ID{$on}
+                LEFT JOIN {$p}time_entry_tracker te ON te.member_id = m.ID AND te.status = 1{$on}
                 GROUP BY m.ID, m.name, m.status
                 ORDER BY total_hours DESC, m.name ASC";
         $rows = $args ? $wpdb->get_results($wpdb->prepare($sql, $args)) : $wpdb->get_results($sql);

@@ -294,6 +294,7 @@ class TimeGrowTeamMemberModel {
                     LEFT OUTER JOIN {$this->table_name4} p ON e.project_id = p.ID
                     WHERE member_id = %d
                     AND e.entry_type = 'CLOCK'
+                    AND e.status = 1
                     ORDER BY e.ID desc
                     LIMIT 1",
                 $id

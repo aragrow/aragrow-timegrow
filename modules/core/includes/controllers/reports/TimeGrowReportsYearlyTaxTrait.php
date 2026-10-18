@@ -681,7 +681,7 @@ trait TimeGrowReportsYearlyTaxTrait {
              INNER JOIN {$project_table} p ON t.project_id = p.ID
              INNER JOIN {$member_table} m ON t.member_id = m.ID
              INNER JOIN {$user_table} u ON p.client_id = u.ID
-             WHERE YEAR(COALESCE(t.date, t.clock_in_date)) = %d
+             WHERE YEAR(COALESCE(t.date, t.clock_in_date)) = %d AND t.status = 1
              ORDER BY COALESCE(t.date, t.clock_in_date) ASC",
             $year
         );

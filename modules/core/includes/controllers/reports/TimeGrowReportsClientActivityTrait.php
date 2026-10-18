@@ -130,7 +130,7 @@ trait TimeGrowReportsClientActivityTrait {
                     MAX(COALESCE(te.date, te.clock_in_date)) as last_activity
                 FROM {$client_table} c
                 INNER JOIN {$project_table} p ON c.ID = p.client_id
-                LEFT JOIN {$time_entry_table} te ON p.ID = te.project_id
+                LEFT JOIN {$time_entry_table} te ON p.ID = te.project_id AND te.status = 1
                 WHERE 1=1";
 
         // Add client filter
@@ -435,7 +435,7 @@ trait TimeGrowReportsClientActivityTrait {
                     INNER JOIN {$project_table} p ON te.project_id = p.ID
                     INNER JOIN {$member_table} m ON te.member_id = m.ID
                     LEFT JOIN {$woo_posts_table} woo ON te.billed_order_id = woo.ID AND woo.post_type = 'shop_order'
-                    WHERE p.client_id = %d";
+                    WHERE p.client_id = %d AND te.status = 1";
 
         $time_params = [$client_id];
 
@@ -766,7 +766,7 @@ trait TimeGrowReportsClientActivityTrait {
                     MAX(COALESCE(te.date, te.clock_in_date)) as last_activity
                 FROM {$client_table} c
                 INNER JOIN {$project_table} p ON c.ID = p.client_id
-                LEFT JOIN {$time_entry_table} te ON p.ID = te.project_id
+                LEFT JOIN {$time_entry_table} te ON p.ID = te.project_id AND te.status = 1
                 WHERE 1=1";
 
         $params = [];

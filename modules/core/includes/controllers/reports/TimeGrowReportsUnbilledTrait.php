@@ -32,7 +32,7 @@ trait TimeGrowReportsUnbilledTrait {
                 FROM {$p}time_entry_tracker te
                 INNER JOIN {$p}project_tracker p ON te.project_id = p.ID
                 LEFT JOIN {$wpdb->users} c ON p.client_id = c.ID
-                WHERE te.billable = 1 AND te.billed = 0";
+                WHERE te.billable = 1 AND te.billed = 0 AND te.status = 1";
         $args = [];
         if ($start_date !== '') {
             $sql .= " AND {$day} >= %s";
@@ -114,7 +114,7 @@ trait TimeGrowReportsUnbilledTrait {
 
         // Open clock-ins on billable entries: not counted until clocked out
         $open = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}" . TIMEGROW_PREFIX . "time_entry_tracker
-            WHERE billable = 1 AND billed = 0 AND clock_in_date IS NOT NULL AND clock_out_date IS NULL AND (hours IS NULL OR hours = 0)");
+            WHERE billable = 1 AND billed = 0 AND status = 1 AND clock_in_date IS NOT NULL AND clock_out_date IS NULL AND (hours IS NULL OR hours = 0)");
         $clients = $wpdb->get_results("SELECT DISTINCT c.ID, c.display_name FROM {$wpdb->prefix}" . TIMEGROW_PREFIX . "project_tracker p
             INNER JOIN {$wpdb->users} c ON p.client_id = c.ID ORDER BY c.display_name");
 

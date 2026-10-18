@@ -73,7 +73,7 @@ class TimeGrowNexusKpis {
     private static function totals($member, $from, $to) {
         global $wpdb;
         $sql = 'SELECT SUM(' . self::HOURS . ') AS total, SUM(CASE WHEN te.billable = 1 THEN ' . self::HOURS . ' ELSE 0 END) AS billable
-                FROM ' . self::table('time_entry_tracker') . ' te WHERE ' . self::DAY . ' BETWEEN %s AND %s' . ($member ? ' AND te.member_id = %d' : '');
+                FROM ' . self::table('time_entry_tracker') . ' te WHERE te.status = 1 AND ' . self::DAY . ' BETWEEN %s AND %s' . ($member ? ' AND te.member_id = %d' : '');
         $row = $wpdb->get_row($member ? $wpdb->prepare($sql, $from, $to, $member) : $wpdb->prepare($sql, $from, $to));
         return ['total' => (float) ($row->total ?? 0), 'billable' => (float) ($row->billable ?? 0)];
     }
@@ -83,7 +83,7 @@ class TimeGrowNexusKpis {
         global $wpdb;
         $sql = "SELECT {$label_sql} AS label, SUM(" . self::HOURS . ') AS hours
                 FROM ' . self::table('time_entry_tracker') . " te {$join}
-                WHERE " . self::DAY . ' BETWEEN %s AND %s' . ($member ? ' AND te.member_id = %d' : '') . "
+                WHERE te.status = 1 AND " . self::DAY . ' BETWEEN %s AND %s' . ($member ? ' AND te.member_id = %d' : '') . "
                 GROUP BY label HAVING hours > 0 ORDER BY hours DESC LIMIT " . (int) $limit;
         $rows = $member ? $wpdb->get_results($wpdb->prepare($sql, $from, $to, $member)) : $wpdb->get_results($wpdb->prepare($sql, $from, $to));
         $out = [];
@@ -104,12 +104,12 @@ class TimeGrowNexusKpis {
 
         $days = [];
         $sql = 'SELECT ' . self::DAY . ' AS d, SUM(' . self::HOURS . ') AS hours FROM ' . self::table('time_entry_tracker') . ' te
-                WHERE te.member_id = %d AND ' . self::DAY . ' BETWEEN %s AND %s GROUP BY d';
+                WHERE te.status = 1 AND te.member_id = %d AND ' . self::DAY . ' BETWEEN %s AND %s GROUP BY d';
         foreach ((array) $wpdb->get_results($wpdb->prepare($sql, $member, $from14, $today)) as $r) {
             $days[$r->d] = (float) $r->hours;
         }
         $unbilled = (float) $wpdb->get_var($wpdb->prepare('SELECT SUM(' . self::HOURS . ') FROM ' . self::table('time_entry_tracker') . ' te
-            WHERE te.member_id = %d AND te.billable = 1 AND te.billed = 0', $member));
+            WHERE te.status = 1 AND te.member_id = %d AND te.billable = 1 AND te.billed = 0', $member));
         $clock = (new TimeGrowTeamMemberModel())->get_team_member_clock_status($member);
 
         return [
@@ -135,7 +135,7 @@ class TimeGrowNexusKpis {
 
         $weeks = [];
         $sql = 'SELECT DATE_SUB(' . self::DAY . ', INTERVAL WEEKDAY(' . self::DAY . ') DAY) AS monday, SUM(' . self::HOURS . ') AS hours
-                FROM ' . self::table('time_entry_tracker') . ' te WHERE ' . self::DAY . ' BETWEEN %s AND %s GROUP BY monday';
+                FROM ' . self::table('time_entry_tracker') . ' te WHERE te.status = 1 AND ' . self::DAY . ' BETWEEN %s AND %s GROUP BY monday';
         foreach ((array) $wpdb->get_results($wpdb->prepare($sql, $from, $today)) as $r) {
             $weeks[$r->monday] = (float) $r->hours;
         }
@@ -155,7 +155,7 @@ class TimeGrowNexusKpis {
             }
         }
         $active = (int) $wpdb->get_var($wpdb->prepare('SELECT COUNT(DISTINCT te.project_id) FROM ' . self::table('time_entry_tracker') . ' te
-            WHERE ' . self::DAY . ' BETWEEN %s AND %s', $first, $today));
+            WHERE te.status = 1 AND ' . self::DAY . ' BETWEEN %s AND %s', $first, $today));
 
         return [
             'month'    => $month['total'],

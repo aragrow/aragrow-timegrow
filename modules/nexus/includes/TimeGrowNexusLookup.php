@@ -250,7 +250,7 @@ class TimeGrowNexusLookup {
         global $wpdb;
         $p     = $wpdb->prefix . TIMEGROW_PREFIX;
         $day   = 'COALESCE(e.date, e.clock_in_date)';
-        $where = ["{$day} >= %s", "{$day} < %s"];
+        $where = ["{$day} >= %s", "{$day} < %s", 'e.status = 1']; // inactive entries are not counted
         $args  = [$spec['from'] . ' 00:00:00', date('Y-m-d', strtotime($spec['to'] . ' +1 day')) . ' 00:00:00'];
         $f     = $spec['filters'];
         if (!empty($f['member_id']))  { $where[] = 'e.member_id = %d';  $args[] = $f['member_id']; }

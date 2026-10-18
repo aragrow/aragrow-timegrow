@@ -31,7 +31,7 @@ class TimeGrowTimeEntryModel {
         $this->allowed_fields = ['project_id', 'member_id',
                                 'clock_in_date', 'clock_out_date',
                                 'date','hours', 'billable', 'billed',
-                                'description', 'entry_type', 'billed_order_id',
+                                'description', 'entry_type', 'billed_order_id', 'status',
                                 'created_at', 'updated_at'];
     }
 
@@ -53,6 +53,7 @@ class TimeGrowTimeEntryModel {
             description text,
             entry_type varchar(10),
             billed_order_id bigint(20) unsigned DEFAULT NULL,
+            status tinyint(1) NOT NULL DEFAULT 1,
             created_at timestamp,
             updated_at timestamp,
             PRIMARY KEY  (ID),
@@ -62,7 +63,36 @@ class TimeGrowTimeEntryModel {
         ) $this->charset_collate;";
 
         dbDelta($sql);
+        self::maybe_add_status_column();
+    }
 
+    /**
+     * The status column (1 = active, 0 = inactive) on sites created before it: added once, every
+     * existing entry active. Inactive entries stay in the database but are left out of everything
+     * that counts time (reports, dashboard, invoicing, the Voice AI).
+     */
+    public static function maybe_add_status_column() {
+        if (get_option('timegrow_time_entry_status_db') === '1') {
+            return;
+        }
+        global $wpdb;
+        $table = $wpdb->prefix . TIMEGROW_PREFIX . 'time_entry_tracker';
+        if ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $table)) !== $table) {
+            return; // created later by initialize(), with the column
+        }
+        if (!$wpdb->get_var($wpdb->prepare("SHOW COLUMNS FROM {$table} LIKE %s", 'status'))) {
+            $wpdb->query("ALTER TABLE {$table} ADD COLUMN status tinyint(1) NOT NULL DEFAULT 1 AFTER billed_order_id");
+        }
+        if ($wpdb->get_var($wpdb->prepare("SHOW COLUMNS FROM {$table} LIKE %s", 'status'))) {
+            update_option('timegrow_time_entry_status_db', '1', false);
+        }
+    }
+
+    /** Why the status can't be set, or ''. A billed entry stays active (unbill it first). Pure. */
+    public static function status_problem($status, $billed) {
+        return (int) $status === 0 && (int) $billed === 1
+            ? __('A billed time entry can\'t be made inactive. Remove it from its invoice first.', 'timegrow')
+            : '';
     }
     
     /**
@@ -252,7 +282,7 @@ class TimeGrowTimeEntryModel {
         timegrow_log(__CLASS__.'::'.__FUNCTION__);
         global $wpdb;
 
-        $where_clauses = ['t.billed = 0', 't.billable = 1'];
+        $where_clauses = ['t.billed = 0', 't.billable = 1', 't.status = 1']; // inactive entries are never billed
         $prepare_values = [];
 
         // Add client filter if provided

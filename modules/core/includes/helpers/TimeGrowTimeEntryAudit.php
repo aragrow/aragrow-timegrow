@@ -156,6 +156,9 @@ class TimeGrowTimeEntryAudit {
                 if (in_array($field, ['billable', 'billed'], true)) {
                     return $v ? 'yes' : 'no';
                 }
+                if ($field === 'status') {
+                    return $v ? 'active' : 'inactive';
+                }
                 if ($field === 'hours') {
                     return (string) (0 + $v);
                 }

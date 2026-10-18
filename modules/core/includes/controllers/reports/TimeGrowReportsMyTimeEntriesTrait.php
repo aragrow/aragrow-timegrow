@@ -66,7 +66,7 @@ trait TimeGrowReportsMyTimeEntriesTrait {
                 INNER JOIN {$project_table} p ON te.project_id = p.ID
                 INNER JOIN {$member_table} m ON te.member_id = m.ID
                 LEFT JOIN {$client_table} c ON p.client_id = c.ID
-                WHERE 1=1";
+                WHERE te.status = 1"; // inactive entries are not counted
 
         $params = [];
 
@@ -318,7 +318,7 @@ trait TimeGrowReportsMyTimeEntriesTrait {
                 INNER JOIN {$project_table} p ON te.project_id = p.ID
                 INNER JOIN {$member_table} m ON te.member_id = m.ID
                 LEFT JOIN {$client_table} c ON p.client_id = c.ID
-                WHERE 1=1";
+                WHERE te.status = 1"; // inactive entries are not counted
 
         $params = [];
 
@@ -425,7 +425,7 @@ trait TimeGrowReportsMyTimeEntriesTrait {
                 INNER JOIN {$project_table} p ON te.project_id = p.ID
                 INNER JOIN {$member_table} m ON te.member_id = m.ID
                 LEFT JOIN {$client_table} c ON p.client_id = c.ID
-                WHERE 1=1";
+                WHERE te.status = 1"; // inactive entries are not counted
 
         $params = [];
 

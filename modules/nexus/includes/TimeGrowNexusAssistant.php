@@ -1082,7 +1082,7 @@ RULES;
         global $wpdb;
         $p     = $wpdb->prefix . TIMEGROW_PREFIX;
         $day   = 'COALESCE(e.date, e.clock_in_date)';
-        $where = ["{$day} >= %s", "{$day} < %s"];
+        $where = ["{$day} >= %s", "{$day} < %s", 'e.status = 1']; // inactive entries are not counted
         $floor = self::data_floor(current_time('Y-m-d'));
         if ($from < $floor) {
             $from = $floor; // the last 3 months only

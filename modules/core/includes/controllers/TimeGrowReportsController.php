@@ -364,7 +364,7 @@ class TimeGrowReportsController {
                      WHERE p2.client_id = c.ID) as total_expenses
                 FROM {$client_table} c
                 INNER JOIN {$project_table} p ON c.ID = p.client_id
-                LEFT JOIN {$time_entry_table} te ON p.ID = te.project_id
+                LEFT JOIN {$time_entry_table} te ON p.ID = te.project_id AND te.status = 1
                 WHERE 1=1";
 
         $params = [];
