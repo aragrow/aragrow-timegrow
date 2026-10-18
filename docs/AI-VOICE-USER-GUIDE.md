@@ -17,7 +17,7 @@ If you don't see the microphone icon, ask your administrator to turn on AI Voice
 
 ## Record your time
 
-Say what you did in one sentence. The assistant fills in what it understood and only asks for what is missing: client, project, day, start time (you can skip it), hours, billable and what you worked on.
+Say what you did in one sentence. The assistant fills in what it understood and only asks for what is missing: client, project, day, hours, billable and what you worked on. Because you give the hours, it doesn't ask for a start time. If you say one ("from 9 to 11"), it keeps it.
 
 | You say | It understands |
 | --- | --- |
@@ -27,12 +27,21 @@ Say what you did in one sentence. The assistant fills in what it understood and 
 | "45 minutes on support for Birchway" | 0.75 hours |
 | "Last Friday" (when asked the day) | The most recent Friday |
 | "Yes" / "No" (when asked if it's billable) | Billable or not billable |
-| "Skip" (when asked the start time) | No start time |
 | "The second one" (after it lists projects) | The second project on the list |
 
 It won't guess a vague amount like "the morning" or "two or three hours"; it asks how long. When everything is there, it reads back a summary such as *"Copperleaf, SEO Audit. Thu, Oct 15, 2h 30m, billable. Keyword research."* Say **save it** or tap **Save entry**. Nothing is saved before that.
 
 You only see your own projects. If a client has several projects with the same name, or several clients have similar names, it asks which one you mean.
+
+## Punch in and out
+
+Say **punch in** or **clock in** when you start, and **punch out** or **clock out** when you stop.
+
+- **Punching in:** it asks for the client and project (unless you said them, like "punch in on the SEO audit"), then what time you started. Say **now** or a time such as "9:30".
+- **Punching out:** it asks what time you stopped, and reminds you when you clocked in. Say **now** or a time.
+- It reads back what it will do, such as *"Clock in on SEO Audit for Copperleaf at 9:30 AM?"*. Nothing is saved until you say **yes** or tap the button.
+
+It won't clock you in twice, or out when you aren't clocked in. A time later than now, or a stop time before you clocked in, is refused, and it asks again.
 
 ## Fix mistakes
 
