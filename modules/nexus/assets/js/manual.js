@@ -158,7 +158,7 @@ jQuery(document).ready(function($) {
       console.log(projectId);
       if (projectId) {
         $('#project_id').val(projectId);
-        $(this).html(`Project selected: ${projectName} (${projectId}) <br /> ${projectDesc}`).css('color', '#28a745');
+        $(this).empty().append(document.createTextNode(`Project selected: ${projectName} (${projectId})`), '<br />', document.createTextNode(projectDesc || '')).css('color', '#28a745'); // text, never markup
 
 
         $('.timegrow-project-tile').css('opacity', .5);

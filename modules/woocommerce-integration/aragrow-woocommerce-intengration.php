@@ -965,7 +965,7 @@ class Aragrow_WOO_Integration_Plugins
         if ($item->get_type() === 'line_item') {
             $precise_qty = $item->get_meta('_precise_quantity');
             if ($precise_qty) {
-                echo '<div><strong>Precise Quantity:</strong> ' . $precise_qty . '</div>';
+                echo '<div><strong>Precise Quantity:</strong> ' . esc_html($precise_qty) . '</div>';
             }
         }
     }
@@ -1026,7 +1026,7 @@ class Aragrow_MyWooUnpaidInvoiceDashboardWidget {
             echo '<td>' . esc_html($invoice['client']) . '</td>';
             echo '<td>' . esc_html($invoice['invoice_date']->date('m/d/Y')) . '</td>';
             echo '<td><a href="' . esc_url('admin.php?page=wc-orders&action=edit&id=' . $invoice['invoice_number'])  .'">' . esc_html($invoice['invoice_number']) . '</a></td>';
-            echo '<td>' . $invoice['amount'] . '</td>';
+            echo '<td>' . wp_kses_post($invoice['amount']) . '</td>'; // a formatted price (markup from WooCommerce only)
             echo '</tr>';
         }   
         echo '</table>';

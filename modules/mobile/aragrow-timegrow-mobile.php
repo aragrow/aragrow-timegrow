@@ -66,7 +66,7 @@ class TimeGrowMobile {
         $table_name = $wpdb->prefix . 'timegrow_mobile_pins';
 
         // Check if table exists
-        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '{$table_name}'");
+        $table_exists = $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->esc_like($table_name)));
 
         if ($table_exists !== $table_name) {
             // Table doesn't exist, create it

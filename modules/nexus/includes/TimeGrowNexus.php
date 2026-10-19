@@ -763,14 +763,14 @@ class TimeGrowNexus{
                         echo '<details style="margin: 20px 0; padding: 15px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px;">';
                         echo '<summary style="cursor: pointer; font-weight: bold; padding: 10px;">Debug Information (Click to expand)</summary>';
                         echo '<div style="margin-top: 15px; padding: 10px; background: white; border: 1px solid #ddd; border-radius: 4px; font-family: monospace; font-size: 12px; max-height: 500px; overflow: auto;">';
-                        echo $debug_output;
+                        echo wp_kses_post($debug_output); // its line breaks and bold stay; names in it can't add script
                         echo '</div>';
                         echo '</details>';
                     }
 
                 } catch (Exception $e) {
                     $message_text = 'Error processing time entries: ' . $e->getMessage();
-                    echo '<div class="notice notice-error"><p>' . $message_text . '</p></div>';
+                    echo '<div class="notice notice-error"><p>' . esc_html($message_text) . '</p></div>';
                     if (timegrow_debug()) {
                         echo '<pre style="background: #f5f5f5; padding: 10px; border: 1px solid #ddd; overflow: auto;">';
                         echo esc_html($e->getTraceAsString());

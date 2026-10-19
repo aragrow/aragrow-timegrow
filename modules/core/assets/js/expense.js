@@ -244,12 +244,12 @@ jQuery(document).ready(function($) {
         $('#ai-analysis-loading').remove();
         $('#ai-analysis-result').remove();
 
-        const successHtml = `
-            <div id="ai-analysis-result" class="notice notice-success is-dismissible" style="margin: 20px 0; padding: 15px;">
-                <p style="margin: 0; font-weight: 500;">✅ ${data.message}</p>
-                ${data.low_confidence ? '<p style="margin: 5px 0 0 0; color: #856404;">⚠️ ' + data.message + ' Please review the extracted data carefully.</p>' : ''}
-            </div>
-        `;
+        // Messages are text, never markup
+        const successHtml = $('<div id="ai-analysis-result" class="notice notice-success is-dismissible" style="margin: 20px 0; padding: 15px;">')
+            .append($('<p style="margin: 0; font-weight: 500;">').text('✅ ' + data.message));
+        if (data.low_confidence) {
+            successHtml.append($('<p style="margin: 5px 0 0 0; color: #856404;">').text('⚠️ ' + data.message + ' Please review the extracted data carefully.'));
+        }
         $('.timegrow-modern-header').after(successHtml);
 
         // Auto-dismiss after 5 seconds
@@ -279,11 +279,8 @@ jQuery(document).ready(function($) {
         $('#ai-analysis-loading').remove();
         $('#ai-analysis-result').remove();
 
-        const errorHtml = `
-            <div id="ai-analysis-result" class="notice notice-error is-dismissible" style="margin: 20px 0; padding: 15px;">
-                <p style="margin: 0;">❌ AI Analysis Failed: ${errorMessage}</p>
-            </div>
-        `;
+        const errorHtml = $('<div id="ai-analysis-result" class="notice notice-error is-dismissible" style="margin: 20px 0; padding: 15px;">')
+            .append($('<p style="margin: 0;">').text('❌ AI Analysis Failed: ' + errorMessage));
         $('.timegrow-modern-header').after(errorHtml);
     }
 

@@ -50,8 +50,9 @@ jQuery(document).ready(function($) {
         // Add options
         $select.append('<option value="">-- Choose a Project (Optional) --</option>');
         projects.forEach(function(project) {
-            $select.append(`<option value="${project.id}">${project.name}</option>`);
-            $datalist.append(`<option value="${project.name}" data-id="${project.id}">${project.name}</option>`);
+            // Names are text, never markup
+            $select.append($('<option>', { value: project.id, text: project.name }));
+            $datalist.append($('<option>', { value: project.name, text: project.name }).attr('data-id', project.id));
         });
 
         $searchInput.attr('list', 'expense-projects-datalist');
@@ -99,7 +100,7 @@ jQuery(document).ready(function($) {
 
                 $projectDropPlaceholder.hide();
                 $selectedProjectDetailsDiv
-                    .html(`✓ Project Selected: <strong>${selectedProject.name}</strong>`)
+                    .empty().append('✓ Project Selected: ', $('<strong>').text(selectedProject.name))
                     .css('color', '#46b450')
                     .show();
                 $clearDroppedProjectBtn.show();
@@ -182,7 +183,7 @@ jQuery(document).ready(function($) {
 
                 $projectDropPlaceholder.hide(); // Hide initial placeholder text
                 $selectedProjectDetailsDiv
-                    .html(`Project: ${projectName} (ID: ${projectId}) <br /> <small style="color: #555;">${projectDesc || 'No description'}</small>`)
+                    .empty().append(document.createTextNode(`Project: ${projectName} (ID: ${projectId})`), '<br />', $('<small style="color: #555;">').text(projectDesc || 'No description'))
                     .show(); // Show and populate details
                 $clearDroppedProjectBtn.show(); // Show the clear button
 

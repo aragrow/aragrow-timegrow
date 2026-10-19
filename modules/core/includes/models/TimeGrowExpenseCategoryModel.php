@@ -81,7 +81,9 @@ class TimeGrowExpenseCategoryModel {
         }
 
         $where_clause = implode(' AND ', $where);
-        $orderby = sanitize_sql_orderby($args['orderby'] . ' ' . $args['order']);
+        // Sorting: only these columns and directions
+        $column  = in_array($args['orderby'], ['sort_order', 'name', 'slug', 'ID', 'parent_id', 'created_at'], true) ? $args['orderby'] : 'sort_order';
+        $orderby = $column . ' ' . (strtoupper((string) $args['order']) === 'DESC' ? 'DESC' : 'ASC');
 
         $sql = "SELECT * FROM {$this->table_name} WHERE {$where_clause} ORDER BY {$orderby}";
 
