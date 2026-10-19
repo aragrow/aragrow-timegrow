@@ -11,6 +11,10 @@ if (!defined('ABSPATH')) {
  * unguessable file name, the folder refuses direct web access (.htaccess; on nginx the random names
  * are the protection), and they are opened only through view_url(), which checks the person may see
  * expenses. Receipts uploaded before this were moved there once by migrate().
+ *
+ * Who may open a receipt (can_view()): administrators every receipt; a team member the receipts they
+ * uploaded (uploaded_by, recorded from now on); nobody else. Older receipts have no known uploader
+ * (0) and stay administrators only.
  */
 class TimeGrowExpenseReceiptModel {
 
@@ -35,6 +39,7 @@ class TimeGrowExpenseReceiptModel {
         $sql = "CREATE TABLE IF NOT EXISTS  {$this->table_name} (
             ID BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
             expense_id BIGINT(20) UNSIGNED NOT NULL,
+            uploaded_by BIGINT(20) UNSIGNED NOT NULL DEFAULT 0,
             file_url TEXT NOT NULL,
             upload_date DATETIME DEFAULT CURRENT_TIMESTAMP,
             extracted_data LONGTEXT,
@@ -209,15 +214,56 @@ class TimeGrowExpenseReceiptModel {
         return wp_nonce_url(add_query_arg(['action' => 'timegrow_view_receipt', 'id' => (int) $receipt_id], admin_url('admin-post.php')), self::NONCE . '_' . (int) $receipt_id);
     }
 
-    /** admin-post timegrow_view_receipt: send the receipt to someone who may see expenses. */
+    /**
+     * Whether a person may open a receipt: administrators any; a team member who may record expenses
+     * only the ones they uploaded; an unknown uploader (0, older receipts) only administrators. Pure.
+     */
+    public static function can_view($uploaded_by, $user_id, $is_admin, $can_record_expenses) {
+        if ($is_admin) {
+            return true;
+        }
+        return $can_record_expenses && (int) $uploaded_by > 0 && (int) $uploaded_by === (int) $user_id;
+    }
+
+    /** The current person may record expenses (a team member on the Nexus or mobile expense pages). */
+    private static function can_record_expenses() {
+        return current_user_can('access_nexus_record_expenses') || current_user_can('access_mobile_expenses');
+    }
+
+    /** Add the uploaded_by column on sites created before it (older receipts get 0: administrators only). */
+    public static function maybe_add_owner_column() {
+        if (get_option('timegrow_receipt_owner_db') === '1') {
+            return;
+        }
+        global $wpdb;
+        $table = $wpdb->prefix . TIMEGROW_PREFIX . 'expense_receipt_tracker';
+        if ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->esc_like($table))) !== $table) {
+            return; // created later by initialize(), with the column
+        }
+        if (!$wpdb->get_var($wpdb->prepare("SHOW COLUMNS FROM {$table} LIKE %s", 'uploaded_by'))) {
+            $wpdb->query("ALTER TABLE {$table} ADD COLUMN uploaded_by BIGINT(20) UNSIGNED NOT NULL DEFAULT 0 AFTER expense_id");
+        }
+        if ($wpdb->get_var($wpdb->prepare("SHOW COLUMNS FROM {$table} LIKE %s", 'uploaded_by'))) {
+            update_option('timegrow_receipt_owner_db', '1', false);
+        }
+    }
+
+    /** admin_init: the uploaded_by column, then (once) older receipts moved to private storage. */
+    public static function maintain() {
+        self::maybe_add_owner_column();
+        self::migrate();
+    }
+
+    /** admin-post timegrow_view_receipt: send the receipt to someone allowed to see it (can_view()). */
     public static function handle_view() {
         $id = (int) ($_GET['id'] ?? 0);
-        if (!current_user_can(TIMEGROW_OWNER_CAP)) {
-            wp_die(esc_html__('You are not allowed to see receipts.', 'timegrow'), 403);
-        }
         check_admin_referer(self::NONCE . '_' . $id);
         $row  = (new self())->select($id);
         $row  = is_array($row) ? ($row[0] ?? null) : $row;
+        $is_admin = current_user_can(TIMEGROW_OWNER_CAP) || (class_exists('TimeGrowTimeEntryRules') && TimeGrowTimeEntryRules::is_admin());
+        if (!$row || !self::can_view($row->uploaded_by ?? 0, get_current_user_id(), $is_admin, self::can_record_expenses())) {
+            wp_die(esc_html__('You are not allowed to see this receipt.', 'timegrow'), 403);
+        }
         $path = $row && class_exists('TimeGrowAIReceiptAnalyzer') ? TimeGrowAIReceiptAnalyzer::path_from_url($row->file_url) : '';
         if (!$path || !is_readable($path)) {
             wp_die(esc_html__('That receipt was not found.', 'timegrow'), 404);
@@ -298,6 +344,7 @@ class TimeGrowExpenseReceiptModel {
 
         $data = [
             'expense_id' => intval($expense_id),
+            'uploaded_by' => get_current_user_id(), // the person who may open it besides administrators
             'file_url' => esc_url_raw($file_url),
             'upload_date' => current_time('mysql'),
         ];

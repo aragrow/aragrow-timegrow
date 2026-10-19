@@ -69,7 +69,7 @@ if ( ! isset( $timegrow_settings ) ) $timegrow_settings = New TimeGrowSettings()
 TimeGrowAIPromptsPage::init(); // Settings > AI Prompts: versions of each AI tool's prompt
 TimeGrowAILog::init();         // AI activity saved for review (Settings > AI Conversations)
 add_action('admin_post_timegrow_view_receipt', ['TimeGrowExpenseReceiptModel', 'handle_view']); // receipts open through WordPress only
-add_action('admin_init', ['TimeGrowExpenseReceiptModel', 'migrate']); // once: older receipts move to private storage
+add_action('admin_init', ['TimeGrowExpenseReceiptModel', 'maintain']); // the uploaded_by column; once: older receipts move to private storage
 TimeGrowHelpTopicsPage::init(); // Settings > Knowledge Base: the topics the voice assistant's help answers from
 TimeGrowAIReviewPage::init();  // Settings > AI Conversations: read and rate saved AI activity
 

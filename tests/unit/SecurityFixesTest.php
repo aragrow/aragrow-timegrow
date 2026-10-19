@@ -58,4 +58,13 @@ class SecurityFixesTest extends TestCase {
         $this->assertNotSame( $a, $b );
         $this->assertStringNotContainsString( 'receipt', $a, 'not the original name' );
     }
+
+    public function test_who_may_open_a_receipt() {
+        $this->assertTrue( TimeGrowExpenseReceiptModel::can_view( 21, 1, true, false ), 'administrators: every receipt' );
+        $this->assertTrue( TimeGrowExpenseReceiptModel::can_view( 0, 1, true, false ), 'administrators: older receipts too' );
+        $this->assertTrue( TimeGrowExpenseReceiptModel::can_view( 21, 21, false, true ), 'a team member: their own' );
+        $this->assertFalse( TimeGrowExpenseReceiptModel::can_view( 22, 21, false, true ), "a team member: not someone else's" );
+        $this->assertFalse( TimeGrowExpenseReceiptModel::can_view( 0, 21, false, true ), 'unknown uploader: administrators only' );
+        $this->assertFalse( TimeGrowExpenseReceiptModel::can_view( 21, 21, false, false ), 'not allowed to record expenses (any more)' );
+    }
 }
