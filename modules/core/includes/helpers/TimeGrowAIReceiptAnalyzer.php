@@ -78,6 +78,7 @@ class TimeGrowAIReceiptAnalyzer implements TimeGrowReceiptAnalyzerInterface {
             TimeGrowAILog::ai('receipt', $data, $kept, $answer['usage'], $ms);
             if (!empty($result['suspicious'])) {
                 TimeGrowAILog::system(__('Text on the receipt read like instructions to the AI; it was ignored and confidence lowered.', 'timegrow'), 'suspicious');
+                TimeGrowAILog::injection('receipts', '', __('the AI (text on the receipt)', 'timegrow'));
             }
         }
         return $result; // the session ends after the person is told the result (TimeGrowAjaxHandler)

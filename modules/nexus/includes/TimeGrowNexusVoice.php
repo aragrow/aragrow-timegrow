@@ -22,6 +22,172 @@ class TimeGrowNexusVoice {
     /** The assistant's name when none is set (Settings > AI Voice Entry). */
     const AGENT_NAME = 'Sam Spade';
 
+    /**
+     * True when the AI read a message as a time entry but heard no detail and the words say nothing
+     * about time or work ("tell me a joke"): not a time entry. "Log some time" still is one. Pure.
+     */
+    public static function off_topic_time($time, $text) {
+        $heard = is_array($time) ? array_filter($time, function ($v) { return $v !== null && $v !== ''; }) : [];
+        if ($heard) {
+            return false;
+        }
+        return !preg_match('/\b(time|hours?|hrs?|minutes?|mins?|log|record|track|worked|work|working|entry|timesheet|billable|project|client|today|yesterday|morning|afternoon)\b/i', (string) $text);
+    }
+
+    // ------------------------------------------------------------------
+    // Clients and projects must be the ones the person named
+    // ------------------------------------------------------------------
+
+    /** Words that don't identify a client or project. */
+    const NAME_STOP = ['the', 'and', 'for', 'llc', 'inc', 'ltd', 'corp', 'company', 'group', 'client', 'project', 'with', 'from'];
+
+    /** True when the text names this client or project: the whole name, or one of its words (3+ letters). Pure. */
+    public static function name_said($text, $name) {
+        $norm = function ($s) { return trim(preg_replace('/[^a-z0-9]+/', ' ', strtolower(function_exists('remove_accents') ? remove_accents((string) $s) : (string) $s))); };
+        $t = ' ' . $norm($text) . ' ';
+        $n = $norm($name);
+        if ($n === '') {
+            return false;
+        }
+        if (strpos($t, ' ' . $n . ' ') !== false) {
+            return true;
+        }
+        foreach (explode(' ', $n) as $w) {
+            if (strlen($w) >= 3 && !in_array($w, self::NAME_STOP, true) && strpos($t, ' ' . $w . ' ') !== false) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** True for a short reference to something already said: "the same client", "that project", "the second one". Pure. */
+    public static function refers_back($text) {
+        return (bool) preg_match('/^\s*(yes,? )?(the )?(same|that|this|first|second|third|last|previous|other)( one| client| project| as before| as last time)?\s*(please)?[.!]?\s*$|\b(same|that) (client|project)\b|\bthe (first|second|third|last|other|previous) one\b|\bas (before|last time)\b/i', (string) $text);
+    }
+
+    /**
+     * Check the AI's client and project against the person's words. A pick they did not name (and did
+     * not refer back to, and that was not already chosen) is dropped, and what they named is reported
+     * as not found. Pure.
+     *
+     * @return array [the time fields to merge, not_found: ['client' => what they said, 'project' => …]]
+     */
+    public static function check_names(array $time, $text, array $state, array $candidates, array $clients) {
+        $not_found = [];
+        $unmatched = is_array($time['unmatched'] ?? null) ? $time['unmatched'] : [];
+        unset($time['unmatched']);
+        $known   = $state['time'] ?? [];
+        $asking  = $state['asking'] ?? '';
+        $back    = self::refers_back($text);
+        $by_id   = [];
+        foreach ($candidates as $c) {
+            $by_id[(int) $c['id']] = $c;
+        }
+        $client_name = function ($id) use ($clients, $candidates) {
+            foreach ($clients as $c) {
+                if ((int) $c['id'] === (int) $id) {
+                    return (string) $c['name'];
+                }
+            }
+            foreach ($candidates as $c) {
+                if ((int) $c['client_id'] === (int) $id) {
+                    return (string) $c['client_name'];
+                }
+            }
+            return '';
+        };
+        $short = function ($t) { // a short answer is itself the name they meant
+            $t = trim(preg_replace('/\s+/', ' ', (string) $t), " .,!?\"'");
+            return str_word_count($t) <= 6 ? $t : '';
+        };
+
+        // Project
+        if (!empty($time['project_id'])) {
+            $p = $by_id[(int) $time['project_id']] ?? null;
+            $ok = $p && ((int) ($known['project_id'] ?? 0) === (int) $p['id'] || $back || self::name_said($text, $p['name']));
+            if (!$ok) {
+                $time['project_id'] = null;
+                $not_found['project'] = trim((string) ($unmatched['project'] ?? '')) ?: ($asking === 'project_id' ? $short($text) : '') ?: self::named_after($text, 'project');
+            }
+        }
+        // Client
+        if (!empty($time['client_id'])) {
+            $id = (int) $time['client_id'];
+            $ok = (int) ($known['client_id'] ?? 0) === $id || $back || self::name_said($text, $client_name($id))
+                || (!empty($time['project_id']) && (int) ($by_id[(int) $time['project_id']]['client_id'] ?? 0) === $id); // the client of a project they named
+            if (!$ok) {
+                $time['client_id'] = null;
+                $not_found['client'] = trim((string) ($unmatched['client'] ?? '')) ?: ($asking === 'client_id' ? $short($text) : '') ?: self::named_after($text, 'client');
+            }
+        }
+        // Named, and the AI left it empty
+        foreach (['client' => 'client_id', 'project' => 'project_id'] as $what => $key) {
+            if (empty($time[$key]) && empty($not_found[$what])) {
+                $said = trim((string) ($unmatched[$what] ?? '')) ?: ($asking === $key && !$back ? $short($text) : '');
+                if ($said !== '' && self::matches_none($said, $what === 'client' ? array_map(function ($c) { return $c['name']; }, $clients) : array_column($candidates, 'name'))) {
+                    $not_found[$what] = $said;
+                }
+            }
+        }
+        return [$time, array_filter($not_found, function ($v) { return $v !== ''; })];
+    }
+
+    /** True when none of the names is said in the text. Pure. */
+    private static function matches_none($text, array $names) {
+        foreach ($names as $n) {
+            if (self::name_said($text, $n)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** "…for the client Latino Networking, …" → "Latino Networking" (the words after "client" or "project"). Pure. */
+    public static function named_after($text, $what) {
+        if (preg_match('/\b' . $what . '\s+(?:called\s+|named\s+)?([^,.;]+?)(?=\s*(?:,|\.|;|$|\bfor\b|\bon\b|\bproject\b|\bclient\b|\btoday\b|\byesterday\b))/i', (string) $text, $m)) {
+            return trim($m[1]);
+        }
+        return '';
+    }
+
+    /**
+     * A time entry read without AI from a message the AI did not place: hours (and the day) when the
+     * words clearly record time ("add 3 hours … today"); the names are checked as usual. Null otherwise. Pure.
+     */
+    public static function time_from_words($text, $today) {
+        $t = strtolower((string) $text);
+        if (!preg_match('/\b(add|log|record|enter|put|worked|spent|track)\b/', $t) || !preg_match('/(\d+(?:\.\d+)?)\s*(hours?|hrs?|h)\b|(\d+)\s*(minutes?|mins?)\b/', $t, $m)) {
+            return null;
+        }
+        $hours = !empty($m[1]) ? (float) $m[1] : ((int) $m[3]) / 60;
+        $date  = strpos($t, 'yesterday') !== false ? date('Y-m-d', strtotime($today . ' -1 day')) : (strpos($t, 'today') !== false ? $today : null);
+        return ['hours' => $hours, 'date' => $date, 'unmatched' => array_filter(['client' => self::named_after($text, 'client'), 'project' => self::named_after($text, 'project')])];
+    }
+
+    /** The reply when a message tries to manipulate the assistant (found by the AI, or by the quick check before it). */
+    public static function refusal_text() {
+        return __("That looks like a prompt injection attempt, so I stopped and did nothing with it. It has been logged. I can only help with TimeGrow: recording your time, punching in and out, answering questions about your TimeGrow data and explaining how TimeGrow works.", 'timegrow');
+    }
+
+    /** Whether saving, punching in or out and creating need a click (Settings > AI Voice Entry). */
+    public static function click_required() {
+        return !class_exists('TimeGrowSettings') || (TimeGrowSettings::voice_settings()['confirm_click'] ?? 'yes') === 'yes';
+    }
+
+    /** How the person approved a save from the chat: click, spoken or typed ('' when not from the chat). Pure. */
+    public static function approval(array $post) {
+        $a = (string) ($post['approved'] ?? '');
+        return in_array($a, ['click', 'spoken', 'typed'], true) ? $a : '';
+    }
+
+    /** Why a save from the chat is refused, or '': with "Saving needs a click" on, only a click approves. Pure. */
+    public static function approval_problem(array $post, $click_required) {
+        if (($post['source'] ?? '') !== 'voice' || !$click_required || self::approval($post) === 'click') {
+            return '';
+        }
+        return __('Tap the button to approve it: saving by voice needs a click.', 'timegrow');
+    }
+
     /** The assistant's name: the setting, else the default. */
     public static function agent_name() {
         $name = class_exists('TimeGrowSettings') ? (string) (TimeGrowSettings::voice_settings()['agent_name'] ?? '') : '';
@@ -73,6 +239,7 @@ class TimeGrowNexusVoice {
             'canClock'     => current_user_can('access_nexus_clock') || TimeGrowTimeEntryRules::is_admin(),
             'lang'         => TimeGrowSettings::voice_language(),
             'agentName'    => self::agent_name(),
+            'confirmClick' => self::click_required(),
             'voiceName'    => (string) $voice['voice_name'], // the default voice; '' = the most natural one
             'projects'     => array_map(function ($c) {
                 return ['id' => $c['id'], 'name' => $c['name'], 'clientId' => (string) $c['client_id'], 'clientName' => $c['client_name']];
@@ -218,8 +385,9 @@ RULES
     /** How to read each time entry field. Shared with the conversation prompt (TimeGrowNexusAssistant). Pure. */
     public static function field_rules() {
         return <<<'RULES'
-- client_id: a client_id from the list when the person names a client (a close or partial name is fine).
+- client_id: a client_id from the list when the person names that client (the same name, or clearly part of it like "Copperleaf" for "Copperleaf Studio").
 - project_id: a project_id from the list. If several clients have a project with that name and the client is not known or said, use null.
+- A client or project they name that is not in the list: its ID is null, never another one (not the closest, not the first, not an earlier one). Put the name as they said it in unmatched {client, project}.
 - date: the day worked as YYYY-MM-DD. Work out words like "today", "yesterday" or "last Monday" from today's date.
 - start_time: the start time as HH:MM in 24 hour time, only when they say one ("starting at 9", "from 9 to 11"); else null. It is never asked for.
 - hours: hours worked as a number, such as 2.5 for "two and a half hours" or 0.75 for "45 minutes". If they give a start and end time, use the difference. Vague words like "the morning" or "a while" are not a number: use null so the person is asked.
@@ -262,6 +430,15 @@ RULES;
             $layer = class_exists('TimeGrowAIPrivacy')
                 ? TimeGrowAIPrivacy::for_site(class_exists('TimeGrowNexusAssistant') ? TimeGrowNexusAssistant::company_name() : '')
                 : null;
+            // A team member sees the real names of their own clients and themselves only
+            if ($layer && class_exists('TimeGrowNexusAssistant') && !TimeGrowNexusAssistant::is_owner()) {
+                $tokens = array_map(function ($c) { return '[Client ' . (int) $c['client_id'] . ']'; }, self::candidates_for_current_user());
+                $member = class_exists('TimeGrowTimeEntryRules') ? TimeGrowTimeEntryRules::member_id(0) : 0;
+                if ($member) {
+                    $tokens[] = '[Person ' . (int) $member . ']';
+                }
+                $layer->restrict($tokens);
+            }
         }
         return $layer;
     }
@@ -329,9 +506,8 @@ RULES;
         // Direct prompt injection: words that read like instructions to the AI are not sent to it.
         // The chat goes on without AI (it asks the questions and reads short answers itself).
         if (TimeGrowAI::looks_like_injection($transcript)) {
-            timegrow_log(sprintf('Voice entry: answer from user %d looked like instructions to the AI and was not sent', get_current_user_id())); // not the words themselves
-            TimeGrowAILog::system(__('Not sent to the AI: it read like instructions to the AI.', 'timegrow'), 'blocked');
-            wp_send_json_error(['code' => 'blocked', 'message' => __('I can only help with TimeGrow, so I did not send that to the AI.', 'timegrow')]);
+            TimeGrowAILog::injection('voice', $transcript, __('the quick check (not sent to the AI)', 'timegrow'));
+            wp_send_json_error(['code' => 'blocked', 'message' => self::refusal_text()]);
         }
 
         // No deleting, and no changing or adding many records at once: refused before the AI is asked
@@ -391,6 +567,10 @@ RULES;
         if ($first) {
             // The AI only picks from the allowed list; anything else is "unknown" or "denied"
             $intent = TimeGrowNexusAssistant::check_intent($heard, $questions, $actions, $clients, $candidates);
+            if ($intent['intent'] === 'injection') {
+                TimeGrowAILog::injection('voice', $transcript, __('the AI', 'timegrow'));
+                wp_send_json_error(['code' => 'blocked', 'message' => self::refusal_text()]);
+            }
             if ($intent['intent'] !== 'record_time') {
                 TimeGrowAILog::ai($intent['intent'], $heard, $intent, self::$last_call['usage'], self::$last_call['ms']);
                 self::send_intent($intent, $candidates);
@@ -427,17 +607,45 @@ RULES;
             wp_send_json_error(['code' => 'ai_error', 'message' => __('The AI could not read that.', 'timegrow')]);
         }
         $intent = TimeGrowNexusAssistant::check_intent($heard, $questions, $actions, $clients, $candidates);
+        if ($intent['intent'] === 'injection') {
+            TimeGrowAILog::ai('injection', $heard, $intent, self::$last_call['usage'], self::$last_call['ms']);
+            TimeGrowAILog::injection('voice', $transcript, __('the AI', 'timegrow'));
+            wp_send_json_error(['code' => 'blocked', 'message' => self::refusal_text()]);
+        }
         // "Punch in" the AI read as time without hours, or didn't place: it is a clock in or out
         $action = TimeGrowNexusAssistant::clock_action($transcript);
         if ($action && ($intent['intent'] === 'unknown' || ($intent['intent'] === 'record_time' && empty($heard['time']['hours'])))) {
             TimeGrowAILog::system(__('Read as punching in or out, without AI.', 'timegrow'), 'local');
             self::send_intent(['intent' => 'clock_' . $action, 'clock' => []], $candidates);
         }
+        // Nothing in progress, no detail heard and no words about time: not a time entry ("tell me a joke")
+        if ($intent['intent'] === 'record_time' && $state['mode'] === 'idle' && self::off_topic_time($heard['time'] ?? null, $transcript)) {
+            TimeGrowAILog::system(__('Not about TimeGrow: no time entry was started.', 'timegrow'), 'off_topic');
+            $intent = ['intent' => 'unknown'];
+        }
+        // A time entry the AI gave up on because the client or project is not in the lists: still a time entry
+        if ($intent['intent'] === 'unknown' && $state['mode'] === 'idle' && ($guess = self::time_from_words($transcript, $today))) {
+            TimeGrowAILog::system(__('Read as a time entry without AI (the AI did not place it).', 'timegrow'), 'local');
+            $intent = ['intent' => 'record_time'];
+            $heard  = ['time' => $guess];
+        }
         if ($intent['intent'] === 'record_time') {
-            $time   = is_array($heard['time'] ?? null) ? $heard['time'] : [];
+            $time = is_array($heard['time'] ?? null) ? $heard['time'] : [];
+            // Never a client or project the person did not name: the AI's pick must match their words
+            [$time, $not_found] = self::check_names($time, $transcript, $state, $candidates, $clients);
             $fields = self::merge($state['time'], $time, $candidates, $today);
-            TimeGrowAILog::ai('time', $heard, ['intent' => 'time', 'fields' => $fields], self::$last_call['usage'], self::$last_call['ms']);
-            wp_send_json_success(['intent' => 'time', 'fields' => $fields]);
+            foreach (['client' => ['client_id', 'project_id'], 'project' => ['project_id']] as $what => $keys) {
+                if (!empty($not_found[$what])) {
+                    foreach ($keys as $k) {
+                        $fields[$k] = null; // they named one that is not theirs: no other one is kept or chosen
+                    }
+                }
+            }
+            if ($not_found) {
+                TimeGrowAILog::system(sprintf(__('Not found: %s. Nothing else was chosen.', 'timegrow'), implode(', ', array_map(function ($k, $v) { return "$k \"$v\""; }, array_keys($not_found), $not_found))), 'not_found');
+            }
+            TimeGrowAILog::ai('time', $heard, ['intent' => 'time', 'fields' => $fields, 'not_found' => $not_found], self::$last_call['usage'], self::$last_call['ms']);
+            wp_send_json_success(['intent' => 'time', 'fields' => $fields, 'not_found' => (object) $not_found]);
         }
         TimeGrowAILog::ai($intent['intent'], $heard, $intent, self::$last_call['usage'], self::$last_call['ms']);
         // A clear follow-up the AI couldn't place ("I mean all the team members"): build it on the last question

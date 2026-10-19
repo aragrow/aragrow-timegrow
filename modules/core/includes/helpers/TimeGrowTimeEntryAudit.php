@@ -16,7 +16,7 @@ if (!defined('ABSPATH')) {
  */
 class TimeGrowTimeEntryAudit {
 
-    const DB_VERSION = '1';
+    const DB_VERSION = '2'; // 2: approval
     const ACTIONS    = ['created', 'updated', 'clocked_out', 'billed', 'unbilled', 'rebilled', 'deleted'];
     /** Fields not worth showing as a change. */
     const IGNORED    = ['ID', 'created_at', 'updated_at'];
@@ -42,6 +42,7 @@ class TimeGrowTimeEntryAudit {
             order_id bigint(20) unsigned DEFAULT NULL,
             user_id bigint(20) unsigned NOT NULL DEFAULT 0,
             source varchar(20) NOT NULL DEFAULT 'web',
+            approval varchar(10) NOT NULL DEFAULT '',
             created_at datetime NOT NULL,
             PRIMARY KEY  (ID),
             KEY entry_id (entry_id),
@@ -127,6 +128,8 @@ class TimeGrowTimeEntryAudit {
                 'order_id'   => $order_id ? (int) $order_id : null,
                 'user_id'    => get_current_user_id(),
                 'source'     => self::source(),
+                // From the chat: how the person approved it (click, spoken or typed)
+                'approval'   => self::source() === 'voice' && in_array($_POST['approved'] ?? '', ['click', 'spoken', 'typed'], true) ? $_POST['approved'] : '',
                 'created_at' => current_time('mysql'),
             ]);
         } catch (Throwable $e) {

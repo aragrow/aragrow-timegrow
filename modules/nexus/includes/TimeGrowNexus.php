@@ -146,6 +146,11 @@ class TimeGrowNexus{
         
         try {            
             $entry_type    = isset($_POST['entry_type']) ? sanitize_text_field($_POST['entry_type']) : '';
+            // From the chat: approved by a click when "Saving needs a click" is on (any entry type)
+            $approval = class_exists('TimeGrowNexusVoice') ? TimeGrowNexusVoice::approval_problem($_POST, TimeGrowNexusVoice::click_required()) : '';
+            if ($approval !== '') {
+                wp_send_json_error(['message' => $approval]);
+            }
         
             if($entry_type == 'CLOCK_IN') $result = $this->save_clock_in();
             elseif($entry_type == 'CLOCK_OUT') $result = $this->save_clock_out();

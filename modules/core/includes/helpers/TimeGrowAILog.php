@@ -132,9 +132,9 @@ class TimeGrowAILog {
      * Start a session made on the server (Receipt Reader: one per receipt read). Later ai(),
      * system() and outcome() calls in this request go to it. Null when saving is off.
      */
-    public static function start($feature, $first_text = '') {
+    public static function start($feature, $first_text = '', $always = false) {
         self::$session = null;
-        if (!self::enabled($feature) || !class_exists('TimeGrowAIConversationModel')) {
+        if ((!$always && !self::enabled($feature)) || !class_exists('TimeGrowAIConversationModel')) {
             return null;
         }
         self::$feature = $feature;
@@ -146,6 +146,31 @@ class TimeGrowAILog {
             $model->add_turn($row['ID'], 'person', $first_text);
         }
         return self::$session = $row;
+    }
+
+    const INJECTION = 'Prompt Injection Attempt';
+
+    /**
+     * A prompt injection attempt: always recorded, even with saving conversations off. In Settings >
+     * AI Conversations its result is "Prompt Injection Attempt", with the message and what found it;
+     * the server's error log gets a line with who and when (not the words).
+     *
+     * @param string $feature  voice or receipts.
+     * @param string $text     What the person sent (when no conversation is being saved already).
+     * @param string $found_by "the AI" or "the quick check".
+     */
+    public static function injection($feature, $text, $found_by) {
+        error_log(sprintf('[TimeGrow] %s: %s, user %d, found by %s', self::INJECTION, $feature, get_current_user_id(), $found_by));
+        $s = self::current();
+        if (!$s) {
+            $s = self::start($feature, (string) $text, true);
+        }
+        if (!$s) {
+            return;
+        }
+        $model = new TimeGrowAIConversationModel();
+        $model->add_turn($s['ID'], 'system', sprintf(__('%1$s, found by %2$s. Stopped: nothing was done.', 'timegrow'), self::INJECTION, $found_by), 'injection');
+        $model->add_outcome($s['ID'], self::INJECTION);
     }
 
     /** End this request's session (Receipt Reader: after the reading). */

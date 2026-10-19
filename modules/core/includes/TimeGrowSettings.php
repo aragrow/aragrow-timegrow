@@ -1583,6 +1583,7 @@ class TimeGrowSettings {
             'use_ai'         => 'yes', // read whole sentences with the active AI configuration
             'speak'          => 'yes', // speak the questions out loud by default
             'ask_start_time' => 'yes', // ask what time the work started
+            'confirm_click'  => 'yes', // saving, punching in or out and creating need a click on the button, not a spoken or typed "yes"
             'language'       => '',    // speech recognition language; '' = the site language
             'agent_name'     => 'Sam Spade', // the assistant's name, in the chat and known to the AI
             'voice_name'     => '',    // the voice it speaks with (a browser voice name); '' = the most natural one available
@@ -1622,7 +1623,7 @@ class TimeGrowSettings {
     public function sanitize_voice_settings($input) {
         $input = is_array($input) ? $input : [];
         $out   = [];
-        foreach (['enabled', 'use_ai', 'speak', 'ask_start_time', 'save_for_review'] as $key) {
+        foreach (['enabled', 'use_ai', 'speak', 'ask_start_time', 'save_for_review', 'confirm_click'] as $key) {
             // Only "yes" (the checkbox value) is on: WordPress runs this twice when the option is first created
             $out[$key] = ($input[$key] ?? '') === 'yes' ? 'yes' : 'no';
         }
@@ -1834,6 +1835,8 @@ class TimeGrowSettings {
                         <?php
                         $this->voice_toggle('enabled', __('Turn voice entry on', 'timegrow'),
                             __('Shows a microphone icon in the corner of every admin page for people who can record time. The chat records time (client, project, day, hours, billable and description), punches people in and out, answers questions about TimeGrow data, and lets administrators add clients and projects. Nothing is saved until the person confirms. Speech is turned into text by the browser: in Chrome and Edge that is done by Google or Microsoft, in Safari by Apple. People can always type instead.', 'timegrow'), $settings);
+                        $this->voice_toggle('confirm_click', __('Saving needs a click', 'timegrow'),
+                            __('The assistant always shows what it will save, punch in or out, or create, and waits for approval. When on, the approval must be a click on the button (Save entry, Clock in, Create); a spoken or typed "yes" is not enough, since speech can be misheard. TimeGrow refuses voice saves without the click.', 'timegrow'), $settings);
                         $this->voice_toggle('speak', __('Speak the questions out loud', 'timegrow'),
                             __('The chat reads its questions aloud. Each person can still turn the sound off in the chat; their choice is remembered on their device.', 'timegrow'), $settings);
                         ?>

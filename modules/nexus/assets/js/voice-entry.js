@@ -20,6 +20,21 @@ jQuery(document).ready(function($) {
   const NAME = String(cfg.agentName || 'Sam Spade'); // TimeGrowNexusVoice::AGENT_NAME
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const on = v => v === true || v === 1 || v === '1'; // wp_localize_script sends true / false as "1" / ""
+  // Settings > AI Voice Entry > "Saving needs a click": a spoken or typed "yes" does not save, create or clock in/out
+  const NEEDS_CLICK = cfg.confirmClick === undefined || on(cfg.confirmClick);
+  let lastSpoken = false;   // the last answer came from the microphone (not typed)
+  let approvedBy = '';      // how the current save was approved: click, spoken or typed (sent with the save)
+  const approval = chip => (chip ? 'click' : (lastSpoken ? 'spoken' : 'typed'));
+  /** A "yes" in words when a click is needed: point at the button instead of saving. */
+  function tapToApprove(state) {
+    const chips = {
+      confirm: [{ label: 'Save entry', value: 'save' }, { label: 'Change something', value: 'change' }, { label: 'Start over', value: 'restart' }],
+      'draft:confirm': [{ label: 'Create', value: 'create' }, { label: 'Change something', value: 'change' }, { label: 'Cancel', value: 'cancel' }],
+      'clock:confirm': [{ label: clock && clock.action === 'out' ? 'Clock out' : 'Clock in', value: 'save' }, { label: 'Change something', value: 'change' }, { label: 'Cancel', value: 'cancel' }],
+    }[state];
+    const button = chips[0].label;
+    return say(`To approve it, tap ${button} below.`, chips, `Please tap ${button} to approve it.`);
+  }
   const $form = $('#timegrow-nexus-entry-form');
   const floating = !$form.length;
 
@@ -384,7 +399,7 @@ jQuery(document).ready(function($) {
       }[e.error];
       if (why) bubble('bot', why);
     };
-    recognizer.onresult = e => { const heard = e.results[0][0].transcript; if (heard) answer(heard); };
+    recognizer.onresult = e => { const heard = e.results[0][0].transcript; if (heard) { lastSpoken = true; answer(heard); } };
     recognizer.start();
   }
 
@@ -479,7 +494,7 @@ jQuery(document).ready(function($) {
     asking = 'confirm';
     say('Here is your entry: ' + summary() + ' Save it?', [
       { label: 'Save entry', value: 'save' }, { label: 'Change something', value: 'change' }, { label: 'Start over', value: 'restart' },
-    ], ack() + 'Here is what I have. ' + spokenSummary() + '. Should I save it?');
+    ], ack() + 'Here is what I have. ' + spokenSummary() + (NEEDS_CLICK ? '. Tap Save entry to save it.' : '. Should I save it?'));
   }
 
   // ------------------------------------------------------------------
@@ -519,7 +534,11 @@ jQuery(document).ready(function($) {
 
     if (asking === 'confirm') {
       const v = chip ? chip.value : (/^(save|yes|yeah|yep|ok|okay|sure)\b/i.test(text) ? 'save' : /change|edit|fix/i.test(text) ? 'change' : /start over|restart|again/i.test(text) ? 'restart' : '');
-      if (v === 'save') return save();
+      if (v === 'save') {
+        if (!chip && NEEDS_CLICK) return tapToApprove('confirm');
+        approvedBy = approval(chip);
+        return save();
+      }
       if (v === 'restart') return start();
       if (v === 'change') {
         asking = 'change';
@@ -567,7 +586,7 @@ jQuery(document).ready(function($) {
           }
           return next();
         }
-        if (res && res.data && res.data.code === 'blocked') bubble('bot', res.data.message); // looked like instructions to the AI
+        if (res && res.data && res.data.code === 'blocked') return decline(res.data.message); // looked like instructions to the AI
         if (asking && local !== null) { setField(asking, local); return next(); }
         return asking ? retry() : next();
       })
@@ -611,7 +630,7 @@ jQuery(document).ready(function($) {
         if (s0 !== session) return;
         $thinking.remove();
         if (res && res.success && res.data) return handleTurn(res.data, text);
-        if (res && res.data && res.data.code === 'blocked') bubble('bot', res.data.message); // looked like instructions to the AI
+        if (res && res.data && res.data.code === 'blocked') return decline(res.data.message); // looked like instructions to the AI: not read here either
         answerLocally(text, null); // the AI could not help: read it here
       })
       .fail(() => {
@@ -635,11 +654,24 @@ jQuery(document).ready(function($) {
         if (draft) draft = null; // they moved on to recording time
         if (clock) clock = null;
         const before = ORDER.includes(asking) ? fields[asking] : null;
+        const nf = data.not_found || {}; // a client or project they named that is not theirs
         ORDER.forEach(k => { const v = data.fields ? data.fields[k] : null; if (v !== null && v !== undefined) fields[k] = v; });
+        if (nf.client) { fields.client_id = null; fields.project_id = null; } // never keep or pick another one
+        if (nf.project) fields.project_id = null;
         if (fields.project_id) { const p = project(); if (p) fields.client_id = p.clientId; else fields.project_id = null; } // client always the project's
-        if (ORDER.includes(asking) && blank(fields[asking]) && blank(before)) {
+        if (!nf.client && !nf.project && ORDER.includes(asking) && blank(fields[asking]) && blank(before)) {
           const local = readLocally(asking, text); // the AI missed it; our reading may still have it
           if (local !== null) setField(asking, local);
+        }
+        if (nf.client || nf.project) {
+          ackNext = false;
+          const what = [nf.client ? `a client called “${nf.client}”` : '', nf.project ? `a project called “${nf.project}”` : ''].filter(Boolean).join(' or ');
+          bubble('bot', `I couldn't find ${what} in your list, so I didn't choose one.`);
+          next();
+          // Administrators can add it right away
+          if (nf.client && on(cfg.canAddClient)) $chips.prepend($('<button>', { type: 'button', class: 'button timegrow-voice-chip', text: `Add “${nf.client}” as a new client` }).data('chip', { value: '__add_client', name: nf.client }));
+          else if (nf.project && on(cfg.canAddProject)) $chips.prepend($('<button>', { type: 'button', class: 'button timegrow-voice-chip', text: `Add “${nf.project}” as a new project` }).data('chip', { value: '__add_project', name: nf.project, clientId: fields.client_id }));
+          return;
         }
         ackNext = true;
         return next(); // asks what is missing, or shows the summary again after a correction
@@ -659,6 +691,10 @@ jQuery(document).ready(function($) {
         return askDraft();
       }
       case 'confirm':
+        if (['clock:confirm', 'confirm', 'draft:confirm'].includes(asking)) {
+          if (NEEDS_CLICK) return tapToApprove(asking); // a "yes" in words: the button approves
+          approvedBy = approval(null);
+        }
         if (asking === 'clock:confirm') return saveClock();
         if (asking === 'confirm') return save();
         if (asking === 'draft:confirm') return createDraft();
@@ -702,6 +738,16 @@ jQuery(document).ready(function($) {
 
   const suggestionChips = (n) => (Array.isArray(cfg.suggestions) ? cfg.suggestions : []).slice(0, n).map(t => ({ label: t, value: '__say', say: t }));
 
+  /** A prompt injection attempt (found by the AI or the quick check): stop, drop whatever was in progress, and say so. */
+  function decline(message) {
+    ackNext = false;
+    voiceMode = false;
+    fields = {}; ORDER.forEach(k => { fields[k] = null; });
+    draft = null;
+    clock = null;
+    asking = '';
+    say(message, [{ label: 'What can you do?', value: '__say', say: 'What can you do?' }, { label: 'Record time', value: '__questions' }].concat(suggestionChips(2)), message);
+  }
   function handleIntent(data, text) {
     ackNext = false;
     if (data.intent === 'question' || data.intent === 'denied') { asking = ''; if (data.question) lastQuestion = data.question; return showAnswer(data.answer || {}); }
@@ -709,15 +755,16 @@ jQuery(document).ready(function($) {
     if (data.intent === 'add_project') return startDraft('project', data.draft);
     if (data.intent === 'clock_in' || data.intent === 'clock_out') return startClock(data.intent.slice(6), data.clock, data.status);
     asking = '';
-    // A question it has no answer for: say so, instead of sounding like it didn't understand
+    // Not something it can do: say so plainly and kindly, and say what it can do
+    const first = NAME.split(' ')[0];
     if (/\?\s*$|^\s*(what|how|which|who|when|where|can you|could you|show|give|list|provide|tell me)\b/i.test(String(text || ''))) {
-      return say("I can't answer that one yet. Here's what I can answer:",
+      return say(`That one is outside what I can help with. I answer questions about your TimeGrow data and about how TimeGrow works. Here are some you can ask:`,
         suggestionChips(8).concat([{ label: 'Record time', value: '__questions' }]),
-        "Sorry, I can't answer that one yet. Here's what I can answer.");
+        `Sorry, that's outside what I can help with. I answer questions about your TimeGrow data and how TimeGrow works.`);
     }
-    say('I can record your time or answer questions about TimeGrow. Try one of these, or tell me what you worked on.',
-      [{ label: 'Record time', value: '__questions' }].concat(suggestionChips(6)),
-      'I can record your time, or answer questions about TimeGrow. What would you like?');
+    say(`That's outside what I can do. I'm ${first}, TimeGrow's assistant: I can record your time, punch you in and out, answer questions about your TimeGrow data and explain how TimeGrow works. What would you like to do?`,
+      [{ label: 'Record time', value: '__questions' }, { label: 'What can you do?', value: '__say', say: 'What can you do?' }].concat(suggestionChips(5)),
+      `That's outside what I can do. I can record your time, punch you in and out, or answer questions about TimeGrow. What would you like to do?`);
   }
 
   /** The answer, with its list (links open in the same tab only for pages the person can use). */
@@ -812,14 +859,18 @@ jQuery(document).ready(function($) {
   function confirmDraft() {
     asking = 'draft:confirm';
     say(draftSummary() + ' Create it?', [{ label: 'Create', value: 'create' }, { label: 'Change something', value: 'change' }, { label: 'Cancel', value: 'cancel' }],
-      ack() + draftSummary() + ' Should I create it?');
+      ack() + draftSummary() + (NEEDS_CLICK ? ' Tap Create to add it.' : ' Should I create it?'));
   }
 
   function answerDraft(text, chip) {
     if (asking === 'draft:creating') return;
     if (asking === 'draft:confirm') {
       const v = chip ? chip.value : (/^(create|yes|yeah|yep|ok|okay|sure|do it|add it)\b/i.test(text) ? 'create' : /change|edit|fix/i.test(text) ? 'change' : /cancel|stop|never ?mind|no\b/i.test(text) ? 'cancel' : '');
-      if (v === 'create') return createDraft();
+      if (v === 'create') {
+        if (!chip && NEEDS_CLICK) return tapToApprove('draft:confirm');
+        approvedBy = approval(chip);
+        return createDraft();
+      }
       if (v === 'cancel') { draft = null; asking = ''; return say('Okay, nothing was added.', suggestionChips(3)); }
       if (v === 'change') {
         asking = 'draft:change';
@@ -854,7 +905,7 @@ jQuery(document).ready(function($) {
     Object.keys(draft.values).forEach(k => { values[k] = draft.values[k] === 'skip' ? '' : draft.values[k]; });
     const type = draft.type;
     const s0 = session; // replies from a closed session are ignored
-    $.post(cfg.ajaxUrl, withLog({ action: 'timegrow_voice_create', nonce: cfg.nonce, type: type, values: JSON.stringify(values) }))
+    $.post(cfg.ajaxUrl, withLog({ action: 'timegrow_voice_create', nonce: cfg.nonce, type: type, values: JSON.stringify(values), approved: approvedBy }))
       .done(res => {
         if (s0 !== session) return;
         if (res && res.success) {
@@ -995,7 +1046,7 @@ jQuery(document).ready(function($) {
       ? `Clock in on ${p ? p.name : ''} for ${clockClient()} ${clockWhen(clock.values.time)}?`
       : `Clock out of ${clock.status.project} ${clockWhen(clock.values.time)}?`;
     say(text, [{ label: clock.action === 'in' ? 'Clock in' : 'Clock out', value: 'save' }, { label: 'Change something', value: 'change' }, { label: 'Cancel', value: 'cancel' }],
-      ack() + text.replace(/\?$/, '. Should I go ahead?'));
+      ack() + text.replace(/\?$/, NEEDS_CLICK ? `. Tap ${clock.action === 'in' ? 'Clock in' : 'Clock out'} to go ahead.` : '. Should I go ahead?'));
   }
 
   function changeClock() {
@@ -1010,7 +1061,11 @@ jQuery(document).ready(function($) {
     if (asking === 'clock:confirm') {
       const v = chip ? chip.value : (/^(yes|yeah|yep|ok|okay|sure|go ahead|do it|save|clock (me )?(in|out)|punch (me )?(in|out))\b/i.test(text) ? 'save'
         : /change|edit|fix/i.test(text) ? 'change' : /^(cancel|stop|never ?mind|no)\b/i.test(text) ? 'cancel' : '');
-      if (v === 'save') return saveClock();
+      if (v === 'save') {
+        if (!chip && NEEDS_CLICK) return tapToApprove('clock:confirm');
+        approvedBy = approval(chip);
+        return saveClock();
+      }
       if (v === 'change') return changeClock();
       if (v === 'cancel') { clock = null; asking = ''; return say("Okay, I didn't clock you " + (/out/.test(text) ? 'out' : 'in or out') + '.', suggestionChips(3)); }
       if (on(cfg.aiReady)) return converse(text);
@@ -1047,7 +1102,7 @@ jQuery(document).ready(function($) {
     say(action === 'in' ? 'Clocking you in.' : 'Clocking you out.');
     const data = {
       action: 'save_time_entry', source: 'voice', entry_type: action === 'in' ? 'CLOCK_IN' : 'CLOCK_OUT', member_id: 0,
-      time_entry_id: action === 'in' ? 0 : status.entry_id, timegrow_time_nexus_nonce_field: cfg.saveNonce, clock_time: at,
+      time_entry_id: action === 'in' ? 0 : status.entry_id, timegrow_time_nexus_nonce_field: cfg.saveNonce, clock_time: at, approved: approvedBy,
     };
     if (action === 'in') data.project_id = values.project_id;
     const s0 = session; // replies from a closed session are ignored
@@ -1100,6 +1155,8 @@ jQuery(document).ready(function($) {
     $('#nexus-manual_billable').prop('checked', !!+fields.billable);
     $form.find('input[name="start_time"], input[name="client_id"], input[name="source"]').remove();
     $form.append($('<input>', { type: 'hidden', name: 'source', value: 'voice' })); // voice saves have their own hourly limit
+    $form.find('input[name="approved"]').remove();
+    $form.append($('<input>', { type: 'hidden', name: 'approved', value: approvedBy })); // how the person approved it (audit log)
     $form.find('input[name="session_key"], input[name="log_turns"]').remove();
     const logged = withLog({});
     Object.keys(logged).forEach(k => $form.append($('<input>', { type: 'hidden', name: k, value: logged[k] })));
@@ -1132,7 +1189,7 @@ jQuery(document).ready(function($) {
     const data = {
       action: 'save_time_entry', source: 'voice', entry_type: 'MAN', time_entry_id: 0, member_id: 0,
       timegrow_time_nexus_nonce_field: cfg.saveNonce, project_id: fields.project_id, client_id: fields.client_id, date: fields.date,
-      hours: fields.hours, billable: fields.billable ? 1 : 0, description: fields.description,
+      hours: fields.hours, billable: fields.billable ? 1 : 0, description: fields.description, approved: approvedBy,
     };
     if (fields.start_time && fields.start_time !== 'skip') data.start_time = fields.start_time;
     const s0 = session; // replies from a closed session are ignored
@@ -1225,12 +1282,14 @@ jQuery(document).ready(function($) {
     if (chip.value === '__restart') return start();
     if (chip.value === '__close') return close();
     if (chip.value === '__say') return answer(chip.say);                       // a suggested question
+    if (chip.value === '__add_client') { bubble('me', `Add “${chip.name}” as a new client`); $chips.empty(); ackNext = false; return startDraft('client', { name: chip.name }); }
+    if (chip.value === '__add_project') { bubble('me', `Add “${chip.name}” as a new project`); $chips.empty(); ackNext = false; return startDraft('project', { name: chip.name, client_id: chip.clientId ? Number(chip.clientId) : null }); }
     if (chip.value === '__project_for') { bubble('me', chip.label); $chips.empty(); ackNext = false; return startDraft('project', { client_id: chip.clientId }); }
     answer('', chip);
   });
   $mic.on('click', function() { voiceMode = true; listen(); });
-  $card.on('click', '.timegrow-voice-send', () => { voiceMode = false; answer($text.val()); });
-  $text.on('keypress', e => { if (e.which === 13) { e.preventDefault(); voiceMode = false; answer($text.val()); } });
+  $card.on('click', '.timegrow-voice-send', () => { voiceMode = false; lastSpoken = false; answer($text.val()); });
+  $text.on('keypress', e => { if (e.which === 13) { e.preventDefault(); voiceMode = false; lastSpoken = false; answer($text.val()); } });
 
   // For tests
   window.TimeGrowVoiceEntry = { open: open, close: close, voiceScore: voiceScore, bestVoice: bestVoice, sentences: sentences, spokenHours: spokenHours, answer: answer, fields: () => fields, asking: () => asking, clock: () => clock, readLocally: readLocally, readStrict: readStrict };
