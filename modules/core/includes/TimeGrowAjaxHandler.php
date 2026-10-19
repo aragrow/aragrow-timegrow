@@ -115,10 +115,11 @@ class TimeGrow_Ajax_Handler {
         } catch (Exception $e) {
             $analysis = new WP_Error('analysis_error', $e->getMessage());
         }
+        // This copy was only for reading: saving the expense uploads the receipt again, so it is not kept
+        if ($file && is_file($file)) {
+            @unlink($file);
+        }
         if (is_wp_error($analysis)) {
-            if ($file && is_file($file)) {
-                @unlink($file); // nothing will use this upload
-            }
             wp_send_json_error($analysis->get_error_message());
         }
 
@@ -154,7 +155,6 @@ class TimeGrow_Ajax_Handler {
             'refund'              => !empty($analysis['refund']),
             'token_usage'         => $analysis['token_usage'] ?? null,
             'model_used'          => $analysis['model_used'] ?? null,
-            'file_url'            => $upload['url'], // the file's location on the server is not sent
             'message'             => $message,
         ]);
     }

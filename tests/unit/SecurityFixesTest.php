@@ -4,6 +4,10 @@ use PHPUnit\Framework\TestCase;
 require_once dirname( __DIR__, 2 ) . '/modules/core/includes/helpers/TimeGrowCsv.php';
 require_once dirname( __DIR__, 2 ) . '/modules/core/includes/helpers/TimeGrowDateRanges.php';
 require_once dirname( __DIR__, 2 ) . '/modules/core/includes/helpers/TimeGrowAIPrivacy.php';
+require_once dirname( __DIR__, 2 ) . '/modules/core/includes/models/TimeGrowExpenseReceiptModel.php';
+if ( ! function_exists( 'wp_generate_password' ) ) {
+    function wp_generate_password( $length = 12, $special = true, $extra = false ) { return substr( bin2hex( random_bytes( $length ) ), 0, $length ); }
+}
 
 /** Fixes from the security review: CSV formulas, report dates, and names a team member may see. */
 class SecurityFixesTest extends TestCase {
@@ -41,5 +45,17 @@ class SecurityFixesTest extends TestCase {
 
         $admin = new TimeGrowAIPrivacy( [ 23 => 'Copperleaf Studio', 24 => 'Copperleaf Legal' ] );
         $this->assertSame( [ [ 'Copperleaf Studio', 'Copperleaf Legal' ] ], $admin->ambiguous( $admin->mask( 'Copperleaf' ) ), 'administrators see every match' );
+    }
+
+    public function test_receipts_go_to_a_private_folder_with_random_names() {
+        $dirs = TimeGrowExpenseReceiptModel::private_dir( [ 'basedir' => '/x/uploads', 'baseurl' => 'https://site/wp-content/uploads', 'subdir' => '/2026/10',
+            'path' => '/x/uploads/2026/10', 'url' => 'https://site/wp-content/uploads/2026/10' ] );
+        $this->assertSame( [ '/timegrow-receipts/2026/10', '/x/uploads/timegrow-receipts/2026/10', 'https://site/wp-content/uploads/timegrow-receipts/2026/10' ],
+            [ $dirs['subdir'], $dirs['path'], $dirs['url'] ] );
+        $a = TimeGrowExpenseReceiptModel::random_name( '/x', 'My Receipt.JPG', '.JPG' );
+        $b = TimeGrowExpenseReceiptModel::random_name( '/x', 'My Receipt.JPG', '.JPG' );
+        $this->assertMatchesRegularExpression( '/^[a-z0-9]{32}\.jpg$/', $a, 'random, keeps the checked extension' );
+        $this->assertNotSame( $a, $b );
+        $this->assertStringNotContainsString( 'receipt', $a, 'not the original name' );
     }
 }

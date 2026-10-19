@@ -4,7 +4,18 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+/**
+ * Expense receipts: uploaded files and their records.
+ *
+ * Receipts are private. They are stored in uploads/timegrow-receipts/YYYY/MM/ with a random,
+ * unguessable file name, the folder refuses direct web access (.htaccess; on nginx the random names
+ * are the protection), and they are opened only through view_url(), which checks the person may see
+ * expenses. Receipts uploaded before this were moved there once by migrate().
+ */
 class TimeGrowExpenseReceiptModel {
+
+    const DIR   = 'timegrow-receipts';
+    const NONCE = 'timegrow_view_receipt';
 
     private $table_name;
 
@@ -145,9 +156,14 @@ class TimeGrowExpenseReceiptModel {
         require_once(ABSPATH . 'wp-admin/includes/file.php');
         require_once(ABSPATH . 'wp-admin/includes/media.php');
 
-        // Handle the upload using WordPress function
-        $upload_overrides = ['test_form' => false];
+        // Into the private receipts folder, with a random file name
+        $upload_overrides = ['test_form' => false, 'unique_filename_callback' => [__CLASS__, 'random_name']];
+        add_filter('upload_dir', [__CLASS__, 'private_dir']);
         $upload_result = wp_handle_upload($file, $upload_overrides);
+        remove_filter('upload_dir', [__CLASS__, 'private_dir']);
+        if (!isset($upload_result['error'])) {
+            self::protect(trailingslashit(wp_get_upload_dir()['basedir']) . self::DIR);
+        }
 
         // Check for upload errors
         if (isset($upload_result['error'])) {
@@ -155,6 +171,115 @@ class TimeGrowExpenseReceiptModel {
         }
 
         return $upload_result;
+    }
+
+    // ------------------------------------------------------------------
+    // Private storage
+    // ------------------------------------------------------------------
+
+    /** upload_dir filter: uploads/timegrow-receipts/YYYY/MM. */
+    public static function private_dir($dirs) {
+        $dirs['subdir'] = '/' . self::DIR . $dirs['subdir'];
+        $dirs['path']   = $dirs['basedir'] . $dirs['subdir'];
+        $dirs['url']    = $dirs['baseurl'] . $dirs['subdir'];
+        return $dirs;
+    }
+
+    /** A random, unguessable file name that keeps the (checked) extension. */
+    public static function random_name($dir, $name, $ext) {
+        return strtolower(wp_generate_password(32, false, false)) . strtolower($ext);
+    }
+
+    /** Refuse direct web access to the receipts folder (Apache), and no folder listing. */
+    public static function protect($dir) {
+        if (!wp_mkdir_p($dir)) {
+            return;
+        }
+        $htaccess = trailingslashit($dir) . '.htaccess';
+        if (!file_exists($htaccess)) {
+            @file_put_contents($htaccess, "# TimeGrow receipts are opened through WordPress only\n<IfModule mod_authz_core.c>\n    Require all denied\n</IfModule>\n<IfModule !mod_authz_core.c>\n    Deny from all\n</IfModule>\n");
+        }
+        if (!file_exists(trailingslashit($dir) . 'index.php')) {
+            @file_put_contents(trailingslashit($dir) . 'index.php', "<?php // Silence is golden.\n");
+        }
+    }
+
+    /** The link to open a receipt: through WordPress, with a permission check. */
+    public static function view_url($receipt_id) {
+        return wp_nonce_url(add_query_arg(['action' => 'timegrow_view_receipt', 'id' => (int) $receipt_id], admin_url('admin-post.php')), self::NONCE . '_' . (int) $receipt_id);
+    }
+
+    /** admin-post timegrow_view_receipt: send the receipt to someone who may see expenses. */
+    public static function handle_view() {
+        $id = (int) ($_GET['id'] ?? 0);
+        if (!current_user_can(TIMEGROW_OWNER_CAP)) {
+            wp_die(esc_html__('You are not allowed to see receipts.', 'timegrow'), 403);
+        }
+        check_admin_referer(self::NONCE . '_' . $id);
+        $row  = (new self())->select($id);
+        $row  = is_array($row) ? ($row[0] ?? null) : $row;
+        $path = $row && class_exists('TimeGrowAIReceiptAnalyzer') ? TimeGrowAIReceiptAnalyzer::path_from_url($row->file_url) : '';
+        if (!$path || !is_readable($path)) {
+            wp_die(esc_html__('That receipt was not found.', 'timegrow'), 404);
+        }
+        $type = wp_check_filetype($path);
+        if (!in_array($type['type'], ['image/jpeg', 'image/png', 'application/pdf'], true)) {
+            wp_die(esc_html__('That receipt was not found.', 'timegrow'), 404);
+        }
+        nocache_headers();
+        header('Content-Type: ' . $type['type']);
+        header('Content-Length: ' . filesize($path));
+        header('Content-Disposition: inline; filename="receipt-' . $id . '.' . $type['ext'] . '"');
+        header('X-Content-Type-Options: nosniff');
+        readfile($path);
+        exit;
+    }
+
+    /**
+     * Once: move receipts uploaded before private storage into the receipts folder, with a random
+     * name. Each file is copied, checked, its record updated, and only then the old file removed.
+     */
+    public static function migrate() {
+        if (get_option('timegrow_receipts_private') === '1' || !class_exists('TimeGrowAIReceiptAnalyzer')) {
+            return;
+        }
+        global $wpdb;
+        $table   = $wpdb->prefix . TIMEGROW_PREFIX . 'expense_receipt_tracker';
+        $uploads = wp_get_upload_dir();
+        $private = trailingslashit($uploads['basedir']) . self::DIR;
+        if ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->esc_like($table))) !== $table) {
+            update_option('timegrow_receipts_private', '1', false);
+            return;
+        }
+        self::protect($private);
+        $left = 0;
+        foreach ((array) $wpdb->get_results("SELECT ID, file_url FROM {$table}") as $r) {
+            $path = TimeGrowAIReceiptAnalyzer::path_from_url($r->file_url);
+            if (!$path || strpos($path, realpath($private) ?: $private) === 0) {
+                continue; // missing, or already private
+            }
+            $sub  = '/' . self::DIR . '/' . gmdate('Y/m', filemtime($path) ?: time());
+            $dir  = $uploads['basedir'] . $sub;
+            wp_mkdir_p($dir);
+            $name = self::random_name($dir, basename($path), '.' . strtolower(pathinfo($path, PATHINFO_EXTENSION)));
+            $dest = $dir . '/' . $name;
+            if (!@copy($path, $dest) || filesize($dest) !== filesize($path)) {
+                @unlink($dest);
+                $left++;
+                continue;
+            }
+            $updated = $wpdb->update($table, ['file_url' => $uploads['baseurl'] . $sub . '/' . $name], ['ID' => (int) $r->ID], ['%s'], ['%d']);
+            if ($updated === false) {
+                @unlink($dest);
+                $left++;
+                continue;
+            }
+            @unlink($path);
+        }
+        if ($left === 0) {
+            update_option('timegrow_receipts_private', '1', false);
+        }
+        timegrow_log(sprintf('Receipts moved to private storage%s', $left ? sprintf(' (%d could not be moved yet)', $left) : ''));
     }
 
     /**
