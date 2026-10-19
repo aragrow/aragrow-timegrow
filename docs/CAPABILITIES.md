@@ -30,6 +30,8 @@ These capabilities are assigned ONLY to the Administrator role:
 | **Client Activity Report** | `view_client_activity_report` | Summary of hours and expenses logged against each client |
 | **All Expenses Overview** | `view_all_expenses_overview` | Detailed breakdown of all recorded expenses with filtering |
 | **Time Entry Audit Log** | `view_time_entry_audit_log` | Detailed log of all time entries, edits, and deletions |
+| **Unbilled Time (WIP)** | `view_unbilled_time` | Billable time not invoiced yet, by client and project |
+| **Yearly Tax Report** | `view_yearly_tax_report` | Yearly report including time charges and expenses for tax purposes. Administrators only: it shows the whole company's income and expenses (team members had it before; the permission is removed on the next admin page load) |
 
 ### Team Member Reports
 
@@ -37,7 +39,6 @@ These capabilities are assigned to BOTH Administrator and Team Member roles:
 
 | Report Title | Capability Name | Description |
 |-------------|-----------------|-------------|
-| **Yearly Tax Report** | `view_yearly_tax_report` | Yearly report including time charges and expenses for tax purposes |
 | **My Detailed Time Log** | `view_my_detailed_time_log` | Comprehensive log of all your clocked hours and manual entries |
 | **My Hours by Project** | `view_my_hours_by_project` | Breakdown of your hours spent on different projects |
 | **My Expenses Report** | `view_my_expenses_report` | List of all expenses you have recorded |
@@ -53,12 +54,13 @@ These capabilities are assigned to BOTH Administrator and Team Member roles:
 - ✅ `view_client_activity_report`
 - ✅ `view_all_expenses_overview`
 - ✅ `view_time_entry_audit_log`
+- ✅ `view_unbilled_time`
 - ✅ `view_yearly_tax_report`
 - ✅ `view_my_detailed_time_log`
 - ✅ `view_my_hours_by_project`
 - ✅ `view_my_expenses_report`
 
-**Total:** 9 capabilities
+**Total:** 10 capabilities
 
 ### Team Member Role
 **Receives ONLY individual/personal report capabilities:**
@@ -67,12 +69,13 @@ These capabilities are assigned to BOTH Administrator and Team Member roles:
 - ❌ `view_client_activity_report` (Admin only)
 - ❌ `view_all_expenses_overview` (Admin only)
 - ❌ `view_time_entry_audit_log` (Admin only)
-- ✅ `view_yearly_tax_report`
+- ❌ `view_unbilled_time` (Admin only)
+- ❌ `view_yearly_tax_report` (Admin only: company-wide finances)
 - ✅ `view_my_detailed_time_log`
 - ✅ `view_my_hours_by_project`
 - ✅ `view_my_expenses_report`
 
-**Total:** 4 capabilities
+**Total:** 3 capabilities
 
 ---
 
@@ -186,7 +189,7 @@ $admin_reports = [
 
 // For team member report
 $team_member_reports = [
-    'view_yearly_tax_report',
+    'view_my_detailed_time_log',
     'view_my_new_report_title',  // Add here
     // ... other capabilities
 ];
@@ -264,7 +267,8 @@ For easy lookup when managing capabilities in WordPress admin:
 | `view_client_activity_report` | Client Activity Report | ✅ | ❌ |
 | `view_all_expenses_overview` | All Expenses Overview | ✅ | ❌ |
 | `view_time_entry_audit_log` | Time Entry Audit Log | ✅ | ❌ |
-| `view_yearly_tax_report` | Yearly Tax Report | ✅ | ✅ |
+| `view_unbilled_time` | Unbilled Time (WIP) | ✅ | ❌ |
+| `view_yearly_tax_report` | Yearly Tax Report | ✅ | ❌ |
 | `view_my_detailed_time_log` | My Detailed Time Log | ✅ | ✅ |
 | `view_my_hours_by_project` | My Hours by Project | ✅ | ✅ |
 | `view_my_expenses_report` | My Expenses Report | ✅ | ✅ |

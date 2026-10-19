@@ -15,7 +15,8 @@
    - [project_tracker](#3-project_tracker)
    - [team_member_tracker](#4-team_member_tracker)
    - [expense_receipt_tracker](#5-expense_receipt_tracker)
-   - [company_tracker](#6-company_tracker)
+   - [time_entry_audit_tracker](#6-time_entry_audit_tracker)
+   - [company_tracker](#7-company_tracker)
 3. [WordPress Tables Usage](#wordpress-tables-usage)
 4. [Relationships Diagram](#relationships-diagram)
 5. [Custom Capabilities](#custom-capabilities)
@@ -57,6 +58,7 @@ CREATE TABLE IF NOT EXISTS wp_timegrow_time_entry_tracker (
     description text,
     entry_type varchar(10),
     billed_order_id bigint(20) unsigned DEFAULT NULL,
+    status tinyint(1) NOT NULL DEFAULT 1,
     created_at timestamp,
     updated_at timestamp,
     PRIMARY KEY (ID),
@@ -82,6 +84,7 @@ CREATE TABLE IF NOT EXISTS wp_timegrow_time_entry_tracker (
 | `description` | text | YES | NULL | Entry description |
 | `entry_type` | varchar(10) | YES | NULL | 'CLOCK', 'MAN', 'IN' |
 | `billed_order_id` | bigint(20) unsigned | YES | NULL | FK to WooCommerce order |
+| `status` | tinyint(1) | NO | 1 | 1 = active, 0 = inactive (kept, but left out of every total) |
 | `created_at` | timestamp | YES | CURRENT_TIMESTAMP | Creation timestamp |
 | `updated_at` | timestamp | YES | CURRENT_TIMESTAMP | Last update timestamp |
 
@@ -97,6 +100,8 @@ CREATE TABLE IF NOT EXISTS wp_timegrow_time_entry_tracker (
 - For manual entries: Hours stored directly in `hours` column
 - `billable` = 1 means entry can be billed to client
 - `billed` = 1 means entry has been invoiced via WooCommerce
+- `status` = 0 (inactive): the entry stays in the list but is left out of reports, the dashboard, invoicing, Unbilled Time, clock status and the voice assistant. A billed entry can't be made inactive. Sites created before the column get it on the next admin page load (`TimeGrowTimeEntryModel::maybe_add_status_column()`), with every entry active.
+- Every change is recorded in `time_entry_audit_tracker`.
 
 ---
 
@@ -116,6 +121,7 @@ CREATE TABLE IF NOT EXISTS wp_timegrow_expense_tracker (
     category VARCHAR(255) NOT NULL,
     assigned_to ENUM('project', 'client', 'general') NOT NULL,
     assigned_to_id mediumint(9) NULL,
+    status tinyint(1) NOT NULL DEFAULT 1,
     created_at timestamp,
     updated_at timestamp,
     PRIMARY KEY (id)
@@ -135,6 +141,7 @@ CREATE TABLE IF NOT EXISTS wp_timegrow_expense_tracker (
 | `category` | VARCHAR(255) | NO | - | Expense category |
 | `assigned_to` | ENUM | NO | - | Assignment type |
 | `assigned_to_id` | mediumint(9) | YES | NULL | ID of assigned entity |
+| `status` | tinyint(1) | NO | 1 | 1 = active, 0 = inactive (kept, but left out of every report and total). Added on existing sites at the next admin page load (`TimeGrowExpenseModel::maybe_add_status_column()`) |
 | `created_at` | timestamp | YES | CURRENT_TIMESTAMP | Creation timestamp |
 | `updated_at` | timestamp | YES | CURRENT_TIMESTAMP | Last update timestamp |
 
@@ -264,6 +271,7 @@ CREATE TABLE IF NOT EXISTS wp_timegrow_team_member_tracker (
 CREATE TABLE IF NOT EXISTS wp_timegrow_expense_receipt_tracker (
     ID BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
     expense_id BIGINT(20) UNSIGNED NOT NULL,
+    uploaded_by BIGINT(20) UNSIGNED NOT NULL DEFAULT 0,
     file_url TEXT NOT NULL,
     upload_date DATETIME DEFAULT CURRENT_TIMESTAMP,
     extracted_data LONGTEXT,
@@ -280,7 +288,8 @@ CREATE TABLE IF NOT EXISTS wp_timegrow_expense_receipt_tracker (
 |--------|------|------|---------|-------------|
 | `ID` | BIGINT(20) unsigned | NO | AUTO_INCREMENT | Primary key |
 | `expense_id` | BIGINT(20) unsigned | NO | - | FK to expense_tracker |
-| `file_url` | TEXT | NO | - | URL to receipt file |
+| `uploaded_by` | BIGINT(20) unsigned | NO | 0 | WordPress user who uploaded it; 0 = unknown (receipts from before the column: administrators only) |
+| `file_url` | TEXT | NO | - | Where the file is stored (private folder; never linked to directly) |
 | `upload_date` | DATETIME | YES | CURRENT_TIMESTAMP | Upload timestamp |
 | `extracted_data` | LONGTEXT | YES | NULL | Gemini AI JSON response |
 | `gemini_confidence` | DECIMAL(3,2) | YES | NULL | AI confidence (0.00-1.00) |
@@ -292,9 +301,33 @@ CREATE TABLE IF NOT EXISTS wp_timegrow_expense_receipt_tracker (
 - **gemini_confidence**: Confidence score from 0.00 to 1.00
 - **Cascade Delete**: When expense is deleted, receipts are automatically removed
 
+#### Private Storage and Access
+
+- Files are stored in `wp-content/uploads/timegrow-receipts/YYYY/MM/` with a random 32-character name. The folder has a deny-all `.htaccess` and an `index.php`. On nginx, add `location ^~ /wp-content/uploads/timegrow-receipts/ { deny all; }` so files can't be opened by their direct URL.
+- Receipts open only through `admin-post.php?action=timegrow_view_receipt&id=…` (`TimeGrowExpenseReceiptModel::view_url()`), which checks a nonce and `can_view()`: administrators every receipt; a team member who may record expenses only the receipts they uploaded; an unknown uploader (0) administrators only.
+- Receipts uploaded before private storage were moved there once (`migrate()`, option `timegrow_receipts_private`). The copy uploaded only for AI reading is deleted right after reading.
+
 ---
 
-### 6. company_tracker
+### 6. time_entry_audit_tracker
+
+**Table Name:** `wp_timegrow_time_entry_audit_tracker`
+**Description:** Every change to a time entry (Reports > Time Entry Audit Log). Rows are never edited or removed by TimeGrow.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `ID` | bigint(20) unsigned | Primary key |
+| `entry_id` | bigint(20) unsigned | The time entry |
+| `action` | varchar(20) | created, updated, clocked_out, billed, unbilled, rebilled, deleted |
+| `changes` | longtext | JSON `{field: [before, after]}` |
+| `snapshot` | longtext | JSON of the entry after the change (before it, for deleted) |
+| `order_id` | bigint(20) unsigned | The invoice, for billing changes |
+| `user_id` | bigint(20) unsigned | Who made the change (0 = system) |
+| `source` | varchar(20) | web, voice, mobile or system |
+| `approval` | varchar(10) | For voice: click, spoken or typed |
+| `created_at` | datetime | When |
+
+### 7. company_tracker
 
 **Table Name:** `wp_timegrow_company_tracker`
 **Description:** Stores company information for team members

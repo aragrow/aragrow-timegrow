@@ -35,9 +35,9 @@ Say what you did in one sentence. The assistant fills in what it understood and 
 | "Yes" / "No" (when asked if it's billable) | Billable or not billable |
 | "The second one" (after it lists projects) | The second project on the list |
 
-It won't guess a vague amount like "the morning" or "two or three hours"; it asks how long. When everything is there, it reads back a summary such as *"Copperleaf, SEO Audit. Thu, Oct 15, 2h 30m, billable. Keyword research."* Say **save it** or tap **Save entry**. Nothing is saved before that.
+It won't guess a vague amount like "the morning" or "two or three hours"; it asks how long. When everything is there, it reads back a summary such as *"Copperleaf, SEO Audit. Thu, Oct 15, 2h 30m, billable. Keyword research."* Tap **Save entry** to save it. Saying or typing "yes" isn't enough while your administrator has "Saving needs a click" on (the default), so a misheard word never saves anything. Nothing is saved before that.
 
-You only see your own projects. If a client has several projects with the same name, or several clients have similar names, it asks which one you mean.
+You only see your own projects. If a client has several projects with the same name, or several clients have similar names, it asks which one you mean. If you name a client or project that isn't yours or doesn't exist, it says *"I couldn't find a client called 'Latino Networking' in your list, so I didn't choose one"* and asks again. It never picks a different one for you. Administrators also get a button to add it as a new client or project.
 
 ## Punch in and out
 
@@ -109,10 +109,11 @@ Ask it how things work: "How do I upload a receipt?", "What is the unbilled repo
 
 The assistant only does what you can already do in TimeGrow, one thing at a time:
 
-- It never saves without your **Save entry**.
+- It never saves, punches you in or out, or creates anything without your click on **Save entry**, **Clock in** or **Create**.
 - It can't change or delete entries you already saved, or change many at once. Use the Time Entries page for that.
 - It only uses your own projects, and can't record time for someone else.
-- It can't show you information your role doesn't allow.
+- It can't show you information your role doesn't allow. Team members get their own hours only, even when they ask about the team.
+- It only helps with TimeGrow. Messages that try to get its instructions or change how it works are stopped with *"That looks like a prompt injection attempt…"* and logged as a **Prompt Injection Attempt** for your administrators.
 
 **What is sent to the AI:** what you say or type, the last few messages of the conversation, and your own projects and their clients. The answers to your questions (hours, entries) are looked up by TimeGrow and are not sent to the AI.
 
@@ -129,6 +130,8 @@ The assistant only does what you can already do in TimeGrow, one thing at a time
 | It asks every question one by one | The AI is off or not working right now; answer the questions, it still saves normally |
 | "Sorry, I didn't get the hours" | Say it as a number: "two hours", "45 minutes" |
 | It picked the wrong client or project | Say "No, " and the right name, or "Change something" |
+| "I couldn't find a client called…" | Check the name, pick from the list it shows, or ask an administrator to add it |
+| "To approve it, tap Save entry below" | Saving needs a click: tap the button instead of saying "yes" |
 | "That information is only available to administrators" | The question is for administrators only |
 | "I can only record or add one thing at a time" | Changes to saved entries are made on the Time Entries page |
 | "That wasn't saved" with a reason | Fix what it says (for example a date in the future), then save again |
