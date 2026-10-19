@@ -180,12 +180,12 @@ function timegrow_register_report_capabilities() {
         'view_time_entry_audit_log',         // Time Entry Audit Log
         'view_monthly_profit_loss',          // Monthly Profit & Loss Report
         'view_unbilled_time',                // Unbilled Time (WIP)
+        'view_yearly_tax_report',            // Yearly Tax Report: the whole company's income and expenses
         'manage_expense_categories',         // Manage Expense Categories
     ];
 
     // Team member reports (individual use)
     $team_member_reports = [
-        'view_yearly_tax_report',            // Yearly Tax Report
         'view_my_detailed_time_log',         // My Detailed Time Log
         'view_my_hours_by_project',          // My Hours by Project
         'view_my_expenses_report',           // My Expenses Report
@@ -203,6 +203,8 @@ function timegrow_register_report_capabilities() {
         foreach ($team_member_reports as $cap) {
             $team_member_role->add_cap($cap);
         }
+        // The Yearly Tax Report shows company-wide finances: administrators only (team members had it before)
+        $team_member_role->remove_cap('view_yearly_tax_report');
     }
 }
 
@@ -230,7 +232,8 @@ add_action('admin_init', function() {
 add_action('admin_init', function() {
     // Check if capabilities have been registered
     $admin = get_role('administrator');
-    if ($admin && (!$admin->has_cap('view_client_activity_report') || !$admin->has_cap('view_monthly_profit_loss') || !$admin->has_cap('manage_expense_categories') || !$admin->has_cap('view_unbilled_time'))) {
+    if ($admin && (!$admin->has_cap('view_client_activity_report') || !$admin->has_cap('view_monthly_profit_loss') || !$admin->has_cap('manage_expense_categories') || !$admin->has_cap('view_unbilled_time'))
+        || (($tm = get_role('team_member')) && $tm->has_cap('view_yearly_tax_report'))) {
         // Capabilities not registered yet, register them now
         timegrow_register_report_capabilities();
     }
@@ -256,8 +259,9 @@ function timegrow_publishpress_capabilities($plugin_caps) {
         // Management Capabilities - Admin Only
         'manage_expense_categories',
 
-        // Report Capabilities - Team Member & Admin
         'view_yearly_tax_report',
+
+        // Report Capabilities - Team Member & Admin
         'view_my_detailed_time_log',
         'view_my_hours_by_project',
         'view_my_expenses_report',

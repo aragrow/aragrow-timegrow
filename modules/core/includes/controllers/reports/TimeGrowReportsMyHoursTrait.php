@@ -38,8 +38,8 @@ trait TimeGrowReportsMyHoursTrait {
         $client_table = $wpdb->prefix . 'users'; // Clients are stored in WordPress users table
 
         // Get date range filters (optional)
-        $start_date = isset($_GET['start_date']) ? sanitize_text_field($_GET['start_date']) : '';
-        $end_date = isset($_GET['end_date']) ? sanitize_text_field($_GET['end_date']) : '';
+        $start_date = TimeGrowDateRanges::valid_date($_GET['start_date'] ?? '');
+        $end_date = TimeGrowDateRanges::valid_date($_GET['end_date'] ?? '');
 
         // Build query to get hours by project for current user
         // For administrators, show all data. For team members, show only their data.
@@ -242,8 +242,8 @@ trait TimeGrowReportsMyHoursTrait {
 
             <!-- Export buttons at bottom -->
             <div style="margin-top: 30px; display: flex; gap: 10px;">
-                <a href="<?php echo add_query_arg(array_merge($export_params, ['export' => 'csv']), admin_url('admin.php')); ?>" class="button button-primary">📊 Export to CSV</a>
-                <a href="<?php echo add_query_arg(array_merge($export_params, ['export' => 'pdf']), admin_url('admin.php')); ?>" class="button button-primary">📄 Export to PDF</a>
+                <a href=\"<?php echo esc_url(add_query_arg(array_merge($export_params, ['export' => 'csv']), admin_url('admin.php'))); ?>\" class="button button-primary">📊 Export to CSV</a>
+                <a href=\"<?php echo esc_url(add_query_arg(array_merge($export_params, ['export' => 'pdf']), admin_url('admin.php'))); ?>\" class="button button-primary">📄 Export to PDF</a>
                 <button type="button" class="button button-secondary" onclick="window.print();">🖨️ Print to PDF</button>
             </div>
         <?php
@@ -259,8 +259,8 @@ trait TimeGrowReportsMyHoursTrait {
         $project_table = $wpdb->prefix . TIMEGROW_PREFIX . 'project_tracker';
         $client_table = $wpdb->prefix . 'users'; // Clients are stored in WordPress users table
 
-        $start_date = isset($_GET['start_date']) ? sanitize_text_field($_GET['start_date']) : '';
-        $end_date = isset($_GET['end_date']) ? sanitize_text_field($_GET['end_date']) : '';
+        $start_date = TimeGrowDateRanges::valid_date($_GET['start_date'] ?? '');
+        $end_date = TimeGrowDateRanges::valid_date($_GET['end_date'] ?? '');
 
         // Same query as main report
         $query = "SELECT
@@ -329,19 +329,19 @@ trait TimeGrowReportsMyHoursTrait {
         fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
 
         // Report header
-        fputcsv($output, ['My Hours by Project Report']);
-        fputcsv($output, ['Generated:', date('F j, Y g:i A')]);
+        TimeGrowCsv::put($output, ['My Hours by Project Report']);
+        TimeGrowCsv::put($output, ['Generated:', date('F j, Y g:i A')]);
         if (!empty($start_date) || !empty($end_date)) {
             $date_range = 'Date Range: ';
             $date_range .= !empty($start_date) ? date('M j, Y', strtotime($start_date)) : 'Beginning';
             $date_range .= ' to ';
             $date_range .= !empty($end_date) ? date('M j, Y', strtotime($end_date)) : 'Present';
-            fputcsv($output, [$date_range]);
+            TimeGrowCsv::put($output, [$date_range]);
         }
-        fputcsv($output, []);
+        TimeGrowCsv::put($output, []);
 
         // Column headers
-        fputcsv($output, ['Project', 'Client', 'Total Hours', 'Billable Hours', 'Non-Billable Hours', 'Entries', 'First Entry', 'Last Entry']);
+        TimeGrowCsv::put($output, ['Project', 'Client', 'Total Hours', 'Billable Hours', 'Non-Billable Hours', 'Entries', 'First Entry', 'Last Entry']);
 
         // Calculate totals
         $total_hours = 0;
@@ -351,7 +351,7 @@ trait TimeGrowReportsMyHoursTrait {
 
         // Data rows
         foreach ($results as $row) {
-            fputcsv($output, [
+            TimeGrowCsv::put($output, [
                 $row->project_name,
                 $row->client_name ? $row->client_name : 'No Client',
                 number_format($row->total_hours, 2),
@@ -369,8 +369,8 @@ trait TimeGrowReportsMyHoursTrait {
         }
 
         // Totals row
-        fputcsv($output, []);
-        fputcsv($output, [
+        TimeGrowCsv::put($output, []);
+        TimeGrowCsv::put($output, [
             'TOTAL',
             '',
             number_format($total_hours, 2),
@@ -395,8 +395,8 @@ trait TimeGrowReportsMyHoursTrait {
         $project_table = $wpdb->prefix . TIMEGROW_PREFIX . 'project_tracker';
         $client_table = $wpdb->prefix . 'users'; // Clients are stored in WordPress users table
 
-        $start_date = isset($_GET['start_date']) ? sanitize_text_field($_GET['start_date']) : '';
-        $end_date = isset($_GET['end_date']) ? sanitize_text_field($_GET['end_date']) : '';
+        $start_date = TimeGrowDateRanges::valid_date($_GET['start_date'] ?? '');
+        $end_date = TimeGrowDateRanges::valid_date($_GET['end_date'] ?? '');
 
         // Same query as main report
         $query = "SELECT

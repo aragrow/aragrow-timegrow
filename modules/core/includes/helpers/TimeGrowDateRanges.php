@@ -32,6 +32,16 @@ class TimeGrowDateRanges {
         ];
     }
 
+    /** A YYYY-MM-DD date from the request, or '' (anything else, including injected markup, is dropped). Pure. */
+    public static function valid_date($value) {
+        $v = is_string($value) ? trim($value) : '';
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $v)) {
+            return '';
+        }
+        [$y, $m, $d] = array_map('intval', explode('-', $v));
+        return checkdate($m, $d, $y) ? $v : '';
+    }
+
     /** The preset whose dates are exactly $from to $to, or ''. Pure. */
     public static function active($from, $to, $today) {
         foreach (self::presets($today) as $key => $p) {

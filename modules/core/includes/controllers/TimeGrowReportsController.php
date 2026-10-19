@@ -144,7 +144,7 @@ class TimeGrowReportsController {
                 'title' => 'Yearly Tax Report',
                 'description' => 'Comprehensive yearly report including time charges and expenses for tax purposes.',
                 'icon' => 'dashicons-analytics',
-                'roles' => ['administrator', 'team_member'],
+                'roles' => ['administrator'],
                 'capability' => 'view_yearly_tax_report',
                 'category' => 'Financial & Project'
             ],
@@ -339,8 +339,8 @@ class TimeGrowReportsController {
         $expense_table = $wpdb->prefix . TIMEGROW_PREFIX . 'expense_tracker';
         $client_table = $wpdb->prefix . 'users';
 
-        $start_date = isset($_GET['start_date']) ? sanitize_text_field($_GET['start_date']) : '';
-        $end_date = isset($_GET['end_date']) ? sanitize_text_field($_GET['end_date']) : '';
+        $start_date = TimeGrowDateRanges::valid_date($_GET['start_date'] ?? '');
+        $end_date = TimeGrowDateRanges::valid_date($_GET['end_date'] ?? '');
         $filter_client = isset($_GET['filter_client']) ? intval($_GET['filter_client']) : 0;
 
         // Same query as main report

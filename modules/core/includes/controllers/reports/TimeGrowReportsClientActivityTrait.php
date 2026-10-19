@@ -44,8 +44,8 @@ trait TimeGrowReportsClientActivityTrait {
         ");
 
         // Get filter parameters
-        $start_date = isset($_GET['start_date']) ? sanitize_text_field($_GET['start_date']) : '';
-        $end_date = isset($_GET['end_date']) ? sanitize_text_field($_GET['end_date']) : '';
+        $start_date = TimeGrowDateRanges::valid_date($_GET['start_date'] ?? '');
+        $end_date = TimeGrowDateRanges::valid_date($_GET['end_date'] ?? '');
         $filter_client = isset($_GET['filter_client']) ? intval($_GET['filter_client']) : 0;
         $view_detail = isset($_GET['view_detail']) ? intval($_GET['view_detail']) : 0;
 
@@ -383,8 +383,8 @@ trait TimeGrowReportsClientActivityTrait {
 
             <!-- Export buttons at bottom -->
             <div style="margin-top: 30px; display: flex; gap: 10px;">
-                <a href="<?php echo add_query_arg(array_merge($export_params, ['export' => 'csv']), admin_url('admin.php')); ?>" class="button button-primary">📊 Export to CSV</a>
-                <a href="<?php echo add_query_arg(array_merge($export_params, ['export' => 'pdf']), admin_url('admin.php')); ?>" class="button button-primary">📄 Export to PDF</a>
+                <a href=\"<?php echo esc_url(add_query_arg(array_merge($export_params, ['export' => 'csv']), admin_url('admin.php'))); ?>\" class="button button-primary">📊 Export to CSV</a>
+                <a href=\"<?php echo esc_url(add_query_arg(array_merge($export_params, ['export' => 'pdf']), admin_url('admin.php'))); ?>\" class="button button-primary">📄 Export to PDF</a>
                 <button type="button" class="button button-secondary" onclick="window.print();">🖨️ Print to PDF</button>
             </div>
         <?php
@@ -734,8 +734,8 @@ trait TimeGrowReportsClientActivityTrait {
         $expense_table = $wpdb->prefix . TIMEGROW_PREFIX . 'expense_tracker';
         $client_table = $wpdb->prefix . 'users';
 
-        $start_date = isset($_GET['start_date']) ? sanitize_text_field($_GET['start_date']) : '';
-        $end_date = isset($_GET['end_date']) ? sanitize_text_field($_GET['end_date']) : '';
+        $start_date = TimeGrowDateRanges::valid_date($_GET['start_date'] ?? '');
+        $end_date = TimeGrowDateRanges::valid_date($_GET['end_date'] ?? '');
         $filter_client = isset($_GET['filter_client']) ? intval($_GET['filter_client']) : 0;
 
         // Same query as main report
@@ -804,7 +804,7 @@ trait TimeGrowReportsClientActivityTrait {
         $output = fopen('php://output', 'w');
         fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
 
-        fputcsv($output, [
+        TimeGrowCsv::put($output, [
             'Client Name',
             'Email',
             'Projects',
@@ -819,7 +819,7 @@ trait TimeGrowReportsClientActivityTrait {
 
         foreach ($results as $row) {
             $non_billable = floatval($row->total_hours) - floatval($row->billable_hours);
-            fputcsv($output, [
+            TimeGrowCsv::put($output, [
                 $row->client_name,
                 $row->client_email,
                 $row->project_count,

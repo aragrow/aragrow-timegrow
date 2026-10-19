@@ -76,7 +76,7 @@ trait TimeGrowReportsTeamHoursTrait {
     }
 
     private function generate_team_summary_hours($current_user) {
-        $start_date = isset($_GET['start_date']) ? sanitize_text_field($_GET['start_date']) : '';
+        $start_date = TimeGrowDateRanges::valid_date($_GET['start_date'] ?? '');
         $end_date   = isset($_GET['end_date']) ? sanitize_text_field($_GET['end_date']) : '';
         $rows   = $this->team_hours_rows($start_date, $end_date);
         $totals = self::team_hours_totals($rows);
@@ -213,15 +213,15 @@ trait TimeGrowReportsTeamHoursTrait {
         $output = fopen('php://output', 'w');
         fprintf($output, chr(0xEF) . chr(0xBB) . chr(0xBF)); // UTF-8 BOM for Excel
 
-        fputcsv($output, ['Team Hours Summary']);
-        fputcsv($output, ['Generated:', date('F j, Y g:i A')]);
+        TimeGrowCsv::put($output, ['Team Hours Summary']);
+        TimeGrowCsv::put($output, ['Generated:', date('F j, Y g:i A')]);
         if ($start_date !== '' || $end_date !== '') {
-            fputcsv($output, ['Date Range: ' . ($start_date !== '' ? date('M j, Y', strtotime($start_date)) : 'Beginning') . ' to ' . ($end_date !== '' ? date('M j, Y', strtotime($end_date)) : 'Present')]);
+            TimeGrowCsv::put($output, ['Date Range: ' . ($start_date !== '' ? date('M j, Y', strtotime($start_date)) : 'Beginning') . ' to ' . ($end_date !== '' ? date('M j, Y', strtotime($end_date)) : 'Present')]);
         }
-        fputcsv($output, []);
-        fputcsv($output, ['Team Member', 'Total Hours', 'Billable Hours', 'Non-Billable Hours', 'Billable %', 'Projects', 'Entries', 'Open Clock-ins', 'Last Entry']);
+        TimeGrowCsv::put($output, []);
+        TimeGrowCsv::put($output, ['Team Member', 'Total Hours', 'Billable Hours', 'Non-Billable Hours', 'Billable %', 'Projects', 'Entries', 'Open Clock-ins', 'Last Entry']);
         foreach ($rows as $row) {
-            fputcsv($output, [
+            TimeGrowCsv::put($output, [
                 $row->member_name,
                 number_format($row->total_hours, 2),
                 number_format($row->billable_hours, 2),
@@ -233,8 +233,8 @@ trait TimeGrowReportsTeamHoursTrait {
                 $row->last_entry ? date('M j, Y', strtotime($row->last_entry)) : '',
             ]);
         }
-        fputcsv($output, []);
-        fputcsv($output, ['TOTAL', number_format($totals['total'], 2), number_format($totals['billable'], 2), number_format($totals['non_billable'], 2),
+        TimeGrowCsv::put($output, []);
+        TimeGrowCsv::put($output, ['TOTAL', number_format($totals['total'], 2), number_format($totals['billable'], 2), number_format($totals['non_billable'], 2),
             number_format(self::billable_percent($totals['billable'], $totals['total']), 1), '', (int) $totals['entries'], '', '']);
         fclose($output);
         exit;

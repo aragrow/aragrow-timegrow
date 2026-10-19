@@ -35,6 +35,7 @@ class TimeGrowAIPrivacy {
     private $names = [];   // [real name, token], longest first
     private $words = [];   // distinctive word (lowercase) => [tokens]
     private $counter = ['Email' => 0, 'Phone' => 0];
+    private $allowed = null; // tokens whose real name may be shown; null = all (administrators)
 
     /**
      * @param array  $clients id => name, or id => [names] (display name, billing name, company)
@@ -154,6 +155,34 @@ class TimeGrowAIPrivacy {
         return $token;
     }
 
+    /**
+     * Only these clients and people may be shown by their real name (a team member: their own clients and
+     * themselves). Every name is still replaced before the AI; others come back as "another client" or
+     * "another person". Pure.
+     *
+     * @param string[] $tokens Stand-ins like "[Client 31]", "[Person 14]".
+     */
+    public function restrict(array $tokens) {
+        $this->allowed = array_values(array_unique($tokens));
+        return $this;
+    }
+
+    /** True when this stand-in's real name may be shown. Emails, phones and the company are the person's own text. */
+    private function shown($token) {
+        return $this->allowed === null || !preg_match('/^\[(Client|Person|User) /', $token) || in_array($token, $this->allowed, true);
+    }
+
+    /** The real text for a stand-in, or a neutral word when it may not be shown. */
+    private function real_for($token) {
+        if (!isset($this->real[$token])) {
+            return null;
+        }
+        if ($this->shown($token)) {
+            return $this->real[$token];
+        }
+        return strpos($token, '[Client ') === 0 ? __('another client', 'timegrow') : __('another person', 'timegrow');
+    }
+
     /** Swap stand-ins back to the real data (text or every string of an array). Also reads them without brackets. */
     public function unmask($value) {
         if (is_array($value)) {
@@ -167,11 +196,12 @@ class TimeGrowAIPrivacy {
             return $value;
         }
         $t = preg_replace_callback('/\[one of ([^\]]+)\]/', function ($m) {
-            return implode(' / ', array_map(function ($x) { return $this->real['[' . trim($x) . ']'] ?? trim($x); }, explode(',', $m[1])));
+            $names = array_filter(array_map(function ($x) { $token = '[' . trim($x) . ']'; return $this->shown($token) ? ($this->real[$token] ?? trim($x)) : null; }, explode(',', $m[1])));
+            return $names ? implode(' / ', array_unique($names)) : __('another client', 'timegrow');
         }, $value);
         $t = preg_replace_callback('/\[?\b(Client|Person|User|Email|Phone) (\d+)\b\]?|\[Your company\]/', function ($m) {
             $token = $m[0] === '[Your company]' ? '[Your company]' : '[' . $m[1] . ' ' . $m[2] . ']';
-            return $this->real[$token] ?? $m[0];
+            return $this->real_for($token) ?? $m[0];
         }, $t);
         return $t;
     }
@@ -210,9 +240,18 @@ class TimeGrowAIPrivacy {
      */
     public function ambiguous($masked) {
         preg_match_all('/\[one of ([^\]]+)\]/', (string) $masked, $m);
-        return array_map(function ($group) {
-            return array_map(function ($x) { return $this->real['[' . trim($x) . ']'] ?? trim($x); }, explode(',', $group));
+        // Only names this person may see (a team member: their own clients)
+        $groups = array_map(function ($group) {
+            $names = [];
+            foreach (explode(',', $group) as $x) {
+                $token = '[' . trim($x) . ']';
+                if ($this->shown($token) && isset($this->real[$token])) {
+                    $names[] = $this->real[$token];
+                }
+            }
+            return array_values(array_unique($names));
         }, $m[1]);
+        return array_values(array_filter($groups, function ($g) { return count($g) > 1; }));
     }
 
     /** True when the text still holds a known real name (for tests and checks). */

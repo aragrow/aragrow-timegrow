@@ -34,8 +34,8 @@ trait TimeGrowReportsAllExpensesTrait {
         $client_table = $wpdb->prefix . 'users';
 
         // Get filter parameters
-        $start_date = isset($_GET['start_date']) ? sanitize_text_field($_GET['start_date']) : '';
-        $end_date = isset($_GET['end_date']) ? sanitize_text_field($_GET['end_date']) : '';
+        $start_date = TimeGrowDateRanges::valid_date($_GET['start_date'] ?? '');
+        $end_date = TimeGrowDateRanges::valid_date($_GET['end_date'] ?? '');
         $filter_category = isset($_GET['filter_category']) ? sanitize_text_field($_GET['filter_category']) : '';
         $filter_payment_method = isset($_GET['filter_payment_method']) ? sanitize_text_field($_GET['filter_payment_method']) : '';
         $filter_assigned_to = isset($_GET['filter_assigned_to']) ? sanitize_text_field($_GET['filter_assigned_to']) : '';
@@ -435,8 +435,8 @@ trait TimeGrowReportsAllExpensesTrait {
 
             <!-- Export buttons at bottom -->
             <div style="margin-top: 30px; display: flex; gap: 10px;">
-                <a href="<?php echo add_query_arg(array_merge($export_params, ['export' => 'csv']), admin_url('admin.php')); ?>" class="button button-primary">📊 Export to CSV</a>
-                <a href="<?php echo add_query_arg(array_merge($export_params, ['export' => 'pdf']), admin_url('admin.php')); ?>" class="button button-primary">📄 Export to PDF</a>
+                <a href=\"<?php echo esc_url(add_query_arg(array_merge($export_params, ['export' => 'csv']), admin_url('admin.php'))); ?>\" class="button button-primary">📊 Export to CSV</a>
+                <a href=\"<?php echo esc_url(add_query_arg(array_merge($export_params, ['export' => 'pdf']), admin_url('admin.php'))); ?>\" class="button button-primary">📄 Export to PDF</a>
                 <button type="button" class="button button-secondary" onclick="window.print();">🖨️ Print to PDF</button>
             </div>
         <?php
@@ -452,8 +452,8 @@ trait TimeGrowReportsAllExpensesTrait {
         $project_table = $wpdb->prefix . TIMEGROW_PREFIX . 'project_tracker';
         $client_table = $wpdb->prefix . 'users';
 
-        $start_date = isset($_GET['start_date']) ? sanitize_text_field($_GET['start_date']) : '';
-        $end_date = isset($_GET['end_date']) ? sanitize_text_field($_GET['end_date']) : '';
+        $start_date = TimeGrowDateRanges::valid_date($_GET['start_date'] ?? '');
+        $end_date = TimeGrowDateRanges::valid_date($_GET['end_date'] ?? '');
         $filter_category = isset($_GET['filter_category']) ? sanitize_text_field($_GET['filter_category']) : '';
         $filter_payment_method = isset($_GET['filter_payment_method']) ? sanitize_text_field($_GET['filter_payment_method']) : '';
         $filter_assigned_to = isset($_GET['filter_assigned_to']) ? sanitize_text_field($_GET['filter_assigned_to']) : '';
@@ -514,7 +514,7 @@ trait TimeGrowReportsAllExpensesTrait {
         $output = fopen('php://output', 'w');
         fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
 
-        fputcsv($output, [
+        TimeGrowCsv::put($output, [
             'Date',
             'Expense Name',
             'Category',
@@ -533,7 +533,7 @@ trait TimeGrowReportsAllExpensesTrait {
                 $assigned_name = $expense->client_name;
             }
 
-            fputcsv($output, [
+            TimeGrowCsv::put($output, [
                 $expense->expense_date,
                 $expense->expense_name,
                 $expense->category_name,
@@ -559,8 +559,8 @@ trait TimeGrowReportsAllExpensesTrait {
         $project_table = $wpdb->prefix . TIMEGROW_PREFIX . 'project_tracker';
         $client_table = $wpdb->prefix . 'users';
 
-        $start_date = isset($_GET['start_date']) ? sanitize_text_field($_GET['start_date']) : '';
-        $end_date = isset($_GET['end_date']) ? sanitize_text_field($_GET['end_date']) : '';
+        $start_date = TimeGrowDateRanges::valid_date($_GET['start_date'] ?? '');
+        $end_date = TimeGrowDateRanges::valid_date($_GET['end_date'] ?? '');
         $filter_category = isset($_GET['filter_category']) ? sanitize_text_field($_GET['filter_category']) : '';
         $filter_payment_method = isset($_GET['filter_payment_method']) ? sanitize_text_field($_GET['filter_payment_method']) : '';
         $filter_assigned_to = isset($_GET['filter_assigned_to']) ? sanitize_text_field($_GET['filter_assigned_to']) : '';

@@ -35,8 +35,8 @@ trait TimeGrowReportsMyTimeEntriesTrait {
         $client_table = $wpdb->prefix . 'users'; // Clients are stored in WordPress users table
 
         // Get date range filters (optional)
-        $start_date = isset($_GET['start_date']) ? sanitize_text_field($_GET['start_date']) : '';
-        $end_date = isset($_GET['end_date']) ? sanitize_text_field($_GET['end_date']) : '';
+        $start_date = TimeGrowDateRanges::valid_date($_GET['start_date'] ?? '');
+        $end_date = TimeGrowDateRanges::valid_date($_GET['end_date'] ?? '');
 
         // Build query to get all time entries with full details
         $query = "SELECT
@@ -272,8 +272,8 @@ trait TimeGrowReportsMyTimeEntriesTrait {
 
             <!-- Export buttons at bottom -->
             <div style="margin-top: 30px; display: flex; gap: 10px;">
-                <a href="<?php echo add_query_arg(array_merge($export_params, ['export' => 'csv']), admin_url('admin.php')); ?>" class="button button-primary">📊 Export to CSV</a>
-                <a href="<?php echo add_query_arg(array_merge($export_params, ['export' => 'pdf']), admin_url('admin.php')); ?>" class="button button-primary">📄 Export to PDF</a>
+                <a href=\"<?php echo esc_url(add_query_arg(array_merge($export_params, ['export' => 'csv']), admin_url('admin.php'))); ?>\" class="button button-primary">📊 Export to CSV</a>
+                <a href=\"<?php echo esc_url(add_query_arg(array_merge($export_params, ['export' => 'pdf']), admin_url('admin.php'))); ?>\" class="button button-primary">📄 Export to PDF</a>
                 <button type="button" class="button button-secondary" onclick="window.print();">🖨️ Print to PDF</button>
             </div>
         <?php
@@ -290,8 +290,8 @@ trait TimeGrowReportsMyTimeEntriesTrait {
         $member_table = $wpdb->prefix . TIMEGROW_PREFIX . 'team_member_tracker';
         $client_table = $wpdb->prefix . 'users';
 
-        $start_date = isset($_GET['start_date']) ? sanitize_text_field($_GET['start_date']) : '';
-        $end_date = isset($_GET['end_date']) ? sanitize_text_field($_GET['end_date']) : '';
+        $start_date = TimeGrowDateRanges::valid_date($_GET['start_date'] ?? '');
+        $end_date = TimeGrowDateRanges::valid_date($_GET['end_date'] ?? '');
 
         // Same query as main report
         $query = "SELECT
@@ -353,7 +353,7 @@ trait TimeGrowReportsMyTimeEntriesTrait {
         fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
 
         // Add CSV headers
-        fputcsv($output, [
+        TimeGrowCsv::put($output, [
             'Date',
             'Type',
             'Project',
@@ -369,7 +369,7 @@ trait TimeGrowReportsMyTimeEntriesTrait {
 
         // Add data rows
         foreach ($results as $entry) {
-            fputcsv($output, [
+            TimeGrowCsv::put($output, [
                 $entry->entry_date,
                 $entry->entry_type === 'MAN' ? 'Manual' : 'Clock',
                 $entry->project_name,
@@ -399,8 +399,8 @@ trait TimeGrowReportsMyTimeEntriesTrait {
         $member_table = $wpdb->prefix . TIMEGROW_PREFIX . 'team_member_tracker';
         $client_table = $wpdb->prefix . 'users';
 
-        $start_date = isset($_GET['start_date']) ? sanitize_text_field($_GET['start_date']) : '';
-        $end_date = isset($_GET['end_date']) ? sanitize_text_field($_GET['end_date']) : '';
+        $start_date = TimeGrowDateRanges::valid_date($_GET['start_date'] ?? '');
+        $end_date = TimeGrowDateRanges::valid_date($_GET['end_date'] ?? '');
 
         // Same query as main report
         $query = "SELECT

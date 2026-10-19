@@ -477,7 +477,7 @@ trait TimeGrowReportsMonthlyPnlTrait {
 
         // Export buttons
         echo '<div style="margin-top: 30px; display: flex; gap: 10px;">';
-        echo '<a href="' . admin_url('admin.php?page=' . $_GET['page'] . '&report_slug=monthly_profit_loss&year=' . $selected_year . '&export=csv') . '" class="button button-primary">📊 Export to CSV</a>';
+        echo '<a href="' . esc_url(add_query_arg(['page' => TIMEGROW_PARENT_MENU . '-nexus-a-report', 'report_slug' => 'monthly_profit_loss', 'year' => (int) $selected_year, 'export' => 'csv'], admin_url('admin.php'))) . '" class="button button-primary">📊 Export to CSV</a>';
         echo '<button type="button" class="button button-primary" onclick="window.print();">🖨️ Print to PDF</button>';
         echo '</div>';
     }
@@ -589,10 +589,10 @@ trait TimeGrowReportsMonthlyPnlTrait {
 
         // Header row
         $header = ['Category', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Total'];
-        fputcsv($output, $header);
+        TimeGrowCsv::put($output, $header);
 
         // INCOME Section
-        fputcsv($output, ['INCOME']);
+        TimeGrowCsv::put($output, ['INCOME']);
 
         // WooCommerce Invoices
         $invoice_row = $monthly_data['income']['invoices'];
@@ -604,7 +604,7 @@ trait TimeGrowReportsMonthlyPnlTrait {
             $row[] = number_format($amount, 2);
         }
         $row[] = number_format($year_total, 2);
-        fputcsv($output, $row);
+        TimeGrowCsv::put($output, $row);
 
         // Total Income
         $row = ['Total Income'];
@@ -615,13 +615,13 @@ trait TimeGrowReportsMonthlyPnlTrait {
             $row[] = number_format($amount, 2);
         }
         $row[] = number_format($total_income_year, 2);
-        fputcsv($output, $row);
+        TimeGrowCsv::put($output, $row);
 
         // Empty row
-        fputcsv($output, []);
+        TimeGrowCsv::put($output, []);
 
         // EXPENSES Section
-        fputcsv($output, ['EXPENSES']);
+        TimeGrowCsv::put($output, ['EXPENSES']);
 
         $total_expense_by_month = array_fill(1, 12, 0);
         $expense_categories = $monthly_data['expenses'];
@@ -636,7 +636,7 @@ trait TimeGrowReportsMonthlyPnlTrait {
                 $row[] = number_format($amount, 2);
             }
             $row[] = number_format($category_total, 2);
-            fputcsv($output, $row);
+            TimeGrowCsv::put($output, $row);
         }
 
         // Total Expenses
@@ -648,10 +648,10 @@ trait TimeGrowReportsMonthlyPnlTrait {
             $row[] = number_format($amount, 2);
         }
         $row[] = number_format($total_expenses_year, 2);
-        fputcsv($output, $row);
+        TimeGrowCsv::put($output, $row);
 
         // Empty row
-        fputcsv($output, []);
+        TimeGrowCsv::put($output, []);
 
         // NET INCOME
         $row = ['NET INCOME'];
@@ -664,7 +664,7 @@ trait TimeGrowReportsMonthlyPnlTrait {
             $row[] = number_format($net, 2);
         }
         $row[] = number_format($net_income_year, 2);
-        fputcsv($output, $row);
+        TimeGrowCsv::put($output, $row);
 
         fclose($output);
         exit;

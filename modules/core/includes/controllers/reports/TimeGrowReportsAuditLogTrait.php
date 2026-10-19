@@ -71,7 +71,7 @@ trait TimeGrowReportsAuditLogTrait {
         global $wpdb;
         TimeGrowTimeEntryAudit::maybe_create_table();
 
-        $start_date = isset($_GET['start_date']) ? sanitize_text_field($_GET['start_date']) : '';
+        $start_date = TimeGrowDateRanges::valid_date($_GET['start_date'] ?? '');
         $end_date   = isset($_GET['end_date']) ? sanitize_text_field($_GET['end_date']) : '';
         $action     = isset($_GET['filter_action']) ? sanitize_key($_GET['filter_action']) : '';
         $member_id  = isset($_GET['filter_member']) ? intval($_GET['filter_member']) : 0;
@@ -218,7 +218,7 @@ trait TimeGrowReportsAuditLogTrait {
                                 </td>
                                 <td><?php echo esc_html($what ?: '—'); ?></td>
                                 <td><?php echo esc_html($row->user_name ?: ($row->user_id ? 'User #' . (int) $row->user_id : 'System')); ?></td>
-                                <td><?php echo esc_html(ucfirst($row->source)); ?></td>
+                                <td><?php echo esc_html(ucfirst($row->source) . (!empty($row->approval) ? ' · ' . ['click' => 'clicked to approve', 'spoken' => 'said yes', 'typed' => 'typed yes'][$row->approval] : '')); ?></td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
@@ -246,7 +246,7 @@ trait TimeGrowReportsAuditLogTrait {
                 <?php else : ?>
                     The audit log records changes from now on; changes made before it was installed were not recorded.
                 <?php endif; ?>
-                "From" is where the change was made: Web, Voice, Mobile, or System (automatic, like an invoice being cancelled).
+                "From" is where the change was made: Web, Voice, Mobile, or System (automatic, like an invoice being cancelled). For Voice it also shows how the person approved it.
             </p>
 
             <!-- Export buttons at bottom -->
@@ -267,17 +267,17 @@ trait TimeGrowReportsAuditLogTrait {
         $output = fopen('php://output', 'w');
         fprintf($output, chr(0xEF) . chr(0xBB) . chr(0xBF)); // UTF-8 BOM for Excel
 
-        fputcsv($output, ['Time Entry Audit Log']);
-        fputcsv($output, ['Generated:', date('F j, Y g:i A')]);
+        TimeGrowCsv::put($output, ['Time Entry Audit Log']);
+        TimeGrowCsv::put($output, ['Generated:', date('F j, Y g:i A')]);
         if ($start_date !== '' || $end_date !== '') {
-            fputcsv($output, ['Date Range: ' . ($start_date !== '' ? date('M j, Y', strtotime($start_date)) : 'Beginning') . ' to ' . ($end_date !== '' ? date('M j, Y', strtotime($end_date)) : 'Present')]);
+            TimeGrowCsv::put($output, ['Date Range: ' . ($start_date !== '' ? date('M j, Y', strtotime($start_date)) : 'Beginning') . ' to ' . ($end_date !== '' ? date('M j, Y', strtotime($end_date)) : 'Present')]);
         }
-        fputcsv($output, []);
-        fputcsv($output, ['When', 'Change', 'Entry', 'Team Member', 'Project', 'What Changed', 'Invoice', 'By', 'From']);
+        TimeGrowCsv::put($output, []);
+        TimeGrowCsv::put($output, ['When', 'Change', 'Entry', 'Team Member', 'Project', 'What Changed', 'Invoice', 'By', 'From']);
         $labels = self::audit_actions();
         foreach ($rows as $row) {
             $changes = json_decode((string) $row->changes, true) ?: [];
-            fputcsv($output, [
+            TimeGrowCsv::put($output, [
                 $row->created_at,
                 $labels[$row->action][0] ?? $row->action,
                 (int) $row->entry_id,
@@ -286,7 +286,7 @@ trait TimeGrowReportsAuditLogTrait {
                 TimeGrowTimeEntryAudit::describe($changes),
                 $row->order_id ? (int) $row->order_id : '',
                 $row->user_name ?: ($row->user_id ? 'User #' . (int) $row->user_id : 'System'),
-                ucfirst($row->source),
+                ucfirst($row->source) . (!empty($row->approval) ? ' (approved: ' . $row->approval . ')' : ''),
             ]);
         }
         fclose($output);

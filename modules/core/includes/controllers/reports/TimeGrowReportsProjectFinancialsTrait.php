@@ -300,15 +300,15 @@ trait TimeGrowReportsProjectFinancialsTrait {
         $output = fopen('php://output', 'w');
         fprintf($output, chr(0xEF) . chr(0xBB) . chr(0xBF)); // UTF-8 BOM for Excel
 
-        fputcsv($output, ['Project Financials']);
-        fputcsv($output, ['Generated:', date('F j, Y g:i A')]);
+        TimeGrowCsv::put($output, ['Project Financials']);
+        TimeGrowCsv::put($output, ['Generated:', date('F j, Y g:i A')]);
         if ($start_date !== '' || $end_date !== '') {
-            fputcsv($output, ['Date Range: ' . ($start_date !== '' ? date('M j, Y', strtotime($start_date)) : 'Beginning') . ' to ' . ($end_date !== '' ? date('M j, Y', strtotime($end_date)) : 'Present')]);
+            TimeGrowCsv::put($output, ['Date Range: ' . ($start_date !== '' ? date('M j, Y', strtotime($start_date)) : 'Beginning') . ' to ' . ($end_date !== '' ? date('M j, Y', strtotime($end_date)) : 'Present')]);
         }
-        fputcsv($output, []);
-        fputcsv($output, ['Project', 'Client', 'Hours', 'Billable Hours', 'Rate', 'Value', 'Billed', 'Not Billed', 'Expenses', 'Net', 'Estimate (h)', 'All Hours', 'Budget Used %']);
+        TimeGrowCsv::put($output, []);
+        TimeGrowCsv::put($output, ['Project', 'Client', 'Hours', 'Billable Hours', 'Rate', 'Value', 'Billed', 'Not Billed', 'Expenses', 'Net', 'Estimate (h)', 'All Hours', 'Budget Used %']);
         foreach ($rows as $r) {
-            fputcsv($output, [
+            TimeGrowCsv::put($output, [
                 $r->project_name, $r->client_name ?: 'No Client',
                 number_format($r->hours, 2, '.', ''), number_format($r->billable_hours, 2, '.', ''), number_format($r->rate, 2, '.', ''),
                 number_format($r->value, 2, '.', ''), number_format($r->billed, 2, '.', ''), number_format($r->unbilled, 2, '.', ''),
@@ -317,8 +317,8 @@ trait TimeGrowReportsProjectFinancialsTrait {
                 $r->budget_used === null ? '' : number_format($r->budget_used, 1, '.', ''),
             ]);
         }
-        fputcsv($output, []);
-        fputcsv($output, ['TOTAL', '', number_format($totals['hours'], 2, '.', ''), number_format($totals['billable_hours'], 2, '.', ''), '',
+        TimeGrowCsv::put($output, []);
+        TimeGrowCsv::put($output, ['TOTAL', '', number_format($totals['hours'], 2, '.', ''), number_format($totals['billable_hours'], 2, '.', ''), '',
             number_format($totals['value'], 2, '.', ''), number_format($totals['billed'], 2, '.', ''), number_format($totals['unbilled'], 2, '.', ''),
             number_format($totals['expenses'], 2, '.', ''), number_format($totals['net'], 2, '.', ''), '', '', '']);
         fclose($output);

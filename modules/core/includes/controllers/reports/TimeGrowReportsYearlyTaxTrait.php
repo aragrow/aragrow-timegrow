@@ -642,7 +642,7 @@ trait TimeGrowReportsYearlyTaxTrait {
 
         // Export buttons
         echo '<div style="margin-top: 30px; display: flex; gap: 10px;">';
-        echo '<a href="' . admin_url('admin.php?page=' . $_GET['page'] . '&report_slug=yearly_tax_report&year=' . $selected_year . '&export=csv') . '" class="button button-primary">📊 Export to CSV</a>';
+        echo '<a href="' . esc_url(add_query_arg(['page' => TIMEGROW_PARENT_MENU . '-nexus-a-report', 'report_slug' => 'yearly_tax_report', 'year' => (int) $selected_year, 'export' => 'csv'], admin_url('admin.php'))) . '" class="button button-primary">📊 Export to CSV</a>';
         echo '<button type="button" class="button button-primary" onclick="window.print();">🖨️ Print to PDF</button>';
         echo '</div>';
 
@@ -1096,11 +1096,11 @@ trait TimeGrowReportsYearlyTaxTrait {
         $output = fopen('php://output', 'w');
 
         // Expenses Section
-        fputcsv($output, ['EXPENSES - ' . $year]);
-        fputcsv($output, ['Date', 'Name', 'Category', 'Amount', 'Payment Method', 'Assigned To', 'Description']);
+        TimeGrowCsv::put($output, ['EXPENSES - ' . $year]);
+        TimeGrowCsv::put($output, ['Date', 'Name', 'Category', 'Amount', 'Payment Method', 'Assigned To', 'Description']);
 
         foreach ($expenses as $expense) {
-            fputcsv($output, [
+            TimeGrowCsv::put($output, [
                 $expense->expense_date,
                 $expense->expense_name,
                 $expense->category_name,
@@ -1112,14 +1112,14 @@ trait TimeGrowReportsYearlyTaxTrait {
         }
 
         // Blank row
-        fputcsv($output, []);
+        TimeGrowCsv::put($output, []);
 
         // WooCommerce Invoices Section
-        fputcsv($output, ['WOOCOMMERCE INVOICES - ' . $year]);
-        fputcsv($output, ['Order ID', 'Date', 'Client', 'Status', 'Total Amount', 'Payment Method', 'Items']);
+        TimeGrowCsv::put($output, ['WOOCOMMERCE INVOICES - ' . $year]);
+        TimeGrowCsv::put($output, ['Order ID', 'Date', 'Client', 'Status', 'Total Amount', 'Payment Method', 'Items']);
 
         foreach ($invoices as $invoice) {
-            fputcsv($output, [
+            TimeGrowCsv::put($output, [
                 $invoice->order_id,
                 $invoice->date_created,
                 $invoice->client_name,

@@ -100,7 +100,7 @@ trait TimeGrowReportsUnbilledTrait {
 
     private function generate_unbilled_time($current_user) {
         global $wpdb;
-        $start_date = isset($_GET['start_date']) ? sanitize_text_field($_GET['start_date']) : '';
+        $start_date = TimeGrowDateRanges::valid_date($_GET['start_date'] ?? '');
         $end_date   = isset($_GET['end_date']) ? sanitize_text_field($_GET['end_date']) : '';
         $client_id  = isset($_GET['filter_client']) ? intval($_GET['filter_client']) : 0;
         $rows   = self::unbilled_rows($start_date, $end_date, $client_id);
@@ -263,15 +263,15 @@ trait TimeGrowReportsUnbilledTrait {
         $output = fopen('php://output', 'w');
         fprintf($output, chr(0xEF) . chr(0xBB) . chr(0xBF)); // UTF-8 BOM for Excel
 
-        fputcsv($output, ['Unbilled Time (WIP)']);
-        fputcsv($output, ['Generated:', date('F j, Y g:i A')]);
+        TimeGrowCsv::put($output, ['Unbilled Time (WIP)']);
+        TimeGrowCsv::put($output, ['Generated:', date('F j, Y g:i A')]);
         if ($start_date !== '' || $end_date !== '') {
-            fputcsv($output, ['Date Range: ' . ($start_date !== '' ? date('M j, Y', strtotime($start_date)) : 'Beginning') . ' to ' . ($end_date !== '' ? date('M j, Y', strtotime($end_date)) : 'Present')]);
+            TimeGrowCsv::put($output, ['Date Range: ' . ($start_date !== '' ? date('M j, Y', strtotime($start_date)) : 'Beginning') . ' to ' . ($end_date !== '' ? date('M j, Y', strtotime($end_date)) : 'Present')]);
         }
-        fputcsv($output, []);
-        fputcsv($output, ['Client', 'Project', 'Hours', 'Rate', 'Amount', 'Entries', 'Oldest Entry', 'Newest Entry']);
+        TimeGrowCsv::put($output, []);
+        TimeGrowCsv::put($output, ['Client', 'Project', 'Hours', 'Rate', 'Amount', 'Entries', 'Oldest Entry', 'Newest Entry']);
         foreach ($rows as $row) {
-            fputcsv($output, [
+            TimeGrowCsv::put($output, [
                 $row->client_name ?: 'No Client',
                 $row->project_name,
                 number_format($row->hours, 2, '.', ''),
@@ -282,8 +282,8 @@ trait TimeGrowReportsUnbilledTrait {
                 date('Y-m-d', strtotime($row->newest_entry)),
             ]);
         }
-        fputcsv($output, []);
-        fputcsv($output, ['TOTAL', '', number_format($totals['hours'], 2, '.', ''), '', number_format($totals['amount'], 2, '.', ''), (int) $totals['entries'], '', '']);
+        TimeGrowCsv::put($output, []);
+        TimeGrowCsv::put($output, ['TOTAL', '', number_format($totals['hours'], 2, '.', ''), '', number_format($totals['amount'], 2, '.', ''), (int) $totals['entries'], '', '']);
         fclose($output);
         exit;
     }
