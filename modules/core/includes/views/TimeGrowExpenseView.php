@@ -86,14 +86,14 @@ class TimeGrowExpenseView {
                     <option value=""><?php esc_html_e('All Categories', 'timegrow'); ?></option>
                     <?php foreach ((array) ($filter_options['categories'] ?? []) as $heading) : ?>
                         <?php if (!empty($heading->children)) : ?>
-                            <optgroup label="<?php echo esc_attr($heading->name); ?>">
+                            <optgroup label="<?php echo esc_attr($heading->name . (empty($heading->is_active) ? ' ' . __('(inactive)', 'timegrow') : '')); ?>">
                                 <option value="<?php echo (int) $heading->ID; ?>" <?php selected((int) $current_filters['filter_category'], (int) $heading->ID); ?>><?php echo esc_html(sprintf(__('All in %s', 'timegrow'), $heading->name)); ?></option>
                                 <?php foreach ($heading->children as $child) : ?>
-                                    <option value="<?php echo (int) $child->ID; ?>" <?php selected((int) $current_filters['filter_category'], (int) $child->ID); ?>><?php echo esc_html($child->name); ?></option>
+                                    <option value="<?php echo (int) $child->ID; ?>" <?php selected((int) $current_filters['filter_category'], (int) $child->ID); ?>><?php echo esc_html($child->name . (empty($child->is_active) ? ' ' . __('(inactive)', 'timegrow') : '')); ?></option>
                                 <?php endforeach; ?>
                             </optgroup>
                         <?php else : ?>
-                            <option value="<?php echo (int) $heading->ID; ?>" <?php selected((int) $current_filters['filter_category'], (int) $heading->ID); ?>><?php echo esc_html($heading->name); ?></option>
+                            <option value="<?php echo (int) $heading->ID; ?>" <?php selected((int) $current_filters['filter_category'], (int) $heading->ID); ?>><?php echo esc_html($heading->name . (empty($heading->is_active) ? ' ' . __('(inactive)', 'timegrow') : '')); ?></option>
                         <?php endif; ?>
                     <?php endforeach; ?>
                 </select>
