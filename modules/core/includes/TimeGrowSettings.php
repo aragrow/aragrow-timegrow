@@ -903,18 +903,21 @@ class TimeGrowSettings {
                 </div>
                 <div class="timegrow-help-content">
                     <h3>Need Help?</h3>
-                    <p>Check out our documentation or contact support for assistance with TimeGrow settings.</p>
+                    <p><?php esc_html_e('Read the User Guide, or ask the AI assistant how to do something.', 'timegrow'); ?></p>
                 </div>
                 <div class="timegrow-help-links">
-                    <a href="#" class="timegrow-help-link" target="_blank">
+                    <a href="<?php echo esc_url(TimeGrowUserGuidePage::url()); ?>" class="timegrow-help-link">
                         <span class="dashicons dashicons-book"></span>
-                        Documentation
+                        <?php esc_html_e('User Guide', 'timegrow'); ?>
                     </a>
-                    <a href="#" class="timegrow-help-link" target="_blank">
-                        <span class="dashicons dashicons-email"></span>
-                        Contact Support
-                    </a>
+                    <?php if (class_exists('TimeGrowNexusVoice') && TimeGrowNexusVoice::available_for_current_user()) : ?>
+                        <a href="#" class="timegrow-help-link tg-open-assistant">
+                            <span class="dashicons dashicons-microphone"></span>
+                            <?php esc_html_e('Ask the AI assistant', 'timegrow'); ?>
+                        </a>
+                    <?php endif; ?>
                 </div>
+                <?php TimeGrowUserGuidePage::assistant_script(); ?>
             </div>
         </div>
         <?php

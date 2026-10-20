@@ -12,7 +12,7 @@ if (!defined('ABSPATH')) {
  *   Dashboard (the Nexus dashboard, opened by the TimeGrow item itself)
  *   Work:  Time Entries, Expenses, Reports
  *   Setup: Clients, Projects, Team Members, Companies, Expense Categories
- *   Settings
+ *   Settings, User Guide
  * The group names are headings drawn with CSS on the first item each person can see, so they are
  * not links. Items added by other code go before Settings. The old placeholder page and the old
  * Reports list forward to the Nexus pages. Add / edit pages keep their list's menu item highlighted.
@@ -25,7 +25,7 @@ class TimeFlies_Admin_Menu {
         ''      => ['nexus'],
         'work'  => ['time-entries-list', 'expenses-list', 'nexus-reports'],
         'setup' => ['clients-list', 'projects-list', 'team-member-list', 'companies-list', 'expense-categories'],
-        'end'   => ['settings'],
+        'end'   => ['settings', 'user-guide'],
     ];
 
     /** Pages not in the menu, and the menu item that stays highlighted on them (both without the prefix). */
