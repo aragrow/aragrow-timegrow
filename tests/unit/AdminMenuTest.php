@@ -8,6 +8,15 @@ require_once dirname( __DIR__, 2 ) . '/modules/core/includes/admin-menu.php';
 /** The TimeGrow menu: grouped by Dashboard, Work, Setup and Settings, with headings on visible items. */
 class AdminMenuTest extends TestCase {
 
+    public function test_pages_are_matched_by_slug_whatever_the_menu_title() {
+        foreach ( [ 'timegrow_page_timegrow-expenses-list', 'admin_page_timegrow-expenses-list', 'zeiterfassung_page_timegrow-expenses-list' ] as $hook ) {
+            $this->assertTrue( TimeFlies_Admin_Menu::is_page( $hook, 'timegrow-expenses-list' ), $hook );
+        }
+        $this->assertFalse( TimeFlies_Admin_Menu::is_page( 'timegrow_page_timegrow-expenses-list-old', 'timegrow-expenses-list' ) );
+        $this->assertFalse( TimeFlies_Admin_Menu::is_page( 'timegrow_page_timegrow-expense-add', 'timegrow-expenses' ) );
+        $this->assertFalse( TimeFlies_Admin_Menu::is_page( 'toplevel_page_timegrow', '' ) );
+    }
+
     private function item( $slug, $cap = 'owner' ) { return [ ucfirst( $slug ), $cap, $slug === '' ? 'timegrow' : 'timegrow-' . $slug, '' ]; }
 
     private function menu() {

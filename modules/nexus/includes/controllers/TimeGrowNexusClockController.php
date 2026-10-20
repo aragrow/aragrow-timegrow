@@ -91,7 +91,7 @@ class TimeGrowTimeEntryController { // Or a more specific ClockController
         // if ($hook != $timegrow_clock_page_hook) return;
         $current_screen = get_current_screen();
         // Example: if slug is 'timegrow-time-entry' under parent 'timegrow-nexus'
-        if ($current_screen && $current_screen->id !== 'timegrow_page_timegrow-time-entry' && $current_screen->id !== 'toplevel_page_timegrow-nexus_page_timegrow-time-entry') {
+        if ($current_screen && !TimeFlies_Admin_Menu::is_page($current_screen->id, 'timegrow-time-entry')) {
             // Check your actual screen ID in the admin area to confirm
             // timegrow_log("Screen ID: " . $current_screen->id);
             // return; // Uncomment after confirming your screen ID

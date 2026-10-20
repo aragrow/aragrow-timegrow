@@ -87,6 +87,17 @@ class TimeFlies_Admin_Menu {
      * @param callable $can   fn(capability) => bool.
      * @return array The items in order; the first visible item of Work, Setup and Settings has class tg-menu-work / -setup / -end.
      */
+    /**
+     * True when an admin page hook (or screen ID) is the TimeGrow page with this slug. WordPress builds
+     * the hook from the parent menu's title ("timegrow_page_…", "admin_page_…" for hidden pages), so
+     * the slug at the end is compared, and a renamed or translated menu still matches. Pure.
+     */
+    public static function is_page($hook, $slug) {
+        $hook = (string) $hook;
+        $end  = '_page_' . $slug;
+        return $slug !== '' && strlen($hook) > strlen($end) && substr($hook, -strlen($end)) === $end;
+    }
+
     public static function ordered(array $items, callable $can, $prefix = 'timegrow') {
         $short = function ($slug) use ($prefix) {
             return $slug === $prefix ? '' : (strpos($slug, $prefix . '-') === 0 ? substr($slug, strlen($prefix) + 1) : null);

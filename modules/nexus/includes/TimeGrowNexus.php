@@ -521,7 +521,7 @@ class TimeGrowNexus{
             timegrow_log('Enqueued timegrow-modern.css for hook: ' . $hook);
         }
 
-        if ($hook == "admin_page_timegrow-nexus-clock" || $hook == "timegrow_page_timegrow-nexus-clock") {
+        if (TimeFlies_Admin_Menu::is_page($hook, 'timegrow-nexus-clock')) {
 
             wp_enqueue_script(
                 'timegrow-nexus-project-clients', // shared: client on project tiles and search
@@ -554,7 +554,7 @@ class TimeGrowNexus{
                     ]
                 );
 
-        } elseif ($hook == "admin_page_timegrow-nexus-manual" || $hook == "timegrow_page_timegrow-nexus-manual") {
+        } elseif (TimeFlies_Admin_Menu::is_page($hook, 'timegrow-nexus-manual')) {
 
             wp_enqueue_script(
                 'timegrow-nexus-project-clients', // shared: client on project tiles and search
@@ -589,7 +589,7 @@ class TimeGrowNexus{
                 $plugin_version
             );
 
-        } elseif ($hook == "admin_page_timegrow-nexus-expenses" || $hook == "timegrow_page_timegrow-nexus-expenses") {
+        } elseif (TimeFlies_Admin_Menu::is_page($hook, 'timegrow-nexus-expenses')) {
             wp_enqueue_script(
                 'timegrow-nexus-expense-script', // New handle, matches wp_localize_script
                 TIMEGROW_NEXUS_BASE_URI . 'assets/js/expense-recorder.js', // Path to your new JS file
@@ -616,9 +616,9 @@ class TimeGrowNexus{
                 $plugin_version
             );
           
-        } elseif ($hook == "admin_page_timegrow-nexus-reports" || $hook == "timegrow_page_timegrow-nexus-reports") {
+        } elseif (TimeFlies_Admin_Menu::is_page($hook, 'timegrow-nexus-reports')) {
             // Modern style already enqueued above
-        } elseif ($hook == "admin_page_timegrow-nexus-a-report" || $hook == "timegrow_page_timegrow-nexus-a-report") {
+        } elseif (TimeFlies_Admin_Menu::is_page($hook, 'timegrow-nexus-a-report')) {
             // Enqueue forms.css for .timegrow-page wrapper styles (shared from core module)
             wp_enqueue_style(
                 'timegrow-forms-style',

@@ -43,7 +43,7 @@ class TimeGrowSettings {
      */
     public function enqueue_settings_styles($hook) {
         // Only load on settings page
-        if ($hook !== 'timegrow_page_' . TIMEGROW_PARENT_MENU . '-settings') {
+        if (!TimeFlies_Admin_Menu::is_page($hook, TIMEGROW_PARENT_MENU . '-settings')) {
             return;
         }
 

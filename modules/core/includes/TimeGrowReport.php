@@ -50,11 +50,7 @@ class TimeGrowReport {
         timegrow_log(__CLASS__.'::'.__FUNCTION__ . ' - Hook: ' . $hook);
 
         // Only enqueue on the individual report page (timegrow-reports)
-        $report_pages = [
-            'admin_page_' . TIMEGROW_PARENT_MENU . '-reports',
-        ];
-
-        if (!in_array($hook, $report_pages)) {
+        if (!TimeFlies_Admin_Menu::is_page($hook, TIMEGROW_PARENT_MENU . '-reports')) {
             return; // Exit early if not on report pages
         }
 

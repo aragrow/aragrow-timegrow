@@ -67,15 +67,13 @@ class TimeGrowExpense {
     public function enqueue_scripts_styles($hook) {
         timegrow_log(__CLASS__.'::'.__FUNCTION__ . ' - Hook: ' . $hook);
 
-        // Only enqueue on expense-related pages. Hidden pages have an "admin_page_" hook, pages in the
-        // TimeGrow menu (the expenses list) a "timegrow_page_" one.
-        $expense_pages = [];
+        // Only enqueue on expense-related pages (hidden ones and the list in the TimeGrow menu)
+        $is_expense_page = false;
         foreach (['expenses', 'expenses-list', 'expense-add', 'expense-edit'] as $page) {
-            $expense_pages[] = 'admin_page_' . TIMEGROW_PARENT_MENU . '-' . $page;
-            $expense_pages[] = 'timegrow_page_' . TIMEGROW_PARENT_MENU . '-' . $page;
+            $is_expense_page = $is_expense_page || TimeFlies_Admin_Menu::is_page($hook, TIMEGROW_PARENT_MENU . '-' . $page);
         }
 
-        if (!in_array($hook, $expense_pages)) {
+        if (!$is_expense_page) {
             return; // Exit early if not on expense pages
         }
 
