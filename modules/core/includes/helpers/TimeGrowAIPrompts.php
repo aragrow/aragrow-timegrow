@@ -29,6 +29,12 @@ class TimeGrowAIPrompts {
                 'tab'   => 'voice',
                 'adds'  => __('the current state of the chat, the conversation so far, the person\'s projects and clients, and the new message', 'timegrow'),
             ],
+            'help' => [
+                'name'  => __('Voice AI: help answers', 'timegrow'),
+                'icon'  => 'editor-help',
+                'tab'   => 'voice',
+                'adds'  => __('the person\'s question and the help topics found (Settings > Knowledge Base). {agent} is replaced by the assistant\'s name', 'timegrow'),
+            ],
             'receipts' => [
                 'name'  => __('Receipt Reader', 'timegrow'),
                 'icon'  => 'media-document',
@@ -47,6 +53,9 @@ class TimeGrowAIPrompts {
         if ($feature === 'voice') {
             return class_exists('TimeGrowNexusVoicePrompt') ? TimeGrowNexusVoicePrompt::default_conversation_instructions() : '';
         }
+        if ($feature === 'help') {
+            return class_exists('TimeGrowNexusVoicePrompt') ? TimeGrowNexusVoicePrompt::default_help_instructions() : '';
+        }
         if ($feature === 'receipts') {
             return class_exists('TimeGrowAIReceiptAnalyzer') ? TimeGrowAIReceiptAnalyzer::default_instructions() : '';
         }
@@ -57,6 +66,7 @@ class TimeGrowAIPrompts {
     public static function required_keys($feature) {
         return [
             'voice'    => ['intent', 'time', 'question', 'new_client', 'new_project', 'client_id', 'project_id', 'date', 'hours', 'billable', 'description'],
+            'help'     => ['answered', 'answer', 'topic'],
             'receipts' => ['amount', 'date', 'vendor', 'category_id', 'description', 'confidence'],
         ][$feature] ?? [];
     }

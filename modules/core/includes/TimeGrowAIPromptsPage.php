@@ -5,7 +5,7 @@ if (!defined('ABSPATH')) {
 }
 
 /**
- * Settings > AI Prompts: the prompt versions for each AI tool (Voice AI, Receipt Reader).
+ * Settings > AI Prompts: the prompt versions for each AI tool (TimeGrowAIPrompts::tools()).
  *
  * Each version is dated and has a status: Draft (can be edited or deleted), Active (in use, one
  * per tool) or Archived (used before, kept as history). Activating a version archives the one in
@@ -32,7 +32,7 @@ class TimeGrowAIPromptsPage {
         add_action('admin_post_timegrow_ai_prompt_import_apply', [__CLASS__, 'handle_import_apply']);
     }
 
-    /** Download every prompt version (both tools, all statuses). */
+    /** Download every prompt version (every tool, all statuses). */
     public static function handle_export() {
         if (!current_user_can(TIMEGROW_OWNER_CAP)) {
             wp_die(esc_html__('You are not allowed to change AI prompts.', 'timegrow'), 403);

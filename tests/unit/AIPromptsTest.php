@@ -44,6 +44,9 @@ class AIPromptsTest extends TestCase {
     public function test_only_known_tools() {
         $this->assertTrue( TimeGrowAIPrompts::is_tool( 'voice' ) );
         $this->assertFalse( TimeGrowAIPrompts::is_tool( 'payroll' ) );
+        // The help prompt is a tool too, and its built-in text asks for every key the code reads
+        $this->assertTrue( TimeGrowAIPrompts::is_tool( 'help' ) );
+        $this->assertSame( [], TimeGrowAIPrompts::missing_keys( 'help', TimeGrowAIPrompts::default_instructions( 'help' ) ) );
         $this->assertSame( '', TimeGrowAIPrompts::default_instructions( 'payroll' ) );
     }
 }

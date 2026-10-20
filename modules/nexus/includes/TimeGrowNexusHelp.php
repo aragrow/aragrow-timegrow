@@ -304,9 +304,10 @@ class TimeGrowNexusHelp {
         }
         $privacy = class_exists('TimeGrowNexusVoice') ? TimeGrowNexusVoice::privacy() : null;
         $prompt  = TimeGrowNexusVoicePrompt::help_prompt($question, $topics);
+        $system  = TimeGrowNexusVoicePrompt::help_instructions($agent);
         $answer = TimeGrowAI::request([
             'feature'    => 'voice',
-            'system'     => TimeGrowNexusVoicePrompt::help_instructions($agent),
+            'system'     => $system,
             'prompt'     => $privacy ? $privacy->mask($prompt) : $prompt,
             'json'       => true,
             'max_tokens' => 260,
@@ -316,7 +317,7 @@ class TimeGrowNexusHelp {
             return $fallback;
         }
         $json = TimeGrowAI::json_from_text($answer['text']);
-        [$text, $linked] = self::reply_text(is_array($json) ? $json : [], $topics);
+        [$text, $linked] = self::reply_text(is_array($json) ? $json : [], $topics, $system);
         if ($text === '') {
             return $fallback;
         }
@@ -328,18 +329,20 @@ class TimeGrowNexusHelp {
      * The reply from the AI's help answer, and the topics to link: ['', …] to use the best topic's
      * summary instead. When the help does not answer the question, the reply is written here: it names
      * a related topic the AI picked from those sent, or says the help doesn't cover it (no links). An
-     * answer that repeats the instructions ("the help given", "return JSON") is not shown. Pure apart
-     * from wp_strip_all_tags().
+     * answer that copies the instructions it was given is not shown. Pure apart from wp_strip_all_tags().
      *
-     * @param array   $json   { answered, answer, topic }
-     * @param array[] $topics The topics sent, best first.
+     * @param array   $json         { answered, answer, topic }
+     * @param array[] $topics       The topics sent, best first.
+     * @param string  $instructions The system instructions sent.
      * @return array [text, topics to link]
      */
-    public static function reply_text(array $json, array $topics) {
+    public static function reply_text(array $json, array $topics, $instructions = '') {
         if (!$topics) {
             return ['', []];
         }
-        if (($json['answered'] ?? null) === false) {
+        // false, or "false" / "no" from a model that sends text
+        $answered = isset($json['answered']) ? filter_var($json['answered'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) : null;
+        if ($answered === false) {
             foreach ($topics as $t) {
                 if (is_string($json['topic'] ?? null) && strcasecmp(trim($json['topic']), $t['title']) === 0) {
                     return [sprintf(__('I don\'t know that one. The closest help topic is "%s".', 'timegrow'), $t['title']), [$t]];
@@ -348,9 +351,29 @@ class TimeGrowNexusHelp {
             return [__('I don\'t know that one: the TimeGrow help doesn\'t cover it. Try asking another way, or ask your administrator.', 'timegrow'), []];
         }
         $text = is_string($json['answer'] ?? null) ? trim(wp_strip_all_tags($json['answer'])) : '';
-        if (preg_match('/\b(the help (given|text|provided)|(does|doesn\'t|do not) answer it|these instructions|my instructions|return (the )?json|closest topic)\b/i', $text)) {
+        if (self::copies($text, $instructions)) {
             return ['', $topics];
         }
         return [$text, $topics];
+    }
+
+    /** Words in a row that count as copying: an answer never needs this many of the instructions' words. */
+    const COPY_RUN = 6;
+
+    /** True when the text has COPY_RUN words in a row that are also in a row in the source. Pure. */
+    public static function copies($text, $source) {
+        $words = function ($s) { return preg_split('/[^a-z0-9\']+/', strtolower((string) $s), -1, PREG_SPLIT_NO_EMPTY); };
+        $src = $words($source);
+        $runs = [];
+        for ($i = 0; $i + self::COPY_RUN <= count($src); $i++) {
+            $runs[implode(' ', array_slice($src, $i, self::COPY_RUN))] = true;
+        }
+        $t = $words($text);
+        for ($i = 0; $i + self::COPY_RUN <= count($t); $i++) {
+            if (isset($runs[implode(' ', array_slice($t, $i, self::COPY_RUN))])) {
+                return true;
+            }
+        }
+        return false;
     }
 }
