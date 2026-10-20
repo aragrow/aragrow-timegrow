@@ -10,6 +10,10 @@ if ( ! function_exists( 'wp_strip_all_tags' ) ) {
 require_once dirname( __DIR__, 2 ) . '/modules/core/includes/helpers/TimeGrowProjectPicker.php';
 require_once dirname( __DIR__, 2 ) . '/modules/core/includes/helpers/TimeGrowAI.php';
 require_once dirname( __DIR__, 2 ) . '/modules/nexus/includes/TimeGrowNexusVoice.php';
+require_once dirname( __DIR__, 2 ) . '/modules/nexus/includes/TimeGrowNexusVoiceFormat.php';
+require_once dirname( __DIR__, 2 ) . '/modules/nexus/includes/TimeGrowNexusVoiceNames.php';
+require_once dirname( __DIR__, 2 ) . '/modules/nexus/includes/TimeGrowNexusVoicePrompt.php';
+require_once dirname( __DIR__, 2 ) . '/modules/nexus/includes/TimeGrowNexusVoiceAnswers.php';
 
 /**
  * Voice entry: checking what the AI heard before it fills the Manual form.
@@ -86,7 +90,7 @@ class VoiceEntryTest extends TestCase {
     }
 
     public function test_prompt_lists_only_the_persons_projects_and_today() {
-        $prompt = TimeGrowNexusVoice::build_prompt( 'two hours yesterday', [], '', $this->candidates, self::TODAY );
+        $prompt = TimeGrowNexusVoicePrompt::time_prompt( 'two hours yesterday', [], '', $this->candidates, self::TODAY );
 
         $this->assertStringContainsString( 'Today is 2026-10-16 (Friday)', $prompt );
         $this->assertStringContainsString( '"project_id":20', $prompt );

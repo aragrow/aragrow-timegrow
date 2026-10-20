@@ -45,7 +45,7 @@ class TimeGrowAIPrompts {
     /** The prompt built into TimeGrow, used when no saved version is active. */
     public static function default_instructions($feature) {
         if ($feature === 'voice') {
-            return class_exists('TimeGrowNexusAssistant') ? TimeGrowNexusAssistant::default_conversation_instructions() : '';
+            return class_exists('TimeGrowNexusVoicePrompt') ? TimeGrowNexusVoicePrompt::default_conversation_instructions() : '';
         }
         if ($feature === 'receipts') {
             return class_exists('TimeGrowAIReceiptAnalyzer') ? TimeGrowAIReceiptAnalyzer::default_instructions() : '';

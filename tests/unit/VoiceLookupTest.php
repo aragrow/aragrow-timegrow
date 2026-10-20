@@ -11,6 +11,10 @@ if ( ! function_exists( 'wp_strip_all_tags' ) ) {
 require_once dirname( __DIR__, 2 ) . '/modules/core/includes/helpers/TimeGrowProjectPicker.php';
 require_once dirname( __DIR__, 2 ) . '/modules/core/includes/helpers/TimeGrowAI.php';
 require_once dirname( __DIR__, 2 ) . '/modules/nexus/includes/TimeGrowNexusVoice.php';
+require_once dirname( __DIR__, 2 ) . '/modules/nexus/includes/TimeGrowNexusVoiceFormat.php';
+require_once dirname( __DIR__, 2 ) . '/modules/nexus/includes/TimeGrowNexusVoiceNames.php';
+require_once dirname( __DIR__, 2 ) . '/modules/nexus/includes/TimeGrowNexusVoicePrompt.php';
+require_once dirname( __DIR__, 2 ) . '/modules/nexus/includes/TimeGrowNexusVoiceAnswers.php';
 require_once dirname( __DIR__, 2 ) . '/modules/nexus/includes/TimeGrowNexusAssistant.php';
 require_once dirname( __DIR__, 2 ) . '/modules/nexus/includes/TimeGrowNexusLookup.php';
 
@@ -67,14 +71,14 @@ class VoiceLookupTest extends TestCase {
         $s = $this->spec( [ 'entity' => 'time_entries', 'period' => 'this_month' ] );
         $this->assertSame( [ '2026-10-01', false ], [ $s['from'], $s['clipped'] ], 'periods inside the 3 months stay' );
         $this->assertSame( '2026-07-17', $this->spec( [ 'entity' => 'invoices' ] )['from'], 'no period: the last 3 months' );
-        $this->assertSame( '2026-07-17', TimeGrowNexusAssistant::data_floor( '2026-10-17' ) );
+        $this->assertSame( '2026-07-17', TimeGrowNexusVoiceAnswers::data_floor( '2026-10-17' ) );
     }
 
     public function test_a_request_entirely_older_than_three_months_is_not_run() {
         $s = $this->spec( [ 'entity' => 'invoices', 'metric' => 'amount', 'from' => '2025-01-01', 'to' => '2025-12-31' ] );
         $this->assertTrue( $s['out_of_window'], 'last year: the person is told and pointed to the reports' );
         $this->assertFalse( $this->spec( [ 'entity' => 'invoices', 'period' => 'this_year' ] )['out_of_window'], 'this year: answered for the last 3 months' );
-        $this->assertSame( [ '2025-01-01', '2025-12-31' ], TimeGrowNexusAssistant::period_range( 'last_year', self::TODAY ) );
+        $this->assertSame( [ '2025-01-01', '2025-12-31' ], TimeGrowNexusVoiceFormat::period_range( 'last_year', self::TODAY ) );
         $this->assertContains( 'last_year', TimeGrowNexusAssistant::PERIODS );
     }
 }

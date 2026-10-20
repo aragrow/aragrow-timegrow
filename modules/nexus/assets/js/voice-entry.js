@@ -15,25 +15,23 @@
 // people can give several details at once, correct things, follow up or switch topic.
 // - Manual Time Entry page: the normal form saves the entry.
 // - Any other admin page: it saves through the same AJAX action (save_time_entry) without leaving the page.
+// Helpers, loaded first: voice-text.js (dates, times, hours), voice-speech.js (speaking and listening),
+// voice-approval.js (the click to approve) and voice-log.js (saving conversations for review).
 jQuery(document).ready(function($) {
   const cfg = window.timegrowVoice || {};
   const NAME = String(cfg.agentName || 'Sam Spade'); // TimeGrowNexusVoice::AGENT_NAME
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const on = v => v === true || v === 1 || v === '1'; // wp_localize_script sends true / false as "1" / ""
-  // Settings > AI Voice Entry > "Saving needs a click": a spoken or typed "yes" does not save, create or clock in/out
-  const NEEDS_CLICK = cfg.confirmClick === undefined || on(cfg.confirmClick);
+  // Human approval (voice-approval.js): with "Saving needs a click" on, a spoken or typed "yes" does not save, create or clock in/out
+  const Approval = window.TimeGrowVoiceApproval;
+  const NEEDS_CLICK = Approval.needsClick(cfg);
   let lastSpoken = false;   // the last answer came from the microphone (not typed)
   let approvedBy = '';      // how the current save was approved: click, spoken or typed (sent with the save)
-  const approval = chip => (chip ? 'click' : (lastSpoken ? 'spoken' : 'typed'));
+  const approval = chip => Approval.how(chip, lastSpoken);
   /** A "yes" in words when a click is needed: point at the button instead of saving. */
   function tapToApprove(state) {
-    const chips = {
-      confirm: [{ label: 'Save entry', value: 'save' }, { label: 'Change something', value: 'change' }, { label: 'Start over', value: 'restart' }],
-      'draft:confirm': [{ label: 'Create', value: 'create' }, { label: 'Change something', value: 'change' }, { label: 'Cancel', value: 'cancel' }],
-      'clock:confirm': [{ label: clock && clock.action === 'out' ? 'Clock out' : 'Clock in', value: 'save' }, { label: 'Change something', value: 'change' }, { label: 'Cancel', value: 'cancel' }],
-    }[state];
-    const button = chips[0].label;
-    return say(`To approve it, tap ${button} below.`, chips, `Please tap ${button} to approve it.`);
+    const p = Approval.tapToApprove(state, clock && clock.action);
+    return say(p.text, p.chips, p.spoken);
   }
   const $form = $('#timegrow-nexus-entry-form');
   const floating = !$form.length;
@@ -55,7 +53,8 @@ jQuery(document).ready(function($) {
   const changeChips = () => ASKED.concat(fields.start_time && fields.start_time !== 'skip' ? ['start_time'] : [])
     .map(k => ({ label: LABELS[k][0].toUpperCase() + LABELS[k].slice(1), value: k }));
   const LABELS = { client_id: 'client', project_id: 'project', date: 'day', start_time: 'start time', hours: 'hours', billable: 'billable', description: 'description' };
-  const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const speechLang = () => (cfg.lang || document.documentElement.lang || 'en-US');
+  const speech = window.TimeGrowVoiceSpeech.create({ lang: speechLang, siteVoice: cfg.voiceName });
 
   let fields = {};
   let draft = null;         // a client or project being added: { type, values }
@@ -64,41 +63,7 @@ jQuery(document).ready(function($) {
   // Saved for review (Settings > AI Conversations) when on: messages go to the server with each
   // request, or on their own a few seconds later, and when the chat closes or the page is left
   const saving = on(cfg.saveConversations);
-  let sessionKey = null;
-  let logQueue = [];
-  let logTimer = null;
-  function newKey() {
-    try { if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID(); } catch (e) {}
-    return 'tg-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 12);
-  }
-  function logTurn(who, text) {
-    if (!saving || !String(text || '').trim()) return;
-    if (!sessionKey) sessionKey = newKey();
-    logQueue.push({ who: who, text: String(text).slice(0, 2000) });
-    clearTimeout(logTimer);
-    logTimer = setTimeout(flushLog, 4000);
-  }
-  /** Adds the session and the waiting messages to a request, so they are saved in order. */
-  function withLog(data) {
-    if (!saving || !sessionKey) return data;
-    clearTimeout(logTimer);
-    data.session_key = sessionKey;
-    data.log_turns = JSON.stringify(logQueue.splice(0));
-    return data;
-  }
-  function flushLog(end) {
-    if (!saving || !sessionKey || (!logQueue.length && !end)) return;
-    const data = withLog({ action: 'timegrow_voice_log', nonce: cfg.nonce });
-    if (end) data.end = 1;
-    $.post(cfg.ajaxUrl, data);
-  }
-  window.addEventListener('pagehide', () => {
-    if (!saving || !sessionKey || !navigator.sendBeacon) return;
-    const form = new FormData();
-    const data = withLog({ action: 'timegrow_voice_log', nonce: cfg.nonce, end: 1 });
-    Object.keys(data).forEach(k => form.append(k, data[k]));
-    navigator.sendBeacon(cfg.ajaxUrl, form);
-  });
+  const log = window.TimeGrowVoiceLog.create({ enabled: saving, ajaxUrl: cfg.ajaxUrl, nonce: cfg.nonce, post: (url, data) => $.post(url, data) });
   let lastQuestion = null;  // the last question answered, for follow-ups ("and last week?")
   const history = [];       // what was said and asked, for the AI's context
   let appendSpeech = false; // the next spoken text waits for the current one instead of cutting it off
@@ -118,97 +83,10 @@ jQuery(document).ready(function($) {
 
   const clients = [];
   projects.forEach(p => { if (p.clientId && !clients.some(c => c.id === p.clientId)) clients.push({ id: p.clientId, name: p.clientName }); });
-  const norm = s => String(s || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
-
-  function matchOne(text, items, name) {
-    const t = norm(text);
-    if (!t) return null;
-    const exact = items.filter(i => norm(name(i)) === t);
-    if (exact.length === 1) return exact[0];
-    const partial = items.filter(i => norm(name(i)).indexOf(t) !== -1 || t.indexOf(norm(name(i))) !== -1);
-    return partial.length === 1 ? partial[0] : null;
-  }
-
-  function ymd(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
-  function todayDate() { const p = String(cfg.today || ymd(new Date())).split('-'); return new Date(+p[0], +p[1] - 1, +p[2]); }
-
-  function parseDate(text) {
-    const t = norm(text), today = todayDate();
-    if (/\btoday\b/.test(t)) return ymd(today);
-    if (/day before yesterday/.test(t)) { today.setDate(today.getDate() - 2); return ymd(today); }
-    if (/\byesterday\b/.test(t)) { today.setDate(today.getDate() - 1); return ymd(today); }
-    const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-    const day = days.findIndex(d => t.indexOf(d) !== -1);
-    if (day !== -1) {
-      let back = (today.getDay() - day + 7) % 7;
-      if (back === 0 && /\blast\b/.test(t)) back = 7; // "last Friday" said on a Friday
-      today.setDate(today.getDate() - back);
-      return ymd(today);
-    }
-    const iso = String(text).match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
-    if (iso) { const d = new Date(+iso[1], +iso[2] - 1, +iso[3]); return d <= todayDate() ? ymd(d) : null; }
-    return null;
-  }
-
-  const TIME = String.raw`(\d{1,2})(?:[:. ](\d{2}))?\s*(a\.?\s?m\.?|p\.?\s?m\.?)?`;
-
-  function timeFrom(h, min, ampm) {
-    h = +h; min = min ? +min : 0;
-    const mer = ampm ? ampm.replace(/[^ap]/g, '') : '';
-    if (mer === 'p' && h < 12) h += 12;
-    if (mer === 'a' && h === 12) h = 0;
-    return h <= 23 && min <= 59 ? String(h).padStart(2, '0') + ':' + String(min).padStart(2, '0') : null;
-  }
-
-  function parseTime(text) {
-    const t = norm(text);
-    if (/^(skip|no|none|nope|no time|skip it)$/.test(t)) return 'skip';
-    if (/\bnoon\b/.test(t)) return '12:00';
-    const m = String(text).toLowerCase().match(new RegExp(TIME));
-    return m ? timeFrom(m[1], m[2], m[3]) : null;
-  }
-
-  function parseHours(text) {
-    const lower = String(text).toLowerCase();
-    let t = lower.replace(/[^a-z0-9.: ]/g, ' ').replace(/\.(?!\d)/g, ' ').replace(/\s+/g, ' ').trim(); // keeps "2.5"
-    if (/three quarters? of an? hour/.test(t)) return 0.75;
-    if (/^(a )?quarter (of an? )?hour$/.test(t)) return 0.25;
-    if (/^(a )?half (an? )?hour$/.test(t)) return 0.5;
-
-    // "from 9 to 11:30", "9am to noon": the time between
-    const range = lower.match(new RegExp(String.raw`(?:from\s+)?` + TIME + String.raw`\s*(?:to|until|till|-)\s*(?:` + TIME + String.raw`|(noon))`));
-    if (range) {
-      const start = timeFrom(range[1], range[2], range[3]);
-      const end = range[7] ? '12:00' : timeFrom(range[4], range[5], range[6]);
-      if (start && end) {
-        let mins = (+end.slice(0, 2) * 60 + +end.slice(3)) - (+start.slice(0, 2) * 60 + +start.slice(3));
-        if (mins <= 0) mins += 12 * 60; // "9 to 1" means 1 pm
-        return mins > 0 && mins <= 24 * 60 ? Math.round(mins / 15) / 4 : null;
-      }
-    }
-
-    const words = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12 };
-    t = t.replace(/\b(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b/g, w => words[w]).replace(/\ban? hour\b/g, '1 hour');
-    let total = null;
-    const hm = t.match(/(\d+(?:\.\d+)?)\s*(?:h|hr|hrs|hours?)\b(?:\s*(?:and\s*)?(\d+)\s*(?:m|min|mins|minutes?)\b)?/);
-    const minutes = t.match(/^(\d+)\s*(?:m|min|mins|minutes?)$/);
-    const bare = t.match(/^(\d+(?:\.\d+)?)\b/);
-    if (hm) total = +hm[1] + (hm[2] ? +hm[2] / 60 : 0);
-    else if (minutes) total = +minutes[1] / 60;
-    else if (bare) total = +bare[1];
-    if (total === null) return null;
-    if (/and a half/.test(t)) total += 0.5;
-    else if (/and a quarter/.test(t)) total += 0.25;
-    else if (/and 3 quarters/.test(t)) total += 0.75;
-    return total > 0 && total <= 24 ? Math.round(total * 4) / 4 : null;
-  }
-
-  function parseBillable(text) {
-    const t = norm(text);
-    if (/^(no|nope|not|not billable|non billable|nonbillable|false)\b/.test(t)) return 0;
-    if (/^(yes|yeah|yep|sure|billable|it is|true|of course)\b/.test(t)) return 1;
-    return null;
-  }
+  // Dates, times and hours (voice-text.js)
+  const { norm, matchOne, ymd, TIME, parseTime, parseHours, parseBillable, fmtHours, fmtDate, fmtTime, spokenHours } = window.TimeGrowVoiceText;
+  const todayDate = () => window.TimeGrowVoiceText.todayDate(cfg.today);
+  const parseDate = text => window.TimeGrowVoiceText.parseDate(text, cfg.today);
 
   /**
    * Read an answer only when it is plainly simple (a bare number, "yes", a name exactly as listed).
@@ -287,12 +165,12 @@ jQuery(document).ready(function($) {
   $('body').append($card);
   const $panel = $card.find('.timegrow-voice-panel'), $log = $card.find('.timegrow-voice-log');
   const $chips = $card.find('.timegrow-voice-chips'), $text = $card.find('.timegrow-voice-text'), $mic = $card.find('.timegrow-voice-mic');
-  if (!Recognition || window.isSecureContext === false) $mic.hide(); // the mic needs a supported browser and https
+  if (!speech.canListen || window.isSecureContext === false) $mic.hide(); // the mic needs a supported browser and https
   const setMuteLabel = () => $card.find('.timegrow-voice-mute').text(muted ? 'Sound off' : 'Sound on');
   setMuteLabel();
 
   function bubble(who, text) {
-    logTurn(who, text);
+    log.turn(who, text);
     $log.append($('<div>', { class: 'timegrow-voice-msg timegrow-voice-' + who }).text(text));
     $log.scrollTop($log[0].scrollHeight);
   }
@@ -308,108 +186,45 @@ jQuery(document).ready(function($) {
   }
 
   // ------------------------------------------------------------------
-  // Speaking: the most natural voice the browser has
+  // Speaking and listening (voice-speech.js): when is decided here
   // ------------------------------------------------------------------
 
-  const synth = window.speechSynthesis && window.SpeechSynthesisUtterance ? window.speechSynthesis : null;
-  const speechLang = () => (cfg.lang || document.documentElement.lang || 'en-US');
-  // macOS joke voices and old robotic ones
-  const NOVELTY = /\b(albert|bad news|bahh|bells|boing|bubbles|cellos|good news|jester|organ|superstar|trinoids|whisper|wobble|zarvox|fred|junior|ralph|kathy|grandma|grandpa|rocko|shelley|flo|eddy|reed|sandy|hysterical|deranged|pipe organ)\b/i;
-
-  /**
-   * How natural a voice should sound, from its name: neural / "Natural" / "Premium" / "Enhanced"
-   * and Google voices first, joke voices last. Voices in another language don't count. Pure.
-   */
-  function voiceScore(voice, lang) {
-    const want = String(lang || 'en-US').toLowerCase(), have = String(voice.lang || '').toLowerCase().replace('_', '-');
-    if (have.split('-')[0] !== want.split('-')[0]) return -1;
-    const name = String(voice.name || '');
-    if (NOVELTY.test(name)) return 0;
-    let score = 10;
-    if (/natural|neural/i.test(name)) score += 50;
-    else if (/premium/i.test(name)) score += 45;
-    else if (/enhanced/i.test(name)) score += 40;
-    else if (/^google/i.test(name)) score += 30;
-    if (/\b(ava|samantha|allison|evan|zoe|jenny|aria|guy|michelle|emma|brian|andrew|daniel|serena|karen|moira|tessa|libby|sonia|ryan)\b/i.test(name)) score += 10;
-    if (have === want) score += 5;
-    if (voice.default) score += 1;
-    return score;
-  }
-
-  function bestVoice(voices, lang) {
-    let best = null, bestScore = 0;
-    (voices || []).forEach(v => { const sc = voiceScore(v, lang); if (sc > bestScore) { best = v; bestScore = sc; } });
-    return best;
-  }
-
-  let chosenVoice = null;
+  /** The voice picker in the chat: the voices worth offering, the chosen one selected. */
   function loadVoices() {
-    if (!synth) return;
-    const voices = synth.getVoices() || [];
-    if (!voices.length) return;
-    let savedName = null;
-    try { savedName = window.localStorage.getItem('timegrowVoiceName'); } catch (e) {}
-    // The person's own pick in the chat, else the site's (Settings > AI Voice Entry), else the most natural one
-    chosenVoice = voices.find(v => v.name === savedName) || voices.find(v => cfg.voiceName && v.name === cfg.voiceName) || bestVoice(voices, speechLang());
-    const usable = voices.filter(v => voiceScore(v, speechLang()) > 0).sort((a, b) => voiceScore(b, speechLang()) - voiceScore(a, speechLang()));
+    const usable = speech.load();
+    if (!usable) return;
     const $pick = $card.find('.timegrow-voice-pick').empty();
-    usable.forEach(v => $pick.append($('<option>', { value: v.name, text: v.name.replace(/\s*\(.*\)$/, '') + (voiceScore(v, speechLang()) >= 40 ? ' ★' : '') })));
-    if (chosenVoice) $pick.val(chosenVoice.name);
-  }
-
-  /** Split into sentences: short utterances sound better and avoid Chrome cutting long ones off. */
-  function sentences(text) {
-    return String(text).match(/[^.!?]+[.!?]+["”]?|[^.!?]+$/g)?.map(t => t.trim()).filter(Boolean) || [String(text)];
+    usable.forEach(v => $pick.append($('<option>', { value: v.name, text: v.name.replace(/\s*\(.*\)$/, '') + (window.TimeGrowVoiceSpeech.voiceScore(v, speechLang()) >= 40 ? ' ★' : '') })));
+    if (speech.chosen()) $pick.val(speech.chosen().name);
   }
 
   function speak(text) {
-    if (muted || !synth) { if (voiceMode) setTimeout(listen, 300); return; }
-    if (!appendSpeech) synth.cancel();
+    if (muted || !speech.canSpeak) { if (voiceMode) setTimeout(listen, 300); return; }
+    const append = appendSpeech;
     appendSpeech = false;
-    const parts = sentences(text);
-    parts.forEach((part, i) => {
-      const u = new window.SpeechSynthesisUtterance(part);
-      if (chosenVoice) { u.voice = chosenVoice; u.lang = chosenVoice.lang; } else { u.lang = speechLang(); }
-      u.rate = 1.03;  // a touch quicker than the default sounds less like reading aloud
-      u.pitch = 1;
-      if (i === parts.length - 1) u.onend = () => { if (voiceMode) listen(); };
-      synth.speak(u);
-    });
+    speech.speak(text, append, () => { if (voiceMode) listen(); });
   }
 
-  let recognizer = null;
   function listen() {
-    if (!Recognition || $panel.prop('hidden')) return;
-    try { if (recognizer) recognizer.abort(); } catch (e) {}
-    recognizer = new Recognition();
-    recognizer.lang = cfg.lang || document.documentElement.lang || 'en-US';
-    recognizer.interimResults = false;
-    recognizer.maxAlternatives = 1;
-    recognizer.onstart = () => { $mic.addClass('is-listening'); $card.addClass('is-listening'); };
-    recognizer.onend = () => { $mic.removeClass('is-listening'); $card.removeClass('is-listening'); };
-    recognizer.onerror = e => {
-      $mic.removeClass('is-listening'); $card.removeClass('is-listening');
-      voiceMode = false; // don't keep reopening the mic
-      const why = {
-        'not-allowed': 'Microphone access is blocked. Allow the microphone for this site in your browser, or type your answer.',
-        'service-not-allowed': 'Microphone access is blocked. Allow the microphone for this site in your browser, or type your answer.',
-        'no-speech': "I didn't hear anything. Tap the microphone to try again, or type your answer.",
-        'audio-capture': 'No microphone was found. Type your answer instead.',
-        'network': 'Speech recognition needs an internet connection. Type your answer instead.',
-      }[e.error];
-      if (why) bubble('bot', why);
-    };
-    recognizer.onresult = e => { const heard = e.results[0][0].transcript; if (heard) { lastSpoken = true; answer(heard); } };
-    recognizer.start();
+    if (!speech.canListen || $panel.prop('hidden')) return;
+    speech.listen({
+      start: () => { $mic.addClass('is-listening'); $card.addClass('is-listening'); },
+      end: () => { $mic.removeClass('is-listening'); $card.removeClass('is-listening'); },
+      error: code => {
+        $mic.removeClass('is-listening'); $card.removeClass('is-listening');
+        voiceMode = false; // don't keep reopening the mic
+        const why = window.TimeGrowVoiceSpeech.ERRORS[code];
+        if (why) bubble('bot', why);
+      },
+      heard: heard => { lastSpoken = true; answer(heard); },
+    });
   }
 
   // ------------------------------------------------------------------
   // Questions
   // ------------------------------------------------------------------
 
-  const fmtHours = h => { const m = Math.round(h * 60); return Math.floor(m / 60) + 'h' + (m % 60 ? ' ' + (m % 60) + 'm' : ''); };
-  const fmtDate = d => { const p = d.split('-'); return new Date(+p[0], +p[1] - 1, +p[2]).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }); };
-  const fmtTime = t => { const p = t.split(':'); const d = new Date(2000, 0, 1, +p[0], +p[1]); return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }); };
+
   const project = () => projects.find(p => String(p.id) === String(fields.project_id));
   const clientName = () => (clients.find(c => c.id === String(fields.client_id)) || {}).name || '';
 
@@ -457,22 +272,7 @@ jQuery(document).ready(function($) {
   }
 
   // Natural spoken forms: "two and a half hours", "Thursday, October 15th", "nine thirty A M"
-  function spokenHours(h) {
-    const whole = Math.floor(h), mins = Math.round((h - whole) * 60);
-    if (!whole) return mins + ' minutes';
-    const unit = whole === 1 ? 'hour' : 'hours';
-    if (mins === 30) return whole + ' and a half ' + unit;
-    if (mins === 15) return whole + ' ' + unit + ' and 15 minutes';
-    if (mins === 45) return whole + ' ' + unit + ' and 45 minutes';
-    return whole + ' ' + unit;
-  }
-  function spokenDate(d) {
-    if (d === ymd(todayDate())) return 'today';
-    const y = todayDate(); y.setDate(y.getDate() - 1);
-    if (d === ymd(y)) return 'yesterday';
-    const p = d.split('-');
-    return 'on ' + new Date(+p[0], +p[1] - 1, +p[2]).toLocaleDateString(speechLang(), { weekday: 'long', month: 'long', day: 'numeric' });
-  }
+  const spokenDate = d => window.TimeGrowVoiceText.spokenDate(d, cfg.today, speechLang());
   function spokenSummary() {
     const p = project();
     return `${spokenHours(+fields.hours)} ${spokenDate(fields.date)}` +
@@ -571,7 +371,7 @@ jQuery(document).ready(function($) {
 
     const $thinking = $('<div>', { class: 'timegrow-voice-msg timegrow-voice-bot timegrow-voice-thinking', text: '...' }).appendTo($log);
     const s0 = session; // replies from a closed session are ignored
-    $.post(cfg.ajaxUrl, withLog({ action: 'timegrow_voice_parse', nonce: cfg.nonce, transcript: text, asking: asking, known: JSON.stringify(fields), local_only: 1 }))
+    $.post(cfg.ajaxUrl, log.withLog({ action: 'timegrow_voice_parse', nonce: cfg.nonce, transcript: text, asking: asking, known: JSON.stringify(fields), local_only: 1 }))
       .done(res => {
         if (s0 !== session) return;
         $thinking.remove();
@@ -625,7 +425,7 @@ jQuery(document).ready(function($) {
     const $thinking = $('<div>', { class: 'timegrow-voice-msg timegrow-voice-bot timegrow-voice-thinking', text: '...' }).appendTo($log);
     $log.scrollTop($log[0].scrollHeight);
     const s0 = session; // replies from a closed session are ignored
-    $.post(cfg.ajaxUrl, withLog({ action: 'timegrow_voice_parse', nonce: cfg.nonce, transcript: text, asking: asking, known: JSON.stringify(fields), conversation: JSON.stringify(conversationState()) }))
+    $.post(cfg.ajaxUrl, log.withLog({ action: 'timegrow_voice_parse', nonce: cfg.nonce, transcript: text, asking: asking, known: JSON.stringify(fields), conversation: JSON.stringify(conversationState()) }))
       .done(res => {
         if (s0 !== session) return;
         $thinking.remove();
@@ -774,7 +574,7 @@ jQuery(document).ready(function($) {
     remember('bot', [a.text || ''].concat((Array.isArray(a.rows) ? a.rows : []).slice(0, 8).map(r => '• ' + r.title + (r.meta ? ': ' + r.meta : ''))).join('\n'));
     bubble('bot', a.text || '');
     if (Array.isArray(a.rows) && a.rows.length) {
-      logTurn('bot', a.rows.map(r => '• ' + r.title + (r.meta ? ' (' + r.meta + ')' : '')).join('\n'));
+      log.turn('bot', a.rows.map(r => '• ' + r.title + (r.meta ? ' (' + r.meta + ')' : '')).join('\n'));
       const $list = $('<ul>', { class: 'timegrow-voice-msg timegrow-voice-bot timegrow-voice-list' });
       a.rows.forEach(r => {
         const $li = $('<li>');
@@ -905,7 +705,7 @@ jQuery(document).ready(function($) {
     Object.keys(draft.values).forEach(k => { values[k] = draft.values[k] === 'skip' ? '' : draft.values[k]; });
     const type = draft.type;
     const s0 = session; // replies from a closed session are ignored
-    $.post(cfg.ajaxUrl, withLog({ action: 'timegrow_voice_create', nonce: cfg.nonce, type: type, values: JSON.stringify(values), approved: approvedBy }))
+    $.post(cfg.ajaxUrl, log.withLog({ action: 'timegrow_voice_create', nonce: cfg.nonce, type: type, values: JSON.stringify(values), approved: approvedBy }))
       .done(res => {
         if (s0 !== session) return;
         if (res && res.success) {
@@ -1111,7 +911,7 @@ jQuery(document).ready(function($) {
       asking = 'clock:confirm';
       say(`That didn't work: ${message}`, [{ label: 'Try again', value: 'save' }, { label: 'Change something', value: 'change' }, { label: 'Cancel', value: 'cancel' }]);
     };
-    $.ajax({ url: cfg.ajaxUrl, method: 'POST', data: withLog(data) })
+    $.ajax({ url: cfg.ajaxUrl, method: 'POST', data: log.withLog(data) })
       .done(res => {
         if (s0 !== session) return;
         if (res && res.success) {
@@ -1158,7 +958,7 @@ jQuery(document).ready(function($) {
     $form.find('input[name="approved"]').remove();
     $form.append($('<input>', { type: 'hidden', name: 'approved', value: approvedBy })); // how the person approved it (audit log)
     $form.find('input[name="session_key"], input[name="log_turns"]').remove();
-    const logged = withLog({});
+    const logged = log.withLog({});
     Object.keys(logged).forEach(k => $form.append($('<input>', { type: 'hidden', name: k, value: logged[k] })));
     $form.append($('<input>', { type: 'hidden', name: 'client_id', value: fields.client_id })); // the save checks it is the project's client
     if (fields.start_time && fields.start_time !== 'skip') {
@@ -1193,7 +993,7 @@ jQuery(document).ready(function($) {
     };
     if (fields.start_time && fields.start_time !== 'skip') data.start_time = fields.start_time;
     const s0 = session; // replies from a closed session are ignored
-    $.ajax({ url: cfg.ajaxUrl, method: 'POST', data: withLog(data) })
+    $.ajax({ url: cfg.ajaxUrl, method: 'POST', data: log.withLog(data) })
       .done(res => {
         if (s0 !== session) return;
         if (res && res.success) {
@@ -1233,9 +1033,7 @@ jQuery(document).ready(function($) {
 
   /** Closing (the mic icon, the close button or Esc) ends the conversation: nothing is remembered. */
   function close() {
-    flushLog(true); // the conversation ends here
-    sessionKey = null;
-    logQueue = [];
+    log.end(); // the conversation ends here
     session++;
     history.length = 0;
     lastQuestion = null;
@@ -1249,8 +1047,8 @@ jQuery(document).ready(function($) {
     $panel.prop('hidden', true);
     $card.removeClass('is-open is-listening').find('.timegrow-voice-fab').attr({ 'aria-expanded': 'false', 'aria-label': 'Talk to ' + NAME, title: 'Talk to ' + NAME });
     voiceMode = false;
-    try { if (recognizer) recognizer.abort(); } catch (e) {}
-    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    speech.abort();
+    speech.cancel();
   }
 
   $card.on('click', '.timegrow-voice-fab', () => ($panel.prop('hidden') ? open() : close()));
@@ -1262,18 +1060,15 @@ jQuery(document).ready(function($) {
     $row.prop('hidden', !show);
     $(this).attr('aria-expanded', show ? 'true' : 'false');
   });
-  $card.on('change', '.timegrow-voice-pick', function() {
-    const v = synth ? (synth.getVoices() || []).find(x => x.name === this.value) : null;
-    if (v) { chosenVoice = v; try { window.localStorage.setItem('timegrowVoiceName', v.name); } catch (e) {} }
-  });
+  $card.on('change', '.timegrow-voice-pick', function() { speech.choose(this.value); });
   $card.on('click', '.timegrow-voice-try', () => { const was = muted; muted = false; speak(`Hi, I'm ${NAME.split(' ')[0]}. This is how I'll sound when I ask about your time.`); muted = was; });
-  if (synth) { loadVoices(); if ('onvoiceschanged' in synth) synth.addEventListener('voiceschanged', loadVoices); }
-  if (!synth) $card.find('.timegrow-voice-voices').hide();
+  if (speech.canSpeak) { loadVoices(); speech.onVoicesChanged(loadVoices); }
+  if (!speech.canSpeak) $card.find('.timegrow-voice-voices').hide();
 
   $card.on('click', '.timegrow-voice-mute', function() {
     muted = !muted;
     try { window.localStorage.setItem('timegrowVoiceMuted', muted ? '1' : '0'); } catch (e) {}
-    if (muted && window.speechSynthesis) window.speechSynthesis.cancel();
+    if (muted) speech.cancel();
     setMuteLabel();
   });
   $card.on('click', '.timegrow-voice-chip', function() {
@@ -1292,5 +1087,5 @@ jQuery(document).ready(function($) {
   $text.on('keypress', e => { if (e.which === 13) { e.preventDefault(); voiceMode = false; lastSpoken = false; answer($text.val()); } });
 
   // For tests
-  window.TimeGrowVoiceEntry = { open: open, close: close, voiceScore: voiceScore, bestVoice: bestVoice, sentences: sentences, spokenHours: spokenHours, answer: answer, fields: () => fields, asking: () => asking, clock: () => clock, readLocally: readLocally, readStrict: readStrict };
+  window.TimeGrowVoiceEntry = { open: open, close: close, voiceScore: window.TimeGrowVoiceSpeech.voiceScore, bestVoice: window.TimeGrowVoiceSpeech.bestVoice, sentences: window.TimeGrowVoiceSpeech.sentences, spokenHours: spokenHours, answer: answer, fields: () => fields, asking: () => asking, clock: () => clock, readLocally: readLocally, readStrict: readStrict };
 });

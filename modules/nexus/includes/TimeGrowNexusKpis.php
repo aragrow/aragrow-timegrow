@@ -145,8 +145,8 @@ class TimeGrowNexusKpis {
             ? TimeGrowReportsController::unbilled_totals(TimeGrowReportsController::unbilled_rows('', '', 0))['amount']
             : null;
         $invoiced = null;
-        if (function_exists('wc_get_orders') && class_exists('TimeGrowNexusAssistant')) {
-            $ids = wc_get_orders(['type' => 'shop_order', 'status' => TimeGrowNexusAssistant::BILLED_STATUSES, 'limit' => -1, 'return' => 'ids',
+        if (function_exists('wc_get_orders') && class_exists('TimeGrowNexusVoiceAnswers')) {
+            $ids = wc_get_orders(['type' => 'shop_order', 'status' => TimeGrowNexusVoiceAnswers::BILLED_STATUSES, 'limit' => -1, 'return' => 'ids',
                 'date_created' => $first . '...' . $today . ' 23:59:59']);
             $invoiced = 0.0;
             foreach ((array) $ids as $id) {

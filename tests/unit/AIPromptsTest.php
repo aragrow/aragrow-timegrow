@@ -12,6 +12,10 @@ require_once dirname( __DIR__, 2 ) . '/modules/core/includes/helpers/TimeGrowAI.
 require_once dirname( __DIR__, 2 ) . '/modules/core/includes/helpers/TimeGrowAIPrompts.php';
 require_once dirname( __DIR__, 2 ) . '/modules/core/includes/helpers/TimeGrowAIReceiptAnalyzer.php';
 require_once dirname( __DIR__, 2 ) . '/modules/nexus/includes/TimeGrowNexusVoice.php';
+require_once dirname( __DIR__, 2 ) . '/modules/nexus/includes/TimeGrowNexusVoiceFormat.php';
+require_once dirname( __DIR__, 2 ) . '/modules/nexus/includes/TimeGrowNexusVoiceNames.php';
+require_once dirname( __DIR__, 2 ) . '/modules/nexus/includes/TimeGrowNexusVoicePrompt.php';
+require_once dirname( __DIR__, 2 ) . '/modules/nexus/includes/TimeGrowNexusVoiceAnswers.php';
 require_once dirname( __DIR__, 2 ) . '/modules/nexus/includes/TimeGrowNexusAssistant.php';
 
 /**
@@ -34,7 +38,7 @@ class AIPromptsTest extends TestCase {
 
     public function test_without_a_saved_version_the_built_in_prompt_is_used() {
         $this->assertSame( TimeGrowAIReceiptAnalyzer::default_instructions(), TimeGrowAIReceiptAnalyzer::instructions() );
-        $this->assertSame( TimeGrowNexusAssistant::default_conversation_instructions(), TimeGrowNexusAssistant::conversation_instructions() );
+        $this->assertSame( TimeGrowNexusVoicePrompt::default_conversation_instructions(), TimeGrowNexusVoicePrompt::conversation_instructions() );
     }
 
     public function test_only_known_tools() {

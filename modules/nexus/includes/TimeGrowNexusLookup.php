@@ -111,14 +111,14 @@ class TimeGrowNexusLookup {
             $from = $to = null;
         }
         if (!$from && $period) {
-            [$from, $to] = TimeGrowNexusAssistant::period_range($period, $today);
+            [$from, $to] = TimeGrowNexusVoiceFormat::period_range($period, $today);
         }
         // Time entries and invoices: the last 3 months only (by default, and as the earliest date)
         $windowed = in_array($entity, ['time_entries', 'invoices'], true);
         $clipped  = false;
         $out_of_window = false;
         if ($windowed) {
-            $floor = TimeGrowNexusAssistant::data_floor($today);
+            $floor = TimeGrowNexusVoiceAnswers::data_floor($today);
             if (!$from) {
                 [$from, $to, $period] = [$floor, $today, null];
             } elseif ($to < $floor) {
@@ -131,7 +131,7 @@ class TimeGrowNexusLookup {
                 }
             }
         } elseif (!$from && $entity === 'expenses') {
-            [$from, $to] = TimeGrowNexusAssistant::period_range('this_year', $today); // a sensible default
+            [$from, $to] = TimeGrowNexusVoiceFormat::period_range('this_year', $today); // a sensible default
             $period = 'this_year';
         }
 
@@ -183,10 +183,10 @@ class TimeGrowNexusLookup {
     public static function run(array $spec, array $candidates, $owner) {
         $topic = $spec['entity'] === 'invoices' ? 'invoices' : ($owner && empty($spec['filters']['member_id']) ? 'time_team' : 'time_me');
         if (!empty($spec['out_of_window'])) {
-            return TimeGrowNexusAssistant::out_of_window_reply($topic);
+            return TimeGrowNexusVoiceAnswers::out_of_window_reply($topic);
         }
         $reply = self::run_entity($spec, $candidates, $owner);
-        return !empty($spec['clipped']) ? TimeGrowNexusAssistant::add_window_note($reply, $topic) : $reply;
+        return !empty($spec['clipped']) ? TimeGrowNexusVoiceAnswers::add_window_note($reply, $topic) : $reply;
     }
 
     private static function run_entity(array $spec, array $candidates, $owner) {
@@ -213,7 +213,7 @@ class TimeGrowNexusLookup {
 
     private static function when(array $spec) {
         if ($spec['period']) {
-            return TimeGrowNexusAssistant::period_words($spec['period']);
+            return TimeGrowNexusVoiceFormat::period_words($spec['period']);
         }
         if ($spec['from']) {
             return sprintf(__('from %1$s to %2$s', 'timegrow'), mysql2date(get_option('date_format'), $spec['from']), mysql2date(get_option('date_format'), $spec['to']));
@@ -288,16 +288,16 @@ class TimeGrowNexusLookup {
             $list = array_map(function ($it) {
                 $e = $it['entry'];
                 return ['title' => $e->project_name . ' (' . self::client_name($e->client_id) . ')',
-                        'meta' => TimeGrowNexusAssistant::hours_text($it['hours']) . ' · ' . mysql2date(get_option('date_format'), $e->date ?: $e->clock_in_date) . ($e->member_name ? ' · ' . $e->member_name : '') . ($e->description ? ' · ' . wp_trim_words(wp_strip_all_tags($e->description), 8) : ''),
+                        'meta' => TimeGrowNexusVoiceFormat::hours_text($it['hours']) . ' · ' . mysql2date(get_option('date_format'), $e->date ?: $e->clock_in_date) . ($e->member_name ? ' · ' . $e->member_name : '') . ($e->description ? ' · ' . wp_trim_words(wp_strip_all_tags($e->description), 8) : ''),
                         'url' => ''];
             }, array_slice($items, 0, $spec['limit']));
-            return self::reply(sprintf(_n('%1$d time entry %2$s, %3$s in total:', '%1$d time entries %2$s, %3$s in total:', count($items), 'timegrow'), count($items), $when, TimeGrowNexusAssistant::hours_text($total)),
-                sprintf('I found %d %s %s, %s in total.', count($items), count($items) === 1 ? 'entry' : 'entries', $when, TimeGrowNexusAssistant::hours_spoken($total)), $list);
+            return self::reply(sprintf(_n('%1$d time entry %2$s, %3$s in total:', '%1$d time entries %2$s, %3$s in total:', count($items), 'timegrow'), count($items), $when, TimeGrowNexusVoiceFormat::hours_text($total)),
+                sprintf('I found %d %s %s, %s in total.', count($items), count($items) === 1 ? 'entry' : 'entries', $when, TimeGrowNexusVoiceFormat::hours_spoken($total)), $list);
         }
-        $fmt = $spec['metric'] === 'count' ? function ($v) { return sprintf(_n('%d entry', '%d entries', (int) $v, 'timegrow'), (int) $v); } : [TimeGrowNexusAssistant::class, 'hours_text'];
+        $fmt = $spec['metric'] === 'count' ? function ($v) { return sprintf(_n('%d entry', '%d entries', (int) $v, 'timegrow'), (int) $v); } : [TimeGrowNexusVoiceFormat::class, 'hours_text'];
         $head = $spec['metric'] === 'count'
             ? sprintf(_n('%1$d time entry %2$s', '%1$d time entries %2$s', count($items), 'timegrow'), count($items), $when)
-            : sprintf(__('%1$s logged %2$s', 'timegrow'), TimeGrowNexusAssistant::hours_text($total), $when);
+            : sprintf(__('%1$s logged %2$s', 'timegrow'), TimeGrowNexusVoiceFormat::hours_text($total), $when);
         if ($spec['group_by'] === 'none') {
             return self::reply($head . '.');
         }
@@ -365,10 +365,10 @@ class TimeGrowNexusLookup {
             $cats[$c['id']] = $c['name'];
         }
         $total = array_sum(array_map(function ($r) { return (float) $r->amount; }, $rows));
-        $head  = sprintf(_n('%1$d expense %2$s, %3$s in total', '%1$d expenses %2$s, %3$s in total', count($rows), 'timegrow'), count($rows), $when, TimeGrowNexusAssistant::money($total));
+        $head  = sprintf(_n('%1$d expense %2$s, %3$s in total', '%1$d expenses %2$s, %3$s in total', count($rows), 'timegrow'), count($rows), $when, TimeGrowNexusVoiceFormat::money($total));
         if ($spec['metric'] === 'list' || $spec['group_by'] === 'none') {
             $list = $spec['metric'] === 'count' ? [] : array_map(function ($r) use ($cats) {
-                return ['title' => $r->expense_name, 'meta' => TimeGrowNexusAssistant::money($r->amount) . ' · ' . mysql2date(get_option('date_format'), $r->expense_date) . (isset($cats[(int) $r->expense_category_id]) ? ' · ' . $cats[(int) $r->expense_category_id] : ''),
+                return ['title' => $r->expense_name, 'meta' => TimeGrowNexusVoiceFormat::money($r->amount) . ' · ' . mysql2date(get_option('date_format'), $r->expense_date) . (isset($cats[(int) $r->expense_category_id]) ? ' · ' . $cats[(int) $r->expense_category_id] : ''),
                         'url' => admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-expense-edit&id=' . (int) $r->ID)];
             }, array_slice($rows, 0, $spec['limit']));
             return self::reply($head . ($list ? ':' : '.'), $head . '.', $list);
@@ -383,7 +383,7 @@ class TimeGrowNexusLookup {
             return ['key' => $key, 'value' => $spec['metric'] === 'count' ? 1 : (float) $r->amount];
         }, $rows);
         $exp_n = function ($v) { return sprintf(_n('%d expense', '%d expenses', (int) $v, 'timegrow'), (int) $v); };
-        [$list] = self::grouped($items, $spec['limit'], $spec['metric'] === 'count' ? $exp_n : [TimeGrowNexusAssistant::class, 'money'], $spec['metric'] === 'count' ? null : $exp_n);
+        [$list] = self::grouped($items, $spec['limit'], $spec['metric'] === 'count' ? $exp_n : [TimeGrowNexusVoiceFormat::class, 'money'], $spec['metric'] === 'count' ? null : $exp_n);
         return self::reply($head . ', ' . sprintf(__('by %s:', 'timegrow'), $spec['group_by']), $head . '.', $list);
     }
 
@@ -411,11 +411,11 @@ class TimeGrowNexusLookup {
             return self::reply(sprintf(__('No %1$s found %2$s.', 'timegrow'), $what, $when));
         }
         $total = array_sum(array_map(function ($o) { return (float) $o->get_total(); }, $orders));
-        $head  = sprintf(__('%1$d %2$s %3$s, %4$s in total', 'timegrow'), count($orders), $what, $when, TimeGrowNexusAssistant::money($total));
+        $head  = sprintf(__('%1$d %2$s %3$s, %4$s in total', 'timegrow'), count($orders), $what, $when, TimeGrowNexusVoiceFormat::money($total));
         if ($spec['metric'] === 'list' || $spec['group_by'] === 'none') {
             $list = $spec['metric'] === 'count' ? [] : array_map(function ($o) {
                 return ['title' => '#' . $o->get_order_number() . ' · ' . ($o->get_customer_id() ? self::client_name($o->get_customer_id()) : $o->get_formatted_billing_full_name()),
-                        'meta' => TimeGrowNexusAssistant::money($o->get_total()) . ' · ' . wc_get_order_status_name($o->get_status()) . ' · ' . $o->get_date_created()->date_i18n(get_option('date_format')),
+                        'meta' => TimeGrowNexusVoiceFormat::money($o->get_total()) . ' · ' . wc_get_order_status_name($o->get_status()) . ' · ' . $o->get_date_created()->date_i18n(get_option('date_format')),
                         'url' => $o->get_edit_order_url()];
             }, array_slice($orders, 0, $spec['limit']));
             return self::reply($head . ($list ? ':' : '.'), $head . '.', $list);
@@ -429,7 +429,7 @@ class TimeGrowNexusLookup {
             return ['key' => $key, 'value' => $spec['metric'] === 'count' ? 1 : (float) $o->get_total()];
         }, $orders);
         $inv_n = function ($v) { return sprintf(_n('%d invoice', '%d invoices', (int) $v, 'timegrow'), (int) $v); };
-        [$list] = self::grouped($items, $spec['limit'], $spec['metric'] === 'count' ? $inv_n : [TimeGrowNexusAssistant::class, 'money'], $spec['metric'] === 'count' ? null : $inv_n);
+        [$list] = self::grouped($items, $spec['limit'], $spec['metric'] === 'count' ? $inv_n : [TimeGrowNexusVoiceFormat::class, 'money'], $spec['metric'] === 'count' ? null : $inv_n);
         return self::reply($head . ', ' . sprintf(__('by %s:', 'timegrow'), $spec['group_by']), $head . '.', $list);
     }
 }

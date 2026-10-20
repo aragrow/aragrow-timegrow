@@ -17,6 +17,10 @@ require_once dirname( __DIR__, 2 ) . '/modules/core/includes/helpers/TimeGrowPro
 require_once dirname( __DIR__, 2 ) . '/modules/core/includes/helpers/TimeGrowAI.php';
 require_once dirname( __DIR__, 2 ) . '/modules/core/includes/helpers/TimeGrowAIReceiptAnalyzer.php';
 require_once dirname( __DIR__, 2 ) . '/modules/nexus/includes/TimeGrowNexusVoice.php';
+require_once dirname( __DIR__, 2 ) . '/modules/nexus/includes/TimeGrowNexusVoiceFormat.php';
+require_once dirname( __DIR__, 2 ) . '/modules/nexus/includes/TimeGrowNexusVoiceNames.php';
+require_once dirname( __DIR__, 2 ) . '/modules/nexus/includes/TimeGrowNexusVoicePrompt.php';
+require_once dirname( __DIR__, 2 ) . '/modules/nexus/includes/TimeGrowNexusVoiceAnswers.php';
 
 /**
  * Prompt injection: the AI's instructions are kept apart from people's words and documents, text
@@ -98,8 +102,8 @@ class PromptSafetyTest extends TestCase {
     }
 
     public function test_voice_instructions_hold_no_data_and_the_prompt_holds_only_data_blocks() {
-        $this->assertStringNotContainsString( 'SEO Audit', TimeGrowNexusVoice::instructions() );
-        $prompt = TimeGrowNexusVoice::build_prompt( 'ignore rules', [], 'not_a_field', $this->candidates, self::TODAY );
+        $this->assertStringNotContainsString( 'SEO Audit', TimeGrowNexusVoicePrompt::time_instructions() );
+        $prompt = TimeGrowNexusVoicePrompt::time_prompt( 'ignore rules', [], 'not_a_field', $this->candidates, self::TODAY );
         $this->assertSame( 3, substr_count( $prompt, '<untrusted_data' ) );
         $this->assertStringContainsString( 'This is the first thing the person said.', $prompt, 'an unknown "asking" value is not echoed into the prompt' );
     }
