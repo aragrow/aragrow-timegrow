@@ -303,12 +303,10 @@ class TimeGrowNexusHelp {
             return $fallback;
         }
         $privacy = class_exists('TimeGrowNexusVoice') ? TimeGrowNexusVoice::privacy() : null;
-        $help = array_map(function ($t) { return ['topic' => $t['title'], 'text' => $t['body']]; }, $topics);
-        $prompt = "The person asked:\n" . TimeGrowAI::untrusted('question', (string) $question)
-            . "\n\nTimeGrow help:\n" . TimeGrowAI::untrusted('help', $help) . "\n\nReturn the JSON object.";
+        $prompt  = TimeGrowNexusVoicePrompt::help_prompt($question, $topics);
         $answer = TimeGrowAI::request([
             'feature'    => 'voice',
-            'system'     => "Task: you are {$agent}, TimeGrow's assistant. Answer the person's question about using TimeGrow in 1 to 4 short sentences of plain text (no lists, no markdown), using only the TimeGrow help given. If the help does not answer it, say you don't know and name the closest topic. Never invent features, buttons or settings. Return JSON: {\"answer\": \"...\"}.",
+            'system'     => TimeGrowNexusVoicePrompt::help_instructions($agent),
             'prompt'     => $privacy ? $privacy->mask($prompt) : $prompt,
             'json'       => true,
             'max_tokens' => 260,
@@ -318,11 +316,41 @@ class TimeGrowNexusHelp {
             return $fallback;
         }
         $json = TimeGrowAI::json_from_text($answer['text']);
-        $text = is_string($json['answer'] ?? null) ? trim(wp_strip_all_tags($json['answer'])) : '';
+        [$text, $linked] = self::reply_text(is_array($json) ? $json : [], $topics);
         if ($text === '') {
             return $fallback;
         }
         $text = $privacy ? $privacy->unmask($text) : $text;
-        return ['text' => $text, 'spoken' => $text, 'rows' => self::rows($topics)];
+        return ['text' => $text, 'spoken' => $text, 'rows' => self::rows($linked)];
+    }
+
+    /**
+     * The reply from the AI's help answer, and the topics to link: ['', …] to use the best topic's
+     * summary instead. When the help does not answer the question, the reply is written here: it names
+     * a related topic the AI picked from those sent, or says the help doesn't cover it (no links). An
+     * answer that repeats the instructions ("the help given", "return JSON") is not shown. Pure apart
+     * from wp_strip_all_tags().
+     *
+     * @param array   $json   { answered, answer, topic }
+     * @param array[] $topics The topics sent, best first.
+     * @return array [text, topics to link]
+     */
+    public static function reply_text(array $json, array $topics) {
+        if (!$topics) {
+            return ['', []];
+        }
+        if (($json['answered'] ?? null) === false) {
+            foreach ($topics as $t) {
+                if (is_string($json['topic'] ?? null) && strcasecmp(trim($json['topic']), $t['title']) === 0) {
+                    return [sprintf(__('I don\'t know that one. The closest help topic is "%s".', 'timegrow'), $t['title']), [$t]];
+                }
+            }
+            return [__('I don\'t know that one: the TimeGrow help doesn\'t cover it. Try asking another way, or ask your administrator.', 'timegrow'), []];
+        }
+        $text = is_string($json['answer'] ?? null) ? trim(wp_strip_all_tags($json['answer'])) : '';
+        if (preg_match('/\b(the help (given|text|provided)|(does|doesn\'t|do not) answer it|these instructions|my instructions|return (the )?json|closest topic)\b/i', $text)) {
+            return ['', $topics];
+        }
+        return [$text, $topics];
     }
 }
