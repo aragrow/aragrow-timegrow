@@ -115,8 +115,22 @@ class TimeGrowExpenseController{
         global $wpdb;
         $where_conditions = [];
         $filter_assigned_to = isset($_GET['filter_assigned_to']) ? sanitize_text_field($_GET['filter_assigned_to']) : '';
-        $filter_date_from = isset($_GET['filter_date_from']) ? sanitize_text_field($_GET['filter_date_from']) : '';
-        $filter_date_to = isset($_GET['filter_date_to']) ? sanitize_text_field($_GET['filter_date_to']) : '';
+        $filter_date_from = TimeGrowDateRanges::valid_date($_GET['filter_date_from'] ?? '');
+        $filter_date_to = TimeGrowDateRanges::valid_date($_GET['filter_date_to'] ?? '');
+        $filter_category = isset($_GET['filter_category']) ? intval($_GET['filter_category']) : 0;
+        // The category tree: a heading (IRS Schedule C section) also finds the expenses in its categories
+        $category_tree = (new TimeGrowExpenseCategoryModel())->get_hierarchical(null);
+        if ($filter_category > 0) {
+            $ids = [$filter_category];
+            foreach ($category_tree as $heading) {
+                if ((int) $heading->ID === $filter_category) {
+                    foreach ((array) $heading->children as $child) {
+                        $ids[] = (int) $child->ID;
+                    }
+                }
+            }
+            $where_conditions[] = 'e.expense_category_id IN (' . implode(',', array_map('intval', $ids)) . ')';
+        }
         $filter_search = isset($_GET['s']) ? sanitize_text_field($_GET['s']) : '';
         $filter_status = isset($_GET['filter_status']) && in_array((string) $_GET['filter_status'], ['0', '1'], true) ? (string) $_GET['filter_status'] : '';
         if ($filter_status !== '') {
@@ -190,7 +204,7 @@ class TimeGrowExpenseController{
         timegrow_log('Expense Count: ' . count($expenses));
 
         // Get unique values for filters
-        $filter_options = ['clients' => [], 'projects' => []];
+        $filter_options = ['clients' => [], 'projects' => [], 'categories' => $category_tree];
 
         // Get clients for filter
         $clients = $this->client_model->select(null);
@@ -212,6 +226,7 @@ class TimeGrowExpenseController{
             'filter_date_to' => $filter_date_to,
             'filter_search' => $filter_search,
             'filter_status' => $filter_status,
+            'filter_category' => $filter_category ?: '',
         ]);
     }
 

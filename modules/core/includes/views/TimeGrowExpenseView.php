@@ -18,6 +18,7 @@ class TimeGrowExpenseView {
             'filter_date_to' => '',
             'filter_search' => '',
             'filter_status' => '',
+            'filter_category' => '',
         ], $current_filters);
 
         // Helper function for sortable column headers
@@ -30,13 +31,15 @@ class TimeGrowExpenseView {
         // Check if any filters are active
         $has_filters = !empty($current_filters['filter_assigned_to']) ||
                        !empty($current_filters['filter_date_from']) || !empty($current_filters['filter_date_to']) ||
-                       !empty($current_filters['filter_search']) || (string) $current_filters['filter_status'] !== '';
+                       !empty($current_filters['filter_search']) || (string) $current_filters['filter_status'] !== '' ||
+                       !empty($current_filters['filter_category']);
         // The quick ranges keep the other filters and the sort
         $range_base = array_filter([
             'page' => TIMEGROW_PARENT_MENU . '-expenses-list',
             's' => $current_filters['filter_search'],
             'filter_assigned_to' => $current_filters['filter_assigned_to'],
             'filter_status' => $current_filters['filter_status'],
+            'filter_category' => (string) $current_filters['filter_category'],
             'orderby' => $current_filters['orderby'], 'order' => $current_filters['order'],
         ], 'strlen');
         ?>
@@ -77,6 +80,22 @@ class TimeGrowExpenseView {
                     <option value="client" <?php selected($current_filters['filter_assigned_to'], 'client'); ?>><?php esc_html_e('Client', 'timegrow'); ?></option>
                     <option value="project" <?php selected($current_filters['filter_assigned_to'], 'project'); ?>><?php esc_html_e('Project', 'timegrow'); ?></option>
                     <option value="general" <?php selected($current_filters['filter_assigned_to'], 'general'); ?>><?php esc_html_e('General', 'timegrow'); ?></option>
+                </select>
+
+                <select id="filter_category" name="filter_category">
+                    <option value=""><?php esc_html_e('All Categories', 'timegrow'); ?></option>
+                    <?php foreach ((array) ($filter_options['categories'] ?? []) as $heading) : ?>
+                        <?php if (!empty($heading->children)) : ?>
+                            <optgroup label="<?php echo esc_attr($heading->name); ?>">
+                                <option value="<?php echo (int) $heading->ID; ?>" <?php selected((int) $current_filters['filter_category'], (int) $heading->ID); ?>><?php echo esc_html(sprintf(__('All in %s', 'timegrow'), $heading->name)); ?></option>
+                                <?php foreach ($heading->children as $child) : ?>
+                                    <option value="<?php echo (int) $child->ID; ?>" <?php selected((int) $current_filters['filter_category'], (int) $child->ID); ?>><?php echo esc_html($child->name); ?></option>
+                                <?php endforeach; ?>
+                            </optgroup>
+                        <?php else : ?>
+                            <option value="<?php echo (int) $heading->ID; ?>" <?php selected((int) $current_filters['filter_category'], (int) $heading->ID); ?>><?php echo esc_html($heading->name); ?></option>
+                        <?php endif; ?>
+                    <?php endforeach; ?>
                 </select>
 
                 <select id="filter_status" name="filter_status">
