@@ -82,169 +82,183 @@ class TimeGrowWooOrderCreator {
 
         print('<br />Creating WooCommerce Orders and Products for Manual Entries...<br />');
 
+        $entry_model = new TimeGrowTimeEntryModel();
         foreach ($entries_by_clients as $client_id => $client_entries) {
+            $order        = null;
+            $is_new_order = false;
+            $claimed      = []; // entries this run billed on this client's order
+            try {
+                print('<br />---> ');print('Client Id: '.$client_id);
 
-            print('<br />---> ');print('Client Id: '.$client_id);
-
-            // Reuse a pending hours invoice for this client, never an order built another way
-            $order = wc_get_orders([
-                'customer_id' => $client_id,
-                'status' => 'pending',
-                'meta_key' => '_timegrow_qty_unit',
-                'meta_value' => 'hours',
-                'limit' => -1 // Get all orders
-            ]);
-
-            // Skip invoices already issued (PDF invoice number or PayPal invoice): never add time to those
-            $order = self::pick_reusable_order($order);
-
-            $is_new_order = !$order;
-            if ($order) {
-                // If an order already exists, use it
-                print('<br />---> Order already exists for Client Id: '.$client_id);
-            } else {
-                // Create a new order
-                print('<br />---> Creating new Order for Client Id: '.$client_id);
-                $order = wc_create_order(
-                    [
+                // Reuse a pending hours invoice for this client, never an order built another way
+                $order = wc_get_orders([
                     'customer_id' => $client_id,
                     'status' => 'pending',
-                    'customer_note' => 'Time entries for client ID: ' . $client_id,
-                    ]   
-                );
-                $customer = new WC_Customer($client_id);    
-                $billing_address = [
-                    'first_name' => $customer->get_billing_first_name(),
-                    'last_name'  => $customer->get_billing_last_name(),
-                    'company'    => $customer->get_billing_company(),
-                    'email'      => $customer->get_billing_email(),
-                    'phone'      => $customer->get_billing_phone(),
-                    'address_1'  => $customer->get_billing_address_1(),
-                    'address_2'  => $customer->get_billing_address_2(),
-                    'city'       => $customer->get_billing_city(),
-                    'state'      => $customer->get_billing_state(),
-                    'postcode'   => $customer->get_billing_postcode(),
-                    'country'    => $customer->get_billing_country(),
-                ];      
-                $order->set_address($billing_address, 'billing');
-                $order->add_meta_data('_timekeeping_invoice', true);
-                $order->add_meta_data('_timegrow_qty_unit', 'hours'); // quantities are real hours
-            }   
+                    'meta_key' => '_timegrow_qty_unit',
+                    'meta_value' => 'hours',
+                    'limit' => -1 // Get all orders
+                ]);
 
+                // Skip invoices already issued (PDF invoice number or PayPal invoice): never add time to those
+                $order = self::pick_reusable_order($order);
 
-
-            foreach ($client_entries as $project_id => $entries) {
-    
-                //print_r($entries);
-                $project = $model_project->select($project_id);
-                if(!$project) {
-                    timegrow_log('Order creation failed: ' . 'Woo Commerce for Product for Project not found: '. $project_id);
-                    continue;
-                }
-                //var_dump($project);
-                $product_id = $project[0]->product_id;
-                $woo_product = wc_get_product($product_id);
-
-
-                // Rate order: project, client, company, then 75
-                $project_rate = $model_project->get_project_rate($project_id);
-                $client_rate  = $model_project->get_client_rate($client_id);
-                $the_rate = self::resolve_rate(
-                    $project_rate[0]->default_flat_fee ?? null,
-                    $client_rate[0]->default_flat_fee ?? null,
-                    timegrow_company_default_rate()
-                );
-
-
-                print("<br />---------> Project Rate: $the_rate\n");
-
-                $product_hours = 0;
-                $product_total = 0;
-                $work_done     = '';
-
-                foreach ($entries as $entry) {
-                    if (!self::is_billable($entry)) continue;
-                    print("<br />------> Project Type: $entry->entry_type, Project ID: $project_id, WOO Product ID: $product_id\n");
-
-                    $hours = self::entry_hours($entry);
-                    if ($hours === null) continue; // clock entry still open
-                    $product_hours += $hours;
-
-                    $work_done = $entry->description;
-                    $entry->billed_order_id = $order->get_id();
-                
-                } // End loop entries
-
-                print('<br />---------> Product Hours: '.$product_hours);
-        
-                // Hours worked, priced at the hourly rate
-                list($product_hours, $product_total) = self::price_line($product_hours, $the_rate);
-
-                // Nothing billable for this project (all billed or non-billable): no line
-                if ($product_hours <= 0) {
-                    print('<br /> -------> No billable hours, project skipped');
-                    // These entries were not billed on this order
-                    foreach ($entries as $skipped) {
-                        if (isset($skipped->billed_order_id) && $skipped->billed_order_id === $order->get_id()) unset($skipped->billed_order_id);
-                    }
-                    continue;
-                }
-
-                print('<br /> -------> Product Total Hours: '.$product_hours);
-                print('<br /> -------> Product Total: '.$product_total);
-
-                if (!$woo_product) {
-                    $project = $model_project->select($project_id)[0];
-                    // Product does not exist, create it
-                    $product_name = $entry->display_name. ' - ' . $project->name;
-                    $product = new WC_Product_Simple();
-                    $product->set_name($product_name);
-                    $product->set_regular_price($the_rate);
-                    $product->set_virtual(true);
-                    $term = get_term_by('slug', 'timegrow', 'product_cat');
-                    if ($term) $product->set_category_ids([$term->term_id]);
-                    $product->set_catalog_visibility('hidden');
-                    $product->save();
-                    $product_id = $product->get_id();
-
-                    $model_project->set_woo_product($project_id, $product_id);
-
+                $is_new_order = !$order;
+                if ($order) {
+                    print('<br />---> Order already exists for Client Id: '.$client_id);
                 } else {
-                    $product_name = $woo_product->get_name();
+                    print('<br />---> Creating new Order for Client Id: '.$client_id);
+                    $order = wc_create_order([
+                        'customer_id' => $client_id,
+                        'status' => 'pending',
+                        'customer_note' => 'Time entries for client ID: ' . $client_id,
+                    ]);
+                    if (is_wp_error($order) || !$order) {
+                        throw new Exception('the order could not be created' . (is_wp_error($order) ? ': ' . $order->get_error_message() : ''));
+                    }
+                    $customer = new WC_Customer($client_id);
+                    $order->set_address([
+                        'first_name' => $customer->get_billing_first_name(),
+                        'last_name'  => $customer->get_billing_last_name(),
+                        'company'    => $customer->get_billing_company(),
+                        'email'      => $customer->get_billing_email(),
+                        'phone'      => $customer->get_billing_phone(),
+                        'address_1'  => $customer->get_billing_address_1(),
+                        'address_2'  => $customer->get_billing_address_2(),
+                        'city'       => $customer->get_billing_city(),
+                        'state'      => $customer->get_billing_state(),
+                        'postcode'   => $customer->get_billing_postcode(),
+                        'country'    => $customer->get_billing_country(),
+                    ], 'billing');
+                    $order->add_meta_data('_timekeeping_invoice', true);
+                    $order->add_meta_data('_timegrow_qty_unit', 'hours'); // quantities are real hours
+                    $order->save();
                 }
 
-                print('<br /> ---------> Product Name: '.$product_name);
+                foreach ($client_entries as $project_id => $entries) {
+                    $project = $model_project->select($project_id);
+                    if (!$project) {
+                        timegrow_log('Order creation failed: ' . 'Woo Commerce for Product for Project not found: '. $project_id);
+                        continue;
+                    }
+                    $product_id  = $project[0]->product_id;
+                    $woo_product = wc_get_product($product_id);
 
-                // Add as line item
-                $item = new WC_Order_Item_Product();
-                
-                $item->set_product_id($product_id);
-                $item->set_name($product_name);
-                $item->set_quantity(1); // hours live in _timegrow_project_hours; quantity stays 1
-                $item->add_meta_data('_timegrow_project_hours', number_format($product_hours, 2, '.', ''));
-                $item->add_meta_data('_timegrow_line_rate', wc_format_decimal($the_rate, 4));
-                $item->add_meta_data('_display_message', $product_hours . ' hrs. At a rate of '. $the_rate. ' per hour.');
-                $item->add_meta_data('_work_done', $work_done);
+                    // Rate order: project, client, company, then 75
+                    $project_rate = $model_project->get_project_rate($project_id);
+                    $client_rate  = $model_project->get_client_rate($client_id);
+                    $the_rate = self::resolve_rate(
+                        $project_rate[0]->default_flat_fee ?? null,
+                        $client_rate[0]->default_flat_fee ?? null,
+                        timegrow_company_default_rate()
+                    );
+                    print("<br />---------> Project Rate: $the_rate\n");
 
-                $item->set_subtotal($product_total);
-                $item->set_total($product_total);
-                
-                $order->add_item($item);
+                    // Each entry is billed (claimed) as it goes onto this order: an entry another run
+                    // already billed is left out, so the same time is never on two orders
+                    $product_hours = 0;
+                    $work_done     = '';
+                    foreach ($entries as $entry) {
+                        if (!self::is_billable($entry)) continue;
+                        $hours = self::entry_hours($entry);
+                        if ($hours === null || $hours <= 0) continue; // clock entry still open, or no time
+                        if (!$entry_model->claim_for_order($entry->ID, $order->get_id())) {
+                            print('<br />------> Entry '.(int) $entry->ID.' was already billed, left out');
+                            continue;
+                        }
+                        $entry->billed_order_id = $order->get_id();
+                        $claimed[] = (int) $entry->ID;
+                        print("<br />------> Project Type: $entry->entry_type, Project ID: $project_id, WOO Product ID: $product_id\n");
+                        $product_hours += $hours;
+                        $work_done = $entry->description;
+                    }
 
-            } // End loop thru time for projects
+                    print('<br />---------> Product Hours: '.$product_hours);
 
-            // A new order that got no lines (no billable hours for this client) is removed again
-            if ($is_new_order && count($order->get_items('line_item')) === 0) {
-                print('<br />---> No billable hours for Client Id: '.$client_id.', order not created');
-                $order->delete(true);
-                continue;
+                    // Hours worked, priced at the hourly rate
+                    list($product_hours, $product_total) = self::price_line($product_hours, $the_rate);
+
+                    // Nothing billable for this project (all billed or non-billable): no line
+                    if ($product_hours <= 0) {
+                        print('<br /> -------> No billable hours, project skipped');
+                        continue;
+                    }
+
+                    print('<br /> -------> Product Total Hours: '.$product_hours);
+                    print('<br /> -------> Product Total: '.$product_total);
+
+                    if (!$woo_product) {
+                        $project = $model_project->select($project_id)[0];
+                        // Product does not exist, create it
+                        $product_name = $entry->display_name. ' - ' . $project->name;
+                        $product = new WC_Product_Simple();
+                        $product->set_name($product_name);
+                        $product->set_regular_price($the_rate);
+                        $product->set_virtual(true);
+                        $term = get_term_by('slug', 'timegrow', 'product_cat');
+                        if ($term) $product->set_category_ids([$term->term_id]);
+                        $product->set_catalog_visibility('hidden');
+                        $product->save();
+                        $product_id = $product->get_id();
+
+                        $model_project->set_woo_product($project_id, $product_id);
+                    } else {
+                        $product_name = $woo_product->get_name();
+                    }
+
+                    print('<br /> ---------> Product Name: '.$product_name);
+
+                    // Add as line item
+                    $item = new WC_Order_Item_Product();
+                    $item->set_product_id($product_id);
+                    $item->set_name($product_name);
+                    $item->set_quantity(1); // hours live in _timegrow_project_hours; quantity stays 1
+                    $item->add_meta_data('_timegrow_project_hours', number_format($product_hours, 2, '.', ''));
+                    $item->add_meta_data('_timegrow_line_rate', wc_format_decimal($the_rate, 4));
+                    $item->add_meta_data('_display_message', $product_hours . ' hrs. At a rate of '. $the_rate. ' per hour.');
+                    $item->add_meta_data('_work_done', $work_done);
+                    $item->set_subtotal($product_total);
+                    $item->set_total($product_total);
+                    $order->add_item($item);
+                } // End loop thru time for projects
+
+                // A new order that got no lines (no billable hours for this client) is removed again
+                if ($is_new_order && count($order->get_items('line_item')) === 0) {
+                    print('<br />---> No billable hours for Client Id: '.$client_id.', order not created');
+                    $order->delete(true);
+                    continue;
+                }
+
+                $order->calculate_totals();
+                $order->update_status('processing');
+
+                // WooCommerce logs a failed save and carries on, so check the order really was saved with
+                // its lines; otherwise this client's time is unbilled again (the catch below)
+                $lines = count($order->get_items('line_item'));
+                $saved = wc_get_order($order->get_id());
+                if (!$saved || $saved->get_status() !== 'processing' || count($saved->get_items('line_item')) !== $lines
+                    || abs((float) $saved->get_total() - (float) $order->get_total()) > 0.005) {
+                    throw new Exception('WooCommerce did not save the order');
+                }
+
+                $order_ids[] = $order->get_id();
+            } catch (Throwable $e) {
+                // This client's order is not finished: its entries are unbilled again (only the ones this
+                // run billed), a new order is removed, and the other clients still go ahead
+                $order_id = ($order && !is_wp_error($order)) ? $order->get_id() : 0;
+                if ($order_id && $claimed) {
+                    $entry_model->release_claims($claimed, $order_id);
+                }
+                foreach ($client_entries as $entries) {
+                    foreach ($entries as $entry) {
+                        if (in_array((int) $entry->ID, $claimed, true)) unset($entry->billed_order_id);
+                    }
+                }
+                if ($is_new_order && $order_id) {
+                    $order->delete(true);
+                }
+                $this->errors[] = sprintf('Client %d: %s. Nothing was billed for this client.', (int) $client_id, $e->getMessage());
+                timegrow_log('Process Time failed for client ' . (int) $client_id . ': ' . $e->getMessage());
             }
-
-            $order->calculate_totals();
-            $order->update_status('processing');
-
-            $order_ids[] = $order->get_id();
-
         } // End loop thru projects for clients
 
         // Capture debug output
@@ -261,6 +275,13 @@ class TimeGrowWooOrderCreator {
     }
 
     private $debug_output = '';
+
+    /** Clients whose order could not be finished in the last run (their time stays unbilled). */
+    private $errors = [];
+
+    public function get_errors() {
+        return $this->errors;
+    }
 
     /**
      * First pending hours invoice that has not been issued yet (no PDF invoice number,

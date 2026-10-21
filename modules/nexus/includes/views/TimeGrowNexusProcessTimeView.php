@@ -32,7 +32,8 @@ class TimeGrowNexusProcessTimeView {
                 </div>
 
                 <div class="timegrow-card-body">
-                    <form method="post" action="" class="timegrow-filter-form">
+                    <form method="post" action="" class="timegrow-filter-form" onsubmit="if (this.dataset.sent) { return false; } this.dataset.sent = '1'; var b = this.querySelector('button[type=submit]'); if (b) { b.disabled = true; b.textContent = '<?php echo esc_js(__('Processing…', 'timegrow')); ?>'; }">
+                        <input type="hidden" name="process_time_submit" value="1"><?php // the button is disabled once clicked, so it is not sent ?>
                         <?php wp_nonce_field('process_time_nonce', 'process_time_nonce_field'); ?>
 
                         <div class="timegrow-form-row">

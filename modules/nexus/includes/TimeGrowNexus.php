@@ -26,6 +26,31 @@ class TimeGrowNexus{
     }
 
 
+    /**
+     * Take the Process Time lock: one row in the options table, added atomically (INSERT IGNORE), so
+     * only one request gets it. A lock older than 10 minutes (a request that died) is taken over.
+     */
+    public static function process_time_lock() {
+        global $wpdb;
+        $name = 'timegrow_process_time_lock';
+        for ($try = 0; $try < 2; $try++) {
+            if ((int) $wpdb->query($wpdb->prepare("INSERT IGNORE INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, %s, 'no')", $name, (string) time())) === 1) {
+                return true;
+            }
+            $since = (int) $wpdb->get_var($wpdb->prepare("SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", $name));
+            if ($since > 0 && $since > time() - 10 * MINUTE_IN_SECONDS) {
+                return false;
+            }
+            $wpdb->query($wpdb->prepare("DELETE FROM {$wpdb->options} WHERE option_name = %s AND option_value = %s", $name, (string) $since)); // stale
+        }
+        return false;
+    }
+
+    public static function process_time_unlock() {
+        global $wpdb;
+        $wpdb->query($wpdb->prepare("DELETE FROM {$wpdb->options} WHERE option_name = %s", 'timegrow_process_time_lock'));
+    }
+
     public function register_admin_menu() {
 
         timegrow_log(__CLASS__.'::'.__FUNCTION__);
@@ -698,6 +723,14 @@ class TimeGrowNexus{
                 // Form will be displayed by the view
                 $list = []; // Empty list, form will be shown
             } else {
+                // One Process Time at a time: a double click, a second tab or a retry while it runs
+                // would otherwise read the same unbilled time
+                if (!self::process_time_lock()) {
+                    print('<div class="notice notice-warning"><p>' . esc_html__('Process Time is already running (a double click, another tab, or another person). Wait for it to finish, then check the orders before processing again.', 'timegrow') . '</p></div>');
+                    print('<p><a href="' . esc_url(admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-nexus-process-time')) . '" class="button">Back to Filter</a></p>');
+                    exit;
+                }
+                register_shutdown_function([__CLASS__, 'process_time_unlock']); // also after the exit calls below
                 try {
                     // Get filter parameters
                     $client_id = isset($_POST['client_id']) && $_POST['client_id'] !== '' ? intval($_POST['client_id']) : null;
@@ -713,6 +746,10 @@ class TimeGrowNexus{
                     }
                     $woo_order_creator = new TimeGrowWooOrderCreator();
                     list($orders, $mark_time_entries_as_billed) = $woo_order_creator->create_woo_orders_and_products($time_entries);
+                    // Clients whose order failed: nothing was billed for them, so they can be processed again
+                    foreach ($woo_order_creator->get_errors() as $error) {
+                        print('<div class="notice notice-error"><p>' . esc_html($error) . '</p></div>');
+                    }
                     if (empty($orders)) {
                         $message_text = 'No orders created.';
                         print('<div class="notice notice-warning"><p>' . $message_text . '</p></div>');
@@ -727,11 +764,15 @@ class TimeGrowNexus{
                         exit;
                     }
                     $entries_by_order = $model->mark_time_entries_as_billed($mark_time_entries_as_billed);
+                    if ($entries_by_order === false) {
+                        throw new Exception('the orders were created, but marking the time as billed failed. Check the orders before processing again.');
+                    }
+                    $billed_count = array_sum(array_map('count', $entries_by_order));
 
                     // Display user-friendly success message
                     echo '<div class="notice notice-success" style="padding: 15px; margin: 20px 0;">';
                     echo '<h3 style="margin-top: 0;">✓ Time Entries Processed Successfully</h3>';
-                    echo '<p><strong>' . count($orders) . '</strong> order' . (count($orders) > 1 ? 's' : '') . ' created with <strong>' . count($mark_time_entries_as_billed) . '</strong> time ' . (count($mark_time_entries_as_billed) > 1 ? 'entries' : 'entry') . ':</p>';
+                    echo '<p><strong>' . count($orders) . '</strong> order' . (count($orders) > 1 ? 's' : '') . ' created with <strong>' . $billed_count . '</strong> time ' . ($billed_count === 1 ? 'entry' : 'entries') . ':</p>';
 
                     // Display orders with their time entries
                     if ($entries_by_order && is_array($entries_by_order)) {
@@ -743,7 +784,7 @@ class TimeGrowNexus{
                                 $customer = $order->get_billing_first_name() . ' ' . $order->get_billing_last_name();
                                 $total_hours = 0;
                                 foreach ($entries as $entry) {
-                                    $total_hours += floatval($entry->hours ?? 0);
+                                    $total_hours += (float) TimeGrowWooOrderCreator::entry_hours($entry); // manual and clocked time
                                 }
 
                                 echo '<div style="margin-bottom: 10px; padding: 10px; background: #f9f9f9; border-left: 4px solid #46b450; border-radius: 3px;">';

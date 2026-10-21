@@ -322,44 +322,73 @@ class TimeGrowTimeEntryModel {
 
     }
 
+    /**
+     * Bill an entry on an order, but only while it is still unbilled, active and billable: two
+     * Process Time runs can never bill the same entry. True when this call billed it.
+     */
+    public function claim_for_order($entry_id, $order_id) {
+        global $wpdb;
+        $rows = $wpdb->query($wpdb->prepare(
+            "UPDATE {$this->table_name} SET billed = 1, billed_order_id = %d, updated_at = %s
+             WHERE ID = %d AND billed = 0 AND billable = 1 AND status = 1",
+            (int) $order_id, current_time('mysql'), (int) $entry_id
+        ));
+        if ($rows === 1) {
+            TimeGrowTimeEntryAudit::log_many([(int) $entry_id], 'billed', (int) $order_id);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Undo claims this run made on an order (it failed before the order was finished). Only these
+     * entries: others already billed on a reused order stay billed.
+     */
+    public function release_claims(array $entry_ids, $order_id) {
+        global $wpdb;
+        $ids = array_values(array_filter(array_map('intval', $entry_ids)));
+        if (!$ids) {
+            return 0;
+        }
+        $in   = implode(',', array_fill(0, count($ids), '%d'));
+        $rows = (int) $wpdb->query($wpdb->prepare(
+            "UPDATE {$this->table_name} SET billed = 0, billed_order_id = NULL, updated_at = %s
+             WHERE billed_order_id = %d AND ID IN ({$in})",
+            array_merge([current_time('mysql'), (int) $order_id], $ids)
+        ));
+        if ($rows > 0) {
+            TimeGrowTimeEntryAudit::log_many($ids, 'unbilled', (int) $order_id);
+        }
+        return $rows;
+    }
+
+    /**
+     * The entries Process Time put on orders, grouped by order. Entries are billed as they go onto an
+     * order (claim_for_order()), so this only bills one that is still unbilled, never moving an entry
+     * that is billed on another order.
+     *
+     * @return array|false order ID => entries, or false on a database error.
+     */
     public function mark_time_entries_as_billed($time_entries) {
         global $wpdb;
-        print('<br />>Marking time entries as billed');
         $entries_by_order = [];
-
         foreach ($time_entries as $entry) {
-            // Validate inputs
-            if (!is_numeric($entry->ID) || $entry->ID <= 0) {
-                return new WP_Error('invalid_id', 'Invalid entry ID');
+            if (empty($entry->billed_order_id) || !is_numeric($entry->ID) || $entry->ID <= 0) {
+                continue; // not put on an order (non-billable, open clock-in, or billed by another run)
             }
-            // Only entries that went onto an order are billed (not non-billable or skipped ones)
-            if (empty($entry->billed_order_id)) continue;
-            print('<br/>--->Marking entry ID: '.$entry->ID.' as billed (Order #'.$entry->billed_order_id.')');
-
-            // Group entries by order for summary
-            if (!isset($entries_by_order[$entry->billed_order_id])) {
-                $entries_by_order[$entry->billed_order_id] = [];
-            }
-            $entries_by_order[$entry->billed_order_id][] = $entry;
-
-            // Ensure the entry ID is an integer
-            $result = $wpdb->update(
-                $this->table_name,
-                ['billed' => 1, 'billed_order_id' => $entry->billed_order_id, 'updated_at' => current_time('mysql')],
-                ['ID' => (int) $entry->ID],
-                ['%d', '%d', '%s'],
-                ['%d']
-            );
+            $result = $wpdb->query($wpdb->prepare(
+                "UPDATE {$this->table_name} SET billed = 1, billed_order_id = %d, updated_at = %s WHERE ID = %d AND billed = 0",
+                (int) $entry->billed_order_id, current_time('mysql'), (int) $entry->ID
+            ));
             if ($result === false) {
-                // Handle error
-                print('<br />Database update failed: ' . $wpdb->last_error);
+                timegrow_log('Marking time entry ' . (int) $entry->ID . ' as billed failed: ' . $wpdb->last_error);
                 return false;
             }
-            // Optionally, you can log the success or perform other actions
-            timegrow_log('Entry ID: ' . $entry->ID . ' marked as billed successfully.');
-            TimeGrowTimeEntryAudit::log_many([(int) $entry->ID], 'billed', (int) $entry->billed_order_id);
+            if ($result === 1) {
+                TimeGrowTimeEntryAudit::log_many([(int) $entry->ID], 'billed', (int) $entry->billed_order_id);
+            }
+            $entries_by_order[$entry->billed_order_id][] = $entry;
         }
-
         return $entries_by_order;
     }
 
