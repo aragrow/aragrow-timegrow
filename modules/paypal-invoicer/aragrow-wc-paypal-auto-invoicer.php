@@ -238,10 +238,19 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 
         // Credentials are encrypted. An empty or missing value means "keep the saved one"
         // (the field stays locked until Update is clicked).
+        // Without the encryption key a new value can't be stored: the saved one is kept, and the page says so.
         $saved = get_option($this->option_key, []);
         foreach (['client_id', 'client_secret'] as $key) {
-            $new_value  = isset($input[$key]) ? trim((string) $input[$key]) : '';
-            $out[$key]  = $new_value !== '' ? $this->encrypt_data($new_value) : ($saved[$key] ?? '');
+            $new_value = isset($input[$key]) ? trim((string) $input[$key]) : '';
+            $encrypted = $new_value !== '' ? $this->encrypt_data($new_value) : '';
+            $out[$key] = $encrypted !== '' ? $encrypted : ($saved[$key] ?? '');
+            if ($new_value !== '' && $encrypted === '') {
+                add_settings_error($this->option_key, 'timegrow_paypal_' . $key, sprintf(
+                    /* translators: %s: Client ID or Client Secret */
+                    __('The new %s was not saved: WC_PAYPAL_SECRET_KEY is not defined in wp-config.php, so TimeGrow can\'t encrypt it. Add the key, then enter the value again.', 'timegrow'),
+                    $key === 'client_id' ? __('Client ID', 'timegrow') : __('Client Secret', 'timegrow')
+                ));
+            }
         }
 
         $this->last_sanitized = $out;
@@ -279,6 +288,10 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 					<span class="dashicons dashicons-money-alt"></span>
 				</div>
 			</div>
+
+			<?php if ( ( $problem = $this->credentials_problem() ) !== '' ) : ?>
+				<div class="notice notice-error inline"><p><?php echo esc_html( $problem ); ?></p></div>
+			<?php endif; ?>
 
 			<form method="post" action="options.php" class="timegrow-integration-form">
 				<?php settings_fields( 'wc_pp_auto_invoicer' ); ?>
@@ -431,6 +444,37 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 	 */
 	public function settings() {
 		return $this->get_settings();
+	}
+
+	/**
+	 * Why the saved PayPal keys can't be used, or '' when they can (or none are saved). Pure.
+	 *
+	 * @param bool  $key_defined WC_PAYPAL_SECRET_KEY is set.
+	 * @param array $saved       Saved (encrypted) value per credential, keyed client_id / client_secret.
+	 * @param array $readable    Decrypted value per credential ('' when it can't be decrypted).
+	 */
+	public static function credential_problem( $key_defined, array $saved, array $readable ) {
+		$stored = array_filter( $saved, function( $v ) { return (string) $v !== ''; } );
+		if ( ! $stored ) {
+			return '';
+		}
+		if ( ! $key_defined ) {
+			return __( 'The PayPal keys are saved, but WC_PAYPAL_SECRET_KEY is not defined in wp-config.php, so they can\'t be read. Add the key that was used to save them.', 'timegrow' );
+		}
+		foreach ( array_keys( $stored ) as $field ) {
+			if ( (string) ( $readable[ $field ] ?? '' ) === '' ) {
+				return __( 'The saved PayPal keys can\'t be read: WC_PAYPAL_SECRET_KEY in wp-config.php changed since they were saved. Put the old key back, or enter the Client ID and Secret again.', 'timegrow' );
+			}
+		}
+		return '';
+	}
+
+	/** credential_problem() for the saved settings. */
+	public function credentials_problem() {
+		$settings = $this->get_settings();
+		$saved    = [ 'client_id' => (string) $settings['client_id'], 'client_secret' => (string) $settings['client_secret'] ];
+		$readable = array_map( function( $v ) { return $v !== '' ? $this->decrypt_data( $v ) : ''; }, $saved );
+		return self::credential_problem( $this->secret_key() !== '', $saved, $readable );
 	}
 
 	/**
@@ -932,6 +976,12 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 
 		$base = $settings['env'] === 'live' ? 'https://api.paypal.com' : 'https://api.sandbox.paypal.com';
 
+		// Say why instead of sending PayPal empty keys (it would only answer "OAuth token error")
+		$problem = $this->credentials_problem();
+		if ( $problem !== '' ) {
+			throw new Exception( $problem );
+		}
+
 		$decrypted_id = $this->decrypt_data($settings['client_id']);
 		$decrypted_secret = $this->decrypt_data($settings['client_secret']);
 
@@ -999,29 +1049,36 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 		return substr( sha1( $method . '|' . $path . '|' . wp_json_encode( $payload ) . '|' . home_url() ), 0, 36 );
 	}
 
+    /** The encryption key from wp-config.php, or '' when it isn't defined. */
+    private function secret_key() {
+        return defined('WC_PAYPAL_SECRET_KEY') ? (string) WC_PAYPAL_SECRET_KEY : '';
+    }
+
+    /** Encrypted value, or '' when it can't be encrypted (no key). */
     function encrypt_data($data) {
         timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
-        $key = defined('WC_PAYPAL_SECRET_KEY') ? WC_PAYPAL_SECRET_KEY : '';
-        if (empty($key)) return '';
+        $key = $this->secret_key();
+        if ($key === '') return '';
 
         $iv_length = openssl_cipher_iv_length('AES-256-CBC');
         $iv = openssl_random_pseudo_bytes($iv_length);
         $encrypted = openssl_encrypt($data, 'AES-256-CBC', $key, 0, $iv);
-        return base64_encode($iv . $encrypted);
+        return $encrypted === false ? '' : base64_encode($iv . $encrypted);
     }
 
+    /** Decrypted value, or '' when it can't be decrypted (no key, or a different key). */
     function decrypt_data($encrypted_base64) {
         timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
-        $key = defined('WC_PAYPAL_SECRET_KEY') ? WC_PAYPAL_SECRET_KEY : '';
-        if (empty($key)) return '';
+        $key = $this->secret_key();
+        if ($key === '') return '';
 
         $encrypted_data = base64_decode($encrypted_base64);
         $iv_length = openssl_cipher_iv_length('AES-256-CBC');
         $iv = substr($encrypted_data, 0, $iv_length);
         $encrypted = substr($encrypted_data, $iv_length);
-        return openssl_decrypt($encrypted, 'AES-256-CBC', $key, 0, $iv);
+        return (string) openssl_decrypt($encrypted, 'AES-256-CBC', $key, 0, $iv);
     }
 }
 

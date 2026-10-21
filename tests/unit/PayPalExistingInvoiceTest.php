@@ -35,4 +35,12 @@ class PayPalExistingInvoiceTest extends TestCase {
         $this->assertSame( '1235', Aragrow_WC_PayPal_Auto_Invoicer::money_value( 1234.5, 'jpy' ) );
         $this->assertSame( '99', Aragrow_WC_PayPal_Auto_Invoicer::money_value( 99.4, 'HUF' ) );
     }
+
+    public function test_credential_problem_explains_unreadable_keys() {
+        $saved = [ 'client_id' => 'enc-id', 'client_secret' => 'enc-secret' ];
+        $this->assertSame( '', Aragrow_WC_PayPal_Auto_Invoicer::credential_problem( true, $saved, [ 'client_id' => 'id', 'client_secret' => 'secret' ] ) );
+        $this->assertSame( '', Aragrow_WC_PayPal_Auto_Invoicer::credential_problem( false, [ 'client_id' => '', 'client_secret' => '' ], [] ), 'nothing saved: nothing to say' );
+        $this->assertStringContainsString( 'not defined', Aragrow_WC_PayPal_Auto_Invoicer::credential_problem( false, $saved, [] ) );
+        $this->assertStringContainsString( 'changed', Aragrow_WC_PayPal_Auto_Invoicer::credential_problem( true, $saved, [ 'client_id' => 'id', 'client_secret' => '' ] ) );
+    }
 }

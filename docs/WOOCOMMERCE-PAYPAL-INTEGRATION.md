@@ -204,7 +204,7 @@ Settings page: **Settings > PayPal Integration**, stored in the `wc_pp_auto_invo
 | Merchant email | Optional. |
 | When an order is cancelled: Tell the client | `cancel_notify`, on by default. When **Cancel invoice** cancels a sent PayPal invoice, PayPal emails the client that no payment is due. Deleted drafts never notify. |
 
-**Encryption key:** define `WC_PAYPAL_SECRET_KEY` in `wp-config.php`. Without it, saving the settings stores empty credentials. Keep the key out of version control.
+**Encryption key:** define `WC_PAYPAL_SECRET_KEY` in `wp-config.php`. Keep the key out of version control. Without it, a new Client ID or Secret is not saved (the saved one is kept) and the settings page says why. If the key is removed or changed after the keys were saved, the settings page shows an error, and every PayPal call stops with the same message instead of PayPal's "OAuth token error" (`credential_problem()`).
 
 ### What happens when an order is sent
 
