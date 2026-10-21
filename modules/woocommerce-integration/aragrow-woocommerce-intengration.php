@@ -30,6 +30,7 @@ class Aragrow_WOO_Integration_Plugins
         add_action('add_meta_boxes', [ $this, 'add_manual_payment_meta_box' ]);
         // Save meta box data
         add_action('woocommerce_process_shop_order_meta', [ $this,'save_manual_payment_data' ], 10, 2);
+        add_action('admin_notices', [ $this, 'show_payment_errors' ]);
 
         // Add Custom Field
         add_action('show_user_profile', [ $this, 'add_custom_field_ein_ssn' ]);  // Profile
@@ -146,6 +147,7 @@ class Aragrow_WOO_Integration_Plugins
         // Payment Type
         echo '<p><label for="payment_type">' . __('Type:', 'timegrow') . '</label>';
         echo '<select id="payment_type" name="payment_type">';
+        echo '<option value=""' . selected($payment_type, '', false) . '>' . esc_html__('Select a type', 'timegrow') . '</option>';
         echo '<option value="ACH"' . selected($payment_type, 'ACH', false) . '>ACH</option>';
         echo '<option value="Transference"' . selected($payment_type, 'Transference', false) . '>Transference</option>';
         echo '<option value="Cash"' . selected($payment_type, 'Cash', false) . '>Cash</option>';
@@ -161,6 +163,17 @@ class Aragrow_WOO_Integration_Plugins
         echo '</div>';
     }
 
+    /** The Manual Payment box's errors from the last save, once. */
+    public function show_payment_errors() {
+        $key    = 'timegrow_payment_errors_' . get_current_user_id();
+        $errors = get_transient($key);
+        if (!$errors) return;
+        delete_transient($key);
+        foreach ((array) $errors as $error) {
+            echo '<div class="notice notice-error is-dismissible"><p><strong>' . esc_html__('Payment not recorded:', 'timegrow') . '</strong> ' . esc_html($error) . '</p></div>';
+        }
+    }
+
     function save_manual_payment_data($order_id, $post) {
         $order = wc_get_order($order_id);
 
@@ -169,6 +182,17 @@ class Aragrow_WOO_Integration_Plugins
         $payment_amount = isset($_POST['payment_amount']) ? floatval($_POST['payment_amount']) : 0;
         $payment_type = isset($_POST['payment_type']) ? sanitize_text_field($_POST['payment_type']) : '';
         $payment_trans_id = isset($_POST['payment_trans_id']) ? sanitize_text_field($_POST['payment_trans_id']) : '';
+
+        // All fields emptied: the recorded payment is removed (a mistaken entry would otherwise block Cancel)
+        $fields = ['_payment_date', '_payment_amount', '_payment_type', '_payment_trans_id'];
+        if (isset($_POST['payment_amount']) && empty($payment_date) && empty($payment_amount) && empty($payment_type) && empty($payment_trans_id)) {
+            if (array_filter(array_map([$order, 'get_meta'], $fields))) {
+                foreach ($fields as $key) $order->delete_meta_data($key);
+                $order->add_order_note('Manual payment details removed.');
+                $order->save();
+            }
+            return;
+        }
 
         // Validation: Only validate if any payment field is provided
         $has_payment_data = !empty($payment_date) || !empty($payment_amount) || !empty($payment_type) || !empty($payment_trans_id);
@@ -199,11 +223,9 @@ class Aragrow_WOO_Integration_Plugins
 
             // If there are validation errors, display them and prevent save
             if (!empty($errors)) {
-                foreach ($errors as $error) {
-                    add_action('admin_notices', function() use ($error) {
-                        echo '<div class="notice notice-error is-dismissible"><p><strong>Payment Recording Error:</strong> ' . esc_html($error) . '</p></div>';
-                    });
-                }
+                // Shown on the page WooCommerce redirects to after the save (an admin_notices callback
+                // added now would be lost with that redirect)
+                set_transient('timegrow_payment_errors_' . get_current_user_id(), $errors, 5 * MINUTE_IN_SECONDS);
 
                 // Log validation failure
                 if (timegrow_debug()) {
@@ -749,6 +771,14 @@ class Aragrow_WOO_Integration_Plugins
     }
 
     /**
+     * The payment amount to record when an order is paid in full, or null to keep the recorded one:
+     * the total when nothing, or less than the total, is recorded. Pure.
+     */
+    public static function full_payment_amount($recorded, $total) {
+        return (float) $recorded + 0.005 < (float) $total ? (string) $total : null;
+    }
+
+    /**
      * Auto-record full payment when order status changes to invoice_paid
      */
     public function auto_record_full_payment($order_id) {
@@ -766,10 +796,15 @@ class Aragrow_WOO_Integration_Plugins
             $order->update_meta_data('_payment_date', current_time('Y-m-d'));
         }
 
-        // Only auto-set if payment amount is not already set
-        // When invoice is marked as paid, payment amount should equal total
-        if (empty($existing_payment_amount) || floatval($existing_payment_amount) == 0) {
-            $order->update_meta_data('_payment_amount', $order->get_total());
+        // Paid in full: the payment amount is the order total, also after a partial payment (500 of
+        // 1000 recorded, then Invoice Paid). A larger recorded amount (an overpayment) is kept.
+        $full = self::full_payment_amount($existing_payment_amount, $order->get_total());
+        if ($full !== null) {
+            $order->update_meta_data('_payment_amount', $full);
+            if ((float) $existing_payment_amount > 0) {
+                $order->add_order_note(sprintf('Payment amount set to the order total %s (was %s): the invoice is paid in full.',
+                    wc_format_decimal($full, 2), wc_format_decimal($existing_payment_amount, 2)));
+            }
         }
 
         $order->save();

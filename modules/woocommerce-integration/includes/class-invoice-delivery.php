@@ -45,6 +45,7 @@ class Aragrow_TimeGrow_Invoice_Delivery {
 		// Order action
 		add_filter( 'woocommerce_order_actions', [ __CLASS__, 'add_order_action' ], 10, 2 );
 		add_action( 'woocommerce_order_action_' . self::ACTION, [ __CLASS__, 'send' ] );
+		add_filter( 'woocommerce_valid_order_statuses_for_payment', [ __CLASS__, 'payable_statuses' ], 10, 2 );
 
 		// To Be Mailed status
 		add_action( 'init', [ __CLASS__, 'register_status' ] );
@@ -107,12 +108,39 @@ class Aragrow_TimeGrow_Invoice_Delivery {
 	// Sending
 	// ------------------------------------------------------------------
 
+	/**
+	 * Statuses the client can pay from (the "Pay for this order" link in the invoice email): a
+	 * TimeGrow invoice also once it is sent or waiting to be mailed. Not the PayPal statuses: those
+	 * are paid on the PayPal invoice.
+	 */
+	public static function payable_statuses( $statuses, $order = null ) {
+		if ( $order && $order->get_meta( '_timekeeping_invoice' ) ) {
+			$statuses = array_values( array_unique( array_merge( (array) $statuses, [ 'invoice_sent', self::MAILED_STATUS ] ) ) );
+		}
+		return $statuses;
+	}
+
+	/** Statuses an invoice can be sent (or sent again) from: not paid, cancelled, refunded or at PayPal. */
+	const SENDABLE_STATUSES = [ 'pending', 'on-hold', 'processing', 'invoice_sent', 'to_be_mailed' ];
+
+	/**
+	 * Why this order's invoice can't be sent, or '' when it can. Sending changes the status without
+	 * the status checks (no second status email), so it is only offered where that is safe: a
+	 * cancelled invoice whose time was billed again, or a paid one, is never reopened. Pure.
+	 */
+	public static function send_refusal( $status ) {
+		if ( in_array( $status, self::SENDABLE_STATUSES, true ) ) {
+			return '';
+		}
+		return sprintf( __( 'Not sent: the order is %s. Only an unpaid invoice that is not at PayPal can be sent.', 'timegrow' ), $status );
+	}
+
 	public static function add_order_action( $actions, $order = null ) {
 		if ( ! $order ) {
 			global $theorder;
 			$order = $theorder;
 		}
-		if ( $order instanceof WC_Order ) {
+		if ( $order instanceof WC_Order && self::send_refusal( $order->get_status() ) === '' ) {
 			$label = self::methods()[ self::method_for_order( $order ) ];
 			$actions[ self::ACTION ] = sprintf( __( 'Send invoice (%s)', 'timegrow' ), $label );
 		}
@@ -123,6 +151,11 @@ class Aragrow_TimeGrow_Invoice_Delivery {
 	 * Send an order's invoice the way its client chose. Every outcome leaves an order note.
 	 */
 	public static function send( $order ) {
+		$refusal = self::send_refusal( $order->get_status() );
+		if ( $refusal !== '' ) {
+			$order->add_order_note( $refusal );
+			return;
+		}
 		$method = self::method_for_order( $order );
 
 		switch ( $method ) {

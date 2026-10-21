@@ -41,6 +41,7 @@ class Aragrow_TimeGrow_Order_Cancellation {
 		add_action( 'woocommerce_order_status_refunded', [ __CLASS__, 'handle_cancelled' ], 10, 2 ); // full refund: the work is billed again too
 		add_action( 'woocommerce_order_status_changed', [ __CLASS__, 'handle_reopened' ], 10, 4 );
 		add_action( 'woocommerce_create_refund', [ __CLASS__, 'require_paypal_refund' ], 10, 2 );
+		add_filter( 'woocommerce_valid_order_statuses_for_cancel', [ __CLASS__, 'customer_cancel_statuses' ], 10, 2 );
 		add_action( 'admin_notices', [ __CLASS__, 'show_notice' ] );
 		// The order data box prints the status dropdown between these two hooks
 		add_action( 'woocommerce_admin_order_data_after_payment_info', [ __CLASS__, 'start_limiting_dropdown' ] );
@@ -136,6 +137,14 @@ class Aragrow_TimeGrow_Order_Cancellation {
 	public static function paid_move_allowed( $from, $to, $is_timegrow_invoice = true ) {
 		$moves = self::allowed_moves( $from, $is_timegrow_invoice );
 		return $moves === null || in_array( $to, $moves, true ) || $to === 'trash';
+	}
+
+	/**
+	 * Statuses a client may cancel from My Account: none for a TimeGrow invoice (it holds billed time
+	 * and may have a PayPal invoice; the business cancels it). Other orders keep WooCommerce's.
+	 */
+	public static function customer_cancel_statuses( $statuses, $order = null ) {
+		return self::is_timegrow_invoice( $order ) ? [] : $statuses;
 	}
 
 	/**
