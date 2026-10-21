@@ -155,6 +155,11 @@ function timegrow_plugin_activate() {
     }
 }
 
+/** The base TimeGrow capabilities, administrators only. */
+function timegrow_base_capabilities() {
+    return [TIMEGROW_OWNER_CAP, TIMEGROW_ADMIN_CAP, TIMEGROW_TEAM_MEMBER_CAP];
+}
+
 /**
  * Register custom capabilities for TimeGrow reports
  */
@@ -191,9 +196,11 @@ function timegrow_register_report_capabilities() {
         'view_my_expenses_report',           // My Expenses Report
     ];
 
-    // Add all capabilities to administrator
+    // Add all capabilities to administrator, with the base TimeGrow ones: most of the TimeGrow menu
+    // (clients, projects, time entries, expenses, settings) needs TIMEGROW_OWNER_CAP. They used to be
+    // granted by hand, so a fresh install showed only part of the menu.
     if ($admin_role) {
-        foreach (array_merge($admin_reports, $team_member_reports) as $cap) {
+        foreach (array_merge(timegrow_base_capabilities(), $admin_reports, $team_member_reports) as $cap) {
             $admin_role->add_cap($cap);
         }
     }
@@ -232,7 +239,7 @@ add_action('admin_init', function() {
 add_action('admin_init', function() {
     // Check if capabilities have been registered
     $admin = get_role('administrator');
-    if ($admin && (!$admin->has_cap('view_client_activity_report') || !$admin->has_cap('view_monthly_profit_loss') || !$admin->has_cap('manage_expense_categories') || !$admin->has_cap('view_unbilled_time'))
+    if ($admin && (!$admin->has_cap(TIMEGROW_OWNER_CAP) || !$admin->has_cap('view_client_activity_report') || !$admin->has_cap('view_monthly_profit_loss') || !$admin->has_cap('manage_expense_categories') || !$admin->has_cap('view_unbilled_time'))
         || (($tm = get_role('team_member')) && $tm->has_cap('view_yearly_tax_report'))) {
         // Capabilities not registered yet, register them now
         timegrow_register_report_capabilities();

@@ -17,6 +17,20 @@ TimeGrow uses custom WordPress capabilities to control access to reports. Each r
 
 ---
 
+## Base Capabilities
+
+Most of the TimeGrow menu (Clients, Companies, Projects, Team Members, Time Entries, Expenses, Settings and the AI pages) needs `timeflies_owner` (`TIMEGROW_OWNER_CAP`). TimeGrow grants these to the **Administrator** role:
+
+| Capability | Constant |
+|---|---|
+| `timeflies_owner` | `TIMEGROW_OWNER_CAP` |
+| `timeflies_admin` | `TIMEGROW_ADMIN_CAP` |
+| `timeflies_team_member` | `TIMEGROW_TEAM_MEMBER_CAP` |
+
+They are added on activation, and on the next admin page load whenever the Administrator role lacks `timeflies_owner` (`timegrow_register_report_capabilities()`). Before 3.0.0 they were not granted by the plugin, so a site where nobody added them by hand (with PublishPress Capabilities, for example) showed only part of the menu: the Nexus pages, Reports and the integration settings. Team members reach their pages through the Nexus capabilities and don't need these.
+
+---
+
 ## Report Capabilities Mapping
 
 ### Admin-Only Reports
