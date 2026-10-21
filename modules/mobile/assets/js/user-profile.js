@@ -58,7 +58,7 @@
             },
             success: function(response) {
                 if (response.success) {
-                    showPINBanner(response.data.pin, response.data.phone);
+                    showPINBanner(response.data.pin);
 
                     // Update button text
                     $btn.text('Generate New PIN');
@@ -85,17 +85,12 @@
     /**
      * Show PIN generated banner as a modal popup
      */
-    function showPINBanner(pin, phone) {
+    function showPINBanner(pin) {
         // Remove any existing modal
         $('#timegrow-pin-modal-overlay').remove();
 
-        // The PIN and phone are text, never markup (a phone number is typed by the person)
-        var esc = function (s) { return $('<div>').text(String(s == null ? '' : s)).html(); };
-        pin = esc(pin);
-        var smsLine = '';
-        if (phone) {
-            smsLine = '<p style="margin: 15px 0 5px 0; color: #555; font-size: 13px; text-align: center;"><span class="dashicons dashicons-smartphone" style="vertical-align: middle;"></span> An SMS notification has been sent to <strong>' + esc(phone) + '</strong></p>';
-        }
+        // The PIN is text, never markup
+        pin = $('<div>').text(String(pin == null ? '' : pin)).html();
 
         // Create modal overlay
         var modal = $('<div id="timegrow-pin-modal-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); z-index: 100000; display: flex; align-items: center; justify-content: center; animation: fadeIn 0.3s;">' +
@@ -112,7 +107,6 @@
                     '<div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 15px; margin: 20px 0;">' +
                         '<p style="margin: 0; color: #856404; font-weight: 600; text-align: center;"><span class="dashicons dashicons-warning" style="color: #ffc107; vertical-align: middle;"></span> Important: Save this PIN now. It will not be shown again.</p>' +
                     '</div>' +
-                    smsLine +
                     '<p style="margin: 15px 0 5px 0; color: #555; font-size: 13px; text-align: center;">' +
                         '<span class="dashicons dashicons-admin-links" style="vertical-align: middle;"></span> Mobile Login URL:<br>' +
                         '<strong><a href="' + timegrowMobileProfile.mobileLoginUrl + '" target="_blank" style="color: #667eea; text-decoration: none;">' + timegrowMobileProfile.mobileLoginUrl + '</a></strong>' +

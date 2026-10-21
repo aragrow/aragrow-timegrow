@@ -57,6 +57,8 @@ class TimeGrowMobile {
 
         // Once, on upgrade to 2.2.0: earlier PIN logins end, and administrators' PINs are switched off
         add_action('admin_init', [__CLASS__, 'upgrade_sessions'], 0);
+        // Once: text messages (Twilio) were removed; their settings and saved credentials are deleted
+        add_action('admin_init', [__CLASS__, 'remove_text_messages'], 0);
     }
 
     /**
@@ -78,6 +80,17 @@ class TimeGrowMobile {
             }
         }
         update_option('timegrow_mobile_sessions_v2', '1', false);
+    }
+
+    /** Text message alerts were removed: their options go, Twilio credentials too (phone numbers on profiles are kept). */
+    public static function remove_text_messages() {
+        if (get_option('timegrow_mobile_sms_removed') === '1') {
+            return;
+        }
+        foreach (['timegrow_mobile_sms_enabled', 'timegrow_mobile_sms_service', 'timegrow_twilio_account_sid', 'timegrow_twilio_auth_token', 'timegrow_twilio_from_number'] as $option) {
+            delete_option($option);
+        }
+        update_option('timegrow_mobile_sms_removed', '1', false);
     }
 
     /**
@@ -157,8 +170,8 @@ class TimeGrowMobile {
         // Load user profile integration
         require_once TIMEGROW_MOBILE_INCLUDES_DIR . 'TimeGrowMobileUserProfile.php';
 
-        // Load SMS notifications
-        require_once TIMEGROW_MOBILE_INCLUDES_DIR . 'TimeGrowSMSNotifications.php';
+        // The site's two-factor authentication (Wordfence Login Security) for PIN logins
+        require_once TIMEGROW_MOBILE_INCLUDES_DIR . 'TimeGrowMobile2FA.php';
 
         // Initialize access control
         TimeGrowMobileAccessControl::init();

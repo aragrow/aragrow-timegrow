@@ -23,7 +23,6 @@ The banner appears after clicking "Generate PIN" (or "Generate New PIN") and sub
 │                                                                           │
 │    ⚠ Important: Save this PIN now. It will not be shown again.          │
 │                                                                           │
-│    📱 An SMS notification has been sent to +1 (555) 123-4567            │
 │                                                                           │
 │    🔗 Mobile Login URL: https://yourdomain.com/mobile-login              │
 │                                                                           │
@@ -43,10 +42,6 @@ The banner appears after clicking "Generate PIN" (or "Generate New PIN") and sub
 - ⚠ Warning icon
 - Ensures admin saves the PIN before leaving the page
 
-### 3. **SMS Confirmation** (if phone number set)
-- Shows which phone number received the SMS
-- 📱 Smartphone icon
-- Example: "An SMS notification has been sent to +1 (555) 123-4567"
 
 ### 4. **Mobile Login URL**
 - Direct link to mobile login page
@@ -70,7 +65,6 @@ The banner appears after clicking "Generate PIN" (or "Generate New PIN") and sub
    - Only visible if user has `access_mobile_time_tracking` or `access_mobile_expenses` capability
 
 3. **Enter Phone Number (Optional)**
-   - Add phone number for SMS notifications
    - Format: `+1 (555) 123-4567` or `15551234567`
 
 4. **Click "Generate PIN"**
@@ -80,7 +74,6 @@ The banner appears after clicking "Generate PIN" (or "Generate New PIN") and sub
 5. **Page Reloads with Banner**
    - Green success banner appears at top
    - PIN displayed prominently: `ABC123`
-   - SMS sent (if phone number provided)
 
 6. **Save the PIN**
    - Copy PIN and share with user
@@ -144,12 +137,9 @@ delete_transient('timegrow_pin_generated_' . $user_id);
 
 - PIN stored in transient for 60 seconds max
 - Automatically expires even if not viewed
-- Not logged anywhere except error_log (for SMS debug)
 - Hashed PIN stored in database, never plain text
 
-### SMS Notification
 
-- If phone number is set, PIN is texted to user
 - Provides backup if admin doesn't save PIN from banner
 - User can login immediately without waiting for admin
 
@@ -220,8 +210,6 @@ Personal Options
 
 ### Test Scenarios
 
-1. ✅ Generate PIN for user with phone number → Banner + SMS
-2. ✅ Generate PIN for user without phone number → Banner only (no SMS line)
 3. ✅ Refresh page after seeing banner → Banner gone
 4. ✅ Navigate away and back → Banner gone
 5. ✅ Wait 60 seconds, refresh → Banner gone (transient expired)
@@ -232,6 +220,5 @@ Personal Options
 
 - Copy to clipboard button
 - QR code generation for easy mobile scanning
-- Email notification option (in addition to SMS)
 - Print PIN option
 - Download PIN as PDF

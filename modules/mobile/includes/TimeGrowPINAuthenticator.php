@@ -9,6 +9,9 @@
  * - 5 wrong PINs lock that person's PIN for 15 minutes; 20 failed logins from one address in 15
  *   minutes pause logins from it, so PINs can't be tried across many people.
  * - Every failure shows the same message, so the page doesn't tell who has a PIN.
+ * - With the site's two-factor authentication (TimeGrowMobile2FA), a right PIN leads to the code step;
+ *   the login is only finished (and the failures cleared) after the right code. Wrong codes count like
+ *   wrong PINs, so starting over doesn't give more tries.
  * - A login is a normal WordPress login of 8 hours, marked as mobile in its session on the server
  *   (TimeGrowMobileAccess::in_mobile_session()), so it can't be widened by removing a cookie.
  *
@@ -32,6 +35,7 @@ class TimeGrowPINAuthenticator {
     const LOCKOUT_DURATION    = 900;   // 15 minutes
     const MAX_ADDRESS_FAILURES = 20;   // per address, per LOCKOUT_DURATION
     const PIN_CHARS = '0123456789ABCDEFGHJKLMNPQRSTUVWXYZ'; // no I or O
+    const PENDING_TIME = 300;          // seconds to enter the 2FA code after the PIN
 
     /**
      * @var TimeGrowMobilePINModel
@@ -89,20 +93,56 @@ class TimeGrowPINAuthenticator {
         }
 
         if (self::pin_matches($pin, $record)) {
-            $this->model->reset_failed_attempts($user_id);
-            $this->model->update_last_login($user_id);
+            // Failures are cleared when the login is finished (login_succeeded()), after any 2FA code
             if ((string) $record->pin_salt !== '') {
                 $this->model->upsert($user_id, wp_hash_password($pin), ''); // older PIN: re-hashed
             }
             return ['success' => true, 'message' => ''];
         }
 
+        $this->count_failure($user_id, (int) $record->failed_attempts);
+        return $refused;
+    }
+
+    /** A wrong PIN or 2FA code: counted for the person (lock after 5) and the address. */
+    public function count_failure($user_id, $failed_before = null) {
+        if ($failed_before === null) {
+            $record = $this->model->get_by_user_id($user_id);
+            $failed_before = $record ? (int) $record->failed_attempts : 0;
+        }
         $this->model->increment_failed_attempts($user_id);
         $this->count_address_failure();
-        if ((int) $record->failed_attempts + 1 >= self::MAX_FAILED_ATTEMPTS) {
+        if ($failed_before + 1 >= self::MAX_FAILED_ATTEMPTS) {
             $this->model->lock_account($user_id, self::LOCKOUT_DURATION);
         }
-        return $refused;
+    }
+
+    /** The login is finished: failures cleared, last login noted. */
+    public function login_succeeded($user_id) {
+        $this->model->reset_failed_attempts($user_id);
+        $this->model->update_last_login($user_id);
+    }
+
+    // ------------------------------------------------------------------
+    // Between the PIN and the 2FA code
+    // ------------------------------------------------------------------
+
+    /** After a right PIN: a random token for the code step (5 minutes). The PIN is not kept. */
+    public function start_pending($user_id) {
+        $token = bin2hex(random_bytes(16));
+        set_transient('timegrow_mobile_2fa_' . $token, (int) $user_id, self::PENDING_TIME);
+        return $token;
+    }
+
+    /** The user waiting for a code under this token, or 0 (expired, used or unknown). */
+    public function pending_user($token) {
+        return preg_match('/^[a-f0-9]{32}$/', (string) $token) ? (int) get_transient('timegrow_mobile_2fa_' . $token) : 0;
+    }
+
+    public function end_pending($token) {
+        if (preg_match('/^[a-f0-9]{32}$/', (string) $token)) {
+            delete_transient('timegrow_mobile_2fa_' . $token);
+        }
     }
 
     /** Whether the PIN is locked; an expired lock is cleared. */

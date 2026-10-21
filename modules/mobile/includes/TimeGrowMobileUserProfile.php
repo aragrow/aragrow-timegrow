@@ -84,9 +84,6 @@ class TimeGrowMobileUserProfile {
         // Delete the transient so it only shows once
         delete_transient('timegrow_pin_generated_' . $user_id);
 
-        // Get phone number to show if SMS was sent
-        $phone = get_user_meta($user_id, 'timegrow_mobile_phone', true);
-
         // Display the banner
         ?>
         <div class="notice notice-success is-dismissible" style="padding: 15px 20px; border-left: 4px solid #46b450;">
@@ -108,15 +105,6 @@ class TimeGrowMobileUserProfile {
                         <span class="dashicons dashicons-warning"></span>
                         <?php esc_html_e('Important: Save this PIN now. It will not be shown again.', 'timegrow'); ?>
                     </p>
-                    <?php if (!empty($phone)) : ?>
-                        <p style="margin: 5px 0; color: #555; font-size: 13px;">
-                            <span class="dashicons dashicons-smartphone"></span>
-                            <?php printf(
-                                esc_html__('An SMS notification has been sent to %s', 'timegrow'),
-                                '<strong>' . esc_html($phone) . '</strong>'
-                            ); ?>
-                        </p>
-                    <?php endif; ?>
                     <p style="margin: 5px 0; color: #555; font-size: 13px;">
                         <span class="dashicons dashicons-admin-links"></span>
                         <?php esc_html_e('Mobile Login URL:', 'timegrow'); ?>
@@ -168,9 +156,6 @@ class TimeGrowMobileUserProfile {
         // Check if this is the current user or an admin
         $is_current_user = (get_current_user_id() === $user->ID);
         $is_admin = current_user_can('administrator');
-
-        // Get phone number
-        $mobile_phone = get_user_meta($user->ID, 'timegrow_mobile_phone', true);
 
         // Get time entry method
         $time_entry_method = get_user_meta($user->ID, 'timegrow_time_entry_method', true);
@@ -226,18 +211,6 @@ class TimeGrowMobileUserProfile {
                 </th>
             </tr>
 
-            <tr>
-                <th scope="row"><?php esc_html_e('Mobile Phone Number', 'timegrow'); ?></th>
-                <td>
-                    <input type="tel" name="timegrow_mobile_phone" id="timegrow_mobile_phone"
-                           value="<?php echo esc_attr($mobile_phone); ?>"
-                           class="regular-text"
-                           placeholder="+1 (555) 123-4567">
-                    <p class="description">
-                        <?php esc_html_e('Phone number for SMS notifications when logging in via mobile PIN.', 'timegrow'); ?>
-                    </p>
-                </td>
-            </tr>
 
             <tr>
                 <th scope="row"><?php esc_html_e('Mobile PIN Code', 'timegrow'); ?></th>
@@ -375,12 +348,6 @@ class TimeGrowMobileUserProfile {
 
         timegrow_log("TimeGrow PIN: save_mobile_pin_settings called for user {$user_id} - Nonce OK");
 
-        // Save mobile phone number
-        if (isset($_POST['timegrow_mobile_phone'])) {
-            $phone = sanitize_text_field($_POST['timegrow_mobile_phone']);
-            update_user_meta($user_id, 'timegrow_mobile_phone', $phone);
-        }
-
         // Save time entry method
         if (isset($_POST['timegrow_time_entry_method'])) {
             $method = sanitize_text_field($_POST['timegrow_time_entry_method']);
@@ -402,10 +369,6 @@ class TimeGrowMobileUserProfile {
                 // Shown once in the admin notice
                 set_transient('timegrow_pin_generated_' . $user_id, $new_pin, 60);
 
-                $phone = get_user_meta($user_id, 'timegrow_mobile_phone', true);
-                if (!empty($phone)) {
-                    self::send_pin_sms_notification($user_id, $phone, $new_pin);
-                }
             } else {
                 timegrow_log("TimeGrow PIN: Failed to create PIN in database");
             }
@@ -420,31 +383,6 @@ class TimeGrowMobileUserProfile {
         if ($action === 'unlock' && current_user_can('administrator')) {
             self::$model->reset_failed_attempts($user_id);
         }
-    }
-
-    /**
-     * Send SMS notification when PIN is generated
-     *
-     * @param int $user_id User ID
-     * @param string $phone Phone number
-     * @param string $pin The generated PIN
-     */
-    private static function send_pin_sms_notification($user_id, $phone, $pin) {
-        // This is a placeholder for SMS integration
-        // You can integrate with Twilio, SNS, or another SMS service here
-
-        $user = get_userdata($user_id);
-        $message = sprintf(
-            "Your TimeGrow mobile PIN has been generated: %s. Login at %s",
-            $pin,
-            home_url('/mobile-login')
-        );
-
-        // Hook for SMS integration
-        do_action('timegrow_send_pin_sms', $phone, $message, $user_id, $pin);
-
-        // Log for debugging (remove in production)
-        timegrow_log("TimeGrow PIN SMS queued for user {$user_id}"); // never log the PIN or the message
     }
 
     /**
@@ -497,18 +435,9 @@ class TimeGrowMobileUserProfile {
         $result = self::$authenticator->create_pin_for_user($user_id, $pin);
 
         if ($result) {
-            // Get phone number
-            $phone = get_user_meta($user_id, 'timegrow_mobile_phone', true);
-
-            // Send SMS if phone is set
-            if (!empty($phone)) {
-                self::send_pin_sms_notification($user_id, $phone, $pin);
-            }
-
             wp_send_json_success([
                 'message' => 'PIN generated successfully',
                 'pin'     => $pin,
-                'phone'   => $phone,
             ]);
         } else {
             wp_send_json_error(['message' => 'Failed to save PIN']);

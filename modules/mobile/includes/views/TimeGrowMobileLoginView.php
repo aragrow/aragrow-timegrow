@@ -31,6 +31,9 @@ class TimeGrowMobileLoginView {
      */
     private $success_message = '';
 
+    /** @var string The code step's token after a right PIN, when the person has 2FA on ('' otherwise). */
+    private $pending = '';
+
     /**
      * Constructor
      */
@@ -63,12 +66,17 @@ class TimeGrowMobileLoginView {
 
     /**
      * Handle login form submission: a team member's username or email and their PIN
-     * (TimeGrowPINAuthenticator). Every failure shows the same message.
+     * (TimeGrowPINAuthenticator), then, when they have the site's 2FA on, their code. Every failure
+     * shows the same message.
      */
     private function handle_login() {
         if (!isset($_POST['timegrow_mobile_login_nonce']) ||
             !wp_verify_nonce($_POST['timegrow_mobile_login_nonce'], 'timegrow_mobile_login')) {
             $this->error_message = 'Security verification failed. Please try again.';
+            return;
+        }
+        if (isset($_POST['pending'])) {
+            $this->handle_code();
             return;
         }
 
@@ -86,11 +94,47 @@ class TimeGrowMobileLoginView {
             return;
         }
 
-        $this->authenticator->create_mobile_session($user->ID);
-        $phone = get_user_meta($user->ID, 'timegrow_mobile_phone', true);
-        if (!empty($phone)) {
-            $this->send_login_sms_notification($user->ID, $phone);
+        // The site's two-factor authentication (Wordfence Login Security), when they have it
+        if (TimeGrowMobile2FA::setup_missing($user)) {
+            $this->error_message = 'This site requires two-factor authentication. Set it up first: log in with your password on a computer, then use your PIN here.';
+            return;
         }
+        if (TimeGrowMobile2FA::enabled_for($user)) {
+            $this->pending = $this->authenticator->start_pending($user->ID);
+            return; // the code step is shown
+        }
+        $this->finish($user->ID);
+    }
+
+    /** The code step: the code from their authenticator app (or a recovery code). */
+    private function handle_code() {
+        $token   = sanitize_key(wp_unslash($_POST['pending']));
+        $user_id = $this->authenticator->pending_user($token);
+        $user    = $user_id ? get_userdata($user_id) : null;
+        if (!$user) {
+            $this->error_message = 'That took too long. Enter your username and PIN again.';
+            return;
+        }
+        if ($this->authenticator->is_account_locked($user_id)) {
+            $this->authenticator->end_pending($token);
+            $this->error_message = 'Too many failed logins. Try again in 15 minutes.';
+            return;
+        }
+        $code = sanitize_text_field(wp_unslash($_POST['code'] ?? ''));
+        if (!TimeGrowMobile2FA::verify($user, $code)) {
+            $this->authenticator->count_failure($user_id); // like a wrong PIN: 5 lock it
+            $this->pending = $token;
+            $this->error_message = 'That code is not right. Enter the current code from your authenticator app.';
+            return;
+        }
+        $this->authenticator->end_pending($token);
+        $this->finish($user_id);
+    }
+
+    /** Log in (8 hours, marked mobile) and open their first page. */
+    private function finish($user_id) {
+        $this->authenticator->login_succeeded($user_id);
+        $this->authenticator->create_mobile_session($user_id);
         $this->go_to_first_page();
     }
 
@@ -255,6 +299,18 @@ class TimeGrowMobileLoginView {
                     </div>
                 <?php endif; ?>
 
+                <?php if ($this->pending !== '') : ?>
+                <form method="post" action="">
+                    <?php wp_nonce_field('timegrow_mobile_login', 'timegrow_mobile_login_nonce'); ?>
+                    <input type="hidden" name="pending" value="<?php echo esc_attr($this->pending); ?>">
+                    <div class="form-group">
+                        <label for="code">Two-factor code</label>
+                        <input type="text" id="code" name="code" class="pin-input" inputmode="numeric" autocomplete="one-time-code" maxlength="24" required autofocus placeholder="123456">
+                    </div>
+                    <p style="font-size: 13px; color: #666; margin-bottom: 10px;">Enter the code from your authenticator app, the same one you use for this site. A recovery code works too.</p>
+                    <button type="submit" class="btn-login">Verify</button>
+                </form>
+                <?php else : ?>
                 <form method="post" action="">
                     <?php wp_nonce_field('timegrow_mobile_login', 'timegrow_mobile_login_nonce'); ?>
 
@@ -288,6 +344,7 @@ class TimeGrowMobileLoginView {
 
                     <button type="submit" class="btn-login">Sign In</button>
                 </form>
+                <?php endif; ?>
 
                 <div class="login-footer">
                     Forgot your PIN? Contact your administrator.<br>
@@ -297,7 +354,7 @@ class TimeGrowMobileLoginView {
 
             <script>
                 // Auto-submit when 6 characters are entered and auto-uppercase
-                document.getElementById('pin').addEventListener('input', function(e) {
+                document.getElementById('pin') && document.getElementById('pin').addEventListener('input', function(e) {
                     // Convert to uppercase and remove invalid characters
                     this.value = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
 
@@ -318,27 +375,5 @@ class TimeGrowMobileLoginView {
         </body>
         </html>
         <?php
-    }
-
-    /**
-     * Send SMS notification on successful login
-     *
-     * @param int $user_id User ID
-     * @param string $phone Phone number
-     */
-    private function send_login_sms_notification($user_id, $phone) {
-        $user = get_userdata($user_id);
-        $timestamp = wp_date(get_option('time_format'));
-
-        $message = sprintf(
-            "TimeGrow mobile login at %s. If this wasn't you, contact your administrator immediately.",
-            $timestamp
-        );
-
-        // Hook for SMS integration
-        do_action('timegrow_send_login_sms', $phone, $message, $user_id);
-
-        // Log for debugging (remove in production)
-        timegrow_log("TimeGrow login SMS queued for user {$user_id}"); // no phone number or text in the log
     }
 }

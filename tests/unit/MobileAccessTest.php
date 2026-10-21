@@ -5,6 +5,7 @@ require_once dirname( __DIR__, 2 ) . '/modules/mobile/includes/TimeGrowMobileAcc
 require_once dirname( __DIR__, 2 ) . '/modules/mobile/includes/TimeGrowMobileAccessControl.php';
 require_once dirname( __DIR__, 2 ) . '/modules/mobile/includes/models/TimeGrowMobilePINModel.php';
 require_once dirname( __DIR__, 2 ) . '/modules/mobile/includes/TimeGrowPINAuthenticator.php';
+require_once dirname( __DIR__, 2 ) . '/modules/mobile/includes/TimeGrowMobile2FA.php';
 
 /**
  * Remote access (mobile PIN login, app token): only administrators and team members.
@@ -75,5 +76,14 @@ class MobileAccessTest extends TestCase {
     public function test_generated_pins_avoid_i_and_o() {
         $this->assertSame( 0, preg_match( '/[IO]/', TimeGrowPINAuthenticator::PIN_CHARS ) );
         $this->assertSame( 34, strlen( TimeGrowPINAuthenticator::PIN_CHARS ) );
+    }
+
+    public function test_without_wordfence_login_security_the_pin_login_has_no_code_step() {
+        $user = (object) [ 'ID' => 20, 'roles' => [ 'team_member' ] ];
+        $this->assertFalse( TimeGrowMobile2FA::active() );
+        $this->assertFalse( TimeGrowMobile2FA::enabled_for( $user ) );
+        $this->assertFalse( TimeGrowMobile2FA::setup_missing( $user ), 'nothing to set up' );
+        $this->assertFalse( TimeGrowMobile2FA::verify( $user, '123456' ), 'no code is ever accepted without it' );
+        $this->assertSame( '', TimeGrowMobile2FA::status_text( $user ) );
     }
 }

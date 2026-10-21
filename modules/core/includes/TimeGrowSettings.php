@@ -755,7 +755,7 @@ class TimeGrowSettings {
                 <?php endif; ?>
 
                 <!-- Mobile Access Card -->
-                <?php if (current_user_can('manage_options')): $sms_on = get_option('timegrow_mobile_sms_enabled') ? true : false; ?>
+                <?php if (current_user_can('manage_options')): $two_fa = class_exists('TimeGrowMobile2FA') && TimeGrowMobile2FA::active(); ?>
                 <a href="<?php echo esc_url(admin_url('admin.php?page=timegrow-mobile-settings')); ?>" class="timegrow-card">
                     <div class="timegrow-card-header">
                         <div class="timegrow-icon timegrow-icon-primary">
@@ -763,14 +763,14 @@ class TimeGrowSettings {
                         </div>
                         <div class="timegrow-card-title">
                             <h2><?php esc_html_e('Mobile Access', 'timegrow'); ?></h2>
-                            <span class="timegrow-badge <?php echo $sms_on ? 'timegrow-badge-success' : 'timegrow-badge-inactive'; ?>">
-                                <?php echo $sms_on ? esc_html__('Text messages on', 'timegrow') : esc_html__('Text messages off', 'timegrow'); ?>
+                            <span class="timegrow-badge <?php echo $two_fa ? 'timegrow-badge-success' : 'timegrow-badge-inactive'; ?>">
+                                <?php echo $two_fa ? esc_html__('Uses the site\'s 2FA', 'timegrow') : esc_html__('PIN only (no 2FA plugin)', 'timegrow'); ?>
                             </span>
                         </div>
                     </div>
                     <div class="timegrow-card-body">
                         <p class="timegrow-card-description">
-                            <?php esc_html_e('Mobile login with a PIN for administrators and team members, what each person can use on mobile, and text message alerts.', 'timegrow'); ?>
+                            <?php esc_html_e('The mobile website for team members: PIN login (with the site\'s 2FA when on), time entry, expenses and receipts, and what each person can use.', 'timegrow'); ?>
                         </p>
                         <div class="timegrow-features">
                             <div class="timegrow-feature-badge">
@@ -782,8 +782,8 @@ class TimeGrowSettings {
                                 <span><?php esc_html_e('AI Voice and AI Receipt Reader', 'timegrow'); ?></span>
                             </div>
                             <div class="timegrow-feature-badge">
-                                <span class="dashicons dashicons-email"></span>
-                                <span><?php esc_html_e('Text messages', 'timegrow'); ?></span>
+                                <span class="dashicons dashicons-shield"></span>
+                                <span><?php esc_html_e('Site 2FA', 'timegrow'); ?></span>
                             </div>
                         </div>
                         <div class="timegrow-card-footer">
