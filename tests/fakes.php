@@ -60,6 +60,15 @@ class WC_Order_Item_Product extends WC_Order_Item {
     public function save() { $this->saved++; }
 }
 
+/** A fee line on an order: a surcharge (above 0) or a credit (below 0). */
+class TimeGrow_Fake_Fee {
+    public $name;
+    public $total;
+    public function __construct( $name, $total ) { $this->name = $name; $this->total = $total; }
+    public function get_name() { return $this->name; }
+    public function get_total() { return $this->total; }
+}
+
 /**
  * An order holding fake line items, keyed by line item ID.
  */
@@ -71,6 +80,7 @@ class TimeGrow_Fake_Order {
     public $currency = 'USD';
     public $shipping_total = 0;
     public $total_tax = 0;
+    public $fees = [];
     public $notes = [];
     public $totals_calculated = 0;
 
@@ -96,6 +106,7 @@ class TimeGrow_Fake_Order {
     public function get_currency() { return $this->currency; }
     public function get_shipping_total() { return $this->shipping_total; }
     public function get_total_tax() { return $this->total_tax; }
+    public function get_fees() { return $this->fees; }
     public function calculate_totals( $and_taxes = true ) { $this->totals_calculated++; }
     public function add_order_note( $note ) { $this->notes[] = $note; }
 }

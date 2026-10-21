@@ -586,7 +586,7 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 			}
 
 
-			// Taxes & shipping as separate items (simple approach)
+			// Shipping, tax and fees as separate items
 			$currency = $order->get_currency();
 			$items    = array_merge( $items, $this->build_charge_lines( $order ) );
 
@@ -617,6 +617,14 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 					'tax_inclusive' => false,
 				],
 			];
+
+			// Credits on the order (fees below 0) come off the whole invoice
+			$credit = $this->fee_credit( $order );
+			if ( $credit > 0 ) {
+				$invoice_payload['amount'] = [ 'breakdown' => [ 'discount' => [ 'invoice_discount' => [
+					'amount' => [ 'currency_code' => $currency, 'value' => self::money_value( $credit, $currency ) ],
+				] ] ] ];
+			}
 
 			// Use the PDF invoice number when there is one; otherwise PayPal assigns its own
 			if ( $invoice_number !== '' ) {
@@ -754,12 +762,17 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 	}
 
 	/**
-	 * Shipping and tax as separate PayPal lines (only when above 0).
+	 * Shipping, tax and fees as separate PayPal lines (only when above 0). A fee below 0 (a credit)
+	 * can't be a PayPal line: it goes in fee_credit(), the invoice discount.
 	 */
 	public function build_charge_lines( $order ) {
 		$currency = $order->get_currency();
 		$lines    = [];
-		foreach ( [ 'Shipping' => (float) $order->get_shipping_total(), 'Tax' => (float) $order->get_total_tax() ] as $name => $amount ) {
+		$charges  = [ [ 'Shipping', (float) $order->get_shipping_total() ], [ 'Tax', (float) $order->get_total_tax() ] ];
+		foreach ( $order->get_fees() as $fee ) {
+			$charges[] = [ trim( (string) $fee->get_name() ) ?: 'Fee', (float) $fee->get_total() ];
+		}
+		foreach ( $charges as [ $name, $amount ] ) {
 			if ( $amount > 0 ) {
 				$lines[] = [
 					'name'        => $name,
@@ -769,6 +782,17 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 			}
 		}
 		return $lines;
+	}
+
+	/** The order's credits (fees below 0) as one positive amount, for the PayPal invoice discount. */
+	public function fee_credit( $order ) {
+		$credit = 0.0;
+		foreach ( $order->get_fees() as $fee ) {
+			if ( (float) $fee->get_total() < 0 ) {
+				$credit -= (float) $fee->get_total();
+			}
+		}
+		return round( $credit, 2 );
 	}
 
 	/**

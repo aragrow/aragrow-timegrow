@@ -51,6 +51,25 @@ class InvoiceLinesTest extends TestCase {
         $this->assertSame( '7.00', $lines[1]['unit_amount']['value'] );
     }
 
+    public function test_paypal_fee_becomes_a_line_and_credit_a_discount() {
+        $order = new TimeGrow_Fake_Order( 1 );
+        $order->fees = [ new TimeGrow_Fake_Fee( 'Rush fee', 40 ), new TimeGrow_Fake_Fee( 'Loyalty credit', -15.5 ), new TimeGrow_Fake_Fee( '', 5 ) ];
+        $lines = $this->paypal->build_charge_lines( $order );
+
+        $this->assertCount( 2, $lines );
+        $this->assertSame( 'Rush fee', $lines[0]['name'] );
+        $this->assertSame( '40.00', $lines[0]['unit_amount']['value'] );
+        $this->assertSame( 'Fee', $lines[1]['name'] );
+        $this->assertSame( 15.5, $this->paypal->fee_credit( $order ) );
+    }
+
+    public function test_paypal_no_credit_without_negative_fees() {
+        $order = new TimeGrow_Fake_Order( 1 );
+        $this->assertSame( 0.0, $this->paypal->fee_credit( $order ) );
+        $order->fees = [ new TimeGrow_Fake_Fee( 'Rush fee', 40 ) ];
+        $this->assertSame( 0.0, $this->paypal->fee_credit( $order ) );
+    }
+
     // ---- PDF invoice
 
     public function test_pdf_hours_line_shows_hours_and_rate() {
