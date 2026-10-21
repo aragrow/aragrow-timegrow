@@ -9,7 +9,7 @@ Both integrations are modules inside the TimeGrow plugin. Neither is a separate 
 | WooCommerce integration | `modules/woocommerce-integration/` | `aragrow-woocommerce-intengration.php` |
 | PayPal auto invoicer | `modules/paypal-invoicer/` | `aragrow-wc-paypal-auto-invoicer.php` |
 
-The main plugin file loads both. WooCommerce must be active for either to work. Without it, neither module hooks in (both wait for `plugins_loaded` and check for WooCommerce), the Nexus dashboard leaves out the Print & Mail card, and Process Time refuses with "Process Time needs WooCommerce" before billing anything. The rest of TimeGrow keeps working.
+The main plugin file loads both. WooCommerce must be active for either to work, and TimeGrow can't be activated without it (see Requirements in [CAPABILITIES.md](CAPABILITIES.md)). Without it, neither module hooks in (both wait for `plugins_loaded` and check for WooCommerce), the Nexus dashboard leaves out the Print & Mail card, and Process Time refuses with "Process Time needs WooCommerce" before billing anything. The rest of TimeGrow keeps working.
 
 ## Order lifecycle
 

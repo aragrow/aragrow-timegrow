@@ -17,17 +17,26 @@ TimeGrow uses custom WordPress capabilities to control access to reports. Each r
 
 ---
 
+## Requirements
+
+TimeGrow can only be activated while these plugins are active: **Aragrow Base** (`aragrow-base`), **WooCommerce** and **PublishPress Capabilities** (`capability-manager-enhanced`). Activating it without one stops with "TimeGrow needs … to be active" and leaves it inactive. If one is deactivated later, TimeGrow keeps running and administrators see a warning naming it. Code: `TimeGrowRequirements` (`modules/core/includes/helpers/`).
+
 ## Base Capabilities
 
-Most of the TimeGrow menu (Clients, Companies, Projects, Team Members, Time Entries, Expenses, Settings and the AI pages) needs `timeflies_owner` (`TIMEGROW_OWNER_CAP`). TimeGrow grants these to the **Administrator** role:
+Most of the TimeGrow menu needs `timegrow_owner` (`TIMEGROW_OWNER_CAP`): Clients, Companies, Projects, Team Members, Time Entries, Expenses, Settings (every tab), the AI pages, **Mobile Access**, **WooCommerce Integration** and **PayPal Integration**. Saving any TimeGrow settings page asks for it too, not WordPress's `manage_options` (`option_page_capability_*` for each TimeGrow settings group, `TimeGrowRequirements::SETTINGS_GROUPS`), so every TimeGrow page is controlled from the TimeGrow capabilities. TimeGrow grants these to the **Administrator** role:
 
-| Capability | Constant |
-|---|---|
-| `timeflies_owner` | `TIMEGROW_OWNER_CAP` |
-| `timeflies_admin` | `TIMEGROW_ADMIN_CAP` |
-| `timeflies_team_member` | `TIMEGROW_TEAM_MEMBER_CAP` |
+| Capability | Constant | Before 3.0.0 |
+|---|---|---|
+| `timegrow_owner` | `TIMEGROW_OWNER_CAP` | `timeflies_owner` |
+| `timegrow_admin` | `TIMEGROW_ADMIN_CAP` | `timeflies_admin` |
+| `timegrow_team_member` | `TIMEGROW_TEAM_MEMBER_CAP` | `timeflies_team_member` |
 
-They are added on activation, and on the next admin page load whenever the Administrator role lacks `timeflies_owner` (`timegrow_register_report_capabilities()`). Before 3.0.0 they were not granted by the plugin, so a site where nobody added them by hand (with PublishPress Capabilities, for example) showed only part of the menu: the Nexus pages, Reports and the integration settings. Team members reach their pages through the Nexus capabilities and don't need these.
+- **Created when missing:** on activation, and on the next admin page load whenever the Administrator role lacks `timegrow_owner` (`timegrow_register_report_capabilities()`; the Nexus and mobile capabilities have the same check).
+- **Renamed once:** every role and every user that had a `timeflies_*` name gets the `timegrow_*` one and loses the old one, on activation or the next admin page load (`TimeGrowRequirements::rename_capabilities()`, marked done in the `timegrow_caps_version` option). A capability denied to someone stays denied.
+- **Not used yet:** `timegrow_admin` and `timegrow_team_member` are granted but nothing checks them.
+- **PublishPress Capabilities:** the **TimeGrow** tab lists the base, report and mobile capabilities with a description each; the **TimeGrow Nexus** tab lists the Nexus ones.
+
+Before 3.0.0 the base capabilities were not granted by the plugin, so a site where nobody added them by hand showed only part of the menu. Team members reach their pages through the Nexus capabilities and don't need these.
 
 ---
 
