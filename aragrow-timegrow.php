@@ -25,9 +25,10 @@ defined( 'TIMEGROW_PREFIX' ) or define( 'TIMEGROW_PREFIX', strtolower(TIMEGROW).
 defined( 'TIMEGROW_BASE_DIR' ) or define( 'ARAGROW_TIMEGROW_BASE_DIR', plugin_dir_path( __FILE__ ) );
 defined( 'TIMEGROW_BASE_URI' ) or define( 'ARAGROW_TIMEGROW_BASE_URI', plugin_dir_url( __FILE__ ) );
 defined( 'TIMEGROW_MODULES_DIR' ) or define( 'TIMEGROW_MODULES_DIR', ARAGROW_TIMEGROW_BASE_DIR.'modules/' );
-defined( 'TIMEGROW_ADMIN_CAP' ) or define( 'TIMEGROW_ADMIN_CAP', 'timeflies_admin' );
-defined( 'TIMEGROW_OWNER_CAP' ) or define( 'TIMEGROW_OWNER_CAP', 'timeflies_owner' );
-defined( 'TIMEGROW_TEAM_MEMBER_CAP' ) or define( 'TIMEGROW_TEAM_MEMBER_CAP', 'timeflies_team_member' );
+// Base capabilities (named timeflies_* before 3.0.0; TimeGrowRequirements::rename_capabilities() moves them)
+defined( 'TIMEGROW_ADMIN_CAP' ) or define( 'TIMEGROW_ADMIN_CAP', 'timegrow_admin' );
+defined( 'TIMEGROW_OWNER_CAP' ) or define( 'TIMEGROW_OWNER_CAP', 'timegrow_owner' );
+defined( 'TIMEGROW_TEAM_MEMBER_CAP' ) or define( 'TIMEGROW_TEAM_MEMBER_CAP', 'timegrow_team_member' );
 defined( 'TIMEGROW_PARENT_MENU' ) or define( 'TIMEGROW_PARENT_MENU', 'timegrow' );
 defined( 'TIMEGROW_TEAM_MEMBER_MENU' ) or define( 'TIMEGROW_TEAM_MEMBER_MENU', TIMEGROW_PARENT_MENU.'-team-member' );
 
@@ -135,7 +136,12 @@ if ( file_exists( TIMEGROW_MODULES_DIR . 'mobile/aragrow-timegrow-mobile.php' ) 
 // PLUGIN ACTIVATION & CAPABILITIES
 // ==============================================
 
+require_once TIMEGROW_MODULES_DIR . 'core/includes/helpers/TimeGrowRequirements.php';
+
 register_activation_hook(__FILE__, 'timegrow_plugin_activate');
+
+// The base capabilities' old timeflies_* names move to timegrow_* (once), before the check below adds any missing
+add_action('admin_init', ['TimeGrowRequirements', 'rename_capabilities'], 5);
 
 // Stop the PayPal payment check when the plugin is deactivated (it is recreated on the next load)
 register_deactivation_hook(__FILE__, function() {
@@ -143,6 +149,9 @@ register_deactivation_hook(__FILE__, function() {
 });
 
 function timegrow_plugin_activate() {
+    // Capabilities: old names moved to the new ones, then every TimeGrow capability created where missing
+    TimeGrowRequirements::rename_capabilities();
+
     // Trigger core module activation
     do_action('timegrow_activate');
 
@@ -254,6 +263,11 @@ add_filter('cme_plugin_capabilities', 'timegrow_publishpress_capabilities');
 
 function timegrow_publishpress_capabilities($plugin_caps) {
     $plugin_caps['TimeGrow'] = [
+        // Base capabilities - Admin Only (most of the TimeGrow menu needs timegrow_owner)
+        TIMEGROW_OWNER_CAP,
+        TIMEGROW_ADMIN_CAP,
+        TIMEGROW_TEAM_MEMBER_CAP,
+
         // Report Capabilities - Admin Only
         'view_team_hours_summary',
         'view_project_financials',
@@ -272,10 +286,31 @@ function timegrow_publishpress_capabilities($plugin_caps) {
         'view_my_detailed_time_log',
         'view_my_hours_by_project',
         'view_my_expenses_report',
+
+        // Mobile website (TimeGrowMobile: granted to administrators, given to team members on Mobile Access)
+        'access_mobile_only_mode',
+        'access_mobile_time_tracking',
+        'access_mobile_expenses',
+        'access_mobile_ai_voice',
+        'access_mobile_ai_receipts',
     ];
 
     return $plugin_caps;
 }
+
+/** What each base and mobile capability allows, shown beside it in PublishPress Capabilities. */
+add_filter('cme_capability_descriptions', function ($descriptions) {
+    return array_merge((array) $descriptions, array_map('esc_html', [
+        TIMEGROW_OWNER_CAP               => __('Run TimeGrow: clients, companies, projects, team members, time entries, expenses, settings and the AI pages.', 'timegrow'),
+        TIMEGROW_ADMIN_CAP               => __('TimeGrow administrator (granted with the owner capability).', 'timegrow'),
+        TIMEGROW_TEAM_MEMBER_CAP         => __('TimeGrow team member (granted with the owner capability).', 'timegrow'),
+        'access_mobile_only_mode'        => __('Use the TimeGrow mobile website.', 'timegrow'),
+        'access_mobile_time_tracking'    => __('Mobile: Clock In / Out and Manual Time Entry.', 'timegrow'),
+        'access_mobile_expenses'         => __('Mobile: Record Expenses with receipts.', 'timegrow'),
+        'access_mobile_ai_voice'         => __('Mobile: the voice assistant.', 'timegrow'),
+        'access_mobile_ai_receipts'      => __('Mobile: read receipts with AI.', 'timegrow'),
+    ]));
+});
 
 /**
  * Set the admin page title for hidden TimeGrow pages.

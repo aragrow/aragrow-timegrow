@@ -57,7 +57,8 @@ function timegrow_uninstall_site() {
 
     // Capabilities, from every role
     $caps = [
-        'timeflies_admin', 'timeflies_owner', 'timeflies_team_member',
+        'timegrow_admin', 'timegrow_owner', 'timegrow_team_member',
+        'timeflies_admin', 'timeflies_owner', 'timeflies_team_member', // names used before 3.0.0
         'access_mobile_only_mode', 'access_mobile_time_tracking', 'access_mobile_expenses',
         'manage_expense_categories',
         'view_all_expenses_overview', 'view_client_activity_report', 'view_monthly_profit_loss',
