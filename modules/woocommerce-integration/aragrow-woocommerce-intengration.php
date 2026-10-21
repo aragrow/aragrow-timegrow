@@ -174,87 +174,78 @@ class Aragrow_WOO_Integration_Plugins
         }
     }
 
+    /**
+     * What the Manual Payment box's submitted fields mean. Pure.
+     * - clear: every field emptied while a payment is recorded (a mistaken entry would block Cancel)
+     * - refuse: a payment with a field missing (date, amount above 0, type, and a transaction ID for
+     *   ACH, Stripe, PayPal and credit card); nothing is saved
+     * - save: the fields to store (only the filled ones)
+     * - none: nothing entered and nothing to remove
+     *
+     * @param array $posted   date, amount (float), type, trans_id, submitted (the box was on the page).
+     * @param bool  $recorded A payment detail is saved on the order now.
+     * @return array { action, errors: string[], meta: array }
+     */
+    public static function manual_payment_plan(array $posted, $recorded) {
+        $date  = (string) ($posted['date'] ?? '');
+        $amount = (float) ($posted['amount'] ?? 0);
+        $type  = (string) ($posted['type'] ?? '');
+        $trans = (string) ($posted['trans_id'] ?? '');
+        $plan  = ['action' => 'none', 'errors' => [], 'meta' => []];
+
+        if ($date === '' && $amount == 0 && $type === '' && $trans === '') {
+            if (!empty($posted['submitted']) && $recorded) $plan['action'] = 'clear';
+            return $plan;
+        }
+
+        if ($date === '') $plan['errors'][] = 'Payment Date is required when recording a payment.';
+        if ($amount <= 0) $plan['errors'][] = 'Payment Amount is required and must be greater than 0.';
+        if ($type === '') $plan['errors'][] = 'Payment Type is required when recording a payment.';
+        if (in_array($type, ['ACH', 'Stripe', 'PayPal', 'Credit Card'], true) && $trans === '') {
+            $plan['errors'][] = 'Transaction ID is required for ' . $type . ' payments.';
+        }
+        if ($plan['errors']) {
+            $plan['action'] = 'refuse';
+            return $plan;
+        }
+
+        $plan['action'] = 'save';
+        $plan['meta']   = array_filter(['_payment_date' => $date, '_payment_amount' => $amount, '_payment_type' => $type, '_payment_trans_id' => $trans]);
+        return $plan;
+    }
+
     function save_manual_payment_data($order_id, $post) {
         $order = wc_get_order($order_id);
+        if (!$order) return;
 
-        // Get submitted values
-        $payment_date = isset($_POST['payment_date']) ? sanitize_text_field($_POST['payment_date']) : '';
-        $payment_amount = isset($_POST['payment_amount']) ? floatval($_POST['payment_amount']) : 0;
-        $payment_type = isset($_POST['payment_type']) ? sanitize_text_field($_POST['payment_type']) : '';
-        $payment_trans_id = isset($_POST['payment_trans_id']) ? sanitize_text_field($_POST['payment_trans_id']) : '';
-
-        // All fields emptied: the recorded payment is removed (a mistaken entry would otherwise block Cancel)
         $fields = ['_payment_date', '_payment_amount', '_payment_type', '_payment_trans_id'];
-        if (isset($_POST['payment_amount']) && empty($payment_date) && empty($payment_amount) && empty($payment_type) && empty($payment_trans_id)) {
-            if (array_filter(array_map([$order, 'get_meta'], $fields))) {
+        $plan   = self::manual_payment_plan([
+            'date'      => isset($_POST['payment_date']) ? sanitize_text_field(wp_unslash($_POST['payment_date'])) : '',
+            'amount'    => isset($_POST['payment_amount']) ? floatval($_POST['payment_amount']) : 0,
+            'type'      => isset($_POST['payment_type']) ? sanitize_text_field(wp_unslash($_POST['payment_type'])) : '',
+            'trans_id'  => isset($_POST['payment_trans_id']) ? sanitize_text_field(wp_unslash($_POST['payment_trans_id'])) : '',
+            'submitted' => isset($_POST['payment_amount']),
+        ], (bool) array_filter(array_map([$order, 'get_meta'], $fields)));
+
+        switch ($plan['action']) {
+            case 'clear':
                 foreach ($fields as $key) $order->delete_meta_data($key);
                 $order->add_order_note('Manual payment details removed.');
                 $order->save();
-            }
-            return;
-        }
-
-        // Validation: Only validate if any payment field is provided
-        $has_payment_data = !empty($payment_date) || !empty($payment_amount) || !empty($payment_type) || !empty($payment_trans_id);
-
-        if ($has_payment_data) {
-            $errors = [];
-
-            // Required: Payment Date
-            if (empty($payment_date)) {
-                $errors[] = 'Payment Date is required when recording a payment.';
-            }
-
-            // Required: Payment Amount (must be greater than 0)
-            if (empty($payment_amount) || $payment_amount <= 0) {
-                $errors[] = 'Payment Amount is required and must be greater than 0.';
-            }
-
-            // Required: Payment Type
-            if (empty($payment_type)) {
-                $errors[] = 'Payment Type is required when recording a payment.';
-            }
-
-            // Required: Transaction ID for specific payment types
-            $requires_trans_id = ['ACH', 'Stripe', 'PayPal', 'Credit Card'];
-            if (in_array($payment_type, $requires_trans_id) && empty($payment_trans_id)) {
-                $errors[] = 'Transaction ID is required for ' . esc_html($payment_type) . ' payments.';
-            }
-
-            // If there are validation errors, display them and prevent save
-            if (!empty($errors)) {
+                break;
+            case 'refuse':
                 // Shown on the page WooCommerce redirects to after the save (an admin_notices callback
                 // added now would be lost with that redirect)
-                set_transient('timegrow_payment_errors_' . get_current_user_id(), $errors, 5 * MINUTE_IN_SECONDS);
-
-                // Log validation failure
+                set_transient('timegrow_payment_errors_' . get_current_user_id(), $plan['errors'], 5 * MINUTE_IN_SECONDS);
                 if (timegrow_debug()) {
-                    timegrow_log('Manual payment validation failed for Order #' . $order_id . ': ' . implode(' | ', $errors));
+                    timegrow_log('Manual payment validation failed for Order #' . $order_id . ': ' . implode(' | ', $plan['errors']));
                 }
-
-                // Do not save invalid data
-                return;
-            }
+                break;
+            case 'save':
+                foreach ($plan['meta'] as $key => $value) $order->update_meta_data($key, $value);
+                $order->save();
+                break;
         }
-
-        // Save validated data
-        if (!empty($payment_date)) {
-            $order->update_meta_data('_payment_date', $payment_date);
-        }
-
-        if (!empty($payment_amount)) {
-            $order->update_meta_data('_payment_amount', $payment_amount);
-        }
-
-        if (!empty($payment_type)) {
-            $order->update_meta_data('_payment_type', $payment_type);
-        }
-
-        if (!empty($payment_trans_id)) {
-            $order->update_meta_data('_payment_trans_id', $payment_trans_id);
-        }
-
-        $order->save();
     }
 
     function add_custom_field_ein_ssn($user) {

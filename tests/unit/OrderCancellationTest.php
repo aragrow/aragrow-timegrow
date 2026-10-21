@@ -24,6 +24,20 @@ class OrderCancellationTest extends TestCase {
         $this->assertSame( 40.0, Aragrow_TimeGrow_Order_Cancellation::refunded_with( [], $this->refund( 0, '40' ) ) );
     }
 
+    public function test_which_checks_a_cancel_runs() {
+        // A TimeGrow invoice: the full checks (payment, PayPal, then the time is released)
+        $this->assertSame( 'full', Aragrow_TimeGrow_Order_Cancellation::cancel_checks( 'invoice_sent', true, true, false ) );
+        $this->assertSame( 'full', Aragrow_TimeGrow_Order_Cancellation::cancel_checks( 'pending', true, false, false ) );
+        // An order made by hand and sent to PayPal: its PayPal invoice is cancelled too
+        $this->assertSame( 'paypal', Aragrow_TimeGrow_Order_Cancellation::cancel_checks( 'inv_sent2paypal', false, true, false ) );
+        // A plain store order: WooCommerce alone
+        $this->assertSame( 'none', Aragrow_TimeGrow_Order_Cancellation::cancel_checks( 'processing', false, false, false ) );
+        // Already checked by cancel(), or refunded first
+        $this->assertSame( 'none', Aragrow_TimeGrow_Order_Cancellation::cancel_checks( 'invoice_sent', true, true, true ) );
+        $this->assertSame( 'none', Aragrow_TimeGrow_Order_Cancellation::cancel_checks( 'refunded', true, true, false ) );
+        $this->assertSame( 'none', Aragrow_TimeGrow_Order_Cancellation::cancel_checks( 'refunded', false, true, false ) );
+    }
+
     public function test_unpaid_invoices_can_be_cancelled() {
         foreach ( [ 'processing', 'pending', 'invoice_sent', 'to_be_mailed', 'inv_sent2paypal', 'inv_draft2paypal' ] as $status ) {
             $this->assertSame( '', Aragrow_TimeGrow_Order_Cancellation::cancel_refusal( $status, 0 ), $status );

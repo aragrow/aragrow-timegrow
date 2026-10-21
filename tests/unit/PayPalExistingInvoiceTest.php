@@ -1,6 +1,10 @@
 <?php
 use PHPUnit\Framework\TestCase;
 
+if ( ! function_exists( 'wp_json_encode' ) ) {
+    function wp_json_encode( $data, $flags = 0 ) { return json_encode( $data, $flags ); }
+}
+
 /** A retry finds the PayPal invoice an earlier try made for the same order, instead of making a second one. */
 class PayPalExistingInvoiceTest extends TestCase {
 
@@ -50,5 +54,42 @@ class PayPalExistingInvoiceTest extends TestCase {
         $this->assertSame( 'web-design-2026', Aragrow_WC_PayPal_Auto_Invoicer::catalog_product_id( 'web design/2026' ) );
         $this->assertSame( 50, strlen( Aragrow_WC_PayPal_Auto_Invoicer::catalog_product_id( str_repeat( 'A', 80 ) ) ) );
         $this->assertSame( '', Aragrow_WC_PayPal_Auto_Invoicer::catalog_product_id( '///' ) );
+    }
+
+    private function payload( array $settings, $order = null, $invoice_number = '' ) {
+        $order = $order ?: new TimeGrow_Fake_Order( 1106 );
+        return Aragrow_WC_PayPal_Auto_Invoicer::instance()->build_invoice_payload( $order, $settings, [ [ 'name' => 'Line' ] ], [ 'email_address' => 'client@example.test' ], $invoice_number );
+    }
+
+    public function test_an_empty_merchant_email_is_left_out_of_the_invoice() {
+        $payload = $this->payload( [ 'merchant_email' => '' ] );
+        $this->assertArrayNotHasKey( 'invoicer', $payload );
+        $this->assertStringNotContainsString( '"invoicer"', json_encode( $payload ), 'never an empty JSON list' );
+
+        $payload = $this->payload( [ 'merchant_email' => 'billing@example.test' ] );
+        $this->assertSame( [ 'email_address' => 'billing@example.test' ], $payload['invoicer'] );
+        $this->assertStringContainsString( '"invoicer":{"email_address"', json_encode( $payload ), 'a JSON object' );
+    }
+
+    public function test_invoice_payload_carries_reference_number_and_credit() {
+        $order = new TimeGrow_Fake_Order( 1106 );
+        $order->fees = [ new TimeGrow_Fake_Fee( 'Loyalty credit', -25 ) ];
+        $payload = $this->payload( [ 'merchant_email' => '' ], $order, '000117' );
+
+        $this->assertSame( '1106', $payload['detail']['reference'] );
+        $this->assertSame( '000117', $payload['detail']['invoice_number'] );
+        $this->assertSame( '25.00', $payload['amount']['breakdown']['discount']['invoice_discount']['amount']['value'] );
+        $this->assertArrayNotHasKey( 'invoice_number', $this->payload( [ 'merchant_email' => '' ] )['detail'], 'PayPal numbers it when there is no PDF number' );
+        $this->assertArrayNotHasKey( 'amount', $this->payload( [ 'merchant_email' => '' ] ), 'no credit, no discount' );
+    }
+
+    public function test_request_ids_repeat_for_a_retry_and_change_for_a_new_invoice() {
+        $body  = [ 'detail' => [ 'reference' => '1106' ] ];
+        $first = Aragrow_WC_PayPal_Auto_Invoicer::request_key( 'POST', '/v2/invoicing/invoices', $body, 'https://site.test', '1106:0' );
+
+        $this->assertSame( $first, Aragrow_WC_PayPal_Auto_Invoicer::request_key( 'POST', '/v2/invoicing/invoices', $body, 'https://site.test', '1106:0' ), 'a retry after a timeout' );
+        $this->assertNotSame( $first, Aragrow_WC_PayPal_Auto_Invoicer::request_key( 'POST', '/v2/invoicing/invoices', $body, 'https://site.test', '1106:1' ), 'a new invoice after a cancel' );
+        $this->assertNotSame( $first, Aragrow_WC_PayPal_Auto_Invoicer::request_key( 'POST', '/v2/invoicing/invoices', $body, 'https://other.test', '1106:0' ), 'another site' );
+        $this->assertSame( 36, strlen( $first ) );
     }
 }

@@ -653,41 +653,7 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 
 			$invoice_number = $this->get_invoice_number( $order );
 
-			$invoice_payload = [
-				'detail' => [
-					'currency_code'        => $currency,
-					'reference'            => (string) $order->get_id(),
-					'note'                 => 'Thank you for your business!',
-					'terms_and_conditions' => 'Payment due upon receipt.',
-				],
-				'primary_recipients' => [
-					[ 'billing_info' => $billing_info ],
-				],
-				'items' => $items,
-				'configuration' => [
-					'tax_calculated_after_discount' => true,
-					'tax_inclusive' => false,
-				],
-			];
-
-			// The merchant email is optional: without one PayPal uses the account's own. Left out rather
-			// than sent empty, since an empty PHP array goes out as a JSON list, which PayPal refuses.
-			if ( $settings['merchant_email'] ) {
-				$invoice_payload['invoicer'] = [ 'email_address' => $settings['merchant_email'] ];
-			}
-
-			// Credits on the order (fees below 0) come off the whole invoice
-			$credit = $this->fee_credit( $order );
-			if ( $credit > 0 ) {
-				$invoice_payload['amount'] = [ 'breakdown' => [ 'discount' => [ 'invoice_discount' => [
-					'amount' => [ 'currency_code' => $currency, 'value' => self::money_value( $credit, $currency ) ],
-				] ] ] ];
-			}
-
-			// Use the PDF invoice number when there is one; otherwise PayPal assigns its own
-			if ( $invoice_number !== '' ) {
-				$invoice_payload['detail']['invoice_number'] = $invoice_number;
-			}
+			$invoice_payload = $this->build_invoice_payload( $order, $settings, $items, $billing_info, $invoice_number );
 
 			// An earlier try may have reached PayPal without TimeGrow hearing back (a timeout): use that
 			// invoice instead of making a second one the client could also pay
@@ -817,6 +783,52 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 			return [ $line_hours, $line_total / $line_hours ];
 		}
 		return [ $quantity, $quantity > 0 ? $line_total / $quantity : $line_total ];
+	}
+
+	/**
+	 * The body of the create-invoice call: the order's lines ($items), the client ($billing_info),
+	 * the merchant email when set, the credits as the invoice discount, and the PDF invoice number
+	 * when there is one.
+	 */
+	public function build_invoice_payload( $order, array $settings, array $items, array $billing_info, $invoice_number ) {
+		$currency = $order->get_currency();
+		$invoice_payload = [
+			'detail' => [
+				'currency_code'        => $currency,
+				'reference'            => (string) $order->get_id(),
+				'note'                 => 'Thank you for your business!',
+				'terms_and_conditions' => 'Payment due upon receipt.',
+			],
+			'primary_recipients' => [
+				[ 'billing_info' => $billing_info ],
+			],
+			'items' => $items,
+			'configuration' => [
+				'tax_calculated_after_discount' => true,
+				'tax_inclusive' => false,
+			],
+		];
+
+		// The merchant email is optional: without one PayPal uses the account's own. Left out rather
+		// than sent empty, since an empty PHP array goes out as a JSON list, which PayPal refuses.
+		if ( ! empty( $settings['merchant_email'] ) ) {
+			$invoice_payload['invoicer'] = [ 'email_address' => $settings['merchant_email'] ];
+		}
+
+		// Credits on the order (fees below 0) come off the whole invoice
+		$credit = $this->fee_credit( $order );
+		if ( $credit > 0 ) {
+			$invoice_payload['amount'] = [ 'breakdown' => [ 'discount' => [ 'invoice_discount' => [
+				'amount' => [ 'currency_code' => $currency, 'value' => self::money_value( $credit, $currency ) ],
+			] ] ] ];
+		}
+
+		// Use the PDF invoice number when there is one; otherwise PayPal assigns its own
+		if ( $invoice_number !== '' ) {
+			$invoice_payload['detail']['invoice_number'] = $invoice_number;
+		}
+
+		return $invoice_payload;
 	}
 
 	/**
@@ -1083,7 +1095,12 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 	 */
 	private function idempotency_key( $method, $path, $payload ) {
         timegrow_log(__CLASS__.'::'.__FUNCTION__);
-		return substr( sha1( $method . '|' . $path . '|' . wp_json_encode( $payload ) . '|' . home_url() . '|' . $this->request_scope ), 0, 36 );
+		return self::request_key( $method, $path, $payload, home_url(), $this->request_scope );
+	}
+
+	/** A PayPal-Request-Id: the same for the same call, site and scope (order:generation). Pure. */
+	public static function request_key( $method, $path, $payload, $site, $scope ) {
+		return substr( sha1( $method . '|' . $path . '|' . wp_json_encode( $payload ) . '|' . $site . '|' . $scope ), 0, 36 );
 	}
 
     /** The encryption key from wp-config.php, or '' when it isn't defined. */

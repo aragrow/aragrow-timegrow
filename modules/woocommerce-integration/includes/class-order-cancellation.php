@@ -140,6 +140,22 @@ class Aragrow_TimeGrow_Order_Cancellation {
 	}
 
 	/**
+	 * Which checks a cancel (from the dropdown, a bulk action or REST) runs. Pure.
+	 * full: a TimeGrow invoice (payment, PayPal, then its time is released) · paypal: another order
+	 * with a PayPal invoice (payment and PayPal only) · none: no checks (cancel() already ran them,
+	 * the order was refunded first, or it is a plain order with no PayPal invoice).
+	 */
+	public static function cancel_checks( $from, $is_timegrow_invoice, $has_paypal_invoice, $cancelling ) {
+		if ( $cancelling || $from === 'refunded' ) {
+			return 'none';
+		}
+		if ( $is_timegrow_invoice ) {
+			return 'full';
+		}
+		return $has_paypal_invoice ? 'paypal' : 'none';
+	}
+
+	/**
 	 * Statuses a client may cancel from My Account: none for a TimeGrow invoice (it holds billed time
 	 * and may have a PayPal invoice; the business cancels it). Other orders keep WooCommerce's.
 	 */
@@ -418,11 +434,17 @@ class Aragrow_TimeGrow_Order_Cancellation {
 			}
 		}
 
+		$checks = $to === 'cancelled' ? self::cancel_checks(
+			$from,
+			self::is_timegrow_invoice( $order ),
+			class_exists( 'Aragrow_TimeGrow_PayPal_Payment_Sync' ) && Aragrow_TimeGrow_PayPal_Payment_Sync::invoice_id_for( $order ) !== '',
+			self::$cancelling
+		) : '';
+
 		if ( ! self::is_timegrow_invoice( $order ) ) {
 			// Any order can be sent to PayPal: cancelling it cancels its PayPal invoice too, so the
 			// client can't pay a cancelled order (it has no time to release)
-			if ( $to === 'cancelled' && ! self::$cancelling && $from !== 'refunded' && class_exists( 'Aragrow_TimeGrow_PayPal_Payment_Sync' )
-				&& Aragrow_TimeGrow_PayPal_Payment_Sync::invoice_id_for( $order ) !== '' ) {
+			if ( $checks === 'paypal' ) {
 				$refusal = self::prepare_cancel( $order, $from );
 				if ( $refusal !== '' ) {
 					self::keep_status( $order, $from );
@@ -433,7 +455,7 @@ class Aragrow_TimeGrow_Order_Cancellation {
 		}
 
 		if ( $to === 'cancelled' ) {
-			if ( self::$cancelling || $from === 'refunded' ) {
+			if ( $checks === 'none' ) {
 				return; // cancel() ran the checks already, or the money was refunded (and the time released)
 			}
 			$refusal = self::prepare_cancel( $order, $from );
