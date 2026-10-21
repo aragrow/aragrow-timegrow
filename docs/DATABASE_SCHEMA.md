@@ -122,6 +122,7 @@ CREATE TABLE IF NOT EXISTS wp_timegrow_expense_tracker (
     assigned_to ENUM('project', 'client', 'general') NOT NULL,
     assigned_to_id mediumint(9) NULL,
     status tinyint(1) NOT NULL DEFAULT 1,
+    member_id BIGINT(20) UNSIGNED NULL DEFAULT NULL,
     created_at timestamp,
     updated_at timestamp,
     PRIMARY KEY (id)
@@ -142,6 +143,7 @@ CREATE TABLE IF NOT EXISTS wp_timegrow_expense_tracker (
 | `assigned_to` | ENUM | NO | - | Assignment type |
 | `assigned_to_id` | mediumint(9) | YES | NULL | ID of assigned entity |
 | `status` | tinyint(1) | NO | 1 | 1 = active, 0 = inactive (kept, but left out of every report and total). Added on existing sites at the next admin page load (`TimeGrowExpenseModel::maybe_add_status_column()`) |
+| `member_id` | BIGINT(20) unsigned | YES | NULL | The team member the expense belongs to (`team_member_tracker.ID`); NULL = a company expense (and every expense from before this column). A team member records only their own (Nexus Record Expenses, `TimeGrowExpenseRules`); administrators pick any member or none. Added on existing sites at the next admin page load (`TimeGrowExpenseModel::maybe_add_member_column()`) |
 | `created_at` | timestamp | YES | CURRENT_TIMESTAMP | Creation timestamp |
 | `updated_at` | timestamp | YES | CURRENT_TIMESTAMP | Last update timestamp |
 
@@ -287,7 +289,7 @@ CREATE TABLE IF NOT EXISTS wp_timegrow_expense_receipt_tracker (
 | Column | Type | Null | Default | Description |
 |--------|------|------|---------|-------------|
 | `ID` | BIGINT(20) unsigned | NO | AUTO_INCREMENT | Primary key |
-| `expense_id` | BIGINT(20) unsigned | NO | - | FK to expense_tracker |
+| `expense_id` | BIGINT(20) unsigned | NO | - | FK to expense_tracker. Tables created before 2.2.0 had this key pointing at the receipt table itself, so most receipts failed to save; `TimeGrowExpenseReceiptModel::fix_expense_key()` drops it once and adds the right one (when every receipt points at an expense) |
 | `uploaded_by` | BIGINT(20) unsigned | NO | 0 | WordPress user who uploaded it; 0 = unknown (receipts from before the column: administrators only) |
 | `file_url` | TEXT | NO | - | Where the file is stored (private folder; never linked to directly) |
 | `upload_date` | DATETIME | YES | CURRENT_TIMESTAMP | Upload timestamp |

@@ -18,7 +18,8 @@ class TimeGrowExpenseModel {
         $this->wpdb = $wpdb;
         $this->charset_collate = $wpdb->get_charset_collate();
         $this->table_name = $this->wpdb->prefix . TIMEGROW_PREFIX . 'expense_tracker'; // Make sure this matches your table name
-        $this->allowed_fields = ['expense_name',
+        $this->allowed_fields = ['member_id',
+                                'expense_name',
                                 'expense_date',
                                 'amount',
                                 'expense_category_id',
@@ -44,6 +45,7 @@ class TimeGrowExpenseModel {
             assigned_to ENUM('project', 'client', 'general') NOT NULL,
             assigned_to_id mediumint(9) NULL,
             status tinyint(1) NOT NULL DEFAULT 1,
+            member_id BIGINT(20) UNSIGNED NULL DEFAULT NULL,
             created_at timestamp,
             updated_at timestamp,
             PRIMARY KEY (id)
@@ -51,6 +53,28 @@ class TimeGrowExpenseModel {
 
         dbDelta($sql);
         self::maybe_add_status_column();
+        self::maybe_add_member_column();
+    }
+
+    /**
+     * The member_id column (the team member the expense belongs to) on sites created before it:
+     * added once, on admin load. Older expenses have none, so they count as company expenses.
+     */
+    public static function maybe_add_member_column() {
+        if (get_option('timegrow_expense_member_db') === '1') {
+            return;
+        }
+        global $wpdb;
+        $table = $wpdb->prefix . TIMEGROW_PREFIX . 'expense_tracker';
+        if ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $table)) !== $table) {
+            return; // created later by initialize(), with the column
+        }
+        if (!$wpdb->get_var($wpdb->prepare("SHOW COLUMNS FROM {$table} LIKE %s", 'member_id'))) {
+            $wpdb->query("ALTER TABLE {$table} ADD COLUMN member_id BIGINT(20) UNSIGNED NULL DEFAULT NULL AFTER status, ADD KEY member_id (member_id)");
+        }
+        if ($wpdb->get_var($wpdb->prepare("SHOW COLUMNS FROM {$table} LIKE %s", 'member_id'))) {
+            update_option('timegrow_expense_member_db', '1', false);
+        }
     }
 
     /**

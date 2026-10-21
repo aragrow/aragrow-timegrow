@@ -20,6 +20,7 @@ class TimeGrowExpenseReceiptModel {
 
     const DIR   = 'timegrow-receipts';
     const NONCE = 'timegrow_view_receipt';
+    const MAX_SIZE = 524288; // bytes per receipt file (512 KB)
 
     private $table_name;
 
@@ -46,7 +47,8 @@ class TimeGrowExpenseReceiptModel {
             gemini_confidence DECIMAL(3,2),
             analyzed_at DATETIME,
             PRIMARY KEY (id),
-            FOREIGN KEY (expense_id) REFERENCES {$this->table_name}(id) ON DELETE CASCADE
+            KEY expense_id (expense_id),
+            FOREIGN KEY (expense_id) REFERENCES {$this->wpdb->prefix}" . TIMEGROW_PREFIX . "expense_tracker(ID) ON DELETE CASCADE
         ) $this->charset_collate;";
 
         dbDelta($sql);
@@ -151,8 +153,8 @@ class TimeGrowExpenseReceiptModel {
             return new WP_Error('invalid_file_type', 'Invalid file type. Allowed types are JPEG, PNG, and PDF.');
         }
 
-        // Validate file size (max 512KB)
-        $max_file_size = .5 * 1024 * 1024; // 512KB
+        // Validate file size
+        $max_file_size = self::MAX_SIZE;
         if ($file['size'] > $max_file_size) {
             return new WP_Error('file_too_large', 'File size exceeds the maximum limit of 512K.');
         }
@@ -248,10 +250,44 @@ class TimeGrowExpenseReceiptModel {
         }
     }
 
-    /** admin_init: the uploaded_by column, then (once) older receipts moved to private storage. */
+    /** admin_init: the uploaded_by column, the expense key, then (once) older receipts moved to private storage. */
     public static function maintain() {
         self::maybe_add_owner_column();
+        self::fix_expense_key();
         self::migrate();
+    }
+
+    /**
+     * Tables created before this fix had a foreign key from expense_id to this table's own ID, so a
+     * receipt could only be saved when its expense ID matched an existing receipt. Once: that key is
+     * dropped, and the right one (to the expense) added when every receipt points at an expense.
+     */
+    public static function fix_expense_key() {
+        if (get_option('timegrow_receipt_fk_db') === '1') {
+            return;
+        }
+        global $wpdb;
+        $table    = $wpdb->prefix . TIMEGROW_PREFIX . 'expense_receipt_tracker';
+        $expenses = $wpdb->prefix . TIMEGROW_PREFIX . 'expense_tracker';
+        if ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->esc_like($table))) !== $table) {
+            return; // created later by initialize(), with the right key
+        }
+        $keys = (array) $wpdb->get_results($wpdb->prepare(
+            'SELECT CONSTRAINT_NAME AS name, REFERENCED_TABLE_NAME AS ref FROM information_schema.KEY_COLUMN_USAGE
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s AND REFERENCED_TABLE_NAME IS NOT NULL', $table, 'expense_id'));
+        $right = false;
+        foreach ($keys as $k) {
+            if ($k->ref === $table) {
+                $wpdb->query("ALTER TABLE {$table} DROP FOREIGN KEY `" . esc_sql($k->name) . '`');
+            } elseif ($k->ref === $expenses) {
+                $right = true;
+            }
+        }
+        $orphans = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$table} r LEFT JOIN {$expenses} e ON e.ID = r.expense_id WHERE e.ID IS NULL");
+        if (!$right && !$orphans) {
+            $wpdb->query("ALTER TABLE {$table} ADD CONSTRAINT {$table}_expense FOREIGN KEY (expense_id) REFERENCES {$expenses}(ID) ON DELETE CASCADE");
+        }
+        update_option('timegrow_receipt_fk_db', '1', false);
     }
 
     /** admin-post timegrow_view_receipt: send the receipt to someone allowed to see it (can_view()). */
@@ -337,7 +373,7 @@ class TimeGrowExpenseReceiptModel {
      * @param array $gemini_data Optional Gemini analysis data
      * @return int|false Receipt ID on success, false on failure
      */
-    public function save_receipt_record($expense_id, $file_url, $gemini_data = null) {
+    public function save_receipt_record($expense_id, $file_url, $gemini_data = null, $quiet = false) {
         timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
         global $wpdb;
@@ -366,13 +402,12 @@ class TimeGrowExpenseReceiptModel {
 
         $result = $wpdb->insert($this->table_name, $data);
 
-        if ($result) {
-            echo '<div class="notice notice-success is-dismissible"><p>File uploaded successfully!</p></div>';
-            return $wpdb->insert_id;
-        } else {
-            echo '<div class="notice notice-error is-dismissible"><p>Error saving file record to database.</p></div>';
-            return false;
+        if (!$quiet) { // $quiet: AJAX saves answer in JSON, so no notice is printed
+            echo $result
+                ? '<div class="notice notice-success is-dismissible"><p>File uploaded successfully!</p></div>'
+                : '<div class="notice notice-error is-dismissible"><p>Error saving file record to database.</p></div>';
         }
+        return $result ? $wpdb->insert_id : false;
     }
 
     /**

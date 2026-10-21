@@ -191,11 +191,13 @@ class TimeGrowExpenseController{
                              WHEN e.assigned_to = 'project' THEN p.name
                              ELSE NULL
                          END as project_name,
-                         ec.name as category_name
+                         ec.name as category_name,
+                         tm.name as member_name
                   FROM {$table_name} e
                   LEFT JOIN {$user_table} u ON (e.assigned_to = 'client' AND e.assigned_to_id = u.ID)
                   LEFT JOIN {$project_table} p ON (e.assigned_to = 'project' AND e.assigned_to_id = p.ID)
                   LEFT JOIN {$category_table} ec ON e.expense_category_id = ec.ID
+                  LEFT JOIN {$wpdb->prefix}" . TIMEGROW_PREFIX . "team_member_tracker tm ON e.member_id = tm.ID
                   {$where_clause}
                   ORDER BY {$orderby_column} {$order}";
 

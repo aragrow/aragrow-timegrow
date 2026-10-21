@@ -592,8 +592,8 @@ class TimeGrowNexus{
         } elseif (TimeFlies_Admin_Menu::is_page($hook, 'timegrow-nexus-expenses')) {
             wp_enqueue_script(
                 'timegrow-nexus-expense-script', // New handle, matches wp_localize_script
-                TIMEGROW_NEXUS_BASE_URI . 'assets/js/expense-recorder.js', // Path to your new JS file
-                [], // No React dependencies needed for vanilla JS
+                TIMEGROW_NEXUS_BASE_URI . 'assets/js/expense-recorder.js',
+                ['jquery'],
                 $plugin_version,
                 true // Load in footer
             );

@@ -369,6 +369,7 @@ spl_autoload_register( 'timegrow_nexus_load_mvc_classes' );
 if ( ! isset( $timegrow_nexus ) ) $timegrow_nexus = New TimeGrowNexus();
 TimeGrowNexusVoice::init();     // voice entry: the mic icon on every admin page
 TimeGrowNexusAssistant::init(); // voice questions and adding clients and projects
+TimeGrowNexusExpense::init();   // Record Expenses: saving an expense and its receipts
 
 // Register activation hook
 register_activation_hook(__FILE__, 'timegrow_nexus_plugin_activate');

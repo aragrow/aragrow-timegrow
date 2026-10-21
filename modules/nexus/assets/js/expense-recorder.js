@@ -1,257 +1,145 @@
 // File: assets/js/expense-recorder.js
+// Nexus > Record Expenses: receipts (drop or choose, preview, remove), who the expense is for (myself,
+// a project or a client), optional reading of the first receipt with AI, and the save
+// (AJAX timegrow_nexus_save_expense). The server checks who may record what; the choices on the page
+// are only the ones this person may use (TimeGrowExpenseRules).
 jQuery(document).ready(function($) {
-    console.log('Expense Recorder JS Initializing...');
+    const cfg = window.timegrowExpense || {};
+    const $form = $('#expense-form');
+    if (!$form.length) return;
 
-    // Detect if device is mobile/touch
-    const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+    const $drop = $('#receipt-drop-zone');
+    const $input = $('#receipt-file-input');
+    const $previews = $('#receipt-preview-area');
+    const $message = $('#expense-form-message');
+    const $save = $('#save-expense-btn');
+    const $readAi = $('#read-receipt-ai');
+    const maxSize = Number(cfg.maxSize) || 524288;
+    const maxFiles = Number(cfg.maxFiles) || 5;
+    let receipts = []; // File objects, in the order added
 
-    // --- DOM Elements ---
-    const $projectTiles = $('.timegrow-project-tile');
-    const $expenseProjectDropDisplay = $('#expense-drop-zone-display'); // Updated ID
-    const $selectedExpenseProjectIdInput = $('#selected-expense-project-id'); // Hidden input
-    const $projectDropPlaceholder = $expenseProjectDropDisplay.find('.project-drop-placeholder');
-    const $selectedProjectDetailsDiv = $expenseProjectDropDisplay.find('.selected-project-details');
-    const $clearDroppedProjectBtn = $('#clear-dropped-project-btn');
-
-    // ... (other DOM elements like receipt drop zone, form, etc.)
-
-    // --- State Variables ---
-    let selectedProjectIdForExpense = null; // To store the ID of the dropped project for the expense
-
-    /**
-     * Create searchable dropdown for project selection
-     */
-    function createProjectDropdown() {
-        // Collect all projects from tiles
-        const projects = [];
-        $('.timegrow-project-tile').each(function() {
-            projects.push({
-                id: $(this).data('project-id'),
-                name: $(this).data('project-name'),
-                desc: $(this).data('project-desc')
-            });
-        });
-
-        // Only create if there are projects
-        if (projects.length === 0) {
-            return;
-        }
-
-        // Sort alphabetically
-        projects.sort((a, b) => a.name.localeCompare(b.name));
-
-        // Create dropdown wrapper
-        const $wrapper = $('<div id="expense-project-selector-wrapper" style="margin-bottom: 20px;"></div>');
-        const $label = $('<label for="expense-project-search" style="display: block; margin-bottom: 8px; font-weight: 600; font-size: 15px;">Select Project (Optional)</label>');
-        const $searchInput = $('<input type="text" id="expense-project-search" placeholder="Search projects..." style="width: 100%; min-height: 50px; padding: 12px; font-size: 16px; border: 2px solid #ddd; border-radius: 8px; margin-bottom: 10px; box-sizing: border-box;" />');
-        const $datalist = $('<datalist id="expense-projects-datalist"></datalist>');
-        const $select = $('<select id="expense-project-selector" style="width: 100%; min-height: 50px; padding: 12px; font-size: 16px; border: 2px solid #ddd; border-radius: 8px; box-sizing: border-box;"></select>');
-
-        // Add options
-        $select.append('<option value="">-- Choose a Project (Optional) --</option>');
-        projects.forEach(function(project) {
-            // Names are text, never markup
-            $select.append($('<option>', { value: project.id, text: project.name }));
-            $datalist.append($('<option>', { value: project.name, text: project.name }).attr('data-id', project.id));
-        });
-
-        $searchInput.attr('list', 'expense-projects-datalist');
-
-        // Assemble (hide the select dropdown, keep for data management)
-        $wrapper.append($label).append($searchInput).append($datalist).append($select.hide());
-
-        // Insert before expense project drop section
-        if ($('#expense-project-drop-section').length > 0) {
-            $('#expense-project-drop-section').before($wrapper);
-        } else {
-            $('#expense-form').prepend($wrapper);
-        }
-
-        // Handle search input
-        $searchInput.on('input change', function() {
-            const searchValue = $(this).val();
-            const selectedProject = projects.find(p => p.name === searchValue);
-            if (selectedProject) {
-                $select.val(selectedProject.id).trigger('change');
-                $(this).blur();
-            }
-        });
-
-        // Handle selection - sync with dropdown
-        $select.on('change', function() {
-            const projectId = $(this).val();
-            if (projectId) {
-                const selectedProject = projects.find(p => p.id == projectId);
-                $searchInput.val(selectedProject.name);
-            } else {
-                $searchInput.val('');
-            }
-        });
-
-        // Handle selection - update form state
-        $select.on('change', function() {
-            const projectId = $(this).val();
-
-            if (projectId) {
-                const selectedProject = projects.find(p => p.id == projectId);
-
-                selectedProjectIdForExpense = projectId;
-                $selectedExpenseProjectIdInput.val(projectId);
-
-                $projectDropPlaceholder.hide();
-                $selectedProjectDetailsDiv
-                    .empty().append('✓ Project Selected: ', $('<strong>').text(selectedProject.name))
-                    .css('color', '#46b450')
-                    .show();
-                $clearDroppedProjectBtn.show();
-
-                $expenseProjectDropDisplay.addClass('has-project');
-                $('.timegrow-project-tile').css('opacity', 0.6);
-            } else {
-                // Reset if no selection
-                selectedProjectIdForExpense = null;
-                $selectedExpenseProjectIdInput.val('');
-
-                $selectedProjectDetailsDiv.html('').hide();
-                $projectDropPlaceholder.show();
-                $clearDroppedProjectBtn.hide();
-
-                $expenseProjectDropDisplay.removeClass('has-project');
-                $('.timegrow-project-tile').css('opacity', 1);
-            }
-        });
-
-        // Also allow click to select on tiles
-        if (!isTouchDevice) {
-            $('.timegrow-project-tile').on('click', function(e) {
-                if (!selectedProjectIdForExpense) {
-                    e.preventDefault();
-                    const projectId = $(this).data('project-id');
-                    if (projectId) {
-                        $select.val(projectId).trigger('change');
-                    }
-                }
-            });
-        }
+    function show(text, kind) {
+        $message.removeClass('success error').addClass(kind).text(text).prop('hidden', false);
+    }
+    function sizeText(bytes) {
+        return bytes >= 1048576 ? (bytes / 1048576).toFixed(1) + ' MB' : Math.round(bytes / 1024) + ' KB';
     }
 
-    // Create searchable dropdown (call after all variables are defined)
-    createProjectDropdown();
+    // --- Receipts -----------------------------------------------------------
 
-    // --- Project Tile Drag/Drop Logic ---
-    $projectTiles.attr('draggable', true);
+    function addFiles(files) {
+        const problems = [];
+        Array.from(files || []).forEach(file => {
+            if (!/\.(jpe?g|png|pdf)$/i.test(file.name)) { problems.push(`${file.name} is not a JPG, PNG or PDF.`); return; }
+            if (file.size > maxSize) { problems.push(`${file.name} is ${sizeText(file.size)}; the limit is ${sizeText(maxSize)}.`); return; }
+            if (receipts.length >= maxFiles) { problems.push(`Attach at most ${maxFiles} receipts.`); return; }
+            if (receipts.some(r => r.name === file.name && r.size === file.size)) return; // already added
+            receipts.push(file);
+        });
+        renderReceipts();
+        if (problems.length) show(problems.join(' '), 'error');
+        else $message.prop('hidden', true);
+    }
 
-    $projectTiles.on('dragstart', function (e) {
-        console.log('Project dragstart');
-        // Prevent dragging if a project is already selected for the expense
-        if (selectedProjectIdForExpense) {
+    function renderReceipts() {
+        $previews.empty();
+        receipts.forEach((file, i) => {
+            const $item = $('<div>', { class: 'receipt-preview-item' });
+            if (/^image\//.test(file.type) && window.URL) {
+                const url = URL.createObjectURL(file);
+                $item.append($('<img>', { src: url, alt: '' }).on('load', () => URL.revokeObjectURL(url)));
+            } else {
+                $item.append($('<span>', { class: 'pdf-icon dashicons dashicons-media-document', 'aria-hidden': 'true' }));
+            }
+            $item.append($('<span>', { class: 'receipt-name', text: file.name, title: file.name }));
+            $item.append($('<button>', { type: 'button', class: 'remove-receipt-btn', text: '×', 'aria-label': 'Remove ' + file.name }).data('index', i));
+            $previews.append($item);
+        });
+        $readAi.prop('disabled', !receipts.length);
+    }
+
+    $drop.on('click', () => $input.trigger('click'))
+        .on('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $input.trigger('click'); } })
+        .on('dragover', e => { e.preventDefault(); $drop.addClass('dragging-over'); })
+        .on('dragleave', () => $drop.removeClass('dragging-over'))
+        .on('drop', e => {
             e.preventDefault();
-            console.log("Drag prevented: A project is already selected for the expense.");
-            return;
-        }
-        e.originalEvent.dataTransfer.setData('project-id', $(this).data('project-id'));
-        e.originalEvent.dataTransfer.setData('name', $(this).data('project-name'));
-        e.originalEvent.dataTransfer.setData('desc', $(this).data('project-desc'));
+            $drop.removeClass('dragging-over');
+            if (e.originalEvent.dataTransfer) addFiles(e.originalEvent.dataTransfer.files);
+        });
+    $input.on('change', function() { addFiles(this.files); $(this).val(''); });
+    $previews.on('click', '.remove-receipt-btn', function() {
+        receipts.splice(Number($(this).data('index')), 1);
+        renderReceipts();
     });
 
-    $expenseProjectDropDisplay
-        .on('dragover', function (e) {
-            e.preventDefault();
-            if (!selectedProjectIdForExpense) { // Only show dragging-over if no project is selected
-                $(this).addClass('dragging-over');
-            }
-        })
-        .on('dragleave', function () {
-            $(this).removeClass('dragging-over');
-        })
-        .on('drop', function (e) {
-            e.preventDefault();
-            if (selectedProjectIdForExpense) { // If a project already selected, don't allow another drop
-                console.log("Drop ignored: Project already selected for expense.");
-                $(this).removeClass('dragging-over');
-                return;
-            }
+    // --- Who it is for --------------------------------------------------------
 
-            console.log('Project dropped on expense assignment zone');
-            const projectId = e.originalEvent.dataTransfer.getData('project-id');
-            const projectName = e.originalEvent.dataTransfer.getData('name');
-            const projectDesc = e.originalEvent.dataTransfer.getData('desc');
+    function showAssign() {
+        const v = $form.find('input[name="assigned_to"]:checked').val();
+        $('#expense-project-group').prop('hidden', v !== 'project');
+        $('#expense-client-group').prop('hidden', v !== 'client');
+        $('#expense-project').prop('required', v === 'project'); // the browser asks for it before saving
+        $('#expense-client').prop('required', v === 'client');
+    }
+    $form.on('change', 'input[name="assigned_to"]', showAssign);
+    showAssign();
 
-            if (projectId) {
-                selectedProjectIdForExpense = projectId; // Store the selected project ID
-                $selectedExpenseProjectIdInput.val(projectId); // Set hidden input value
+    // --- Reading a receipt with AI (optional) ---------------------------------
 
-                $projectDropPlaceholder.hide(); // Hide initial placeholder text
-                $selectedProjectDetailsDiv
-                    .empty().append(document.createTextNode(`Project: ${projectName} (ID: ${projectId})`), '<br />', $('<small style="color: #555;">').text(projectDesc || 'No description'))
-                    .show(); // Show and populate details
-                $clearDroppedProjectBtn.show(); // Show the clear button
-
-                $(this).addClass('has-project'); // Add class for styling selected state
-                $projectTiles.css('opacity', 0.6).attr('draggable', false); // Visually indicate other projects are now not draggable
-            }
-            $(this).removeClass('dragging-over');
-        });
-
-    // --- Clear Dropped Project Button Functionality ---
-    $clearDroppedProjectBtn.on('click', function() {
-        console.log('Clearing selected project for expense.');
-        selectedProjectIdForExpense = null; // Clear stored ID
-        $selectedExpenseProjectIdInput.val(''); // Clear hidden input
-
-        $selectedProjectDetailsDiv.html('').hide(); // Clear and hide details
-        $projectDropPlaceholder.show(); // Show initial placeholder text
-        $clearDroppedProjectBtn.hide(); // Hide the clear button
-
-        $expenseProjectDropDisplay.removeClass('has-project'); // Remove selected state styling
-        $projectTiles.css('opacity', 1).attr('draggable', true); // Re-enable project tiles for dragging
-
-        // Clear dropdown selection
-        $('#expense-project-selector').val('');
-        $('#expense-project-search').val('');
+    $readAi.on('click', function() {
+        if (!receipts.length) return;
+        const data = new FormData();
+        data.append('action', 'analyze_receipt_realtime');
+        data.append('nonce', cfg.aiNonce);
+        data.append('receipt_file', receipts[0]);
+        $readAi.prop('disabled', true);
+        show('Reading the receipt…', 'success');
+        $.ajax({ url: cfg.ajaxUrl, method: 'POST', data: data, processData: false, contentType: false })
+            .done(res => {
+                if (!res || !res.success) { show((res && res.data) || 'The receipt could not be read.', 'error'); return; }
+                const d = res.data;
+                if (d.expense_name) $('#expense-name').val(d.expense_name);
+                if (d.expense_date && d.expense_date <= (cfg.today || d.expense_date)) $('#expense-date').val(d.expense_date);
+                if (d.amount > 0) $('#expense-amount').val(Number(d.amount).toFixed(2));
+                if (d.expense_description) $('#expense-description').val(d.expense_description);
+                if (d.category_id && $('#expense-category option[value="' + Number(d.category_id) + '"]').length) $('#expense-category').val(String(d.category_id));
+                show(d.message || 'Receipt read. Check every field before saving.', d.low_confidence || d.suspicious || d.refund ? 'error' : 'success');
+            })
+            .fail(() => show('The receipt could not be read: the site could not be reached.', 'error'))
+            .always(() => $readAi.prop('disabled', !receipts.length));
     });
 
+    // --- Saving ----------------------------------------------------------------
 
-    // --- Receipt File Drag and Drop & Input Logic ---
-    // ... (Your existing receipt handling code: $receiptDropZone, $receiptFileInput, handleFiles, addReceiptPreview, remove preview) ...
-    const $receiptDropZone = $('#receipt-drop-zone');
-    const $receiptFileInput = $('#receipt-file-input');
-    const $receiptPreviewArea = $('#receipt-preview-area');
-    let receiptFiles = [];
+    function clearForm() {
+        $form[0].reset();
+        $('#expense-date').val(cfg.today || '');
+        receipts = [];
+        renderReceipts();
+        showAssign();
+    }
+    $('#clear-expense-form-btn').on('click', () => { clearForm(); $message.prop('hidden', true); });
 
-    if ($receiptDropZone.length && $receiptFileInput.length) {
-        // ... (Keep the receipt drop/click logic from previous correct version)
-        // Example snippet:
-        $receiptDropZone
-            .on('dragover', function(e) { /* ... */ $(this).addClass('dragging-over'); })
-            .on('dragleave', function(e) { /* ... */ $(this).removeClass('dragging-over'); })
-            .on('drop', function(e) {
-                e.preventDefault(); e.stopPropagation(); $(this).removeClass('dragging-over');
-                if (e.originalEvent.dataTransfer && e.originalEvent.dataTransfer.files) {
-                    handleFiles(e.originalEvent.dataTransfer.files);
+    $form.on('submit', function(e) {
+        e.preventDefault();
+        if (!this.checkValidity()) { this.reportValidity(); return; }
+        const data = new FormData(this);
+        data.append('action', 'timegrow_nexus_save_expense');
+        data.append('nonce', cfg.nonce);
+        receipts.forEach(file => data.append('receipts[]', file, file.name));
+        $save.prop('disabled', true).text('Saving…');
+        $.ajax({ url: cfg.ajaxUrl, method: 'POST', data: data, processData: false, contentType: false })
+            .done(res => {
+                if (res && res.success) {
+                    show(res.data.message + ' Reloading the list…', 'success');
+                    clearForm();
+                    setTimeout(() => window.location.reload(), 900); // the list under the form shows it
+                    return;
                 }
-            });
-        $receiptDropZone.on('click', function() { $receiptFileInput.click(); });
-        $receiptFileInput.on('change', function(e) { if (e.target.files) { handleFiles(e.target.files); } $(this).val(''); });
-    }
-    function handleFiles(files) { /* ... your file handling logic ... */ }
-    function addReceiptPreview(file) { /* ... your preview logic ... */ }
-    if ($receiptPreviewArea && $receiptPreviewArea.length) {
-        $receiptPreviewArea.on('click', '.remove-receipt-btn', function() { /* ... your remove preview logic ... */ });
-    }
-
-
-    // --- Form Submission Logic ---
-    // $('#expense-form').on('submit', function(e) {
-    //      e.preventDefault();
-    //      const formData = new FormData(this);
-    //      // Make sure to append selectedProjectIdForExpense if it's set:
-    //      if (selectedProjectIdForExpense) {
-    //          formData.append('expense_project_id', selectedProjectIdForExpense); // Or use the name of your hidden input
-    //      }
-    //      // ... append receiptFiles ...
-    //      // ... AJAX call ...
-    // });
-
-    console.log('Expense Recorder JS Fully Initialized.');
+                show((res && res.data && res.data.message) || 'The expense could not be saved.', 'error');
+            })
+            .fail(xhr => show(xhr && xhr.status === 403 ? 'You are not allowed to record expenses.' : 'The expense could not be saved: the site could not be reached.', 'error'))
+            .always(() => $save.prop('disabled', false).text('Save expense'));
+    });
 });

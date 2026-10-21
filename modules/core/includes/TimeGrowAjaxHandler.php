@@ -79,17 +79,22 @@ class TimeGrow_Ajax_Handler {
      * Real-time receipt reading: the uploaded image is read by the active AI and the expense
      * fields come back to fill the form. Low-confidence results come back too, with a warning.
      */
+    /**
+     * Whether the logged-in person may read receipts with AI: owners, or people given the AI Receipt
+     * Reader mobile capability; in the mobile app (PIN session) that capability is always needed.
+     */
+    public static function may_read_receipts() {
+        $mobile = class_exists('TimeGrowMobileAccess') && TimeGrowMobileAccess::in_mobile_session();
+        return $mobile
+            ? current_user_can('access_mobile_ai_receipts')
+            : (current_user_can(TIMEGROW_OWNER_CAP) || (current_user_can('access_mobile_ai_receipts') && class_exists('TimeGrowMobileAccess') && TimeGrowMobileAccess::allowed(get_current_user_id())));
+    }
+
     public function handle_analyze_receipt_realtime() {
         if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'timegrow_ajax_nonce')) {
             wp_send_json_error('Security check failed');
         }
-        // Owners, or people given the AI Receipt Reader mobile capability; in the mobile app (PIN
-        // session) that capability is always needed
-        $mobile  = class_exists('TimeGrowMobileAccess') && TimeGrowMobileAccess::in_mobile_session();
-        $allowed = $mobile
-            ? current_user_can('access_mobile_ai_receipts')
-            : (current_user_can(TIMEGROW_OWNER_CAP) || (current_user_can('access_mobile_ai_receipts') && class_exists('TimeGrowMobileAccess') && TimeGrowMobileAccess::allowed(get_current_user_id())));
-        if (!$allowed) {
+        if (!self::may_read_receipts()) {
             wp_send_json_error('You are not allowed to read receipts with AI.', 403);
         }
         if (empty($_FILES['receipt_file'])) {

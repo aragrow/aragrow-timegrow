@@ -140,6 +140,7 @@ class TimeGrowExpenseView {
                     <th scope="col" class="manage-column column-amount sortable <?php echo ($current_filters['orderby'] == 'amount') ? 'sorted ' . strtolower($current_filters['order']) : ''; ?>">
                         <?php echo $sortable_link('amount', __('Amount', 'timegrow')); ?>
                     </th>
+                    <th scope="col" class="manage-column column-member"><?php esc_html_e('Team member', 'timegrow'); ?></th>
                     <th scope="col" class="manage-column column-assigned-to sortable <?php echo ($current_filters['orderby'] == 'assigned_to') ? 'sorted ' . strtolower($current_filters['order']) : ''; ?>">
                         <?php echo $sortable_link('assigned_to', __('Assigned To', 'timegrow')); ?>
                     </th>
@@ -167,6 +168,7 @@ class TimeGrowExpenseView {
                             </td>
                             <td class="column-date" data-colname="Date"><?php echo esc_html($display_date); ?></td>
                             <td class="column-amount" data-colname="Amount">$<?php echo number_format($item->amount, 2); ?></td>
+                            <td class="column-member" data-colname="<?php esc_attr_e('Team member', 'timegrow'); ?>"><?php echo esc_html($item->member_name ?? '') ?: '&mdash;'; ?></td>
                             <td class="column-assigned-to" data-colname="Assigned To">
                                 <?php
                                 if ($item->assigned_to == 'client') {
@@ -190,7 +192,7 @@ class TimeGrowExpenseView {
                     <?php endforeach; ?>
                 <?php else : ?>
                     <tr>
-                        <td colspan="6">No expenses found.</td>
+                        <td colspan="7">No expenses found.</td>
                     </tr>
                 <?php endif; ?>
             </tbody>
@@ -199,6 +201,7 @@ class TimeGrowExpenseView {
                     <th scope="col" class="manage-column column-name column-primary">Name</th>
                     <th scope="col" class="manage-column column-date">Date</th>
                     <th scope="col" class="manage-column column-amount">Amount</th>
+                    <th scope="col" class="manage-column column-member"><?php esc_html_e('Team member', 'timegrow'); ?></th>
                     <th scope="col" class="manage-column column-assigned-to">Assigned To</th>
                     <th scope="col" class="manage-column column-category">Category</th>
                     <th scope="col" class="manage-column column-status">Status</th>
