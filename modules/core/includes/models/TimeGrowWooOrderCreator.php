@@ -202,12 +202,12 @@ class TimeGrowWooOrderCreator {
                     if (!$woo_product && !self::products_on()) {
                         // WooCommerce Products is off: the line has no product, just the project's name
                         $project      = $model_project->select($project_id)[0];
-                        $product_name = $entry->display_name . ' - ' . $project->name;
+                        $product_name = self::line_name($entry->display_name, $project->name);
                         $product_id   = 0;
                     } elseif (!$woo_product) {
                         $project = $model_project->select($project_id)[0];
                         // Product does not exist, create it
-                        $product_name = $entry->display_name. ' - ' . $project->name;
+                        $product_name = self::line_name($entry->display_name, $project->name);
                         $product = new WC_Product_Simple();
                         $product->set_name($product_name);
                         $product->set_regular_price($the_rate);
@@ -356,6 +356,15 @@ class TimeGrowWooOrderCreator {
             return null;
         }
         return (strtotime($entry->clock_out_date) - strtotime($entry->clock_in_date)) / 3600;
+    }
+
+    /**
+     * "Client - Project", the name of a project's product and invoice line. WordPress stores a display
+     * name HTML-encoded ("Harbor &amp; Vine"); WooCommerce and PayPal want the plain text. Pure.
+     */
+    public static function line_name($client_name, $project_name) {
+        $plain = function ($s) { return trim(html_entity_decode((string) $s, ENT_QUOTES | ENT_HTML5, 'UTF-8')); };
+        return $plain($client_name) !== '' ? $plain($client_name) . ' - ' . $plain($project_name) : $plain($project_name);
     }
 
     /** True when Settings > WooCommerce Integration > WooCommerce Products is on. */

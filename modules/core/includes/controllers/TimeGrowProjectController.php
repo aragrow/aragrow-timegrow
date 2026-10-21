@@ -110,7 +110,7 @@ class TimeGrowProjectController{
 
         global $wpdb;
         $client = get_userdata((int) $data['client_id']);
-        $name   = ($client ? $client->display_name . ' - ' : '') . $data['name'];
+        $name   = TimeGrowWooOrderCreator::line_name($client ? $client->display_name : '', $data['name']);
 
         // Project, client, company, else 75: the rate Process Time bills at
         $rate = TimeGrowWooOrderCreator::resolve_rate(

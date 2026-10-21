@@ -927,7 +927,8 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 		if ( $first !== '' || $last !== '' ) {
 			$name = array_filter( [ 'given_name' => $first, 'surname' => $last ] );
 		} else {
-			$name = $user && $user->display_name ? [ 'full_name' => $user->display_name ] : null;
+			// WordPress stores the display name HTML-encoded ("Harbor &amp; Vine"): PayPal gets plain text
+			$name = $user && $user->display_name ? [ 'full_name' => html_entity_decode( $user->display_name, ENT_QUOTES | ENT_HTML5, 'UTF-8' ) ] : null;
 		}
 
 		$address = array_filter( [

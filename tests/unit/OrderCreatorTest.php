@@ -77,4 +77,10 @@ class OrderCreatorTest extends TestCase {
         $this->assertNull( TimeGrowWooOrderCreator::pick_reusable_order( [ $issued ] ) );
         $this->assertNull( TimeGrowWooOrderCreator::pick_reusable_order( [] ) );
     }
+
+    public function test_line_name_is_plain_text() {
+        $this->assertSame( 'Harbor & Vine - SEO Audit', TimeGrowWooOrderCreator::line_name( 'Harbor &amp; Vine', 'SEO Audit' ) );
+        $this->assertSame( "O'Neil Co - Books", TimeGrowWooOrderCreator::line_name( 'O&#039;Neil Co', 'Books' ) );
+        $this->assertSame( 'Website', TimeGrowWooOrderCreator::line_name( '', 'Website' ), 'no client name' );
+    }
 }
