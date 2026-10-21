@@ -87,6 +87,7 @@ class Aragrow_TimeGrow_PayPal_Payment_Sync {
 
 			case 'PARTIALLY_PAID':
 				if ( $paid_amount === null || $paid_amount <= 0 ) break;
+				if ( $order_status === 'invoice_paid' ) break; // paid in full already (recorded here): PayPal shows only part of it
 				if ( $order_status === 'partial_paid' && abs( $paid_amount - (float) $recorded_amount ) < 0.005 ) break;
 				$result['action'] = 'partial';
 				$result['note']   = sprintf( 'PayPal reports a partial payment: %s paid so far.', number_format( $paid_amount, 2, '.', '' ) );
@@ -248,23 +249,26 @@ class Aragrow_TimeGrow_PayPal_Payment_Sync {
 	 * What cancelling the order means for its PayPal invoice. Pure: no side effects.
 	 *
 	 * @param string $paypal_status Invoice status from PayPal.
-	 * @return string delete (a draft the client never saw) | cancel (sent, so PayPal cancels it) |
-	 *                done (already cancelled) | paid (money came in: leave it, keep the time billed)
+	 * @return string delete (a draft, or scheduled and not sent yet: PayPal only deletes those) |
+	 *                cancel (sent, so PayPal cancels it) | done (already cancelled) |
+	 *                paid (money came in, or is on its way: leave it, keep the time billed)
 	 */
 	public static function cancel_plan( $paypal_status ) {
 		switch ( (string) $paypal_status ) {
 			case 'DRAFT':
+			case 'SCHEDULED':
 				return 'delete';
 			case 'CANCELLED':
 				return 'done';
 			case 'PAID':
 			case 'MARKED_AS_PAID':
 			case 'PARTIALLY_PAID':
+			case 'PAYMENT_PENDING': // a payment is on its way (an eCheck)
 			case 'REFUNDED':
 			case 'PARTIALLY_REFUNDED':
 			case 'MARKED_AS_REFUNDED':
 				return 'paid';
-			default: // SENT, UNPAID, SCHEDULED, PAYMENT_PENDING
+			default: // SENT, UNPAID
 				return 'cancel';
 		}
 	}
@@ -284,7 +288,7 @@ class Aragrow_TimeGrow_PayPal_Payment_Sync {
 			case 'delete':
 				$this->invoicer->paypal_request( 'DELETE', $path );
 				$status  = 'DELETED';
-				$message = sprintf( 'PayPal draft invoice %s deleted (the client never received it).', $invoice_id );
+				$message = sprintf( 'PayPal %s invoice %s deleted (the client never received it).', $status === 'SCHEDULED' ? 'scheduled' : 'draft', $invoice_id );
 				$release = true;
 				break;
 			case 'cancel':
@@ -494,6 +498,16 @@ class Aragrow_TimeGrow_PayPal_Payment_Sync {
 		] );
 	}
 
+	/**
+	 * The verify-webhook-signature request as JSON, with the event exactly as PayPal sent it: the
+	 * signature covers those bytes, and decoding then re-encoding can change them ({} becomes [],
+	 * number formats, escaping). Pure.
+	 */
+	public static function verify_body( array $fields, $raw_event ) {
+		$fields['webhook_event'] = '__TIMEGROW_WEBHOOK_EVENT__';
+		return str_replace( '"__TIMEGROW_WEBHOOK_EVENT__"', trim( (string) $raw_event ), wp_json_encode( $fields ) );
+	}
+
 	public function handle_webhook( WP_REST_Request $request ) {
 		$event      = $request->get_json_params();
 		$webhook_id = $this->invoicer->settings()['webhook_id'];
@@ -504,15 +518,14 @@ class Aragrow_TimeGrow_PayPal_Payment_Sync {
 
 		// Ask PayPal whether this message really came from PayPal for our webhook
 		try {
-			$check = $this->invoicer->paypal_request( 'POST', '/v1/notifications/verify-webhook-signature', [
+			$check = $this->invoicer->paypal_request( 'POST', '/v1/notifications/verify-webhook-signature', self::verify_body( [
 				'auth_algo'         => $request->get_header( 'paypal_auth_algo' ),
 				'cert_url'          => $request->get_header( 'paypal_cert_url' ),
 				'transmission_id'   => $request->get_header( 'paypal_transmission_id' ),
 				'transmission_sig'  => $request->get_header( 'paypal_transmission_sig' ),
 				'transmission_time' => $request->get_header( 'paypal_transmission_time' ),
 				'webhook_id'        => $webhook_id,
-				'webhook_event'     => $event,
-			] );
+			], $request->get_body() ) );
 		} catch ( Exception $e ) {
 			timegrow_log( 'PayPal webhook verification error: ' . $e->getMessage() );
 			return new WP_REST_Response( [ 'ok' => false ], 500 ); // PayPal retries later

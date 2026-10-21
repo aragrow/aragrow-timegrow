@@ -25,6 +25,19 @@ class PayPalPaymentSyncTest extends TestCase {
         $this->assertSame( [ 3, 5, 2 ], $ids ); // never tried (oldest order first), then tried longest ago
     }
 
+    public function test_webhook_check_sends_the_event_exactly_as_received() {
+        $raw  = '{"id":"WH-1","resource":{"metadata":{}},"amount":"10.50"}';
+        $body = Aragrow_TimeGrow_PayPal_Payment_Sync::verify_body( [ 'webhook_id' => 'ABC' ], $raw . "\n" );
+
+        $this->assertSame( '{"webhook_id":"ABC","webhook_event":' . $raw . '}', $body );
+        $this->assertSame( 'WH-1', json_decode( $body, true )['webhook_event']['id'] );
+    }
+
+    public function test_partial_payment_never_lowers_an_order_paid_in_full() {
+        $d = Aragrow_TimeGrow_PayPal_Payment_Sync::decide( $this->invoice( 'PARTIALLY_PAID', '200.00' ), 'invoice_paid', 581.25 );
+        $this->assertSame( 'none', $d['action'] );
+    }
+
     public function test_paid_invoice_marks_the_order_paid_with_payment_details() {
         $invoice = $this->invoice( 'PAID', '581.25', [
             [ 'payment_id' => '7AB12345CD678901E', 'payment_date' => '2026-10-15 PDT' ],

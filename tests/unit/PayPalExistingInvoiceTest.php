@@ -43,4 +43,12 @@ class PayPalExistingInvoiceTest extends TestCase {
         $this->assertStringContainsString( 'not defined', Aragrow_WC_PayPal_Auto_Invoicer::credential_problem( false, $saved, [] ) );
         $this->assertStringContainsString( 'changed', Aragrow_WC_PayPal_Auto_Invoicer::credential_problem( true, $saved, [ 'client_id' => 'id', 'client_secret' => '' ] ) );
     }
+
+    public function test_catalog_product_id_fits_paypals_limits() {
+        $this->assertSame( 'TG-ABC', Aragrow_WC_PayPal_Auto_Invoicer::catalog_product_id( 'ABC' ) );
+        $this->assertSame( 'TG-007', Aragrow_WC_PayPal_Auto_Invoicer::catalog_product_id( '7' ) );
+        $this->assertSame( 'web-design-2026', Aragrow_WC_PayPal_Auto_Invoicer::catalog_product_id( 'web design/2026' ) );
+        $this->assertSame( 50, strlen( Aragrow_WC_PayPal_Auto_Invoicer::catalog_product_id( str_repeat( 'A', 80 ) ) ) );
+        $this->assertSame( '', Aragrow_WC_PayPal_Auto_Invoicer::catalog_product_id( '///' ) );
+    }
 }

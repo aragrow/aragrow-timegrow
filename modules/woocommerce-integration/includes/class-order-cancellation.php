@@ -255,15 +255,33 @@ class Aragrow_TimeGrow_Order_Cancellation {
 	}
 
 	/**
-	 * Before a WooCommerce refund is saved: refuse it (the refund screen shows the message) when
-	 * PayPal hasn't refunded that much yet.
+	 * The order's refunds once this one is done: the others plus this one. WooCommerce has already
+	 * saved the new refund when it asks (its totals are saved first), so it is left out of the others
+	 * and counted once. Pure.
+	 *
+	 * @param object[] $refunds The order's refunds (get_id, get_amount), possibly including $refund.
+	 * @param object   $refund  The refund being made.
+	 */
+	public static function refunded_with( array $refunds, $refund ) {
+		$total = 0.0;
+		foreach ( $refunds as $other ) {
+			if ( (int) $other->get_id() !== (int) $refund->get_id() || ! $refund->get_id() ) {
+				$total += abs( (float) $other->get_amount() );
+			}
+		}
+		return round( $total + abs( (float) $refund->get_amount() ), 2 );
+	}
+
+	/**
+	 * Before a WooCommerce refund is final: refuse it (the refund screen shows the message, and
+	 * WooCommerce removes the refund) when PayPal hasn't refunded that much yet.
 	 */
 	public static function require_paypal_refund( $refund, $args = [] ) {
 		$order = wc_get_order( $refund->get_parent_id() );
 		if ( ! $order ) {
 			return;
 		}
-		$shortfall = self::paypal_refund_shortfall( $order, (float) $order->get_total_refunded() + (float) $refund->get_amount() );
+		$shortfall = self::paypal_refund_shortfall( $order, self::refunded_with( $order->get_refunds(), $refund ) );
 		if ( $shortfall !== '' ) {
 			$order->add_order_note( 'Refund not made: ' . $shortfall );
 			throw new Exception( $shortfall ); // wc_create_refund() turns this into an error and saves nothing
@@ -401,6 +419,16 @@ class Aragrow_TimeGrow_Order_Cancellation {
 		}
 
 		if ( ! self::is_timegrow_invoice( $order ) ) {
+			// Any order can be sent to PayPal: cancelling it cancels its PayPal invoice too, so the
+			// client can't pay a cancelled order (it has no time to release)
+			if ( $to === 'cancelled' && ! self::$cancelling && $from !== 'refunded' && class_exists( 'Aragrow_TimeGrow_PayPal_Payment_Sync' )
+				&& Aragrow_TimeGrow_PayPal_Payment_Sync::invoice_id_for( $order ) !== '' ) {
+				$refusal = self::prepare_cancel( $order, $from );
+				if ( $refusal !== '' ) {
+					self::keep_status( $order, $from );
+					self::notice( 'error', sprintf( 'Order #%s was not cancelled. %s', $order->get_order_number(), $refusal ) );
+				}
+			}
 			return;
 		}
 

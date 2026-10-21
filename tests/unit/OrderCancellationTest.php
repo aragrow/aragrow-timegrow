@@ -6,6 +6,24 @@ use PHPUnit\Framework\TestCase;
  */
 class OrderCancellationTest extends TestCase {
 
+    private function refund( $id, $amount ) {
+        return new class( $id, $amount ) {
+            private $id; private $amount;
+            public function __construct( $id, $amount ) { $this->id = $id; $this->amount = $amount; }
+            public function get_id() { return $this->id; }
+            public function get_amount() { return $this->amount; }
+        };
+    }
+
+    public function test_new_refund_is_counted_once_even_when_already_saved() {
+        $new = $this->refund( 30, '40.00' );
+        // WooCommerce already saved the new refund: it is in the order's refunds
+        $this->assertSame( 60.0, Aragrow_TimeGrow_Order_Cancellation::refunded_with( [ $this->refund( 21, '20.00' ), $new ], $new ) );
+        // Not saved yet (no ID): the others plus this one
+        $this->assertSame( 60.0, Aragrow_TimeGrow_Order_Cancellation::refunded_with( [ $this->refund( 21, '20.00' ) ], $this->refund( 0, '40.00' ) ) );
+        $this->assertSame( 40.0, Aragrow_TimeGrow_Order_Cancellation::refunded_with( [], $this->refund( 0, '40' ) ) );
+    }
+
     public function test_unpaid_invoices_can_be_cancelled() {
         foreach ( [ 'processing', 'pending', 'invoice_sent', 'to_be_mailed', 'inv_sent2paypal', 'inv_draft2paypal' ] as $status ) {
             $this->assertSame( '', Aragrow_TimeGrow_Order_Cancellation::cancel_refusal( $status, 0 ), $status );
@@ -74,16 +92,17 @@ class OrderCancellationTest extends TestCase {
 
     public function test_paypal_draft_is_deleted() {
         $this->assertSame( 'delete', Aragrow_TimeGrow_PayPal_Payment_Sync::cancel_plan( 'DRAFT' ) );
+        $this->assertSame( 'delete', Aragrow_TimeGrow_PayPal_Payment_Sync::cancel_plan( 'SCHEDULED' ), 'PayPal cancels only sent invoices' );
     }
 
     public function test_sent_paypal_invoices_are_cancelled() {
-        foreach ( [ 'SENT', 'UNPAID', 'SCHEDULED', 'PAYMENT_PENDING' ] as $status ) {
+        foreach ( [ 'SENT', 'UNPAID' ] as $status ) {
             $this->assertSame( 'cancel', Aragrow_TimeGrow_PayPal_Payment_Sync::cancel_plan( $status ), $status );
         }
     }
 
     public function test_paid_paypal_invoices_stop_the_cancel() {
-        foreach ( [ 'PAID', 'MARKED_AS_PAID', 'PARTIALLY_PAID', 'REFUNDED', 'PARTIALLY_REFUNDED', 'MARKED_AS_REFUNDED' ] as $status ) {
+        foreach ( [ 'PAID', 'MARKED_AS_PAID', 'PARTIALLY_PAID', 'PAYMENT_PENDING', 'REFUNDED', 'PARTIALLY_REFUNDED', 'MARKED_AS_REFUNDED' ] as $status ) {
             $this->assertSame( 'paid', Aragrow_TimeGrow_PayPal_Payment_Sync::cancel_plan( $status ), $status );
         }
     }

@@ -2,8 +2,8 @@
 /**
  * TimeGrow PayPal Auto Invoicer Module
  *
- * Automatically creates and (optionally) sends a PayPal invoice when a WooCommerce
- * order is marked Completed. Creates PayPal Catalog Products for WC products.
+ * Creates and (optionally) sends a PayPal invoice when a WooCommerce order is set to
+ * Send Invoice to PayPal. Creates PayPal Catalog Products for WC products (best effort).
  *
  * @package TimeGrow
  * @subpackage PayPal_Invoicer
@@ -555,7 +555,7 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 	}
 
 	/**
-	 * Woo: when an order becomes Completed, build & send a PayPal invoice
+	 * Woo: when an order is set to Send Invoice to PayPal, build & send a PayPal invoice
 	 */
 	public function handle_order_to_pay( $order_id, $order_obj = null, $transition = [] ) {
         timegrow_log(__CLASS__.'::'.__FUNCTION__);
@@ -572,6 +572,8 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 		if ( $existing_id && in_array( $order->get_meta( '_paypal_invoice_status' ), [ 'CANCELLED', 'DELETED' ], true ) ) {
 			$order->delete_meta_data( '_paypal_invoice_id' );
 			$order->delete_meta_data( '_paypal_invoice_status' );
+			// A new invoice: new request IDs, so PayPal doesn't answer with the cancelled one it made before
+			$order->update_meta_data( '_paypal_invoice_generation', (int) $order->get_meta( '_paypal_invoice_generation' ) + 1 );
 			$order->add_order_note( sprintf( 'The earlier PayPal invoice %s was cancelled, so a new PayPal invoice is created.', $existing_id ) );
 			$order->save();
 			delete_post_meta( $order_id, '_paypal_invoice_id' );
@@ -588,6 +590,9 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 			$this->restore_status_quietly( $order, $previous, 'Not sent: PayPal invoicing is turned off (Settings > PayPal Integration).' );
 			return;
 		}
+
+		// Request IDs for this order's invoice (see idempotency_key()); a resend after a cancel is a new generation
+		$this->request_scope = $order_id . ':' . (int) $order->get_meta( '_paypal_invoice_generation' );
 
 		try {
 			$token = $this->get_oauth_token( $settings );
@@ -609,10 +614,14 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 					$desc = $product->get_short_description() ?: wp_strip_all_tags( $product->get_description() );
 				}
 
-				// Ensure a PayPal Catalog Product (optional)
+				// Ensure a PayPal Catalog Product (optional): a failure here never stops the invoice
 				$pp_product_id = '';
 				if ( $sku ) {
-					$pp_product_id = isset( $pp_products_map[ $sku ] ) ? $pp_products_map[ $sku ] : $this->ensure_paypal_product( $token, $settings, $sku, $name, $desc );
+					try {
+						$pp_product_id = isset( $pp_products_map[ $sku ] ) ? $pp_products_map[ $sku ] : $this->ensure_paypal_product( $token, $settings, $sku, $name, $desc );
+					} catch ( Exception $e ) {
+						timegrow_log( 'PayPal catalog product for SKU ' . $sku . ' not made: ' . $e->getMessage() );
+					}
 					if ( $pp_product_id ) {
 						$pp_products_map[ $sku ] = $pp_product_id;
 					}
@@ -651,9 +660,6 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 					'note'                 => 'Thank you for your business!',
 					'terms_and_conditions' => 'Payment due upon receipt.',
 				],
-				'invoicer' => array_filter([
-					'email_address' => $settings['merchant_email'] ?: null,
-				]),
 				'primary_recipients' => [
 					[ 'billing_info' => $billing_info ],
 				],
@@ -663,6 +669,12 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 					'tax_inclusive' => false,
 				],
 			];
+
+			// The merchant email is optional: without one PayPal uses the account's own. Left out rather
+			// than sent empty, since an empty PHP array goes out as a JSON list, which PayPal refuses.
+			if ( $settings['merchant_email'] ) {
+				$invoice_payload['invoicer'] = [ 'email_address' => $settings['merchant_email'] ];
+			}
 
 			// Credits on the order (fees below 0) come off the whole invoice
 			$credit = $this->fee_credit( $order );
@@ -938,6 +950,21 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 	}
 
 	/**
+	 * The PayPal catalog product ID for a SKU: letters, digits, - and _ only, 6 to 50 characters
+	 * (PayPal's limits; a short SKU gets a "TG-" prefix). '' when the SKU has nothing usable. Pure.
+	 */
+	public static function catalog_product_id( $sku ) {
+		$id = trim( preg_replace( '/[^A-Za-z0-9_-]+/', '-', (string) $sku ), '-' );
+		if ( $id === '' ) {
+			return '';
+		}
+		if ( strlen( $id ) < 6 ) {
+			$id = 'TG-' . str_pad( $id, 3, '0', STR_PAD_LEFT );
+		}
+		return substr( $id, 0, 50 );
+	}
+
+	/**
 	 * Ensure a PayPal Catalog Product exists for SKU (optional convenience)
 	 * Returns PayPal product id or empty string.
 	 */
@@ -947,9 +974,8 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 		$map = get_option( 'wc_pp_auto_invoicer_product_map', [] );
 		if ( isset( $map[ $sku ] ) && $map[ $sku ] ) { return $map[ $sku ]; }
 
-		// PayPal Catalog Product IDs must be unique; we can derive from sku (sanitize to max 127 chars)
-		$product_id = substr( preg_replace( '/[^A-Za-z0-9-_.]/', '-', $sku ), 0, 120 );
-		if ( ! $product_id ) { return ''; }
+		$product_id = self::catalog_product_id( $sku );
+		if ( $product_id === '' ) { return ''; }
 
 		// Try to GET first; if not found, create
 		$response = $this->api_request( $token, $settings, 'GET', '/v1/catalogs/products/' . rawurlencode( $product_id ), null, true );
@@ -959,8 +985,8 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 
 		$payload = [
 			'id'          => $product_id,
-			'name'        => $name ?: $sku,
-			'description' => wp_strip_all_tags( $description ),
+			'name'        => mb_substr( $name ?: $sku, 0, 127 ),
+			'description' => mb_substr( wp_strip_all_tags( $description ), 0, 256 ), // PayPal's limit
 			'type'        => 'PHYSICAL',
 		];
 		$created = $this->api_request( $token, $settings, 'POST', '/v1/catalogs/products', $payload );
@@ -1017,14 +1043,17 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 			'headers' => [
 				'Authorization' => 'Bearer ' . $token['token'],
 				'Content-Type'  => 'application/json',
-				// A search must not get PayPal's saved answer to an earlier, identical search
-				'PayPal-Request-Id' => strpos( $path, '/search-invoices' ) !== false ? wp_generate_uuid4() : $this->idempotency_key( $method, $path, $payload ),
 			],
 			'timeout' => 30,
 			'method'  => $method,
 		];
+		// Only calls that change something carry a request ID; a search must not get PayPal's saved
+		// answer to an earlier, identical search
+		if ( $method !== 'GET' ) {
+			$args['headers']['PayPal-Request-Id'] = strpos( $path, '/search-invoices' ) !== false ? wp_generate_uuid4() : $this->idempotency_key( $method, $path, $payload );
+		}
 		if ( $payload !== null ) {
-			$args['body'] = wp_json_encode( $payload );
+			$args['body'] = is_string( $payload ) ? $payload : wp_json_encode( $payload ); // a string is JSON already
 		}
 		$response = wp_remote_request( $url, $args );
 		if ( is_wp_error( $response ) ) {
@@ -1044,9 +1073,16 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 		return is_array( $data ) ? $data : [];
 	}
 
+	/** The order and invoice generation the current requests are for ('' outside an invoice send). */
+	private $request_scope = '';
+
+	/**
+	 * The same request gets the same ID (a retry after a timeout is not done twice), but a new
+	 * invoice for the same order after a cancel gets new IDs (request_scope).
+	 */
 	private function idempotency_key( $method, $path, $payload ) {
         timegrow_log(__CLASS__.'::'.__FUNCTION__);
-		return substr( sha1( $method . '|' . $path . '|' . wp_json_encode( $payload ) . '|' . home_url() ), 0, 36 );
+		return substr( sha1( $method . '|' . $path . '|' . wp_json_encode( $payload ) . '|' . home_url() . '|' . $this->request_scope ), 0, 36 );
 	}
 
     /** The encryption key from wp-config.php, or '' when it isn't defined. */

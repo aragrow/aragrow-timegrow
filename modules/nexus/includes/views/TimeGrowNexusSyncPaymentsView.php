@@ -72,7 +72,8 @@ class TimeGrowNexusSyncPaymentsView {
                             <div class="timegrow-form-actions">
                                 <button type="submit" name="timegrow_sync_payments" value="1" class="button button-primary button-large" <?php disabled(empty($orders)); ?>>
                                     <span class="dashicons dashicons-update" style="vertical-align: middle;"></span>
-                                    <?php echo esc_html(sprintf(_n('Sync %d Order', 'Sync %d Orders', count($orders), 'timegrow'), count($orders))); ?>
+                                    <?php $batch = min(count($orders), Aragrow_TimeGrow_PayPal_Payment_Sync::BATCH_SIZE); // one run checks a batch
+                                    echo esc_html(sprintf(_n('Sync %d Order', 'Sync %d Orders', $batch, 'timegrow'), $batch)); ?>
                                 </button>
                                 <a href="<?php echo esc_url($dashboard_url); ?>" class="button button-secondary button-large">
                                     <span class="dashicons dashicons-arrow-left-alt" style="vertical-align: middle;"></span>
