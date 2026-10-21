@@ -283,7 +283,7 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 			<form method="post" action="options.php" class="timegrow-integration-form">
 				<?php settings_fields( 'wc_pp_auto_invoicer' ); ?>
 
-				<div class="timegrow-cards-container">
+				<div class="timegrow-cards-container timegrow-cards-main-side">
 
 					<!-- API Credentials Card -->
 					<div class="timegrow-card">
@@ -305,9 +305,7 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 							</p>
 
 							<div class="form-table-wrapper">
-								<table class="form-table">
-									<?php do_settings_sections( 'paypal-integration' ); ?>
-								</table>
+								<?php do_settings_sections( 'paypal-integration' ); // prints its heading and its own form-table ?>
 							</div>
 						</div>
 					</div>
@@ -419,7 +417,7 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 	public function render_text_webhook_id() {
 		$settings = $this->get_settings();
 		$url      = class_exists( 'Aragrow_TimeGrow_PayPal_Payment_Sync' ) ? Aragrow_TimeGrow_PayPal_Payment_Sync::webhook_url() : '';
-		printf( '<input type="text" style="width: 480px" name="%s[webhook_id]" value="%s" />', esc_attr( $this->option_key ), esc_attr( $settings['webhook_id'] ) );
+		printf( '<input type="text" class="timegrow-field" name="%s[webhook_id]" value="%s" />', esc_attr( $this->option_key ), esc_attr( $settings['webhook_id'] ) );
 		?>
 		<p class="description">
 			<?php esc_html_e( 'For instant payment updates: in the PayPal developer dashboard, add a webhook with this URL and the events INVOICING.INVOICE.PAID, INVOICING.INVOICE.CANCELLED and INVOICING.INVOICE.REFUNDED, then paste its Webhook ID here.', 'timegrow' ); ?><br>
@@ -484,14 +482,14 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 		$name     = $this->option_key . '[' . $key . ']';
 
 		if ( $value === '' ) {
-			printf( '<input type="%s" style="width: 480px" name="%s" value="" autocomplete="off" />', esc_attr( $type ), esc_attr( $name ) );
+			printf( '<input type="%s" class="timegrow-field" name="%s" value="" autocomplete="off" />', esc_attr( $type ), esc_attr( $name ) );
 			return;
 		}
 		?>
 		<div class="timegrow-secret-field">
 			<?php // Same look as the other fields; read-only, no name, so it is never submitted ?>
-			<input type="text" class="timegrow-secret-mask" style="width: 480px" value="<?php echo esc_attr( str_repeat( "\u{2022}", 8 ) . substr( $value, -8 ) ); ?>" readonly />
-			<input type="<?php echo esc_attr( $type ); ?>" class="timegrow-secret-input" style="width: 480px" name="<?php echo esc_attr( $name ); ?>" value="" autocomplete="off" placeholder="<?php echo esc_attr( $placeholder ); ?>" disabled hidden />
+			<input type="text" class="timegrow-secret-mask timegrow-field" value="<?php echo esc_attr( str_repeat( "\u{2022}", 8 ) . substr( $value, -8 ) ); ?>" readonly />
+			<input type="<?php echo esc_attr( $type ); ?>" class="timegrow-secret-input timegrow-field" name="<?php echo esc_attr( $name ); ?>" value="" autocomplete="off" placeholder="<?php echo esc_attr( $placeholder ); ?>" disabled hidden />
 			<button type="button" class="button timegrow-secret-update" data-update="<?php esc_attr_e( 'Update', 'timegrow' ); ?>" data-cancel="<?php esc_attr_e( 'Cancel', 'timegrow' ); ?>"><?php esc_html_e( 'Update', 'timegrow' ); ?></button>
 		</div>
 		<?php
@@ -509,7 +507,7 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 	}
 	public function render_text_email() {
 		$settings = $this->get_settings();
-		printf('<input type="email" style="width: 320px" name="%s[merchant_email]" value="%s" placeholder="you@yourcompany.com"/>', esc_attr($this->option_key), esc_attr($settings['merchant_email']) );
+		printf('<input type="email" class="timegrow-field" name="%s[merchant_email]" value="%s" placeholder="you@yourcompany.com"/>', esc_attr($this->option_key), esc_attr($settings['merchant_email']) );
 	}
 
 	/**

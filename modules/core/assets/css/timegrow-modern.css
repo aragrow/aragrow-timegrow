@@ -177,6 +177,11 @@
     color: white;
 }
 
+.timegrow-icon-info {
+    background: linear-gradient(135deg, #e0e7ff 0%, #ede9fe 100%);
+    color: #4f46e5;
+}
+
 .timegrow-icon-woocommerce {
     background: linear-gradient(135deg, #96588a 0%, #7f4a7a 100%);
     color: white;
@@ -1048,3 +1053,74 @@ a.tg-prompt-delete { color: #b32d2e; }
 .tg-review-facts { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; margin: 0; }
 .tg-review-facts dt { color: #646970; }
 .tg-review-facts dd { margin: 0; }
+
+/* Main card and side card (PayPal integration): the side card keeps one column's width
+   (420 to 560 px), the main card fills the rest of the screen. Stacked below 1024 px. */
+.timegrow-cards-container.timegrow-cards-main-side {
+    grid-template-columns: minmax(0, 1fr) clamp(420px, 32%, 560px);
+    align-items: start;
+}
+
+.timegrow-cards-main-side > * {
+    min-width: 0; /* a column never grows to fit wide content */
+}
+
+/* A side card that stays in view beside a long list (Knowledge Base, AI) */
+.timegrow-cards-main-side > .timegrow-side-sticky {
+    position: sticky;
+    top: 46px;
+}
+
+@media (max-width: 1024px) {
+    .timegrow-cards-main-side > .timegrow-side-sticky {
+        position: static;
+    }
+}
+
+@media (max-width: 1024px) {
+    .timegrow-cards-container.timegrow-cards-main-side {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+/* ============================================
+   SETTINGS FORMS INSIDE CARDS (PayPal and WooCommerce integration pages)
+   The table and its fields fit the card: nothing is wider than the column, so nothing is cut off.
+   ============================================ */
+
+.timegrow-integration-form .timegrow-cards-container > * {
+    min-width: 0; /* a grid column never grows to fit a wide field */
+}
+
+.timegrow-integration-form .timegrow-card .form-table {
+    width: 100%;
+    table-layout: fixed;
+}
+
+.timegrow-integration-form .timegrow-card .form-table th {
+    width: 130px;
+}
+
+.timegrow-integration-form .timegrow-card .form-table input,
+.timegrow-integration-form .timegrow-card .form-table select,
+.timegrow-integration-form .timegrow-card .form-table textarea {
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+.timegrow-integration-form .timegrow-card .form-table .timegrow-field {
+    width: 100%;
+    max-width: 480px;
+}
+
+.timegrow-integration-form .timegrow-card .timegrow-feature-item {
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+@media (max-width: 782px) {
+    .timegrow-integration-form .timegrow-card .form-table th {
+        width: auto;
+    }
+}
