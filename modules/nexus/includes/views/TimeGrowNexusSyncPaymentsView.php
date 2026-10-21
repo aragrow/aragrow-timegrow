@@ -60,7 +60,7 @@ class TimeGrowNexusSyncPaymentsView {
                             <div>
                                 <strong><?php esc_html_e('How it works:', 'timegrow'); ?></strong>
                                 <ul>
-                                    <li><?php esc_html_e('Checks every order in Invoice Sent to PayPal, Invoice Draft in PayPal or Partial Paid (up to 50 at a time, oldest first)', 'timegrow'); ?></li>
+                                    <li><?php esc_html_e('Checks every order in Invoice Sent to PayPal, Invoice Draft in PayPal or Partial Paid (50 at a time, the ones checked longest ago first, so each run moves on to the next)', 'timegrow'); ?></li>
                                     <li><?php esc_html_e('Paid invoices move to Invoice Paid, with the payment date, amount and PayPal transaction number recorded', 'timegrow'); ?></li>
                                     <li><?php esc_html_e('Partly paid invoices move to Partial Paid; cancelled or refunded ones get an order note', 'timegrow'); ?></li>
                                     <li><?php esc_html_e('Running it again never records the same payment twice', 'timegrow'); ?></li>

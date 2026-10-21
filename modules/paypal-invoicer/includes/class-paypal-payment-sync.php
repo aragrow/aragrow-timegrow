@@ -27,6 +27,8 @@ class Aragrow_TimeGrow_PayPal_Payment_Sync {
 	const CRON_HOOK  = 'timegrow_paypal_sync';
 	const REST_ROUTE = '/paypal-webhook';
 	const OPEN_STATUSES = [ 'inv_sent2paypal', 'inv_draft2paypal', 'partial_paid' ];
+	const BATCH_SIZE    = 50;            // orders checked per run
+	const TRIED_META    = '_paypal_sync_tried'; // when a run last tried the order (also when it failed)
 
 	/** @var Aragrow_WC_PayPal_Auto_Invoicer */
 	private $invoicer;
@@ -333,23 +335,38 @@ class Aragrow_TimeGrow_PayPal_Payment_Sync {
 
 	/**
 	 * Orders with a PayPal invoice still waiting for payment: Invoice Sent to PayPal,
-	 * Invoice Draft in PayPal or Partial Paid. Oldest first.
+	 * Invoice Draft in PayPal or Partial Paid. All of them, oldest first.
 	 */
-	public function open_orders( $limit = 50 ) {
-		$orders = wc_get_orders( [ 'status' => self::OPEN_STATUSES, 'limit' => $limit, 'orderby' => 'date', 'order' => 'ASC' ] );
+	public function open_orders() {
+		$orders = wc_get_orders( [ 'status' => self::OPEN_STATUSES, 'limit' => -1, 'orderby' => 'date', 'order' => 'ASC' ] );
 		return array_values( array_filter( $orders, function( $order ) {
 			return self::invoice_id_for( $order ) !== '';
 		} ) );
 	}
 
 	/**
-	 * Sync every open PayPal invoice and report what happened to each order.
+	 * The orders a run checks: the $limit tried longest ago, never-tried first (then oldest order
+	 * first). Each run moves on to the next ones, so every open invoice is checked in turn, however
+	 * many stay unpaid. Pure.
+	 */
+	public static function next_batch( array $orders, $limit ) {
+		usort( $orders, function( $a, $b ) {
+			return [ (int) $a->get_meta( self::TRIED_META ), $a->get_id() ] <=> [ (int) $b->get_meta( self::TRIED_META ), $b->get_id() ];
+		} );
+		return array_slice( $orders, 0, max( 0, (int) $limit ) );
+	}
+
+	/**
+	 * Sync the next batch of open PayPal invoices and report what happened to each order.
 	 *
 	 * @return array[] One row per order: order, invoice_id, before, after, message, error.
 	 */
-	public function sync_open_orders( $limit = 50 ) {
+	public function sync_open_orders( $limit = self::BATCH_SIZE ) {
 		$results = [];
-		foreach ( $this->open_orders( $limit ) as $order ) {
+		foreach ( self::next_batch( $this->open_orders(), $limit ) as $order ) {
+			// Noted before the check, so an invoice that keeps failing doesn't hold a place in every run
+			$order->update_meta_data( self::TRIED_META, time() );
+			$order->save_meta_data();
 			$before = $order->get_status();
 			$row    = [ 'order' => $order, 'invoice_id' => self::invoice_id_for( $order ), 'before' => $before, 'after' => $before, 'message' => '', 'error' => false ];
 			try {

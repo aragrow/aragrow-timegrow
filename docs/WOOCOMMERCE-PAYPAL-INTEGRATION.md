@@ -235,9 +235,9 @@ Code: `modules/paypal-invoicer/includes/class-paypal-payment-sync.php`. Four way
 | How | When | Setup |
 |---|---|---|
 | **Webhook** | Within seconds of the payment | In the PayPal developer dashboard, add a webhook for `https://your-site/wp-json/timegrow/v1/paypal-webhook` with the events `INVOICING.INVOICE.PAID`, `INVOICING.INVOICE.CANCELLED` and `INVOICING.INVOICE.REFUNDED`. Paste its Webhook ID in Settings > PayPal Integration. Needs a public HTTPS site. |
-| **Scheduled check** | Every hour, twice a day, or daily (default) | Settings > PayPal Integration > **Check for payments**. Checks up to 50 orders in Invoice Sent to PayPal, Invoice Draft in PayPal or Partial Paid. WP-Cron runs on site visits; on a quiet site, add a real server cron job that loads `wp-cron.php`. |
+| **Scheduled check** | Every hour, twice a day, or daily (default) | Settings > PayPal Integration > **Check for payments**. Checks 50 orders per run in Invoice Sent to PayPal, Invoice Draft in PayPal or Partial Paid: the ones tried longest ago, never-tried first (`next_batch()`, `_paypal_sync_tried`), so with more than 50 open invoices every one is still checked in turn. WP-Cron runs on site visits; on a quiet site, add a real server cron job that loads `wp-cron.php`. |
 | **Check PayPal status** button | On demand | The **PayPal Invoice** box on the order shows the invoice ID, the last PayPal status, and the button. |
-| **Sync Payments** page | On demand, all open orders | Nexus Dashboard > **Sync Payments** (administrators). Lists open PayPal orders, runs `sync_open_orders()` (up to 50, oldest first) and shows the result per order, plus the schedule and webhook status. View: `modules/nexus/includes/views/TimeGrowNexusSyncPaymentsView.php`. |
+| **Sync Payments** page | On demand, all open orders | Nexus Dashboard > **Sync Payments** (administrators). Lists open PayPal orders, runs `sync_open_orders()` (the next 50, as above) and shows the result per order, plus the schedule and webhook status. View: `modules/nexus/includes/views/TimeGrowNexusSyncPaymentsView.php`. |
 
 The sync step always reads the invoice from PayPal's API (a webhook message is never trusted on its own; its signature is also verified with PayPal first), then:
 

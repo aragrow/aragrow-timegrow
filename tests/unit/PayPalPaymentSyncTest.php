@@ -14,6 +14,17 @@ class PayPalPaymentSyncTest extends TestCase {
         return $invoice;
     }
 
+    public function test_next_batch_takes_the_orders_tried_longest_ago() {
+        $order = function( $id, $tried ) {
+            return new TimeGrow_Fake_Order( $id, [], $tried === null ? [] : [ '_paypal_sync_tried' => (string) $tried ] );
+        };
+        $orders = [ $order( 1, 3000 ), $order( 2, 1000 ), $order( 3, null ), $order( 4, 2000 ), $order( 5, null ) ];
+
+        $ids = array_map( function( $o ) { return $o->get_id(); }, Aragrow_TimeGrow_PayPal_Payment_Sync::next_batch( $orders, 3 ) );
+
+        $this->assertSame( [ 3, 5, 2 ], $ids ); // never tried (oldest order first), then tried longest ago
+    }
+
     public function test_paid_invoice_marks_the_order_paid_with_payment_details() {
         $invoice = $this->invoice( 'PAID', '581.25', [
             [ 'payment_id' => '7AB12345CD678901E', 'payment_date' => '2026-10-15 PDT' ],
