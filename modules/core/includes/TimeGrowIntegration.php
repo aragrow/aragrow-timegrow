@@ -269,7 +269,7 @@ class TimeGrowIntegration{
                                     </label>
                                     <div class="timegrow-feature-info">
                                         <strong><?php esc_html_e('Product Synchronization', 'timegrow'); ?></strong>
-                                        <p><?php esc_html_e('Create and update each project\'s product when the project is saved. Off: Process Time creates it the first time the project is billed.', 'timegrow'); ?></p>
+                                        <p><?php esc_html_e('Create and update each project\'s product when the project is saved, and when it is first billed. Off: no products are made, and invoice lines carry the project\'s name only.', 'timegrow'); ?></p>
                                     </div>
                                 </div>
 

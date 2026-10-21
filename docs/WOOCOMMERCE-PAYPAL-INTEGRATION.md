@@ -47,7 +47,7 @@ With **WooCommerce Products** on:
 - The price is the hourly rate: the project's rate, then the client's, then the company's.
 - The add form has no product dropdown. The edit form keeps one, so a product can be relinked. Relinking renames the chosen product, so do not point two projects at one product.
 
-With the setting off, projects save without a product (stored as NULL).
+With the setting off, projects save without a product (stored as NULL), and Process Time adds lines without a product, named "Client - Project". A project that already has a product keeps using it.
 
 ### Hourly rate order
 
@@ -189,7 +189,7 @@ A **Manual Payment Details** box sits in the side column of the order editor. It
 - **Markers.** New orders get `_timekeeping_invoice` and `_timegrow_qty_unit = hours`. This is the only place an order becomes an hours invoice. Each line gets `_timegrow_project_hours` and a message such as "3.75 hrs. At a rate of 75 per hour."
 - **Skipped projects.** A project with no billable, unbilled hours gets no line, and its entries are not marked billed. A new order that ends up with no lines is deleted again.
 - **Appending.** Entries are added to an existing Pending order for the client only if that order carries the `hours` marker and has not been issued yet (no PDF invoice number, no PayPal invoice ID). Otherwise a new order is created.
-- It creates the project's product if it does not exist, adds the customer note "Time entries for client ID: N", and leaves the order in Pending payment (not paid, no email to the client, lines still editable). The save is then checked: status, line count and total.
+- It creates the project's product if it does not exist and **WooCommerce Products** is on (otherwise the line has no product), adds the customer note "Time entries for client ID: N", and leaves the order in Pending payment (not paid, no email to the client, lines still editable). The save is then checked: status, line count and total.
 
 ## PayPal auto invoicer
 

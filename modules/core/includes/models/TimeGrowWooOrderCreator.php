@@ -188,7 +188,12 @@ class TimeGrowWooOrderCreator {
                     print('<br /> -------> Product Total Hours: '.$product_hours);
                     print('<br /> -------> Product Total: '.$product_total);
 
-                    if (!$woo_product) {
+                    if (!$woo_product && !self::products_on()) {
+                        // WooCommerce Products is off: the line has no product, just the project's name
+                        $project      = $model_project->select($project_id)[0];
+                        $product_name = $entry->display_name . ' - ' . $project->name;
+                        $product_id   = 0;
+                    } elseif (!$woo_product) {
                         $project = $model_project->select($project_id)[0];
                         // Product does not exist, create it
                         $product_name = $entry->display_name. ' - ' . $project->name;
@@ -324,6 +329,12 @@ class TimeGrowWooOrderCreator {
             return null;
         }
         return (strtotime($entry->clock_out_date) - strtotime($entry->clock_in_date)) / 3600;
+    }
+
+    /** True when Settings > WooCommerce Integration > WooCommerce Products is on. */
+    public static function products_on() {
+        $settings = get_option('timegrow_integration_settings');
+        return is_array($settings) && !empty($settings['wc_products']);
     }
 
     /**
