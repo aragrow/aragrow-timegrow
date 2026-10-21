@@ -18,9 +18,7 @@ use Automattic\WooCommerce\Internal\DataStores\Orders\CustomOrdersTableControlle
 require_once __DIR__ . '/includes/class-decimal-quantities.php';
 Aragrow_TimeGrow_Decimal_Quantities::init();
 require_once __DIR__ . '/includes/class-invoice-delivery.php';
-Aragrow_TimeGrow_Invoice_Delivery::init();
 require_once __DIR__ . '/includes/class-order-cancellation.php';
-Aragrow_TimeGrow_Order_Cancellation::init();
 
 class Aragrow_WOO_Integration_Plugins
 {
@@ -845,7 +843,13 @@ class Aragrow_WOO_Integration_Plugins
 
 }
 
-// In your plugin main file:
+// WooCommerce loads after TimeGrow, so wait until all plugins are loaded. Without WooCommerce none of
+// this runs (its hooks call WooCommerce functions), and the rest of TimeGrow works on its own.
 add_action('plugins_loaded', function() {
+    if (!class_exists('WooCommerce')) {
+        return;
+    }
+    Aragrow_TimeGrow_Invoice_Delivery::init();
+    Aragrow_TimeGrow_Order_Cancellation::init();
     new Aragrow_WOO_Integration_Plugins();
 });

@@ -259,7 +259,7 @@ class TimeGrowNexusView {
                 </a>
                 <?php endif; ?>
 
-                <?php if (($show_all || current_user_can('access_nexus_process_time')) && class_exists('Aragrow_TimeGrow_Invoice_Delivery')) : $to_mail = count(Aragrow_TimeGrow_Invoice_Delivery::waiting_orders()); ?>
+                <?php if (($show_all || current_user_can('access_nexus_process_time')) && class_exists('WooCommerce') && class_exists('Aragrow_TimeGrow_Invoice_Delivery')) : $to_mail = count(Aragrow_TimeGrow_Invoice_Delivery::waiting_orders()); ?>
                 <a href="<?php echo esc_url(admin_url('admin.php?page=' . Aragrow_TimeGrow_Invoice_Delivery::PAGE_SLUG)); ?>" class="timegrow-card">
                     <div class="timegrow-card-header">
                         <div class="timegrow-icon timegrow-icon-woocommerce">

@@ -722,6 +722,11 @@ class TimeGrowNexus{
                 $clients = $client_model->select();
                 // Form will be displayed by the view
                 $list = []; // Empty list, form will be shown
+            } elseif (!class_exists('WooCommerce')) {
+                // Process Time makes WooCommerce orders
+                print('<div class="notice notice-error"><p>' . esc_html__('Process Time needs WooCommerce. Activate WooCommerce, then process the time again. Nothing was billed.', 'timegrow') . '</p></div>');
+                print('<p><a href="' . esc_url(admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-nexus-process-time')) . '" class="button">Back to Filter</a></p>');
+                exit;
             } else {
                 // One Process Time at a time: a double click, a second tab or a retry while it runs
                 // would otherwise read the same unbilled time

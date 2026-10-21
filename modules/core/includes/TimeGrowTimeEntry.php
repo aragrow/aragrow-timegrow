@@ -78,7 +78,7 @@ class TimeGrowTimeEntry{
 
     /** Apply on_order_removed() to a TimeGrow invoice, and tell the person what happened to its time. */
     private function order_removed($event, $order_id) {
-        $order = wc_get_order($order_id);
+        $order = function_exists('wc_get_order') ? wc_get_order($order_id) : null;
         if (!$order || !$order->get_meta('_timekeeping_invoice')) {
             return;
         }
