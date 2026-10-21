@@ -111,7 +111,7 @@ One order action, **Send invoice (<method>)**, sends the order the client's way:
 
 **Print & Mail** (`admin.php?page=timegrow-nexus-print-mail`, card on the Nexus dashboard, cap `access_nexus_process_time`) lists To Be Mailed orders with the billing address and a PDF link. **Mark as mailed** (nonce checked) moves the order quietly to Invoice Sent to Client with an order note.
 
-Process Time still sets new orders to Processing, so WooCommerce's Processing order email goes out for every client, including Print and mail ones, while that email is on.
+Process Time leaves orders in Pending payment, so WooCommerce sends the client nothing until the invoice is sent one of the ways above. Orders made before 2.2.0 may still be in Processing.
 
 ### Cancelling an invoice
 
@@ -189,7 +189,7 @@ A **Manual Payment Details** box sits in the side column of the order editor. It
 - **Markers.** New orders get `_timekeeping_invoice` and `_timegrow_qty_unit = hours`. This is the only place an order becomes an hours invoice. Each line gets `_timegrow_project_hours` and a message such as "3.75 hrs. At a rate of 75 per hour."
 - **Skipped projects.** A project with no billable, unbilled hours gets no line, and its entries are not marked billed. A new order that ends up with no lines is deleted again.
 - **Appending.** Entries are added to an existing Pending order for the client only if that order carries the `hours` marker and has not been issued yet (no PDF invoice number, no PayPal invoice ID). Otherwise a new order is created.
-- It creates the project's product if it does not exist, adds the customer note "Time entries for client ID: N", and sets the order to Processing.
+- It creates the project's product if it does not exist, adds the customer note "Time entries for client ID: N", and leaves the order in Pending payment (not paid, no email to the client, lines still editable). The save is then checked: status, line count and total.
 
 ## PayPal auto invoicer
 

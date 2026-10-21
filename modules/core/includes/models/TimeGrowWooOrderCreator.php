@@ -230,14 +230,16 @@ class TimeGrowWooOrderCreator {
                     continue;
                 }
 
+                // Pending payment: not paid yet, no "processing" email to the client, and the lines stay
+                // editable (the hours invoice editor). The next Process Time adds to it until it's issued.
                 $order->calculate_totals();
-                $order->update_status('processing');
+                $order->update_status('pending');
 
                 // WooCommerce logs a failed save and carries on, so check the order really was saved with
                 // its lines; otherwise this client's time is unbilled again (the catch below)
                 $lines = count($order->get_items('line_item'));
                 $saved = wc_get_order($order->get_id());
-                if (!$saved || $saved->get_status() !== 'processing' || count($saved->get_items('line_item')) !== $lines
+                if (!$saved || $saved->get_status() !== 'pending' || count($saved->get_items('line_item')) !== $lines
                     || abs((float) $saved->get_total() - (float) $order->get_total()) > 0.005) {
                     throw new Exception('WooCommerce did not save the order');
                 }
