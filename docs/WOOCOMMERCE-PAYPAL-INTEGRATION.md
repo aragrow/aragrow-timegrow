@@ -102,7 +102,7 @@ Moving an order to Invoice Paid records the payment date (today) and sets the pa
 
 Code: `modules/woocommerce-integration/includes/class-invoice-delivery.php`. Each client has an **Invoice Delivery** field on their profile (`timegrow_invoice_delivery` user meta): `email` (default, also used for unknown values and guest orders), `paypal` or `mail`.
 
-One order action, **Send invoice (<method>)**, sends the order the client's way:
+One order action, **Send invoice (<method>)**, sends the order the client's way. It is offered, and runs, only for an unpaid invoice that is not at PayPal: Pending payment, On hold, Processing (older orders), Invoice Sent to Client (send again) or To Be Mailed (`send_refusal()`). Sending changes the status quietly, without the status guard, so a cancelled, paid, refunded or PayPal order is never reopened this way.
 
 | Method | What `send()` does | Order ends in |
 |---|---|---|
@@ -114,9 +114,11 @@ One order action, **Send invoice (<method>)**, sends the order the client's way:
 
 Process Time leaves orders in Pending payment, so WooCommerce sends the client nothing until the invoice is sent one of the ways above. Orders made before 2.2.0 may still be in Processing.
 
+The **Pay for this order** link in the invoice email keeps working once a TimeGrow invoice is Invoice Sent to Client or To Be Mailed (`payable_statuses()` on `woocommerce_valid_order_statuses_for_payment`). Clients can't cancel a TimeGrow invoice from My Account (`customer_cancel_statuses()` on `woocommerce_valid_order_statuses_for_cancel`); the business cancels it from the site, as below.
+
 ### Cancelling an invoice
 
-Code: `modules/woocommerce-integration/includes/class-order-cancellation.php`. A TimeGrow invoice (an order with `_timekeeping_invoice`) is cancelled from the site: the **Cancel invoice** order action (offered while the invoice is unpaid), the status dropdown, a bulk action or the REST API. All of them run the same checks: the action calls `cancel()`, the others are caught by a guard on `woocommerce_before_order_object_save` that calls `prepare_cancel()` and undoes the status change (no status hooks or emails) when a check fails.
+Code: `modules/woocommerce-integration/includes/class-order-cancellation.php`. A TimeGrow invoice (an order with `_timekeeping_invoice`) is cancelled from the site: the **Cancel invoice** order action (offered while the invoice is unpaid), the status dropdown, a bulk action or the REST API. All of them run the same checks (the Send invoice action never moves a cancelled or paid order, see above): the action calls `cancel()`, the others are caught by a guard on `woocommerce_before_order_object_save` that calls `prepare_cancel()` and undoes the status change (no status hooks or emails) when a check fails.
 
 The steps, in order. If a step refuses, nothing after it runs and the order keeps its status (with an order note and a notice). On the order edit screen the notice is printed inside the order data box, above the Status dropdown (`woocommerce_admin_order_data_after_payment_info`), because WooCommerce's own "Order updated" message still appears; elsewhere (orders list) it is a normal admin notice:
 
@@ -125,12 +127,12 @@ The steps, in order. If a step refuses, nothing after it runs and the order keep
 
    | PayPal status | What happens |
    |---|---|
-   | DRAFT | The draft is deleted (`DELETE /v2/invoicing/invoices/{id}`). The client never saw it. |
-   | SENT, UNPAID, SCHEDULED, PAYMENT_PENDING | The invoice is cancelled (`POST .../cancel`). PayPal tells the client when **Tell the client** is on in PayPal settings (on by default). |
+   | DRAFT, SCHEDULED | The invoice is deleted (`DELETE /v2/invoicing/invoices/{id}`; PayPal deletes only these). The client never saw it. |
+   | SENT, UNPAID | The invoice is cancelled (`POST .../cancel`). PayPal tells the client when **Tell the client** is on in PayPal settings (on by default). |
    | CANCELLED | Nothing to do. |
-   | PAID, MARKED_AS_PAID, PARTIALLY_PAID, any refund status | Refused. The payment sync runs so the payment is recorded on the order. |
+   | PAID, MARKED_AS_PAID, PARTIALLY_PAID, PAYMENT_PENDING (money on its way), any refund status | Refused. The payment sync runs so the payment is recorded on the order. |
 
-   Missing PayPal keys or an API error also refuse, so an invoice the client can still pay is never left behind a cancelled order. `_paypal_invoice_status` becomes `DELETED` or `CANCELLED`; cancelling again later (after a reopen) skips PayPal.
+   Orders not made by TimeGrow get this PayPal step too when they have a PayPal invoice (any order can be sent to PayPal), so a cancelled order never leaves a payable PayPal invoice; they have no time to release. Missing PayPal keys or an API error also refuse, so an invoice the client can still pay is never left behind a cancelled order. `_paypal_invoice_status` becomes `DELETED` or `CANCELLED`; cancelling again later (after a reopen) skips PayPal.
 3. **Cancels the order** (WooCommerce's Cancelled status and its hooks).
 4. **Releases the time** (on `woocommerce_order_status_cancelled`): the order's time entries go back to unbilled, so the next Process Time bills them on a new invoice. Their IDs are kept in `_timegrow_released_entries`. The cancelled order keeps its invoice number and PDF.
 
@@ -147,7 +149,7 @@ On the order edit screen the status dropdown lists only those statuses plus the 
 
 **A PayPal invoice is refunded in PayPal first.** For an order with a `_paypal_invoice_id`, TimeGrow reads the invoice from PayPal before:
 
-- **a WooCommerce refund** (`woocommerce_create_refund`, before it is saved): refused when PayPal's refunded amount (`refunds.refund_amount`, or the whole invoice for a REFUNDED / MARKED_AS_REFUNDED status without one) is less than the order's refunds including this one. A PayPal invoice that is fully refunded (its status, or a refund of at least its total) never blocks the refund, since its total can be a cent off the order's. `wc_create_refund()` turns the exception into an error, so the refund screen shows the message and nothing is saved.
+- **a WooCommerce refund** (`woocommerce_create_refund`, before it is saved): refused when PayPal's refunded amount (`refunds.refund_amount`, or the whole invoice for a REFUNDED / MARKED_AS_REFUNDED status without one) is less than the order's refunds including this one (counted once: WooCommerce has already saved the new refund when it asks, `refunded_with()`). A PayPal invoice that is fully refunded (its status, or a refund of at least its total) never blocks the refund, since its total can be a cent off the order's. `wc_create_refund()` turns the exception into an error and deletes the refund, so the refund screen shows the message and nothing is kept.
 - **Refunded set by hand:** refused unless PayPal shows the full order total, or the whole invoice, refunded.
 
 The message names the invoice: "The PayPal invoice INV2-... is not refunded yet. Refund it in PayPal first, then refund it here." (or how much is refunded so far, for a partial one). On a paid order the **PayPal Invoice** box also warns that the PayPal invoice is not refunded yet, from the last PayPal status seen. Missing PayPal keys or an API error also refuse. Rule: `paypal_refund_shortfall()`; amount: `Aragrow_TimeGrow_PayPal_Payment_Sync::refunded_amount()` and `fully_refunded()`.
@@ -175,10 +177,14 @@ Before 2.2.0, trashing released the time even on a paid invoice, so the next Pro
 
 A **Manual Payment Details** box sits in the side column of the order editor. It stores `_payment_date`, `_payment_amount`, `_payment_type` and `_payment_trans_id` on the order.
 
+- The type starts as "Select a type", so an order saved without payment details records nothing.
+- A payment needs a date, an amount above 0 and a type, plus a transaction ID for ACH, Stripe, PayPal and credit card. A refused entry is not saved, and the reasons show after the save (they are kept for the next page, since WooCommerce redirects).
+- Emptying every field removes the recorded payment (with an order note), so a mistaken amount no longer blocks Cancel.
+- **Invoice Paid** sets the payment amount to the order total when less is recorded (after a partial payment: 500 of 1000 becomes 1000, with a note). A larger amount, an overpayment, is kept. The payment date is set only when empty.
+
 ### Other pieces
 
 - **EIN/SSN field** on user profiles, with a column in the Users list (`_timegrow_ein_ssn` user meta).
-- **Unpaid Invoices** dashboard widget, listing orders in the Pending payment status.
 - **PDF invoice template** for the PDF Invoices & Packing Slips plugin, in `modules/woocommerce-integration/templates/pdf/aragrow/`. TimeGrow registers that folder with the PDF plugin, where it is listed as **timegrow/aragrow** (PDF Invoices > Settings > Template). Hours invoices use the headers Project, Hours, Rate, Total, with hours from `_timegrow_project_hours` and rate = line total / hours. Regular orders use Product, Quantity, Price, Total, with the plain quantity and unit price. The old theme copies in `astra-child` and `aragrow-no-front-end-theme` are no longer used.
 
 ### Time-entry order creator
@@ -188,7 +194,9 @@ A **Manual Payment Details** box sits in the side column of the order editor. It
 - **Hours, not units.** Each project becomes one line. The hours worked (two decimals) go in `_timegrow_project_hours` and the quantity is 1. The line subtotal and total are hours x hourly rate. Earlier versions rounded up to 10-minute units and priced each unit at one sixth of the rate. That is gone.
 - **Rate.** Project, then client (user meta), then company, then 75 as a last resort. The client step now reads the profile field. It used to read an unused column on the users table, so it was always 0.
 - **Markers.** New orders get `_timekeeping_invoice` and `_timegrow_qty_unit = hours`. This is the only place an order becomes an hours invoice. Each line gets `_timegrow_project_hours` and a message such as "3.75 hrs. At a rate of 75 per hour."
-- **Skipped projects.** A project with no billable, unbilled hours gets no line, and its entries are not marked billed. A new order that ends up with no lines is deleted again.
+- **Skipped projects.** A project with no billable, unbilled hours gets no line, and its entries are not marked billed. That includes time that rounds to 0.00 h (a few seconds clocked): it is unbilled again and waits for the next run. A new order that ends up with no lines is deleted again.
+- **One client fails, the rest go on.** If a client's order can't be finished, its entries are unbilled again; a new order is deleted, and a reused order loses only the lines this run added (with an order note). The error is shown on the Process Time page.
+- **One run at a time.** A lock in the options table (`timegrow_process_time_lock`, value "time:token") refuses a second run; a lock older than 10 minutes is taken over, and a run only ever removes its own lock.
 - **Appending.** Entries are added to an existing Pending order for the client only if that order carries the `hours` marker and has not been issued yet (no PDF invoice number, no PayPal invoice ID). Otherwise a new order is created.
 - It creates the project's product if it does not exist and **WooCommerce Products** is on (otherwise the line has no product), adds the customer note "Time entries for client ID: N", and leaves the order in Pending payment (not paid, no email to the client, lines still editable). The save is then checked: status, line count and total.
 
@@ -201,8 +209,8 @@ Settings page: **Settings > PayPal Integration**, stored in the `wc_pp_auto_invo
 | Send orders to PayPal | On/off switch, on by default. When off, the **Send Invoice to PayPal** status is not offered (Invoice Sent / Draft in PayPal stay, for orders already in PayPal). |
 | Environment | Sandbox or Live. |
 | Client ID, Client Secret | PayPal REST credentials. Stored encrypted with AES-256-CBC. The page shows only the last 8 characters; click **Update** next to a field to replace it. Saving without Update keeps the saved value. |
-| Send behavior | "Create & Send invoice" or "Create only". |
-| Merchant email | Optional. |
+| Invoice delivery | "Email the invoice to the client" or "Save as a draft in PayPal (I will send it myself)". |
+| Merchant email | Optional. Left out of the invoice when empty, so PayPal uses the account's own email. |
 | When an order is cancelled: Tell the client | `cancel_notify`, on by default. When **Cancel invoice** cancels a sent PayPal invoice, PayPal emails the client that no payment is due. Deleted drafts never notify. |
 
 **Encryption key:** define `WC_PAYPAL_SECRET_KEY` in `wp-config.php`. Keep the key out of version control. Without it, a new Client ID or Secret is not saved (the saved one is kept) and the settings page says why. If the key is removed or changed after the keys were saved, the settings page shows an error, and every PayPal call stops with the same message instead of PayPal's "OAuth token error" (`credential_problem()`).
@@ -214,10 +222,12 @@ Settings page: **Settings > PayPal Integration**, stored in the `wc_pp_auto_invo
    - If **Send orders to PayPal** is off, the module adds a note and stops.
 2. The module gets an OAuth token from PayPal.
 3. It builds the invoice lines. Shipping and tax become separate "Shipping" and "Tax" lines. Each fee on the order becomes its own line. PayPal rounds each unit amount to the cent, so when hours (or a quantity) times the rounded rate wouldn't make the line total (2.33 h for 175.00 is 75.107 an hour, which would come to 175.01), the line goes as 1 x the line total, with "2.33 x 75.11" at the start of its description (`paypal_line_amounts()`). A credit (a fee below 0) can't be a PayPal line, so the credits are added up and applied as the invoice discount. The invoice number comes from the PDF Invoices plugin. If the order has no PDF invoice number yet, one is created at this point. If PayPal reports the number as a duplicate, the invoice is created again without it and PayPal assigns its own number (noted on the order).
-4. For each line with a SKU, it creates a PayPal catalog product if needed. The mapping is cached in the `wc_pp_auto_invoicer_product_map` option.
+4. For each line with a SKU, it creates a PayPal catalog product if needed: ID from the SKU, 6 to 50 characters (`catalog_product_id()`, a short SKU gets a `TG-` prefix), description cut to 256 characters. The mapping is cached in the `wc_pp_auto_invoicer_product_map` option. A failure here is logged and never stops the invoice.
 5. It builds the recipient from the client (see below). Without a valid email it stops with an order note.
 6. It first searches PayPal for an invoice this order already has (reference = order ID, recipient = the order's client, not cancelled). That covers a retry after a timeout: PayPal made the invoice but TimeGrow never heard back. When one is found it is used, not duplicated; if it was already sent, it is not sent again. A search error stops the send (retry later). Otherwise it creates the invoice. Either way it saves the PayPal invoice ID in `_paypal_invoice_id` on the order.
-7. With "Create & Send", it tells PayPal to send the invoice, adds a note, and emails the customer a short notice. With "Create only", it adds a note that the invoice is a draft. No customer email goes out.
+7. With "Email the invoice", it tells PayPal to send the invoice, adds a note, and emails the customer a short notice. With "Save as a draft", it adds a note that the invoice is a draft. No customer email goes out.
+
+   Each call that changes something carries a `PayPal-Request-Id`, so a retry after a timeout is not done twice. The ID includes the order's invoice generation (`_paypal_invoice_generation`, raised when a cancelled invoice is replaced), so a new invoice after a cancel never gets PayPal's saved answer for the old one. GET calls carry none, and a search gets a fresh one.
 8. Only after that does the order move on: to **Invoice Sent to PayPal** (`wc-inv_sent2paypal`) when emailed, or **Invoice Draft in PayPal** (`wc-inv_draft2paypal`) when saved as a draft. Send drafts from your PayPal account. Status resets are quiet: they skip that status's emails and payment recording. On an API error the module adds a note and moves the order out of Send Invoice to PayPal: back to its previous status when nothing reached PayPal (set it again to retry), or to Invoice Draft in PayPal when the invoice was created but not sent (finish it in PayPal).
 
 ### The client in PayPal
@@ -240,12 +250,12 @@ Code: `modules/paypal-invoicer/includes/class-paypal-payment-sync.php`. Four way
 | **Check PayPal status** button | On demand | The **PayPal Invoice** box on the order shows the invoice ID, the last PayPal status, and the button. |
 | **Sync Payments** page | On demand, all open orders | Nexus Dashboard > **Sync Payments** (administrators). Lists open PayPal orders, runs `sync_open_orders()` (the next 50, as above) and shows the result per order, plus the schedule and webhook status. View: `modules/nexus/includes/views/TimeGrowNexusSyncPaymentsView.php`. |
 
-The sync step always reads the invoice from PayPal's API (a webhook message is never trusted on its own; its signature is also verified with PayPal first), then:
+The sync step always reads the invoice from PayPal's API (a webhook message is never trusted on its own; its signature is also verified with PayPal first, sending the event exactly as received, `verify_body()`), then:
 
 | PayPal status | Order |
 |---|---|
 | PAID, MARKED_AS_PAID | Payment date, amount, transaction ID and type "PayPal" are recorded, then the order moves to **Invoice Paid** (the client gets the paid email). |
-| PARTIALLY_PAID | Amount paid so far is recorded, order moves to **Partial Paid**. |
+| PARTIALLY_PAID | Amount paid so far is recorded, order moves to **Partial Paid**. Skipped for an order already Invoice Paid, so a full payment recorded here is never lowered. |
 | CANCELLED, REFUNDED, PARTIALLY_REFUNDED, MARKED_AS_REFUNDED | Order note only; the status is left for you to decide. A TimeGrow invoice is cancelled from the site, after a PayPal check (see [Cancelling an invoice](#cancelling-an-invoice)). |
 | Anything else (DRAFT, SENT, UNPAID, ...) | Nothing changes. |
 
@@ -260,8 +270,7 @@ Orders created before this change used 10-minute units, so their PayPal invoices
 
 ## Known issues
 
-- The module README says invoices go out when an order is Completed. The code uses the Send Invoice to PayPal status.
-- PayPal totals can differ from the order by a few cents when the rate is total / hours with a discount or an odd rate.
+None known. Not yet tried against the PayPal sandbox: an order with fees, a credit and an uneven rate; a scheduled invoice cancelled; a webhook with the raw-event check.
 
 ## Related files
 
