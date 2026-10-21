@@ -160,7 +160,7 @@ $manual_payment_data = [
 					</td>
 					<td class="quantity"><?php echo esc_html( $qty_display ); ?></td>
 					<td class="price"><?php echo wp_kses_post( wc_price( $unit_price, [ 'currency' => $order->get_currency() ] ) ); ?></td>
-					<td class="price"><?php echo esc_html( $item['order_price'] ); ?></td>
+					<td class="price"><?php echo wp_kses_post( $item['order_price'] ); // price HTML from WooCommerce ?></td>
 				</tr>
 			<?php endforeach; ?>
 		</tbody>
@@ -193,7 +193,7 @@ $manual_payment_data = [
 							<?php foreach ( $this->get_woocommerce_totals() as $key => $total ) : ?>
 								<tr class="<?php echo esc_attr( $key ); ?>">
 									<th class="description"><?php echo esc_html( $total['label'] ); ?></th>
-									<td class="price"><span class="totals-price"><?php echo esc_html( $total['value'] ); ?></span></td>
+									<td class="price"><span class="totals-price"><?php echo wp_kses_post( $total['value'] ); // price HTML from WooCommerce ?></span></td>
 								</tr>
 							<?php endforeach; ?>
 						</tfoot>
@@ -209,7 +209,7 @@ $manual_payment_data = [
 		<div class="invoice-payment-stamp">
 			<p><strong>INVOICE PAID</strong></p>
 			<br />Payment Date: <?php echo esc_html( date_i18n( get_option( 'date_format' ), strtotime( $manual_payment_data['payment_date'] ) ) ); ?><br>
-			<br />Amount: $<?php echo esc_html($manual_payment_data['payment_amount']); ?><br>
+			<br />Amount: <?php echo wp_kses_post( wc_price( (float) $manual_payment_data['payment_amount'], [ 'currency' => $this->order->get_currency() ] ) ); ?><br>
 			<br />Type: <?php echo esc_html($manual_payment_data['payment_type']); ?>
 		</div>
 	<?php } ?>
