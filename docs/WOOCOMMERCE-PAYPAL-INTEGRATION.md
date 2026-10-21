@@ -157,6 +157,19 @@ The message names the invoice: "The PayPal invoice INV2-... is not refunded yet.
 
 An invoice cancelled in PayPal does not cancel the order. The payment sync only adds a note (see [When the client pays](#when-the-client-pays)).
 
+### Trashing and deleting an invoice
+
+`TimeGrowTimeEntry::on_order_removed()`, for TimeGrow invoices:
+
+| What | Its time |
+|---|---|
+| Moved to the trash | Stays billed on the order. The trash can be undone, so restoring needs nothing. To bill the time again, cancel the invoice, or delete it permanently. |
+| Restored from the trash | Nothing changes (it was never released). |
+| Deleted permanently, no payment recorded | Released: the next Process Time bills it again. |
+| Deleted permanently, a payment recorded (Partial Paid, Invoice Paid, or a manual payment amount) | Stays billed, and is never billed again; only the link to the deleted order (`billed_order_id`) is cleared. |
+
+Before 2.2.0, trashing released the time even on a paid invoice, so the next Process Time billed paid work again.
+
 ### Manual payments
 
 A **Manual Payment Details** box sits in the side column of the order editor. It stores `_payment_date`, `_payment_amount`, `_payment_type` and `_payment_trans_id` on the order.

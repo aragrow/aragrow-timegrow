@@ -16,7 +16,7 @@ class TimeGrowTimeEntry{
         add_action('wp_ajax_delete_company', array($this, 'delete_ajax')); // Add delete action
         add_action('admin_enqueue_scripts', array($this, 'enqueue_scripts_styles'));
 
-        // Hook into WooCommerce order deletion/trashing to reset billed status
+        // An order's time when it is trashed, restored or deleted (on_order_removed())
         // WordPress post hooks (for legacy order storage)
         add_action('wp_trash_post', [$this, 'handle_order_trashed'], 10, 1);
         add_action('before_delete_post', [$this, 'handle_order_deleted'], 10, 1);
@@ -26,138 +26,104 @@ class TimeGrowTimeEntry{
         add_action('woocommerce_trash_order', [$this, 'handle_wc_order_trashed'], 10, 1);
         add_action('woocommerce_before_delete_order', [$this, 'handle_wc_order_deleted'], 10, 1);
         add_action('woocommerce_untrash_order', [$this, 'handle_wc_order_restored'], 10, 1);
+        add_action('admin_notices', [__CLASS__, 'show_order_notices']);
     }
 
     /**
-     * Handle when a WooCommerce order is trashed
+     * What happens to an order's time when the order is trashed, restored or deleted. Pure.
+     *
+     * - trash, restore: 'keep'. The trash can be undone, so the time stays billed on the order
+     *   (cancel the invoice, or delete it for good, to bill the time again).
+     * - delete with a payment recorded: 'detach'. The work was paid for: the time stays billed and is
+     *   never billed again; only the link to the deleted order goes.
+     * - delete with no payment: 'release'. The invoice never happened, so the time can be billed again.
+     *
+     * @param string $event          trash, restore or delete.
+     * @param string $status         The order's status (no "wc-" prefix).
+     * @param float  $payment_amount A payment recorded on the order (Manual Payments).
      */
+    public static function on_order_removed($event, $status, $payment_amount) {
+        if ($event !== 'delete') {
+            return 'keep';
+        }
+        $paid_statuses = class_exists('Aragrow_TimeGrow_Order_Cancellation') ? Aragrow_TimeGrow_Order_Cancellation::PAID_STATUSES : ['partial_paid', 'invoice_paid'];
+        return (in_array($status, $paid_statuses, true) || (float) $payment_amount > 0) ? 'detach' : 'release';
+    }
+
+    /** Order hooks for the posts table (legacy storage): only shop orders. */
     public function handle_order_trashed($post_id) {
-        // Check if this is a WooCommerce order
-        if (get_post_type($post_id) === 'shop_order') {
-            $order = wc_get_order($post_id);
-
-            // Check if this is a TimeGrow order (has the meta flag)
-            if ($order && $order->get_meta('_timekeeping_invoice')) {
-                $model = new TimeGrowTimeEntryModel();
-
-                // Get count of entries before unbilling
-                $entry_count = $model->get_entry_count_for_order($post_id);
-
-                if ($entry_count > 0) {
-                    // Unbill the entries
-                    $model->unbill_entries_for_order($post_id);
-
-                    // Add admin notice
-                    add_action('admin_notices', function() use ($post_id, $entry_count) {
-                        echo '<div class="notice notice-warning is-dismissible">';
-                        echo '<p><strong>TimeGrow Warning:</strong> Order #' . $post_id . ' has been moved to trash. ';
-                        echo '<strong>' . $entry_count . '</strong> time ' . ($entry_count > 1 ? 'entries have' : 'entry has') . ' been unbilled and will be available for billing again.</p>';
-                        echo '<p>If you restore this order from trash, you will need to re-process the time entries to bill them again.</p>';
-                        echo '</div>';
-                    });
-                }
-            }
-        }
+        if (get_post_type($post_id) === 'shop_order') $this->order_removed('trash', $post_id);
     }
 
-    /**
-     * Handle when a WooCommerce order is permanently deleted
-     */
     public function handle_order_deleted($post_id) {
-        // Check if this is a WooCommerce order
-        if (get_post_type($post_id) === 'shop_order') {
-            $order = wc_get_order($post_id);
-
-            // Check if this is a TimeGrow order
-            if ($order && $order->get_meta('_timekeeping_invoice')) {
-                $model = new TimeGrowTimeEntryModel();
-
-                // Get count before deleting
-                $entry_count = $model->get_entry_count_for_order($post_id);
-
-                if ($entry_count > 0) {
-                    // Unbill the entries
-                    $model->unbill_entries_for_order($post_id);
-
-                    // Log the deletion
-                    timegrow_log('TimeGrow: Order #' . $post_id . ' permanently deleted. ' . $entry_count . ' time entries have been unbilled.');
-                }
-            }
-        }
+        if (get_post_type($post_id) === 'shop_order') $this->order_removed('delete', $post_id);
     }
 
-    /**
-     * Handle when a WooCommerce order is restored from trash
-     * Note: This will re-bill the entries, but they won't be marked as billed
-     * unless the order goes through the normal billing process again
-     */
     public function handle_order_restored($post_id) {
-        // We could optionally re-mark entries as billed here if needed
-        // For now, we'll just log that an order was restored
-        if (get_post_type($post_id) === 'shop_order') {
-            timegrow_log('WooCommerce order #' . $post_id . ' was restored from trash. Time entries remain unbilled.');
-        }
+        if (get_post_type($post_id) === 'shop_order') $this->order_removed('restore', $post_id);
     }
 
-    /**
-     * Handle WooCommerce order trashed (HPOS compatible)
-     */
+    /** Order hooks for WooCommerce's order tables (HPOS). */
     public function handle_wc_order_trashed($order_id) {
-        $order = wc_get_order($order_id);
-
-        // Check if this is a TimeGrow order
-        if ($order && $order->get_meta('_timekeeping_invoice')) {
-            $model = new TimeGrowTimeEntryModel();
-
-            // Get count of entries before unbilling
-            $entry_count = $model->get_entry_count_for_order($order_id);
-
-            if ($entry_count > 0) {
-                // Unbill the entries
-                $model->unbill_entries_for_order($order_id);
-
-                // Add admin notice
-                add_action('admin_notices', function() use ($order_id, $entry_count) {
-                    echo '<div class="notice notice-warning is-dismissible">';
-                    echo '<p><strong>TimeGrow Warning:</strong> Order #' . $order_id . ' has been moved to trash. ';
-                    echo '<strong>' . $entry_count . '</strong> time ' . ($entry_count > 1 ? 'entries have' : 'entry has') . ' been unbilled and will be available for billing again.</p>';
-                    echo '<p>If you restore this order from trash, you will need to re-process the time entries to bill them again.</p>';
-                    echo '</div>';
-                });
-            }
-        }
+        $this->order_removed('trash', $order_id);
     }
 
-    /**
-     * Handle WooCommerce order deleted (HPOS compatible)
-     */
     public function handle_wc_order_deleted($order_id) {
+        $this->order_removed('delete', $order_id);
+    }
+
+    public function handle_wc_order_restored($order_id) {
+        $this->order_removed('restore', $order_id);
+    }
+
+    /** Apply on_order_removed() to a TimeGrow invoice, and tell the person what happened to its time. */
+    private function order_removed($event, $order_id) {
         $order = wc_get_order($order_id);
+        if (!$order || !$order->get_meta('_timekeeping_invoice')) {
+            return;
+        }
+        $model = new TimeGrowTimeEntryModel();
+        $count = (int) $model->get_entry_count_for_order($order_id);
+        if ($count === 0) {
+            return;
+        }
+        $status = $order->get_status() === 'trash' ? (string) $order->get_meta('_wp_trash_meta_status') : $order->get_status();
+        $status = preg_replace('/^wc-/', '', $status);
+        $action = self::on_order_removed($event, $status, $order->get_meta('_payment_amount'));
+        $entries = sprintf(_n('%d time entry', '%d time entries', $count, 'timegrow'), $count);
 
-        // Check if this is a TimeGrow order
-        if ($order && $order->get_meta('_timekeeping_invoice')) {
-            $model = new TimeGrowTimeEntryModel();
-
-            // Get count before deleting
-            $entry_count = $model->get_entry_count_for_order($order_id);
-
-            if ($entry_count > 0) {
-                // Unbill the entries
-                $model->unbill_entries_for_order($order_id);
-
-                // Log the deletion
-                timegrow_log('TimeGrow: Order #' . $order_id . ' permanently deleted. ' . $entry_count . ' time entries have been unbilled.');
-            }
+        if ($action === 'release') {
+            $model->unbill_entries_for_order($order_id);
+            $message = sprintf(__('Order #%1$d was deleted. Its %2$s can be billed again.', 'timegrow'), (int) $order_id, $entries);
+        } elseif ($action === 'detach') {
+            $model->keep_billed_without_order($order_id);
+            $message = sprintf(__('Order #%1$d was deleted. A payment was recorded on it, so its %2$s stay billed and won\'t be billed again.', 'timegrow'), (int) $order_id, $entries);
+        } elseif ($event === 'trash') {
+            $message = sprintf(__('Order #%1$d is in the trash. Its %2$s stay billed on it, so restoring it needs nothing else. To bill the time again, cancel the invoice instead, or delete it permanently.', 'timegrow'), (int) $order_id, $entries);
+        } else {
+            return; // restored: the time was never released
+        }
+        timegrow_log(sprintf('TimeGrow: order #%d %s: %s (%d entries)', (int) $order_id, $event, $action, $count));
+        // Shown on the next page (the trash and delete actions redirect)
+        if (get_current_user_id()) {
+            $notes   = (array) get_transient('timegrow_order_notice_' . get_current_user_id());
+            $notes[] = $message;
+            set_transient('timegrow_order_notice_' . get_current_user_id(), array_slice(array_filter($notes), -5), 120);
         }
     }
 
-    /**
-     * Handle WooCommerce order restored (HPOS compatible)
-     */
-    public function handle_wc_order_restored($order_id) {
-        timegrow_log('WooCommerce order #' . $order_id . ' was restored from trash. Time entries remain unbilled.');
+    /** The messages from order_removed(), once. */
+    public static function show_order_notices() {
+        $key   = 'timegrow_order_notice_' . get_current_user_id();
+        $notes = get_transient($key);
+        if (!$notes) {
+            return;
+        }
+        delete_transient($key);
+        foreach ((array) $notes as $note) {
+            echo '<div class="notice notice-info is-dismissible"><p><strong>TimeGrow:</strong> ' . esc_html($note) . '</p></div>';
+        }
     }
-
 
     public function register_admin_menu() {
         timegrow_log(__CLASS__.'::'.__FUNCTION__);

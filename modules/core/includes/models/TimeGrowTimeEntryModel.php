@@ -393,6 +393,24 @@ class TimeGrowTimeEntryModel {
     }
 
     /**
+     * A paid order was deleted: its entries stay billed (the work was paid for, so it is never billed
+     * again), and only their link to the deleted order is cleared.
+     */
+    public function keep_billed_without_order($order_id) {
+        global $wpdb;
+        $ids = $wpdb->get_col($wpdb->prepare("SELECT ID FROM {$this->table_name} WHERE billed_order_id = %d", (int) $order_id));
+        if (!$ids) {
+            return 0;
+        }
+        $rows = (int) $wpdb->query($wpdb->prepare(
+            "UPDATE {$this->table_name} SET billed_order_id = NULL, updated_at = %s WHERE billed_order_id = %d",
+            current_time('mysql'), (int) $order_id
+        ));
+        TimeGrowTimeEntryAudit::log_many($ids, 'updated', (int) $order_id);
+        return $rows;
+    }
+
+    /**
      * Get count of time entries associated with an order
      *
      * @param int $order_id The WooCommerce order ID
