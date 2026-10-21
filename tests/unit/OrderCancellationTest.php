@@ -57,6 +57,13 @@ class OrderCancellationTest extends TestCase {
         $this->assertNull( Aragrow_TimeGrow_Order_Cancellation::allowed_moves( 'invoice_sent' ) );
     }
 
+    public function test_paypal_fully_refunded() {
+        $this->assertTrue( Aragrow_TimeGrow_PayPal_Payment_Sync::fully_refunded( [ 'status' => 'REFUNDED' ] ) );
+        $this->assertTrue( Aragrow_TimeGrow_PayPal_Payment_Sync::fully_refunded( [ 'status' => 'PAID', 'amount' => [ 'value' => '175.01' ], 'refunds' => [ 'refund_amount' => [ 'value' => '175.01' ] ] ] ) );
+        $this->assertFalse( Aragrow_TimeGrow_PayPal_Payment_Sync::fully_refunded( [ 'status' => 'PARTIALLY_REFUNDED', 'amount' => [ 'value' => '500.00' ], 'refunds' => [ 'refund_amount' => [ 'value' => '120.00' ] ] ] ) );
+        $this->assertFalse( Aragrow_TimeGrow_PayPal_Payment_Sync::fully_refunded( [ 'status' => 'PAID' ] ) );
+    }
+
     public function test_paypal_refunded_amount() {
         $this->assertSame( 0.0, Aragrow_TimeGrow_PayPal_Payment_Sync::refunded_amount( [ 'status' => 'PAID', 'amount' => [ 'value' => '500.00' ] ] ) );
         $this->assertSame( 120.0, Aragrow_TimeGrow_PayPal_Payment_Sync::refunded_amount( [ 'status' => 'PARTIALLY_REFUNDED', 'refunds' => [ 'refund_amount' => [ 'value' => '120.00' ] ] ] ) );

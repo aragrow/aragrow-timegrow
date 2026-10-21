@@ -556,6 +556,7 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 				$name         = $item->get_name();
 				$currency     = $order->get_currency();
 				list( $quantity, $unit_amount ) = $this->line_quantity_and_rate( $order, $item );
+				list( $pp_quantity, $pp_unit, $pp_note ) = self::paypal_line_amounts( $quantity, $unit_amount, (float) $item->get_total(), $currency );
 
 				$sku = '';
 				$desc = '';
@@ -575,12 +576,13 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 
 				$pp_item = [
 					'name'        => $name,
-					'quantity'    => (string) $quantity,
-					'unit_amount' => [ 'currency_code' => $currency, 'value' => self::money_value( $unit_amount, $currency ) ],
+					'quantity'    => $pp_quantity,
+					'unit_amount' => [ 'currency_code' => $currency, 'value' => $pp_unit ],
 				];
 				if ( $sku ) { $pp_item['sku'] = $sku; }
 				if ( $pp_product_id ) { $pp_item['item_id'] = $pp_product_id; }
-				if ( $desc ) { $pp_item['description'] = wp_strip_all_tags( wp_trim_words( $desc, 50 ) ); }
+				$desc = trim( $pp_note . ( $desc ? ' ' . wp_strip_all_tags( wp_trim_words( $desc, 50 ) ) : '' ) );
+				if ( $desc !== '' ) { $pp_item['description'] = $desc; }
 
 				$items[] = $pp_item;
 			}
@@ -701,13 +703,6 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 	}
 
 	/**
-	 * PayPal quantity and unit amount for an order line.
-	 * Hours invoice lines keep their hours on the line (quantity 1): send hours and total / hours.
-	 * Every other line sends its plain quantity and total / quantity.
-	 *
-	 * @return array [ float $quantity, float $unit_amount ]
-	 */
-	/**
 	 * The PayPal invoice already made for this order, or null: searched by the order reference.
 	 * A search error stops the send, so an existing invoice is never missed and duplicated.
 	 */
@@ -750,6 +745,13 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 		return number_format( (float) $amount, $decimals, '.', '' );
 	}
 
+	/**
+	 * PayPal quantity and unit amount for an order line.
+	 * Hours invoice lines keep their hours on the line (quantity 1): send hours and total / hours.
+	 * Every other line sends its plain quantity and total / quantity.
+	 *
+	 * @return array [ float $quantity, float $unit_amount ]
+	 */
 	public function line_quantity_and_rate( $order, $item ) {
 		$quantity   = (float) $item->get_quantity();
 		$line_total = (float) $item->get_total();
@@ -759,6 +761,22 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 			return [ $line_hours, $line_total / $line_hours ];
 		}
 		return [ $quantity, $quantity > 0 ? $line_total / $quantity : $line_total ];
+	}
+
+	/**
+	 * The quantity and unit amount PayPal gets for a line, as strings, and a note for its description.
+	 * PayPal rounds the unit amount, so 2.33 h at 175.00 (75.107 an hour) would come to 175.01: when
+	 * the rounded amounts don't make the line total, the line goes as 1 x the total, and the hours and
+	 * rate go in the note ("2.33 x 75.11"). Pure.
+	 *
+	 * @return array [ string $quantity, string $unit_amount, string $note ]
+	 */
+	public static function paypal_line_amounts( $quantity, $unit_amount, $line_total, $currency ) {
+		$unit = self::money_value( $unit_amount, $currency );
+		if ( self::money_value( (float) $quantity * (float) $unit, $currency ) === self::money_value( $line_total, $currency ) ) {
+			return [ (string) $quantity, $unit, '' ];
+		}
+		return [ '1', self::money_value( $line_total, $currency ), sprintf( '%s x %s', (string) $quantity, $unit ) ];
 	}
 
 	/**

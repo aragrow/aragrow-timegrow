@@ -209,7 +209,9 @@ class Aragrow_TimeGrow_Order_Cancellation {
 
 	/**
 	 * Why the order can't be refunded up to $needed yet, or '' when it can: an order with a PayPal
-	 * invoice needs at least that much refunded in PayPal first. Orders without one are not limited.
+	 * invoice needs at least that much refunded in PayPal first. Orders without one are not limited, and
+	 * neither is an order whose PayPal invoice is fully refunded (its total can differ from the
+	 * order's by a rounding cent).
 	 *
 	 * @param float $needed Total refunded on the order once this refund is done.
 	 */
@@ -222,12 +224,13 @@ class Aragrow_TimeGrow_Order_Cancellation {
 			return 'This is a PayPal invoice and the PayPal keys are missing, so TimeGrow can\'t check the refund in PayPal. Add them in Settings > PayPal Integration.';
 		}
 		try {
-			$refunded = ( new Aragrow_TimeGrow_PayPal_Payment_Sync( $invoicer ) )->paypal_refunded( $order );
+			$paypal = ( new Aragrow_TimeGrow_PayPal_Payment_Sync( $invoicer ) )->paypal_refunded( $order );
 		} catch ( Exception $e ) {
 			timegrow_log( 'PayPal refund check failed for order #' . $order->get_id() . ': ' . $e->getMessage() );
 			return 'PayPal could not be reached to check the refund. Try again later.';
 		}
-		if ( $refunded + 0.005 >= (float) $needed ) {
+		$refunded = $paypal['refunded'];
+		if ( $paypal['full'] || $refunded + 0.005 >= (float) $needed ) {
 			return '';
 		}
 		$invoice_id = Aragrow_TimeGrow_PayPal_Payment_Sync::invoice_id_for( $order );

@@ -213,14 +213,29 @@ class Aragrow_TimeGrow_PayPal_Payment_Sync {
 	}
 
 	/**
-	 * Read the order's PayPal invoice and return how much PayPal shows as refunded. Throws on API errors.
+	 * True when PayPal shows the whole invoice refunded: by its status, or a refund of at least its
+	 * total. Pure.
+	 */
+	public static function fully_refunded( array $invoice ) {
+		if ( in_array( (string) ( $invoice['status'] ?? '' ), [ 'REFUNDED', 'MARKED_AS_REFUNDED' ], true ) ) {
+			return true;
+		}
+		$total = (float) ( $invoice['amount']['value'] ?? 0 );
+		return $total > 0 && self::refunded_amount( $invoice ) + 0.005 >= $total;
+	}
+
+	/**
+	 * Read the order's PayPal invoice: how much PayPal shows as refunded, and whether that is the whole
+	 * invoice. Throws on API errors.
+	 *
+	 * @return array { refunded: float, full: bool }
 	 */
 	public function paypal_refunded( $order ) {
 		$invoice = $this->invoicer->paypal_request( 'GET', '/v2/invoicing/invoices/' . rawurlencode( self::invoice_id_for( $order ) ) );
 		$order->update_meta_data( '_paypal_invoice_status', (string) ( $invoice['status'] ?? '' ) );
 		$order->update_meta_data( '_paypal_last_checked', current_time( 'mysql' ) );
 		$order->save_meta_data();
-		return self::refunded_amount( $invoice );
+		return [ 'refunded' => self::refunded_amount( $invoice ), 'full' => self::fully_refunded( $invoice ) ];
 	}
 
 	// ------------------------------------------------------------------

@@ -51,6 +51,19 @@ class InvoiceLinesTest extends TestCase {
         $this->assertSame( '7.00', $lines[1]['unit_amount']['value'] );
     }
 
+    public function test_paypal_line_keeps_hours_when_the_amounts_add_up() {
+        $this->assertSame( [ '3.75', '75.00', '' ], Aragrow_WC_PayPal_Auto_Invoicer::paypal_line_amounts( 3.75, 75.0, 281.25, 'USD' ) );
+    }
+
+    public function test_paypal_line_goes_as_one_total_when_rounding_would_change_it() {
+        // 175 / 2.33 h = 75.107 an hour; 2.33 x 75.11 would be 175.01
+        $this->assertSame( [ '1', '175.00', '2.33 x 75.11' ], Aragrow_WC_PayPal_Auto_Invoicer::paypal_line_amounts( 2.33, 175 / 2.33, 175.0, 'USD' ) );
+        // 3 items for 10.00: 3 x 3.33 would be 9.99
+        $this->assertSame( [ '1', '10.00', '3 x 3.33' ], Aragrow_WC_PayPal_Auto_Invoicer::paypal_line_amounts( 3.0, 10 / 3, 10.0, 'USD' ) );
+        // Zero-decimal currency: 3 x 333 would be 999
+        $this->assertSame( [ '1', '1000', '3 x 333' ], Aragrow_WC_PayPal_Auto_Invoicer::paypal_line_amounts( 3.0, 1000 / 3, 1000.0, 'JPY' ) );
+    }
+
     public function test_paypal_fee_becomes_a_line_and_credit_a_discount() {
         $order = new TimeGrow_Fake_Order( 1 );
         $order->fees = [ new TimeGrow_Fake_Fee( 'Rush fee', 40 ), new TimeGrow_Fake_Fee( 'Loyalty credit', -15.5 ), new TimeGrow_Fake_Fee( '', 5 ) ];
