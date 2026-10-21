@@ -623,16 +623,25 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 				$invoice_payload['detail']['invoice_number'] = $invoice_number;
 			}
 
-			try {
-				$invoice = $this->api_request( $token, $settings, 'POST', '/v2/invoicing/invoices', $invoice_payload );
-			} catch ( Exception $e ) {
-				// PayPal refuses an invoice number it has seen before: let PayPal number this one instead
-				if ( $invoice_number === '' || strpos( $e->getMessage(), 'DUPLICATE_INVOICE_NUMBER' ) === false ) {
-					throw $e;
+			// An earlier try may have reached PayPal without TimeGrow hearing back (a timeout): use that
+			// invoice instead of making a second one the client could also pay
+			$invoice = $this->find_order_invoice( $token, $settings, $order, $recipient_email );
+			$adopted = $invoice !== null;
+			if ( $adopted ) {
+				$order->add_order_note( sprintf( 'PayPal already has invoice %s for this order (an earlier try reached PayPal), so it is used instead of a new one.', $invoice['id'] ) );
+			} else {
+				try {
+					$invoice = $this->api_request( $token, $settings, 'POST', '/v2/invoicing/invoices', $invoice_payload );
+				} catch ( Exception $e ) {
+					// PayPal refuses an invoice number it has seen before. It is not this order's (checked above):
+					// let PayPal number this one instead
+					if ( $invoice_number === '' || strpos( $e->getMessage(), 'DUPLICATE_INVOICE_NUMBER' ) === false ) {
+						throw $e;
+					}
+					unset( $invoice_payload['detail']['invoice_number'] );
+					$invoice = $this->api_request( $token, $settings, 'POST', '/v2/invoicing/invoices', $invoice_payload );
+					$order->add_order_note( sprintf( 'PayPal already has an invoice numbered %s, so PayPal assigned its own number to this one.', $invoice_number ) );
 				}
-				unset( $invoice_payload['detail']['invoice_number'] );
-				$invoice = $this->api_request( $token, $settings, 'POST', '/v2/invoicing/invoices', $invoice_payload );
-				$order->add_order_note( sprintf( 'PayPal already has an invoice numbered %s, so PayPal assigned its own number to this one.', $invoice_number ) );
 			}
 
 			// PayPal returns a link to the new invoice by default; the invoice ID is its last path part
@@ -647,12 +656,19 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 			$order->update_meta_data( '_paypal_invoice_id', sanitize_text_field( $pp_invoice_id ) );
 			$order->save();
 
+			// A found invoice that was already sent is not sent again
+			if ( $adopted && strtoupper( (string) ( $invoice['status'] ?? '' ) ) !== 'DRAFT' ) {
+				$order->update_status( 'wc-inv_sent2paypal', sprintf( 'PayPal invoice %s was already sent (status %s).', $pp_invoice_id, $invoice['status'] ?? '?' ) );
+				update_option( 'wc_pp_auto_invoicer_product_map', $pp_products_map );
+				return;
+			}
+
 			if ( $settings['send_action'] === 'send' ) {
 				$this->api_request( $token, $settings, 'POST', sprintf( '/v2/invoicing/invoices/%s/send', rawurlencode( $pp_invoice_id ) ), [ 'send_to_invoicer' => false ] );
-				$order->add_order_note( sprintf( 'PayPal invoice %s created and sent to %s.', $pp_invoice_id, $recipient_email ) );
+				$order->add_order_note( sprintf( $adopted ? 'PayPal invoice %s sent to %s.' : 'PayPal invoice %s created and sent to %s.', $pp_invoice_id, $recipient_email ) );
 				$this->send_custom_inv_send2paypal_email_notification( $order_id );
 			} else {
-				$order->add_order_note( sprintf( 'PayPal invoice %s created as a draft (not sent).', $pp_invoice_id ) );
+				$order->add_order_note( sprintf( $adopted ? 'PayPal invoice %s kept as a draft (not sent).' : 'PayPal invoice %s created as a draft (not sent).', $pp_invoice_id ) );
 			}
 
 			// Draft mode: the client has not received anything yet, so say so in the status
@@ -671,7 +687,7 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 				$order->update_status( 'inv_draft2paypal', 'The invoice was created in PayPal but not sent. Send it from your PayPal account.' );
 			} else {
 				// Nothing reached PayPal: put the status back so it can simply be set again to retry
-				$this->restore_status_quietly( $order, $previous, 'Not sent to PayPal. Fix the problem above, then set the status to Send Invoice to PayPal again.' );
+				$this->restore_status_quietly( $order, $previous, 'Not sent to PayPal. Fix the problem above, then set the status to Send Invoice to PayPal again. If PayPal did make the invoice (for example after a timeout), the retry finds it and uses it instead of making another.' );
 			}
 		}
 	}
@@ -683,6 +699,40 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 	 *
 	 * @return array [ float $quantity, float $unit_amount ]
 	 */
+	/**
+	 * The PayPal invoice already made for this order, or null: searched by the order reference.
+	 * A search error stops the send, so an existing invoice is never missed and duplicated.
+	 */
+	private function find_order_invoice( $token, $settings, $order, $recipient_email ) {
+		$found = $this->api_request( $token, $settings, 'POST', '/v2/invoicing/search-invoices?page=1&page_size=20', [ 'reference' => (string) $order->get_id() ] );
+		return self::pick_order_invoice( $found['items'] ?? [], $order->get_id(), $recipient_email );
+	}
+
+	/**
+	 * From PayPal search results, this order's invoice: the reference is the order ID and the
+	 * recipient is the order's client (the same PayPal account can serve other sites, whose order
+	 * numbers overlap), and it is not cancelled. Null when there is none. Pure.
+	 */
+	public static function pick_order_invoice( array $items, $order_id, $recipient_email ) {
+		foreach ( $items as $item ) {
+			if ( ! is_array( $item ) || empty( $item['id'] ) ) {
+				continue;
+			}
+			if ( (string) ( $item['detail']['reference'] ?? '' ) !== (string) $order_id ) {
+				continue;
+			}
+			if ( in_array( strtoupper( (string) ( $item['status'] ?? '' ) ), [ 'CANCELLED', 'DELETED' ], true ) ) {
+				continue;
+			}
+			$email = (string) ( $item['primary_recipients'][0]['billing_info']['email_address'] ?? '' );
+			if ( $email === '' || $recipient_email === '' || strcasecmp( $email, $recipient_email ) !== 0 ) {
+				continue;
+			}
+			return $item;
+		}
+		return null;
+	}
+
 	/** Currencies PayPal only takes whole amounts in. */
 	const ZERO_DECIMAL_CURRENCIES = [ 'HUF', 'JPY', 'TWD' ];
 
@@ -875,7 +925,8 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 			'headers' => [
 				'Authorization' => 'Bearer ' . $token['token'],
 				'Content-Type'  => 'application/json',
-				'PayPal-Request-Id' => $this->idempotency_key( $method, $path, $payload ),
+				// A search must not get PayPal's saved answer to an earlier, identical search
+				'PayPal-Request-Id' => strpos( $path, '/search-invoices' ) !== false ? wp_generate_uuid4() : $this->idempotency_key( $method, $path, $payload ),
 			],
 			'timeout' => 30,
 			'method'  => $method,

@@ -209,13 +209,13 @@ Settings page: **Settings > PayPal Integration**, stored in the `wc_pp_auto_invo
 ### What happens when an order is sent
 
 1. Set the order status to **Send Invoice to PayPal** (`wc-inv_send2paypal`).
-   - **An order goes to PayPal only once.** If it already has a PayPal invoice ID, the module refuses, adds a note, and puts the status back. Make changes to that invoice in PayPal.
+   - **An order goes to PayPal only once.** If it already has a PayPal invoice ID, the module refuses, adds a note, and puts the status back. Make changes to that invoice in PayPal. Exception: when that invoice was cancelled or deleted in PayPal (the order was cancelled, then reopened), a new invoice replaces it.
    - If **Send orders to PayPal** is off, the module adds a note and stops.
 2. The module gets an OAuth token from PayPal.
 3. It builds the invoice lines. Shipping and tax become separate "Shipping" and "Tax" lines. The invoice number comes from the PDF Invoices plugin. If the order has no PDF invoice number yet, one is created at this point. If PayPal reports the number as a duplicate, the invoice is created again without it and PayPal assigns its own number (noted on the order).
 4. For each line with a SKU, it creates a PayPal catalog product if needed. The mapping is cached in the `wc_pp_auto_invoicer_product_map` option.
 5. It builds the recipient from the client (see below). Without a valid email it stops with an order note.
-6. It creates the invoice and saves the PayPal invoice ID in `_paypal_invoice_id` on the order.
+6. It first searches PayPal for an invoice this order already has (reference = order ID, recipient = the order's client, not cancelled). That covers a retry after a timeout: PayPal made the invoice but TimeGrow never heard back. When one is found it is used, not duplicated; if it was already sent, it is not sent again. A search error stops the send (retry later). Otherwise it creates the invoice. Either way it saves the PayPal invoice ID in `_paypal_invoice_id` on the order.
 7. With "Create & Send", it tells PayPal to send the invoice, adds a note, and emails the customer a short notice. With "Create only", it adds a note that the invoice is a draft. No customer email goes out.
 8. Only after that does the order move on: to **Invoice Sent to PayPal** (`wc-inv_sent2paypal`) when emailed, or **Invoice Draft in PayPal** (`wc-inv_draft2paypal`) when saved as a draft. Send drafts from your PayPal account. Status resets are quiet: they skip that status's emails and payment recording. On an API error the module adds a note and moves the order out of Send Invoice to PayPal: back to its previous status when nothing reached PayPal (set it again to retry), or to Invoice Draft in PayPal when the invoice was created but not sent (finish it in PayPal).
 
