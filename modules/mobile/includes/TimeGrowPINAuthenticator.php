@@ -2,7 +2,15 @@
 /**
  * TimeGrow PIN Authenticator
  *
- * Handles PIN-based authentication and session management for mobile users
+ * PIN login for the mobile website (team members only, TimeGrowMobileAccess::pin_allowed()).
+ *
+ * - PINs are 6 characters, made on the server, and stored with WordPress's password hash. PINs saved
+ *   before that (salted SHA-256) still work and are re-hashed at their next login.
+ * - 5 wrong PINs lock that person's PIN for 15 minutes; 20 failed logins from one address in 15
+ *   minutes pause logins from it, so PINs can't be tried across many people.
+ * - Every failure shows the same message, so the page doesn't tell who has a PIN.
+ * - A login is a normal WordPress login of 8 hours, marked as mobile in its session on the server
+ *   (TimeGrowMobileAccess::in_mobile_session()), so it can't be widened by removing a cookie.
  *
  * @package TimeGrow
  * @subpackage Mobile
@@ -16,296 +24,152 @@ if (!defined('ABSPATH')) {
 
 class TimeGrowPINAuthenticator {
 
-    /**
-     * @var string Session cookie name
-     */
+    /** The cookie mobile logins used before 2.2.0 (only its presence was checked); cleared when seen. */
     const COOKIE_NAME = 'timegrow_mobile_session';
 
-    /**
-     * @var int Session timeout in seconds (8 hours)
-     */
-    const SESSION_TIMEOUT = 28800;
-
-    /**
-     * @var int Max failed attempts before lockout
-     */
+    const SESSION_TIMEOUT     = 28800; // 8 hours
     const MAX_FAILED_ATTEMPTS = 5;
-
-    /**
-     * @var int Lockout duration in seconds (15 minutes)
-     */
-    const LOCKOUT_DURATION = 900;
+    const LOCKOUT_DURATION    = 900;   // 15 minutes
+    const MAX_ADDRESS_FAILURES = 20;   // per address, per LOCKOUT_DURATION
+    const PIN_CHARS = '0123456789ABCDEFGHJKLMNPQRSTUVWXYZ'; // no I or O
 
     /**
      * @var TimeGrowMobilePINModel
      */
     private $model;
 
-    /**
-     * Constructor
-     */
     public function __construct() {
         $this->model = new TimeGrowMobilePINModel();
     }
 
-    /**
-     * Generate a random 6-character alphanumeric PIN
-     *
-     * @return string 6-character PIN
-     */
+    /** A random 6-character PIN (letters and numbers, no I or O). */
     public function generate_pin() {
-        $chars = '0123456789ABCDEFGHJKLMNPQRSTUVWXYZ'; // Removed I and O to avoid confusion
         $pin = '';
         for ($i = 0; $i < 6; $i++) {
-            $pin .= $chars[random_int(0, strlen($chars) - 1)];
+            $pin .= self::PIN_CHARS[random_int(0, strlen(self::PIN_CHARS) - 1)];
         }
         return $pin;
     }
 
-    /**
-     * Create PIN for user
-     *
-     * @param int $user_id User ID
-     * @param string $pin 6-character alphanumeric PIN
-     * @return bool Success status
-     */
+    /** Save a PIN for a team member (stored hashed). False for anyone else or a malformed PIN. */
     public function create_pin_for_user($user_id, $pin) {
-        // Only administrators and team members can have a PIN
-        if (!TimeGrowMobileAccess::allowed($user_id)) {
+        if (!TimeGrowMobileAccess::pin_allowed($user_id) || !preg_match('/^[A-Z0-9]{6}$/i', $pin)) {
             return false;
         }
-        // Validate PIN format (6 alphanumeric characters)
-        if (!preg_match('/^[A-Z0-9]{6}$/i', $pin)) {
-            return false;
+        return $this->model->upsert($user_id, wp_hash_password(strtoupper($pin)), '');
+    }
+
+    /** True when the PIN matches the record: the WordPress hash, or the salted SHA-256 of older PINs. */
+    public static function pin_matches($pin, $record) {
+        if ((string) $record->pin_salt !== '') {
+            return hash_equals((string) $record->pin_hash, hash('sha256', $pin . $record->pin_salt));
         }
-
-        // Normalize to uppercase
-        $pin = strtoupper($pin);
-
-        // Generate salt
-        $salt = bin2hex(random_bytes(32));
-
-        // Hash PIN with salt
-        $pin_hash = hash('sha256', $pin . $salt);
-
-        // Store in database
-        return $this->model->upsert($user_id, $pin_hash, $salt);
+        return wp_check_password($pin, (string) $record->pin_hash);
     }
 
     /**
-     * Verify PIN for user
+     * Check a PIN for a user. Every refusal has the same message, except a pause for too many tries.
      *
-     * @param int $user_id User ID
-     * @param string $pin 6-character alphanumeric PIN to verify
-     * @return array Result with 'success' boolean and 'message' string
+     * @return array { success, message }
      */
     public function verify_pin($user_id, $pin) {
-        // Validate PIN format (6 alphanumeric characters)
-        if (!preg_match('/^[A-Z0-9]{6}$/i', $pin)) {
-            return [
-                'success' => false,
-                'message' => 'Invalid PIN format. Must be 6 characters (letters and numbers).',
-            ];
+        $refused = ['success' => false, 'message' => TimeGrowMobileAccess::refused_message()];
+        if ($this->address_blocked()) {
+            return ['success' => false, 'message' => __('Too many failed logins. Try again in 15 minutes.', 'timegrow')];
         }
-
-        // Only administrators and team members may log in remotely (also for PINs made before this rule)
-        if (!TimeGrowMobileAccess::allowed($user_id)) {
-            return ['success' => false, 'message' => TimeGrowMobileAccess::refused_message()];
+        $pin = strtoupper(trim((string) $pin));
+        $record = $user_id ? $this->model->get_by_user_id($user_id) : null;
+        if (!preg_match('/^[A-Z0-9]{6}$/', $pin) || !$record || !$record->is_active || !TimeGrowMobileAccess::pin_allowed($user_id)) {
+            $this->count_address_failure();
+            return $refused;
         }
-
-        // Normalize to uppercase
-        $pin = strtoupper($pin);
-
-        // Get PIN record
-        $record = $this->model->get_by_user_id($user_id);
-
-        if (!$record) {
-            return [
-                'success' => false,
-                'message' => 'Mobile access not enabled for this user.',
-            ];
-        }
-
-        // Check if account is active
-        if (!$record->is_active) {
-            return [
-                'success' => false,
-                'message' => 'Mobile access has been disabled.',
-            ];
-        }
-
-        // Check if account is locked
         if ($this->is_account_locked($user_id, $record)) {
-            $locked_until = strtotime($record->locked_until);
-            $remaining = $locked_until - time();
-            $minutes = ceil($remaining / 60);
-
-            return [
-                'success' => false,
-                'message' => "Account locked for {$minutes} more minute(s). Too many failed attempts.",
-                'locked_until' => $record->locked_until,
-            ];
+            $this->count_address_failure();
+            return ['success' => false, 'message' => __('Too many failed logins. Try again in 15 minutes.', 'timegrow')];
         }
 
-        // Hash provided PIN with stored salt
-        $pin_hash = hash('sha256', $pin . $record->pin_salt);
-
-        // Verify PIN
-        if (hash_equals($record->pin_hash, $pin_hash)) {
-            // PIN is correct - reset failed attempts and update last login
+        if (self::pin_matches($pin, $record)) {
             $this->model->reset_failed_attempts($user_id);
             $this->model->update_last_login($user_id);
-
-            return [
-                'success' => true,
-                'message' => 'Login successful.',
-            ];
-        } else {
-            // PIN is incorrect - increment failed attempts
-            $this->model->increment_failed_attempts($user_id);
-
-            $failed_attempts = $record->failed_attempts + 1;
-            $remaining_attempts = self::MAX_FAILED_ATTEMPTS - $failed_attempts;
-
-            // Lock account if max attempts reached
-            if ($failed_attempts >= self::MAX_FAILED_ATTEMPTS) {
-                $this->model->lock_account($user_id, self::LOCKOUT_DURATION);
-
-                return [
-                    'success' => false,
-                    'message' => 'Account locked for 15 minutes due to too many failed attempts.',
-                ];
+            if ((string) $record->pin_salt !== '') {
+                $this->model->upsert($user_id, wp_hash_password($pin), ''); // older PIN: re-hashed
             }
-
-            return [
-                'success' => false,
-                'message' => "Invalid PIN. {$remaining_attempts} attempt(s) remaining.",
-            ];
+            return ['success' => true, 'message' => ''];
         }
+
+        $this->model->increment_failed_attempts($user_id);
+        $this->count_address_failure();
+        if ((int) $record->failed_attempts + 1 >= self::MAX_FAILED_ATTEMPTS) {
+            $this->model->lock_account($user_id, self::LOCKOUT_DURATION);
+        }
+        return $refused;
     }
 
-    /**
-     * Check if account is locked
-     *
-     * @param int $user_id User ID
-     * @param object|null $record PIN record (optional, will fetch if not provided)
-     * @return bool True if locked
-     */
+    /** Whether the PIN is locked; an expired lock is cleared. */
     public function is_account_locked($user_id, $record = null) {
-        if (!$record) {
-            $record = $this->model->get_by_user_id($user_id);
-        }
-
+        $record = $record ?: $this->model->get_by_user_id($user_id);
         if (!$record || !$record->locked_until) {
             return false;
         }
-
-        $locked_until = strtotime($record->locked_until);
-        $now = time();
-
-        // If lockout period has expired, unlock account
-        if ($now >= $locked_until) {
+        if (time() >= strtotime($record->locked_until . ' UTC')) {
             $this->model->reset_failed_attempts($user_id);
             return false;
         }
-
         return true;
     }
 
+    // ------------------------------------------------------------------
+    // Failed logins per address
+    // ------------------------------------------------------------------
+
+    private function address_key() {
+        return 'timegrow_pin_fail_' . md5((string) ($_SERVER['REMOTE_ADDR'] ?? ''));
+    }
+
+    private function address_blocked() {
+        return (int) get_transient($this->address_key()) >= self::MAX_ADDRESS_FAILURES;
+    }
+
+    private function count_address_failure() {
+        set_transient($this->address_key(), (int) get_transient($this->address_key()) + 1, self::LOCKOUT_DURATION);
+    }
+
+    // ------------------------------------------------------------------
+    // The session
+    // ------------------------------------------------------------------
+
     /**
-     * Create mobile session
-     *
-     * @param int $user_id User ID
-     * @return bool Success status
+     * Log the person in to WordPress for 8 hours, with the session marked as mobile on the server.
+     * Not "remember me": the login ends when the browser closes, or after 8 hours.
      */
     public function create_mobile_session($user_id) {
-        // Create session data
-        $session_data = [
-            'user_id' => $user_id,
-            'expires' => time() + self::SESSION_TIMEOUT,
-            'nonce' => wp_create_nonce('timegrow_mobile_session_' . $user_id),
-        ];
+        $mark   = function ($info) { $info[TimeGrowMobileAccess::SESSION_KEY] = 1; return $info; };
+        $length = function () { return self::SESSION_TIMEOUT; };
+        add_filter('attach_session_information', $mark);
+        add_filter('auth_cookie_expiration', $length);
+        wp_set_current_user($user_id);
+        wp_set_auth_cookie($user_id, false, is_ssl());
+        remove_filter('attach_session_information', $mark);
+        remove_filter('auth_cookie_expiration', $length);
+        self::clear_legacy_cookie();
 
-        // Encrypt session data
-        $session_value = base64_encode(json_encode($session_data));
-
-        // Set cookie
-        $secure = is_ssl();
-        $result = setcookie(
-            self::COOKIE_NAME,
-            $session_value,
-            time() + self::SESSION_TIMEOUT,
-            COOKIEPATH,
-            COOKIE_DOMAIN,
-            $secure,
-            true // httpOnly
-        );
-
-        // Also log the user into WordPress
-        if ($result) {
-            wp_set_current_user($user_id);
-            wp_set_auth_cookie($user_id, true);
-
-            // Trigger WordPress login action
-            do_action('wp_login', get_userdata($user_id)->user_login, get_userdata($user_id));
-        }
-
-        return $result;
-    }
-
-    /**
-     * Validate mobile session
-     *
-     * @return array|false Session data if valid, false otherwise
-     */
-    public function validate_mobile_session() {
-        if (!isset($_COOKIE[self::COOKIE_NAME])) {
-            return false;
-        }
-
-        // Decrypt session data
-        $session_data = json_decode(base64_decode($_COOKIE[self::COOKIE_NAME]), true);
-
-        if (!$session_data || !isset($session_data['user_id'], $session_data['expires'], $session_data['nonce'])) {
-            return false;
-        }
-
-        // Check expiration
-        if (time() > $session_data['expires']) {
-            $this->destroy_mobile_session();
-            return false;
-        }
-
-        // Verify nonce
-        if (!wp_verify_nonce($session_data['nonce'], 'timegrow_mobile_session_' . $session_data['user_id'])) {
-            $this->destroy_mobile_session();
-            return false;
-        }
-
-        return $session_data;
-    }
-
-    /**
-     * Destroy mobile session
-     *
-     * @return bool Success status
-     */
-    public function destroy_mobile_session() {
-        // Remove cookie
-        $secure = is_ssl();
-        setcookie(
-            self::COOKIE_NAME,
-            '',
-            time() - 3600,
-            COOKIEPATH,
-            COOKIE_DOMAIN,
-            $secure,
-            true
-        );
-
-        // Also log out from WordPress
-        wp_logout();
-
+        $user = get_userdata($user_id);
+        do_action('wp_login', $user->user_login, $user);
         return true;
+    }
+
+    /** End the session: the WordPress logout ends the login and its mobile mark. */
+    public function destroy_mobile_session() {
+        self::clear_legacy_cookie();
+        wp_logout();
+        return true;
+    }
+
+    /** Remove the cookie older mobile logins set (it no longer means anything). */
+    public static function clear_legacy_cookie() {
+        if (isset($_COOKIE[self::COOKIE_NAME]) && !headers_sent()) {
+            setcookie(self::COOKIE_NAME, '', time() - 3600, COOKIEPATH, COOKIE_DOMAIN, is_ssl(), true);
+        }
+        unset($_COOKIE[self::COOKIE_NAME]);
     }
 }

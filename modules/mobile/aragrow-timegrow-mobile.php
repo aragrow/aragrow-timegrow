@@ -54,6 +54,30 @@ class TimeGrowMobile {
 
         // Enqueue mobile assets
         add_action('admin_enqueue_scripts', [__CLASS__, 'enqueue_mobile_assets']);
+
+        // Once, on upgrade to 2.2.0: earlier PIN logins end, and administrators' PINs are switched off
+        add_action('admin_init', [__CLASS__, 'upgrade_sessions'], 0);
+    }
+
+    /**
+     * Before 2.2.0 a PIN login was a full 14-day WordPress login with a separate mobile cookie, so
+     * removing the cookie gave full access. Once: team members with a PIN are logged out everywhere
+     * (they log in again with their PIN), and administrators' PINs are switched off (administrators use
+     * the normal login now).
+     */
+    public static function upgrade_sessions() {
+        if (get_option('timegrow_mobile_sessions_v2') === '1') {
+            return;
+        }
+        $model = new TimeGrowMobilePINModel();
+        foreach ((array) $model->get_all_active() as $row) {
+            if (!TimeGrowMobileAccess::pin_allowed((int) $row->user_id)) {
+                $model->set_active((int) $row->user_id, false);
+            } elseif ((int) $row->user_id !== get_current_user_id()) {
+                WP_Session_Tokens::get_instance((int) $row->user_id)->destroy_all();
+            }
+        }
+        update_option('timegrow_mobile_sessions_v2', '1', false);
     }
 
     /**
@@ -105,22 +129,7 @@ class TimeGrowMobile {
      * Register mobile-only capabilities
      */
     public static function register_capabilities() {
-        // Check if mobile_user role already exists
-        $role = get_role('mobile_user');
-
-        if (!$role) {
-            // Create mobile_user role with basic capabilities
-            add_role('mobile_user', 'Mobile User', [
-                'read' => true,
-                'access_mobile_only_mode' => true,
-                'access_mobile_time_tracking' => false,
-                'access_mobile_expenses' => false,
-            ]);
-        }
-
-        // Add mobile capabilities to administrator role for flexibility
-        // Admins can use both desktop and mobile interfaces
-        // Restrictions only apply when logged in via mobile PIN session
+        // Administrators hold the mobile capabilities (the app token uses them); the PIN login is for team members only
         $admin_role = get_role('administrator');
         if ($admin_role) {
             $admin_role->add_cap('access_mobile_only_mode');
@@ -147,9 +156,6 @@ class TimeGrowMobile {
 
         // Load user profile integration
         require_once TIMEGROW_MOBILE_INCLUDES_DIR . 'TimeGrowMobileUserProfile.php';
-
-        // Load 2FA integration (Wordfence)
-        require_once TIMEGROW_MOBILE_INCLUDES_DIR . 'TimeGrowMobile2FA.php';
 
         // Load SMS notifications
         require_once TIMEGROW_MOBILE_INCLUDES_DIR . 'TimeGrowSMSNotifications.php';
@@ -190,10 +196,13 @@ class TimeGrowMobile {
             return;
         }
 
-        // Only redirect if accessing wp-login.php (NOT wp-admin)
-        $is_login_page = (strpos($_SERVER['REQUEST_URI'], 'wp-login.php') !== false);
-
-        if (!$is_login_page) {
+        // Only the login form itself (NOT wp-admin): lost password, password reset links, logout and
+        // the other wp-login.php actions open as usual on a phone
+        $is_login_page = (strpos($_SERVER['REQUEST_URI'] ?? '', 'wp-login.php') !== false);
+        // Only showing the form (a password login posted from a phone goes through), and not when the
+        // person chose the password login (administrators: the link on the mobile login page)
+        $action = sanitize_key($_REQUEST['action'] ?? 'login');
+        if (!$is_login_page || $action !== 'login' || ($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET' || isset($_GET['interim-login']) || isset($_GET['timegrow_password'])) {
             return;
         }
 
@@ -242,11 +251,6 @@ class TimeGrowMobile {
      */
     public static function handle_mobile_login() {
         if (get_query_var('mobile_login')) {
-            // Start session early for 2FA state tracking
-            if (!session_id()) {
-                session_start();
-            }
-
             // Start output buffering to prevent headers-already-sent issues
             ob_start();
 
@@ -295,8 +299,8 @@ class TimeGrowMobile {
      * Enqueue mobile-only assets for mobile sessions
      */
     public static function enqueue_mobile_assets() {
-        // Only enqueue mobile assets if user is in a mobile session (logged in via PIN)
-        if (!isset($_COOKIE['timegrow_mobile_session'])) {
+        // Only in a mobile session (logged in with a PIN)
+        if (!TimeGrowMobileAccess::in_mobile_session()) {
             return;
         }
 
@@ -317,10 +321,25 @@ class TimeGrowMobile {
             true
         );
 
-        // Pass user capabilities to JavaScript
+        // The menu: the person's pages, and logging out
+        $labels = [
+            TIMEGROW_PARENT_MENU . '-nexus-clock'    => [__('Clock In / Out', 'timegrow'), 'dashicons-clock'],
+            TIMEGROW_PARENT_MENU . '-nexus-manual'   => [__('Manual Entry', 'timegrow'), 'dashicons-edit'],
+            TIMEGROW_PARENT_MENU . '-nexus-expenses' => [__('Expenses & Receipts', 'timegrow'), 'dashicons-money-alt'],
+        ];
+        $method = get_user_meta(get_current_user_id(), 'timegrow_time_entry_method', true) ?: 'clock';
+        $items  = [];
+        foreach (TimeGrowMobileAccess::my_pages() as $page) {
+            // Only the person's time entry method: the other page redirects to it
+            if (($method === 'clock' && $page === TIMEGROW_PARENT_MENU . '-nexus-manual') || ($method === 'manual' && $page === TIMEGROW_PARENT_MENU . '-nexus-clock')) {
+                continue;
+            }
+            $items[] = ['page' => $page, 'label' => $labels[$page][0], 'icon' => $labels[$page][1]];
+        }
         wp_localize_script('timegrow-mobile-navigation', 'timegrowMobile', [
-            'hasTimeTracking' => current_user_can('access_mobile_time_tracking'),
-            'hasExpenses' => current_user_can('access_mobile_expenses'),
+            'items'     => $items,
+            'logoutUrl' => wp_logout_url(home_url('/mobile-login')),
+            'title'     => get_bloginfo('name'),
         ]);
     }
 }

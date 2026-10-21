@@ -185,8 +185,8 @@ class TimeGrowMobileSettingsView {
      * Generate new PIN for user
      */
     private function handle_generate_pin($user_id) {
-        if (!TimeGrowMobileAccess::allowed($user_id)) {
-            $this->error_message = 'Only administrators and team members can use TimeGrow remotely.';
+        if (!TimeGrowMobileAccess::pin_allowed($user_id)) {
+            $this->error_message = 'The mobile PIN login is for team members only. Administrators log in with their password.';
             return;
         }
 
@@ -282,7 +282,8 @@ class TimeGrowMobileSettingsView {
     private function render() {
         // Get all users with mobile access
         $mobile_users = $this->get_mobile_users();
-        $all_users = get_users(['orderby' => 'display_name', 'role__in' => TimeGrowMobileAccess::ROLES]); // only they can use TimeGrow remotely
+        // Only team members can have a PIN (administrators use the normal login)
+        $all_users = array_values(array_filter(get_users(['orderby' => 'display_name', 'role__in' => ['team_member']]), ['TimeGrowMobileAccess', 'pin_allowed']));
 
         ?>
         <div class="wrap">
@@ -389,8 +390,8 @@ class TimeGrowMobileSettingsView {
                                     <small><?php echo esc_html($user->user_login); ?></small>
                                 </td>
                                 <td>
-                                    <?php if (!TimeGrowMobileAccess::allowed($user)): ?>
-                                        <span style="color: #d63638;">Blocked: not an administrator or team member</span>
+                                    <?php if (!TimeGrowMobileAccess::pin_allowed($user)): ?>
+                                        <span style="color: #d63638;">PIN switched off: the mobile PIN login is for team members only</span>
                                     <?php else: ?>
                                         <?php
                                         $icons = ['access_mobile_time_tracking' => 'clock', 'access_mobile_expenses' => 'money-alt', 'access_mobile_ai_voice' => 'microphone', 'access_mobile_ai_receipts' => 'media-document'];

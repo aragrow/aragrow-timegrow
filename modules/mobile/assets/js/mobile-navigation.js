@@ -40,81 +40,35 @@
     });
 
     /**
-     * Create hamburger menu navigation
+     * The header and slide-out menu: the person's pages (time entry, expenses and receipts) and Log out.
      */
     function createHamburgerMenu() {
         const currentPage = new URLSearchParams(window.location.search).get('page');
 
-        // Create header with hamburger button
         const header = $('<div class="timegrow-mobile-header"></div>');
-        header.append('<button class="timegrow-mobile-hamburger"><span class="dashicons dashicons-menu"></span></button>');
-        header.append('<span class="timegrow-mobile-title">TimeGrow</span>');
+        header.append('<button type="button" class="timegrow-mobile-hamburger" aria-label="Menu"><span class="dashicons dashicons-menu"></span></button>');
+        header.append($('<span class="timegrow-mobile-title"></span>').text(timegrowMobile.title || 'TimeGrow'));
 
-        // Create slide-out menu
         const menu = $('<div class="timegrow-mobile-menu"></div>');
         const menuList = $('<ul class="timegrow-mobile-menu-list"></ul>');
-
-        // Dashboard (Reports) - always available if user has at least one capability
-        if (timegrowMobile.hasTimeTracking || timegrowMobile.hasExpenses) {
-            menuList.append(createMenuItem(
-                'timegrow-nexus-reports',
-                'dashicons-dashboard',
-                'Dashboard',
-                currentPage === 'timegrow-nexus-reports'
-            ));
-        }
-
-        // Time - shows if user has time tracking capability
-        if (timegrowMobile.hasTimeTracking) {
-            menuList.append(createMenuItem(
-                'timegrow-nexus-clock',
-                'dashicons-clock',
-                'Time',
-                currentPage === 'timegrow-nexus-clock' || currentPage === 'timegrow-nexus-manual'
-            ));
-        }
-
-        // Expenses - shows if user has expenses capability
-        if (timegrowMobile.hasExpenses) {
-            menuList.append(createMenuItem(
-                'timegrow-nexus-expenses',
-                'dashicons-money-alt',
-                'Expenses',
-                currentPage === 'timegrow-nexus-expenses'
-            ));
-        }
-
+        (timegrowMobile.items || []).forEach(function(item) {
+            menuList.append(createMenuItem('admin.php?page=' + encodeURIComponent(item.page), item.icon, item.label, currentPage === item.page));
+        });
+        menuList.append(createMenuItem(timegrowMobile.logoutUrl, 'dashicons-exit', 'Log out', false));
         menu.append(menuList);
 
-        // Append to body
         $('body').prepend(menu);
         $('body').prepend(header);
-
-        // Add padding to body to account for fixed header
-        $('body').css('padding-top', '50px');
+        $('body').css('padding-top', '50px'); // room for the fixed header
     }
 
-    /**
-     * Create menu item
-     *
-     * @param {string} page Page slug
-     * @param {string} icon Dashicons class
-     * @param {string} label Menu label
-     * @param {boolean} isActive Whether this is the active page
-     * @return {jQuery} Menu item element
-     */
-    function createMenuItem(page, icon, label, isActive) {
-        const url = 'admin.php?page=' + page;
-        const activeClass = isActive ? ' active' : '';
-
+    /** One menu item (labels are text, never markup). */
+    function createMenuItem(url, icon, label, isActive) {
         return $('<li>')
-            .addClass('timegrow-mobile-menu-item' + activeClass)
-            .html(
-                '<a href="' + url + '">' +
-                '<span class="dashicons ' + icon + '"></span>' +
-                '<span>' + label + '</span>' +
-                '</a>'
-            );
+            .addClass('timegrow-mobile-menu-item' + (isActive ? ' active' : ''))
+            .append($('<a>', { href: url })
+                .append($('<span>', { 'class': 'dashicons ' + icon, 'aria-hidden': 'true' }))
+                .append($('<span>').text(label)));
     }
 
     /**

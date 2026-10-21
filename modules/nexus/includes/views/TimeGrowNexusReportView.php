@@ -24,7 +24,7 @@ class TimeGrowNexusReportView {
         }
 
         // Check if user is in mobile session - show simplified dashboard
-        if (isset($_COOKIE['timegrow_mobile_session'])) {
+        if (class_exists('TimeGrowMobileAccess') && TimeGrowMobileAccess::in_mobile_session()) {
             $this->display_mobile_dashboard();
             return;
         }

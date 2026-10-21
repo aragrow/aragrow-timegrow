@@ -194,6 +194,7 @@ class TimeGrowNexusClockView {
                     </div><!-- .timegrow-clock-column -->
                 </div><!-- .timegrow-clock-grid -->
             </div><!-- .timegrow-clock-layout -->
+            <?php TimeGrowNexusRecentEntries::render($member_id); // the person's latest entries (manual and clocked) ?>
         </div><!-- .wrap -->
         <?php
     }

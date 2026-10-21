@@ -39,21 +39,8 @@
      * Generate a random 6-character alphanumeric PIN and display it
      */
     function generatePIN() {
-        console.log('generatePIN() called');
-
-        // Generate random 6-character alphanumeric PIN
-        const chars = '0123456789ABCDEFGHJKLMNPQRSTUVWXYZ'; // Removed I and O to avoid confusion
-        let pin = '';
-        for (let i = 0; i < 6; i++) {
-            pin += chars.charAt(Math.floor(Math.random() * chars.length));
-        }
-
-        console.log('Generated PIN:', pin);
-
-        // Get user ID from the page
+        // The server makes the PIN and sends it back once
         var userId = $('#user_id').val() || timegrowMobileProfile.currentUserId;
-        console.log('User ID:', userId);
-        console.log('ajaxurl:', typeof ajaxurl !== 'undefined' ? ajaxurl : 'UNDEFINED!');
 
         // Show loading state
         var $btn = $('#timegrow-generate-new-pin');
@@ -67,14 +54,11 @@
             data: {
                 action: 'timegrow_generate_pin',
                 user_id: userId,
-                pin: pin,
                 nonce: $('#timegrow_mobile_pin_nonce').val()
             },
             success: function(response) {
-                console.log('AJAX Success:', response);
                 if (response.success) {
-                    // Show success banner with PIN
-                    showPINBanner(pin, response.data.phone);
+                    showPINBanner(response.data.pin, response.data.phone);
 
                     // Update button text
                     $btn.text('Generate New PIN');
@@ -84,13 +68,11 @@
                         updatePINStatus(true);
                     }, 2000);
                 } else {
-                    console.error('Server returned error:', response);
                     alert('Error: ' + (response.data.message || 'Failed to generate PIN'));
                     $btn.prop('disabled', false).text(originalText);
                 }
             },
             error: function(xhr, status, error) {
-                console.error('AJAX Error:', status, error, xhr);
                 alert('Error: Failed to generate PIN. Please try again.');
                 $btn.prop('disabled', false).text(originalText);
             },
@@ -107,10 +89,12 @@
         // Remove any existing modal
         $('#timegrow-pin-modal-overlay').remove();
 
-        // Create SMS line if phone exists
+        // The PIN and phone are text, never markup (a phone number is typed by the person)
+        var esc = function (s) { return $('<div>').text(String(s == null ? '' : s)).html(); };
+        pin = esc(pin);
         var smsLine = '';
         if (phone) {
-            smsLine = '<p style="margin: 15px 0 5px 0; color: #555; font-size: 13px; text-align: center;"><span class="dashicons dashicons-smartphone" style="vertical-align: middle;"></span> An SMS notification has been sent to <strong>' + phone + '</strong></p>';
+            smsLine = '<p style="margin: 15px 0 5px 0; color: #555; font-size: 13px; text-align: center;"><span class="dashicons dashicons-smartphone" style="vertical-align: middle;"></span> An SMS notification has been sent to <strong>' + esc(phone) + '</strong></p>';
         }
 
         // Create modal overlay
@@ -215,7 +199,6 @@
      */
     function disableMobileAccess() {
         $('#timegrow_mobile_action').val('disable');
-        $('#timegrow_new_pin').val('');
 
         // Submit the form
         $('form#your-profile').submit();
