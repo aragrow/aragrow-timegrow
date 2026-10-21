@@ -143,6 +143,9 @@ register_activation_hook(__FILE__, 'timegrow_plugin_activate');
 // Every TimeGrow settings page is saved with timegrow_owner (not WordPress's manage_options)
 TimeGrowRequirements::register_settings_capability();
 
+// A required plugin deactivated after TimeGrow was activated: TimeGrow keeps running, administrators are told
+add_action('admin_notices', ['TimeGrowRequirements', 'missing_plugins_notice']);
+
 // The base capabilities' old timeflies_* names move to timegrow_* (once), before the check below adds any missing
 add_action('admin_init', ['TimeGrowRequirements', 'rename_capabilities'], 5);
 
@@ -152,6 +155,9 @@ register_deactivation_hook(__FILE__, function() {
 });
 
 function timegrow_plugin_activate() {
+    // Aragrow Base, WooCommerce and PublishPress Capabilities must be active (otherwise this stops here)
+    TimeGrowRequirements::check_on_activation();
+
     // Capabilities: old names moved to the new ones, then every TimeGrow capability created where missing
     TimeGrowRequirements::rename_capabilities();
 

@@ -5,15 +5,24 @@ if (!defined('ABSPATH')) {
 }
 
 /**
- * TimeGrow's capabilities: the move of its base capabilities to the timegrow_ names, and the
- * capability its settings pages are saved with.
+ * What TimeGrow needs around it, and the move of its base capabilities to the timegrow_ names.
  *
+ * - Activation is refused while a required plugin is not active (Aragrow Base, WooCommerce,
+ *   PublishPress Capabilities). Deactivated later, they leave TimeGrow running, with a warning
+ *   to administrators.
  * - The base capabilities were named timeflies_owner, timeflies_admin and timeflies_team_member.
  *   They are now timegrow_owner, timegrow_admin and timegrow_team_member: every role and user that
  *   had an old one gets the new one, and the old one is removed (once, on activation or the next
  *   admin page load).
  */
 class TimeGrowRequirements {
+
+    /** Plugin file => name. */
+    const REQUIRED_PLUGINS = [
+        'aragrow-base/aragrow-base.php'                     => 'Aragrow Base',
+        'woocommerce/woocommerce.php'                       => 'WooCommerce',
+        'capability-manager-enhanced/capsman-enhanced.php'  => 'PublishPress Capabilities',
+    ];
 
     /** Old capability => new capability. */
     const RENAMED_CAPS = [
@@ -48,6 +57,60 @@ class TimeGrowRequirements {
 
     /** Option holding which capability names are in use (2 = timegrow_). */
     const CAPS_VERSION_OPTION = 'timegrow_caps_version';
+
+    /**
+     * The required plugins that are not active, by name. Pure when $is_active is given.
+     *
+     * @param callable|null $is_active fn(string $plugin_file) => bool; default is_plugin_active().
+     * @return string[]
+     */
+    public static function missing_plugins($is_active = null) {
+        if ($is_active === null) {
+            if (!function_exists('is_plugin_active')) {
+                require_once ABSPATH . 'wp-admin/includes/plugin.php';
+            }
+            $is_active = 'is_plugin_active';
+        }
+        $missing = [];
+        foreach (self::REQUIRED_PLUGINS as $file => $name) {
+            if (!$is_active($file)) {
+                $missing[] = $name;
+            }
+        }
+        return $missing;
+    }
+
+    /** "TimeGrow needs A and B to be active." Pure. */
+    public static function missing_message(array $missing) {
+        $last = array_pop($missing);
+        $list = $missing ? implode(', ', $missing) . ' ' . __('and', 'timegrow') . ' ' . $last : $last;
+        return sprintf(__('TimeGrow needs %s to be active.', 'timegrow'), $list);
+    }
+
+    /** Activation: refuse it (the plugin stays inactive) while a required plugin is not active. */
+    public static function check_on_activation() {
+        $missing = self::missing_plugins();
+        if (!$missing) {
+            return;
+        }
+        wp_die(
+            '<p>' . esc_html(self::missing_message($missing)) . '</p><p>' . esc_html__('Activate it first, then activate TimeGrow again.', 'timegrow') . '</p>',
+            esc_html__('TimeGrow was not activated', 'timegrow'),
+            ['back_link' => true, 'response' => 200]
+        );
+    }
+
+    /** admin_notices: a required plugin was deactivated after TimeGrow was activated. */
+    public static function missing_plugins_notice() {
+        if (!current_user_can('activate_plugins')) {
+            return;
+        }
+        $missing = self::missing_plugins();
+        if ($missing) {
+            echo '<div class="notice notice-warning"><p><strong>TimeGrow:</strong> ' . esc_html(self::missing_message($missing)) . ' '
+                . esc_html__('Some TimeGrow features will not work until it is activated again.', 'timegrow') . '</p></div>';
+        }
+    }
 
     /**
      * The changes that move a capability list to the new names. Pure.
