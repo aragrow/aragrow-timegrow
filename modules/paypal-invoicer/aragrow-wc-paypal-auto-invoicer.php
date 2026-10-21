@@ -520,9 +520,19 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 		$order = wc_get_order( $order_id );
 		if ( ! $order ) return;
 
-		// An order goes to PayPal once. If it already has a PayPal invoice, refuse and put the status back.
+		// An order goes to PayPal once. If it already has a PayPal invoice, refuse and put the status back,
+		// unless that invoice was cancelled or deleted in PayPal (the invoice was cancelled, then reopened):
+		// then a new one replaces it.
 		$previous    = ! empty( $transition['from'] ) && $transition['from'] !== 'inv_send2paypal' ? $transition['from'] : 'pending';
 		$existing_id = $order->get_meta( '_paypal_invoice_id' ) ?: get_post_meta( $order_id, '_paypal_invoice_id', true );
+		if ( $existing_id && in_array( $order->get_meta( '_paypal_invoice_status' ), [ 'CANCELLED', 'DELETED' ], true ) ) {
+			$order->delete_meta_data( '_paypal_invoice_id' );
+			$order->delete_meta_data( '_paypal_invoice_status' );
+			$order->add_order_note( sprintf( 'The earlier PayPal invoice %s was cancelled, so a new PayPal invoice is created.', $existing_id ) );
+			$order->save();
+			delete_post_meta( $order_id, '_paypal_invoice_id' );
+			$existing_id = '';
+		}
 		if ( $existing_id ) {
 			if ( empty( $transition['from'] ) ) $previous = 'inv_sent2paypal';
 			$this->restore_status_quietly( $order, $previous, sprintf( 'Not sent: this order is already in PayPal (invoice %s). Make any changes in PayPal.', $existing_id ) );
@@ -566,7 +576,7 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 				$pp_item = [
 					'name'        => $name,
 					'quantity'    => (string) $quantity,
-					'unit_amount' => [ 'currency_code' => $currency, 'value' => number_format( $unit_amount, 2, '.', '' ) ],
+					'unit_amount' => [ 'currency_code' => $currency, 'value' => self::money_value( $unit_amount, $currency ) ],
 				];
 				if ( $sku ) { $pp_item['sku'] = $sku; }
 				if ( $pp_product_id ) { $pp_item['item_id'] = $pp_product_id; }
@@ -673,6 +683,15 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 	 *
 	 * @return array [ float $quantity, float $unit_amount ]
 	 */
+	/** Currencies PayPal only takes whole amounts in. */
+	const ZERO_DECIMAL_CURRENCIES = [ 'HUF', 'JPY', 'TWD' ];
+
+	/** An amount as PayPal wants it: 2 decimals, or none for the zero-decimal currencies. Pure. */
+	public static function money_value( $amount, $currency ) {
+		$decimals = in_array( strtoupper( (string) $currency ), self::ZERO_DECIMAL_CURRENCIES, true ) ? 0 : 2;
+		return number_format( (float) $amount, $decimals, '.', '' );
+	}
+
 	public function line_quantity_and_rate( $order, $item ) {
 		$quantity   = (float) $item->get_quantity();
 		$line_total = (float) $item->get_total();
@@ -695,7 +714,7 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 				$lines[] = [
 					'name'        => $name,
 					'quantity'    => '1',
-					'unit_amount' => [ 'currency_code' => $currency, 'value' => number_format( $amount, 2, '.', '' ) ],
+					'unit_amount' => [ 'currency_code' => $currency, 'value' => self::money_value( $amount, $currency ) ],
 				];
 			}
 		}

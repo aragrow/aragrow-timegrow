@@ -118,6 +118,43 @@ class Aragrow_TimeGrow_PayPal_Payment_Sync {
 	 * Read the invoice from PayPal and update the order. Returns a short message for notes and notices.
 	 */
 	public function sync_order( $order ) {
+		// One check per order at a time (the webhook and the scheduled check can arrive together), and
+		// read the order again once it is ours, so a payment the other one just recorded is seen
+		$order_id = $order->get_id();
+		if ( ! self::lock_order( $order_id ) ) {
+			return 'Another check of this order is running.';
+		}
+		try {
+			$order = wc_get_order( $order_id ) ?: $order;
+			return $this->sync_locked_order( $order );
+		} finally {
+			self::unlock_order( $order_id );
+		}
+	}
+
+	/** Lock one order for a minute: a row added atomically (INSERT IGNORE); an older lock is taken over. */
+	private static function lock_order( $order_id ) {
+		global $wpdb;
+		$name = 'timegrow_pp_sync_' . (int) $order_id;
+		for ( $try = 0; $try < 2; $try++ ) {
+			if ( (int) $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, %s, 'no')", $name, (string) time() ) ) === 1 ) {
+				return true;
+			}
+			$since = (int) $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", $name ) );
+			if ( $since > time() - MINUTE_IN_SECONDS ) {
+				return false;
+			}
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name = %s AND option_value = %s", $name, (string) $since ) );
+		}
+		return false;
+	}
+
+	private static function unlock_order( $order_id ) {
+		global $wpdb;
+		$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name = %s", 'timegrow_pp_sync_' . (int) $order_id ) );
+	}
+
+	private function sync_locked_order( $order ) {
 		$invoice_id = self::invoice_id_for( $order );
 		if ( $invoice_id === '' ) {
 			return 'This order has no PayPal invoice.';
