@@ -364,7 +364,7 @@ class Aragrow_WOO_Integration_Plugins
      * 1. the project's rate
      * 2. the client's (user) default rate
      * 3. the company default rate
-     * Returns 0 when none is set.
+     * 4. 75, like Process Time (TimeGrowWooOrderCreator::resolve_rate())
      *
      * @param int $product_id  Product on the order line (linked to a project).
      * @param int $customer_id Order customer, used when no project matches the product.
@@ -389,8 +389,8 @@ class Aragrow_WOO_Integration_Plugins
             if ($client_rate > 0) return $client_rate;
         }
 
-        // 3. Company rate
-        return max(0.0, (float) timegrow_company_default_rate());
+        // 3. Company rate, else 4. the 75 default
+        return TimeGrowWooOrderCreator::resolve_rate(timegrow_company_default_rate());
     }
 
     /**
@@ -407,12 +407,7 @@ class Aragrow_WOO_Integration_Plugins
         $subtotal = (float) $item->get_subtotal();
         if ($hours > 0 && $subtotal > 0) return $subtotal / $hours;
 
-        $rate = $this->get_hours_rate($item->get_product_id(), $order->get_customer_id());
-        if ($rate > 0) return $rate;
-
-        // A line added by hand: its price per unit
-        $qty = (float) $item->get_quantity();
-        return $qty > 0 ? $subtotal / $qty : 0;
+        return $this->get_hours_rate($item->get_product_id(), $order->get_customer_id());
     }
 
     /**

@@ -339,6 +339,7 @@ class TimeGrowWooOrderCreator {
 
     /**
      * Hourly rate: the first of project, client and company rate that is above 0, else 75.
+     * The one rule for Process Time, the hours editor, product prices and the reports.
      */
     public static function resolve_rate(...$rates) {
         foreach ($rates as $rate) {

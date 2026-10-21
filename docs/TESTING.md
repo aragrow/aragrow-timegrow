@@ -17,7 +17,7 @@ composer test        # or: vendor/bin/phpunit
 
 | File | Covers |
 |---|---|
-| `tests/unit/HourlyRateTest.php` | Rate order: project, then client, then company. A line's own rate: stored rate, then price / hours, then the rate order, then unit price for a hand-added line. |
+| `tests/unit/HourlyRateTest.php` | Rate order: project, then client, then company. A line's own rate: stored rate, then price / hours, then the rate order, with 75 when no rate is set (as in Process Time). |
 | `tests/unit/HoursLinesTest.php` | Saving hours invoice lines: repricing only when hours change, quantity stays 1, discounts kept, hand-edited prices become the line rate, rounding is not an edit, 0 hours keeps the rate, lines added by hand keep their quantity and price, regular orders untouched. |
 | `tests/unit/InvoiceLinesTest.php` | PayPal quantity and rate for hours and regular lines, shipping and tax lines, and the PDF invoice line numbers. |
 | `tests/unit/PayPalPaymentSyncTest.php` | What each PayPal invoice status does to the order: paid, marked paid, partial payments (and not recording the same amount twice), cancelled and refunded notes (once), and open invoices changing nothing. |

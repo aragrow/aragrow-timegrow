@@ -43,8 +43,8 @@ class HourlyRateTest extends TestCase {
         $this->assertSame( 90.0, $this->integration->get_hours_rate( 999, 8 ) );
     }
 
-    public function test_zero_when_no_rate_is_set() {
-        $this->assertSame( 0.0, $this->integration->get_hours_rate( 999 ) );
+    public function test_75_when_no_rate_is_set_like_process_time() {
+        $this->assertSame( 75.0, $this->integration->get_hours_rate( 999 ) );
     }
 
     public function test_line_rate_prefers_the_stored_rate() {
@@ -69,10 +69,11 @@ class HourlyRateTest extends TestCase {
         $this->assertSame( 150.0, $this->integration->get_line_rate( $order, $item ) );
     }
 
-    public function test_line_rate_uses_unit_price_for_a_hand_added_line() {
+    public function test_line_rate_falls_back_to_75_like_process_time() {
+        // No stored rate, no hours, and no rate anywhere (hand-added lines never get here: not hours lines)
         $item  = new WC_Order_Item_Product( 2, 50, 50, 999 );
         $order = TimeGrow_Fake_Order::hours_invoice( 1, [ 101 => $item ] );
 
-        $this->assertSame( 25.0, $this->integration->get_line_rate( $order, $item ) );
+        $this->assertSame( 75.0, $this->integration->get_line_rate( $order, $item ) );
     }
 }

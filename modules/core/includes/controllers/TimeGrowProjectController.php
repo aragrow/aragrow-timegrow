@@ -112,11 +112,12 @@ class TimeGrowProjectController{
         $client = get_userdata((int) $data['client_id']);
         $name   = ($client ? $client->display_name . ' - ' : '') . $data['name'];
 
-        $rate = (float) $data['default_flat_fee'];
-        if ($rate <= 0 && $client) $rate = (float) get_user_meta($client->ID, 'timegrow_default_flat_fee', true);
-        if ($rate <= 0) {
-            $rate = timegrow_company_default_rate();
-        }
+        // Project, client, company, else 75: the rate Process Time bills at
+        $rate = TimeGrowWooOrderCreator::resolve_rate(
+            $data['default_flat_fee'],
+            $client ? get_user_meta($client->ID, 'timegrow_default_flat_fee', true) : null,
+            timegrow_company_default_rate()
+        );
 
         $product = $product_id ? wc_get_product($product_id) : false;
         $is_new  = !$product;

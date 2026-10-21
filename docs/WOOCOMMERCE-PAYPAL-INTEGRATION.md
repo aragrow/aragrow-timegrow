@@ -56,8 +56,9 @@ Used for product prices and for hours invoice lines:
 1. **Project:** `default_flat_fee` on the project.
 2. **Client:** the user meta `timegrow_default_flat_fee` on the project's client. If no project matches the product, the order's customer is used.
 3. **Company:** `default_flat_fee` on company 1.
+4. **Default:** 75 an hour. Process Time adds an order note naming the projects billed at it.
 
-A rate of 0 or empty counts as not set. If none is set, an order line keeps its current rate.
+A rate of 0 or empty counts as not set. One rule (`TimeGrowWooOrderCreator::resolve_rate()`) is used by Process Time, the hours editor, product prices and the reports. An hours invoice line keeps the rate it was billed at, so a later rate change never reprices it.
 
 ### Hours invoices
 
