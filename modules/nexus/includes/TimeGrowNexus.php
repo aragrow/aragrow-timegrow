@@ -26,6 +26,9 @@ class TimeGrowNexus{
     }
 
 
+    /** This request's lock value ("time:token"), so it only ever removes its own lock. */
+    private static $lock_value = '';
+
     /**
      * Take the Process Time lock: one row in the options table, added atomically (INSERT IGNORE), so
      * only one request gets it. A lock older than 10 minutes (a request that died) is taken over.
@@ -34,21 +37,32 @@ class TimeGrowNexus{
         global $wpdb;
         $name = 'timegrow_process_time_lock';
         for ($try = 0; $try < 2; $try++) {
-            if ((int) $wpdb->query($wpdb->prepare("INSERT IGNORE INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, %s, 'no')", $name, (string) time())) === 1) {
+            $value = time() . ':' . wp_generate_password(12, false);
+            if ((int) $wpdb->query($wpdb->prepare("INSERT IGNORE INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, %s, 'no')", $name, $value)) === 1) {
+                self::$lock_value = $value;
                 return true;
             }
-            $since = (int) $wpdb->get_var($wpdb->prepare("SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", $name));
+            $held  = (string) $wpdb->get_var($wpdb->prepare("SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", $name));
+            $since = (int) $held; // the time before the ":"
             if ($since > 0 && $since > time() - 10 * MINUTE_IN_SECONDS) {
                 return false;
             }
-            $wpdb->query($wpdb->prepare("DELETE FROM {$wpdb->options} WHERE option_name = %s AND option_value = %s", $name, (string) $since)); // stale
+            $wpdb->query($wpdb->prepare("DELETE FROM {$wpdb->options} WHERE option_name = %s AND option_value = %s", $name, $held)); // stale
         }
         return false;
     }
 
+    /**
+     * Release this request's lock. A run that took over after 10 minutes holds a different value,
+     * so a slow first run finishing late never removes it.
+     */
     public static function process_time_unlock() {
         global $wpdb;
-        $wpdb->query($wpdb->prepare("DELETE FROM {$wpdb->options} WHERE option_name = %s", 'timegrow_process_time_lock'));
+        if (self::$lock_value === '') {
+            return;
+        }
+        $wpdb->query($wpdb->prepare("DELETE FROM {$wpdb->options} WHERE option_name = %s AND option_value = %s", 'timegrow_process_time_lock', self::$lock_value));
+        self::$lock_value = '';
     }
 
     public function register_admin_menu() {

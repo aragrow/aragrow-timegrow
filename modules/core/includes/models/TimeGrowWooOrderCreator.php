@@ -87,6 +87,7 @@ class TimeGrowWooOrderCreator {
             $order        = null;
             $is_new_order = false;
             $claimed      = []; // entries this run billed on this client's order
+            $added_items  = []; // lines this run added (removed again from a reused order if it fails)
             $default_rate_projects = [];
             try {
                 print('<br />---> ');print('Client Id: '.$client_id);
@@ -156,8 +157,9 @@ class TimeGrowWooOrderCreator {
 
                     // Each entry is billed (claimed) as it goes onto this order: an entry another run
                     // already billed is left out, so the same time is never on two orders
-                    $product_hours = 0;
-                    $work_done     = []; // every entry's description, once each
+                    $product_hours   = 0;
+                    $project_claimed = []; // this project's entries claimed by this run
+                    $work_done       = []; // every entry's description, once each
                     foreach ($entries as $entry) {
                         if (!self::is_billable($entry)) continue;
                         $hours = self::entry_hours($entry);
@@ -168,6 +170,7 @@ class TimeGrowWooOrderCreator {
                         }
                         $entry->billed_order_id = $order->get_id();
                         $claimed[] = (int) $entry->ID;
+                        $project_claimed[] = (int) $entry->ID;
                         print("<br />------> Project Type: $entry->entry_type, Project ID: $project_id, WOO Product ID: $product_id\n");
                         $product_hours += $hours;
                         $description = trim(wp_strip_all_tags((string) $entry->description));
@@ -179,8 +182,16 @@ class TimeGrowWooOrderCreator {
                     // Hours worked, priced at the hourly rate
                     list($product_hours, $product_total) = self::price_line($product_hours, $the_rate);
 
-                    // Nothing billable for this project (all billed or non-billable): no line
+                    // Nothing billable for this project (all billed or non-billable, or under 0.005 h in
+                    // all): no line, and any time claimed for it is unbilled again so it isn't lost
                     if ($product_hours <= 0) {
+                        if ($project_claimed) {
+                            $entry_model->release_claims($project_claimed, $order->get_id());
+                            $claimed = array_values(array_diff($claimed, $project_claimed));
+                            foreach ($entries as $entry) {
+                                if (in_array((int) $entry->ID, $project_claimed, true)) unset($entry->billed_order_id);
+                            }
+                        }
                         print('<br /> -------> No billable hours, project skipped');
                         continue;
                     }
@@ -226,6 +237,7 @@ class TimeGrowWooOrderCreator {
                     $item->set_subtotal($product_total);
                     $item->set_total($product_total);
                     $order->add_item($item);
+                    $added_items[] = $item;
                 } // End loop thru time for projects
 
                 // A new order that got no lines (no billable hours for this client) is removed again
@@ -269,6 +281,21 @@ class TimeGrowWooOrderCreator {
                 }
                 if ($is_new_order && $order_id) {
                     $order->delete(true);
+                } elseif ($order_id && $added_items) {
+                    // A reused order keeps what it had: the lines this run added go, or the next run would
+                    // bill the same (now unbilled) time on it a second time
+                    try {
+                        $reused = wc_get_order($order_id);
+                        foreach ($added_items as $added) {
+                            if ($reused && $added->get_id()) $reused->remove_item($added->get_id());
+                        }
+                        if ($reused) {
+                            $reused->calculate_totals();
+                            $reused->add_order_note('Process Time failed for this client, so the lines it added were removed again.');
+                        }
+                    } catch (Throwable $cleanup) {
+                        $this->errors[] = sprintf('Client %d: check order #%d, the lines this run added could not be removed (%s).', (int) $client_id, $order_id, $cleanup->getMessage());
+                    }
                 }
                 $this->errors[] = sprintf('Client %d: %s. Nothing was billed for this client.', (int) $client_id, $e->getMessage());
                 timegrow_log('Process Time failed for client ' . (int) $client_id . ': ' . $e->getMessage());
