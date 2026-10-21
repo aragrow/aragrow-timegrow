@@ -58,6 +58,30 @@ Not covered yet: the PayPal API calls, the order creator's database and WooComme
 
 Keep billing math in small methods (like `invoice_line_values()` and `line_quantity_and_rate()`) so it can be tested this way.
 
+## Integration test: Process Time (real site, nothing sent)
+
+`tests/integration/process-time.php` checks the billing engine against your real database, on throwaway records it removes again (two test customers, a project and product each, time entries for your first team member). Nothing is emailed and nothing goes to PayPal. Use it on your Local site.
+
+```bash
+wp eval-file tests/integration/process-time.php        # run, then remove the test records
+wp eval-file tests/integration/process-time.php keep   # keep them to look at
+```
+
+| Scenario | What it checks |
+|---|---|
+| 1. Billing | One Pending payment hours invoice per client, hours x rate, every entry billed on it |
+| 2. Adding to an open order | A later run adds to the unsent order; an issued one (PayPal or PDF number) gets a new order |
+| 3. Four runs at once | Four real processes start together: each entry is billed exactly once, each hour is on one order |
+| 4. The lock | A second run is refused, a lock older than 10 minutes is taken over, a slow run never removes the new lock |
+| 5. A failed new order | The client's order is removed and its time unbilled; the other client is still billed |
+| 6. A reused order that fails after saving | The order keeps what it had (lines and total); the new time is unbilled and billed once by the next run |
+| 7. Time that rounds to 0.00 h | A 10-second clock entry stays unbilled, with no empty line |
+| 8. WooCommerce Products off | The line has no product and is named "Client - Project" |
+| 9. A client name with "&" | Line and product names are plain text |
+| 10. No rate anywhere | 75 an hour, an order note says why, and the hours editor uses the same rate |
+
+It exits with an error when a check fails, so it can run in a script. Each run is tagged (`PT-IT-…`) in the test records' names.
+
 ## End-to-end test (real site, PayPal sandbox)
 
 `tests/e2e/paypal-flow.php` runs the whole billing flow inside your WordPress site and stops after each phase so you can look at what it made. It creates real records, so use it on your Local site, never on the live site.
