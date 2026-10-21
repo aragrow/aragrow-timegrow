@@ -33,6 +33,25 @@ class TimeEntryRulesTest extends TestCase {
         $this->assertStringContainsString( 'not valid', TimeGrowTimeEntryRules::clock_problem( '2026-10-16 9am', $now ) );
     }
 
+    public function test_clock_out_must_follow_the_clock_in_of_an_open_entry() {
+        $open = (object) [ 'status' => 1, 'billed' => 0, 'clock_in_date' => '2026-10-16 09:00:00', 'clock_out_date' => null ];
+        $this->assertSame( '', TimeGrowTimeEntryRules::clock_out_problem( $open, '2026-10-16 11:30:00' ) );
+        $this->assertStringContainsString( 'after the clock-in', TimeGrowTimeEntryRules::clock_out_problem( $open, '2026-10-16 08:00:00' ) );
+        $this->assertStringContainsString( 'after the clock-in', TimeGrowTimeEntryRules::clock_out_problem( $open, '2026-10-16 09:00:00' ) );
+
+        $this->assertStringContainsString( 'already billed', TimeGrowTimeEntryRules::clock_out_problem( (object) ( [ 'billed' => 1 ] + (array) $open ), '2026-10-16 11:30:00' ) );
+        $this->assertStringContainsString( 'already clocked out', TimeGrowTimeEntryRules::clock_out_problem( (object) ( [ 'clock_out_date' => '2026-10-16 10:00:00' ] + (array) $open ), '2026-10-16 11:30:00' ) );
+        $this->assertSame( '', TimeGrowTimeEntryRules::clock_out_problem( (object) ( [ 'clock_out_date' => '0000-00-00 00:00:00' ] + (array) $open ), '2026-10-16 11:30:00' ), 'a zero date is still open' );
+        $this->assertStringContainsString( 'not in TimeGrow', TimeGrowTimeEntryRules::clock_out_problem( (object) ( [ 'status' => 0 ] + (array) $open ), '2026-10-16 11:30:00' ) );
+        $this->assertStringContainsString( 'not in TimeGrow', TimeGrowTimeEntryRules::clock_out_problem( null, '2026-10-16 11:30:00' ) );
+    }
+
+    public function test_clock_range_needs_out_after_in() {
+        $this->assertSame( '', TimeGrowTimeEntryRules::clock_range_problem( '2026-10-16 09:00:00', '2026-10-16 17:00:00' ) );
+        $this->assertNotSame( '', TimeGrowTimeEntryRules::clock_range_problem( '2026-10-16 17:00:00', '2026-10-16 09:00:00' ) );
+        $this->assertSame( '', TimeGrowTimeEntryRules::clock_range_problem( '2026-10-16 09:00:00', '' ), 'no clock-out yet' );
+    }
+
     public function test_project_and_client_must_be_in_timegrow_and_belong_together() {
         $project = (object) [ 'ID' => 5, 'client_id' => 12, 'status' => 1 ];
         $this->assertSame( '', TimeGrowTimeEntryRules::project_client_problem( $project, 12, true ) );

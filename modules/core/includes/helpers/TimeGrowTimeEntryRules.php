@@ -96,6 +96,43 @@ class TimeGrowTimeEntryRules {
     }
 
     /**
+     * Why a clock-in and clock-out can't go together, or '' when they can: the clock-out comes after
+     * the clock-in (otherwise the hours are 0 or below, and lower the bill). Pure.
+     */
+    public static function clock_range_problem($clock_in, $clock_out) {
+        $in  = strtotime((string) $clock_in);
+        $out = strtotime((string) $clock_out);
+        if ($in && $out && $out <= $in) {
+            return __('The clock-out time must be after the clock-in time.', 'timegrow');
+        }
+        return '';
+    }
+
+    /**
+     * Why this entry can't be clocked out at $time, or '' when it can: an active clock-in that is not
+     * clocked out or billed yet, and a time after its clock-in. Pure.
+     *
+     * @param object|null $entry The time entry row (null = not there).
+     * @param string      $time  The clock-out time, YYYY-MM-DD HH:MM:SS.
+     */
+    public static function clock_out_problem($entry, $time) {
+        if (!$entry || (int) ($entry->status ?? 1) !== 1) {
+            return __('That clock-in is not in TimeGrow.', 'timegrow');
+        }
+        if ((int) ($entry->billed ?? 0) === 1) {
+            return __('That time is already billed, so it can\'t be changed.', 'timegrow');
+        }
+        $out = (string) ($entry->clock_out_date ?? '');
+        if ($out !== '' && $out !== '0000-00-00 00:00:00') {
+            return __('That entry is already clocked out.', 'timegrow');
+        }
+        if (empty($entry->clock_in_date)) {
+            return __('That entry has no clock-in.', 'timegrow');
+        }
+        return self::clock_range_problem($entry->clock_in_date, $time);
+    }
+
+    /**
      * Why a project and client can't be used together, or '' when they can. Pure.
      *
      * @param object|null $project       The project row from the database (null = not there).

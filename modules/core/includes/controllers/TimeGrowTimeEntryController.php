@@ -59,6 +59,11 @@ class TimeGrowTimeEntryController{
             $data['hours'] = null;
             $data['clock_in_date'] = sanitize_text_field($_POST['clock_in_date']);
             $data['clock_out_date'] = sanitize_text_field($_POST['clock_out_date']);
+            $range = TimeGrowTimeEntryRules::clock_range_problem($data['clock_in_date'], $data['clock_out_date']);
+            if ($range !== '') {
+                echo '<div class="notice notice-error is-dismissible"><p>' . esc_html($range) . ' ' . esc_html__('Nothing was saved.', 'timegrow') . '</p></div>';
+                return;
+            }
         }
 
         $format = [

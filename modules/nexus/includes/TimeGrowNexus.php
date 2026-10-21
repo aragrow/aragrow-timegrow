@@ -472,6 +472,10 @@ class TimeGrowNexus{
                 wp_send_json_error(['message' => __('That time entry is not yours.', 'timegrow')], 403);
             }
             $problem = TimeGrowTimeEntryRules::clock_problem($clock_time, current_time('mysql'));
+            if ($problem === '') {
+                $entry   = TimeGrowTimeEntryAudit::row($time_entry_id);
+                $problem = TimeGrowTimeEntryRules::clock_out_problem($entry ? (object) $entry : null, $clock_time);
+            }
             if ($problem !== '') {
                 wp_send_json_error(['message' => $problem]);
             }
