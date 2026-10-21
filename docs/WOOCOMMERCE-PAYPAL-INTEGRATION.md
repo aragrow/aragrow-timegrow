@@ -32,7 +32,6 @@ TimeGrow > WooCommerce integration (`timegrow_integration_settings` option):
 | Setting | Key | What it does |
 |---|---|---|
 | WooCommerce Clients | `wc_clients` | Syncs clients with WooCommerce customers. Blocks admin access for the `customer` role. |
-| WooCommerce Invoices | `wc_invoices` | Invoice synchronization. |
 | WooCommerce Products | `wc_products` | Creates and updates a product for each project. |
 | Allow decimal quantities | `wc_decimal_quantities` | Lets order lines use quantities like 3.75. On by default. See [DECIMAL-QUANTITIES.md](DECIMAL-QUANTITIES.md). |
 

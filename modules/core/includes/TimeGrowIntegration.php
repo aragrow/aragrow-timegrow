@@ -68,14 +68,6 @@ class TimeGrowIntegration{
             );
 
             add_settings_field(
-                'wc_invoices',
-                'Integrate with WooCommerce Invoices',
-                [ $this, 'wc_invoices_callback' ],
-                'woocommerce-integration',
-                'timegrow_wc_section'
-            );
-
-            add_settings_field(
                 'wc_products',
                 'Integrate with WooCommerce Products',
                 [ $this, 'wc_products_callback' ],
@@ -115,20 +107,6 @@ class TimeGrowIntegration{
         <?php
     }
 
-    // Invoices integration checkbox
-    function wc_invoices_callback() {
-        $options = get_option('timegrow_integration_settings');
-        $value = isset($options['wc_invoices']) ? $options['wc_invoices'] : 0;
-        ?>
-        <label>
-            <input type="checkbox" name="timegrow_integration_settings[wc_invoices]" value="1" 
-                <?php checked(1, $value); ?> 
-                <?php echo !class_exists('WooCommerce') ? 'disabled' : ''; ?>>
-            Enable WooCommerce Invoice synchronization
-        </label>
-        <?php
-    }
-
     function wc_products_callback() {
         $options = get_option('timegrow_integration_settings');
         $value = isset($options['wc_products']) ? $options['wc_products'] : 0;
@@ -160,7 +138,6 @@ class TimeGrowIntegration{
         $output = array();
         
         $output['wc_clients'] = isset($input['wc_clients']) && $input['wc_clients'] ? 1 : 0;
-        $output['wc_invoices'] = isset($input['wc_invoices']) && $input['wc_invoices'] ? 1 : 0;
         $output['wc_products'] = isset($input['wc_products']) && $input['wc_products'] ? 1 : 0;
         $output['wc_decimal_quantities'] = isset($input['wc_decimal_quantities']) && $input['wc_decimal_quantities'] ? 1 : 0;
         return $output;
@@ -278,21 +255,6 @@ class TimeGrowIntegration{
                                     <div class="timegrow-feature-info">
                                         <strong><?php esc_html_e('Client Synchronization', 'timegrow'); ?></strong>
                                         <p><?php esc_html_e('Sync WooCommerce customers with TimeGrow clients', 'timegrow'); ?></p>
-                                    </div>
-                                </div>
-
-                                <div class="timegrow-feature-item">
-                                    <label class="timegrow-toggle-switch">
-                                        <input type="checkbox"
-                                               name="timegrow_integration_settings[wc_invoices]"
-                                               value="1"
-                                               <?php checked(1, isset($options['wc_invoices']) ? $options['wc_invoices'] : 0); ?>
-                                               <?php echo !$wc_installed ? 'disabled' : ''; ?>>
-                                        <span class="timegrow-toggle-slider"></span>
-                                    </label>
-                                    <div class="timegrow-feature-info">
-                                        <strong><?php esc_html_e('Invoice Synchronization', 'timegrow'); ?></strong>
-                                        <p><?php esc_html_e('Create WooCommerce invoices from tracked time', 'timegrow'); ?></p>
                                     </div>
                                 </div>
 
