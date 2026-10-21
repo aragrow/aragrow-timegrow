@@ -66,7 +66,7 @@ An hours invoice is an order built by the TimeGrow order creator. The creator se
 In the order editor, on an hours invoice:
 
 - The **Price** column is relabeled **Rate**, and **Qty** becomes **Hours**.
-- Each line has an Hours box in place of the Quantity box. **The quantity stays 1.** The hours live on the line in `_timegrow_project_hours`, and the line total is hours x rate.
+- Each line has an Hours box in place of the Quantity box. **The quantity stays 1.** The hours live on the line in `_timegrow_project_hours`, and the line total is hours x rate. A line added by hand (no hours stored) keeps its Quantity box and its price; the columns then read "Hours / Qty" and "Rate / Cost".
 - **A line is repriced only when its hours change.** It keeps its own rate (subtotal / stored hours), so saving the order for any other reason (status, notes) never changes its totals, and a later rate change never reprices an old invoice. A line with no rate yet uses the project, client, then company rate.
 - Any discount ratio on the line is kept. Taxes and order totals are recalculated, and an order note is added.
 - The customer order page and WooCommerce emails show "3.75 hrs" in place of the quantity.

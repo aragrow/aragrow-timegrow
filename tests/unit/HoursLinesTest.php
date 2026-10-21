@@ -100,6 +100,22 @@ class HoursLinesTest extends TestCase {
         $this->assertEquals( 300.0, $item->get_subtotal() );
     }
 
+    public function test_hand_added_line_keeps_its_quantity_and_price() {
+        // 3 x 20.00 added by hand: no hours stored, so it is not an hours line
+        $hours_line = new WC_Order_Item_Product( 1, 150, 150, 10, [ '_timegrow_project_hours' => '2.00' ] );
+        $hand_line  = new WC_Order_Item_Product( 3, 60, 60, 10 );
+        $order = TimeGrow_Fake_Order::hours_invoice( 1, [ 101 => $hours_line, 102 => $hand_line ] );
+
+        $this->save_lines( $order, [ 101 => '2', 102 => '3' ] );
+
+        $this->assertEquals( 3, $hand_line->get_quantity() );
+        $this->assertEquals( 60, $hand_line->get_subtotal() );
+        $this->assertEquals( 60, $hand_line->get_total() );
+        $this->assertSame( '', $hand_line->get_meta( '_timegrow_project_hours' ) );
+        $this->assertSame( 0, $hand_line->saved );
+        $this->assertSame( 0, $order->totals_calculated );
+    }
+
     public function test_regular_orders_are_left_alone() {
         $item  = new WC_Order_Item_Product( 3, 30, 30, 10, [ '_timegrow_project_hours' => '3.00' ] );
         $order = new TimeGrow_Fake_Order( 1, [ 101 => $item ] ); // no hours flag

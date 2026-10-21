@@ -1,6 +1,6 @@
 /**
- * Hours invoices (created by the TimeGrow order creator): each order line shows an
- * Hours box instead of the Quantity box. The hours are saved on the line and the
+ * Hours invoices (created by the TimeGrow order creator): each hours line shows an
+ * Hours box instead of the Quantity box (lines added by hand keep their Quantity box). The hours are saved on the line and the
  * quantity stays 1. Typing hours updates the line subtotal and total at the line's rate.
  */
 jQuery(function ($) {
@@ -25,8 +25,12 @@ jQuery(function ($) {
     }
 
     function apply() {
-        $('#woocommerce-order-items th.quantity').text('Hours');
-        $('#woocommerce-order-items th.item_cost').text('Rate');
+        // With lines added by hand on the invoice, the columns hold both
+        var mixed = $('#woocommerce-order-items tr.item').filter(function () {
+            return !$(this).find('.timegrow-line-hours').length;
+        }).length > 0;
+        $('#woocommerce-order-items th.quantity').text(mixed ? 'Hours / Qty' : 'Hours');
+        $('#woocommerce-order-items th.item_cost').text(mixed ? 'Rate / Cost' : 'Rate');
 
         $('#woocommerce-order-items tr.item').each(function () {
             var $row = $(this);

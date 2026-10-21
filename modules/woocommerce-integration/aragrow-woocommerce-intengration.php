@@ -350,6 +350,7 @@ class Aragrow_WOO_Integration_Plugins
         $rates    = [];
         if (self::is_hours_invoice($order)) {
             foreach ($order->get_items('line_item') as $item_id => $item) {
+                if (!self::is_hours_line($item)) continue;
                 $rate = $this->get_line_rate($order, $item);
                 if ($rate > 0) $rates[$item_id] = $rate;
             }
@@ -417,14 +418,21 @@ class Aragrow_WOO_Integration_Plugins
     }
 
     /**
-     * Hours input on each line of an hours invoice. Stored as _timegrow_project_hours.
+     * True for a line TimeGrow priced by the hour (it stores its hours). A line added by hand to an
+     * hours invoice has none: it keeps its own quantity and price.
+     */
+    public static function is_hours_line($item) {
+        return $item->get_meta('_timegrow_project_hours') !== '';
+    }
+
+    /**
+     * Hours input on each hours line of an hours invoice. Stored as _timegrow_project_hours.
      */
     public function render_line_project_hours_input($item_id, $item, $product) {
         if (!is_admin() || !($item instanceof WC_Order_Item_Product)) return;
-        if (!self::is_hours_invoice($item->get_order())) return;
+        if (!self::is_hours_invoice($item->get_order()) || !self::is_hours_line($item)) return;
 
         $hours = $item->get_meta('_timegrow_project_hours');
-        if ($hours === '') $hours = $item->get_quantity();
 
         printf(
             '<div class="timegrow-line-hours" style="margin-top:6px;"><label><strong>%s</strong> <input type="number" step="0.01" min="0" style="width:90px;" name="timegrow_line_hours[%d]" value="%s"></label></div>',
@@ -463,20 +471,21 @@ class Aragrow_WOO_Integration_Plugins
     /**
      * Hours invoice lines keep the hours in _timegrow_project_hours and a quantity of 1.
      * A line is repriced only when its hours change, at the line's own rate, so saving an
-     * order for any other reason (status, notes) never changes its totals.
+     * order for any other reason (status, notes) never changes its totals. Lines added by hand
+     * (no hours stored) are left alone.
      */
     private function apply_hours_to_lines($order, array $posted) {
         $decimals = wc_get_price_decimals();
         $changed  = false;
 
         foreach ($order->get_items('line_item') as $item_id => $item) {
-            if (!isset($posted[$item_id]) || !is_numeric($posted[$item_id])) continue;
+            if (!isset($posted[$item_id]) || !is_numeric($posted[$item_id]) || !self::is_hours_line($item)) continue;
 
             $hours = round((float) $posted[$item_id], 2);
             if ($hours < 0) continue;
 
             $prev_hours = $item->get_meta('_timegrow_project_hours');
-            $hours_changed = $prev_hours === '' || abs((float) $prev_hours - $hours) >= 0.005;
+            $hours_changed = abs((float) $prev_hours - $hours) >= 0.005;
 
             if ($hours_changed) {
                 $rate         = $this->get_line_rate($order, $item); // read before the hours are updated
