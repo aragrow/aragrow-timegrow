@@ -281,12 +281,12 @@ class TimeGrowMobile {
      * Mobile Access page: not in the menu, opened from its card on TimeGrow > Settings.
      */
     public static function add_admin_menu() {
-        if (current_user_can('administrator')) {
+        if (current_user_can(TIMEGROW_OWNER_CAP)) {
             add_submenu_page(
                 null, // hidden from the menu: TimeGrow > Settings > Mobile Access card
                 'Mobile Access',
                 'Mobile Access',
-                'manage_options',
+                TIMEGROW_OWNER_CAP,
                 'timegrow-mobile-settings',
                 [__CLASS__, 'render_settings_page']
             );

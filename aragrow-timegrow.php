@@ -140,6 +140,9 @@ require_once TIMEGROW_MODULES_DIR . 'core/includes/helpers/TimeGrowRequirements.
 
 register_activation_hook(__FILE__, 'timegrow_plugin_activate');
 
+// Every TimeGrow settings page is saved with timegrow_owner (not WordPress's manage_options)
+TimeGrowRequirements::register_settings_capability();
+
 // The base capabilities' old timeflies_* names move to timegrow_* (once), before the check below adds any missing
 add_action('admin_init', ['TimeGrowRequirements', 'rename_capabilities'], 5);
 

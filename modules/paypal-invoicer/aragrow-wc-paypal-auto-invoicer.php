@@ -67,7 +67,7 @@ final class Aragrow_WC_PayPal_Auto_Invoicer {
 		add_options_page(
 			'PayPal Integration',
 			'PayPal Integration',
-			'manage_options',
+			TIMEGROW_OWNER_CAP, // saving: TimeGrowRequirements::settings_capability()
 			'paypal-integration',
 			[ $this, 'render_settings_page' ]
 		);

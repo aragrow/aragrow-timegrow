@@ -34,7 +34,7 @@ class TimeGrowIntegration{
         add_options_page(
             'WooCommerce Integration',      // Page title
             'WooCommerce Integration',      // Menu title
-            'manage_options',          // Capability
+            TIMEGROW_OWNER_CAP,        // Capability (saving: TimeGrowRequirements::settings_capability())
             'woocommerce-integration',   // Menu slug
             function() { // Define a closure
                 $this->tracker_mvc_admin_page(); // Call the tracker_mvc method, passing the parameter

@@ -755,7 +755,7 @@ class TimeGrowSettings {
                 <?php endif; ?>
 
                 <!-- Mobile Access Card -->
-                <?php if (current_user_can('manage_options')): $two_fa = class_exists('TimeGrowMobile2FA') && TimeGrowMobile2FA::active(); ?>
+                <?php if (current_user_can(TIMEGROW_OWNER_CAP)): $two_fa = class_exists('TimeGrowMobile2FA') && TimeGrowMobile2FA::active(); ?>
                 <a href="<?php echo esc_url(admin_url('admin.php?page=timegrow-mobile-settings')); ?>" class="timegrow-card">
                     <div class="timegrow-card-header">
                         <div class="timegrow-icon timegrow-icon-primary">

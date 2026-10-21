@@ -41,8 +41,8 @@ class TimeGrow_Ajax_Handler {
             wp_die('Security check failed');
         }
         
-        // Check user permissions (optional)
-        if (!current_user_can('manage_options')) {
+        // Anyone who records time may ask whether a project is billable (the time entry forms ask)
+        if (!current_user_can(TIMEGROW_OWNER_CAP) && !current_user_can('access_nexus_manual_entry') && !current_user_can('access_nexus_clock')) {
             wp_send_json_error('Insufficient permissions');
             return;
         }

@@ -5,7 +5,8 @@ if (!defined('ABSPATH')) {
 }
 
 /**
- * TimeGrow's capabilities: the move of its base capabilities to the timegrow_ names.
+ * TimeGrow's capabilities: the move of its base capabilities to the timegrow_ names, and the
+ * capability its settings pages are saved with.
  *
  * - The base capabilities were named timeflies_owner, timeflies_admin and timeflies_team_member.
  *   They are now timegrow_owner, timegrow_admin and timegrow_team_member: every role and user that
@@ -20,6 +21,30 @@ class TimeGrowRequirements {
         'timeflies_admin'       => 'timegrow_admin',
         'timeflies_team_member' => 'timegrow_team_member',
     ];
+
+    /** TimeGrow's settings groups (Settings tabs, WooCommerce Integration, PayPal Integration). */
+    const SETTINGS_GROUPS = [
+        'aragrow_timegrow_general_settings_group',
+        'timegrow_receipt_settings_group',
+        'timegrow_voice_settings_group',
+        'timegrow_integration_group',
+        'wc_pp_auto_invoicer',
+    ];
+
+    /**
+     * Saving a TimeGrow settings page goes through WordPress's options.php, which asks for
+     * manage_options unless told otherwise: these groups ask for timegrow_owner instead, like the
+     * pages that show them.
+     */
+    public static function register_settings_capability() {
+        foreach (self::SETTINGS_GROUPS as $group) {
+            add_filter('option_page_capability_' . $group, [__CLASS__, 'settings_capability']);
+        }
+    }
+
+    public static function settings_capability() {
+        return TIMEGROW_OWNER_CAP;
+    }
 
     /** Option holding which capability names are in use (2 = timegrow_). */
     const CAPS_VERSION_OPTION = 'timegrow_caps_version';
