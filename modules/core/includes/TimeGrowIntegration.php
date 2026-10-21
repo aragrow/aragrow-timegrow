@@ -244,7 +244,7 @@ class TimeGrowIntegration{
             <form method="post" action="options.php" class="timegrow-integration-form">
                 <?php settings_fields('timegrow_integration_group'); ?>
 
-                <div class="timegrow-cards-container">
+                <div class="timegrow-cards-container timegrow-cards-main-side">
 
                     <!-- WooCommerce Integration Card -->
                     <div class="timegrow-card <?php echo $wc_installed ? '' : 'disabled'; ?>">
@@ -324,6 +324,73 @@ class TimeGrowIntegration{
                                         <strong><?php esc_html_e('Decimal Quantities', 'timegrow'); ?></strong>
                                         <p><?php esc_html_e('Allow quantities such as 3.75 on order lines (applies to all products and stock)', 'timegrow'); ?></p>
                                     </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Information Card -->
+                    <div class="timegrow-card info-card">
+                        <div class="timegrow-card-header">
+                            <div class="timegrow-icon timegrow-icon-info">
+                                <span class="dashicons dashicons-info"></span>
+                            </div>
+                            <div class="timegrow-card-title">
+                                <h2><?php esc_html_e('How It Works', 'timegrow'); ?></h2>
+                            </div>
+                        </div>
+
+                        <div class="timegrow-card-body">
+                            <div class="timegrow-info-box">
+                                <span class="dashicons dashicons-cart"></span>
+                                <div>
+                                    <p><strong><?php esc_html_e('Free, no key needed', 'timegrow'); ?></strong></p>
+                                    <p><?php esc_html_e('TimeGrow invoices through WooCommerce. Install and activate the WooCommerce plugin, then turn on what you use here.', 'timegrow'); ?></p>
+                                </div>
+                            </div>
+
+                            <div class="timegrow-info-box">
+                                <span class="dashicons dashicons-admin-users"></span>
+                                <div>
+                                    <p><strong><?php esc_html_e('Clients', 'timegrow'); ?></strong></p>
+                                    <p><?php esc_html_e('With Client Synchronization on, your clients are your WooCommerce customers, with their billing name, email and company.', 'timegrow'); ?></p>
+                                </div>
+                            </div>
+
+                            <div class="timegrow-info-box">
+                                <span class="dashicons dashicons-products"></span>
+                                <div>
+                                    <p><strong><?php esc_html_e('Projects as products', 'timegrow'); ?></strong></p>
+                                    <p><?php esc_html_e('With Product Synchronization on, each project gets its own hidden, virtual product named "Client - Project", priced at its hourly rate: the project\'s, else the client\'s, else the company\'s.', 'timegrow'); ?></p>
+                                </div>
+                            </div>
+
+                            <div class="timegrow-info-box">
+                                <span class="dashicons dashicons-clock"></span>
+                                <div>
+                                    <p><strong><?php esc_html_e('Billing your time', 'timegrow'); ?></strong></p>
+                                    <p><?php esc_html_e('Process Time turns billable, unbilled time into a WooCommerce order per client, with a line per project, and marks the entries as billed. Non-billable and inactive entries are left out.', 'timegrow'); ?></p>
+                                </div>
+                            </div>
+
+                            <div class="timegrow-info-box">
+                                <span class="dashicons dashicons-editor-ol"></span>
+                                <div>
+                                    <p><strong><?php esc_html_e('Hours with decimals', 'timegrow'); ?></strong></p>
+                                    <p><?php esc_html_e('With Decimal Quantities on, 1.5 hours is billed as 1.5 instead of being rounded to a whole number.', 'timegrow'); ?></p>
+                                </div>
+                            </div>
+
+                            <div class="timegrow-info-box">
+                                <span class="dashicons dashicons-money-alt"></span>
+                                <div>
+                                    <p><strong><?php esc_html_e('Getting paid', 'timegrow'); ?></strong></p>
+                                    <p>
+                                        <?php esc_html_e('To send the invoices through PayPal and record payments automatically, set up PayPal Integration.', 'timegrow'); ?>
+                                        <?php if ($paypal_module_active) : ?>
+                                            <a href="<?php echo esc_url(admin_url('options-general.php?page=paypal-integration')); ?>"><?php esc_html_e('Open PayPal Integration', 'timegrow'); ?></a>
+                                        <?php endif; ?>
+                                    </p>
                                 </div>
                             </div>
                         </div>

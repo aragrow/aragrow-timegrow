@@ -261,8 +261,13 @@ class TimeGrowHelpTopicsPage {
             } elseif ($topic !== '') {
                 self::render_editor($topic === 'new' ? null : self::find($topic));
             } else {
+                // The topics on the left; how the knowledge base works on the right
+                echo '<div class="timegrow-cards-container timegrow-cards-main-side"><div class="tg-kb-main">';
                 self::render_try();
                 self::render_list();
+                echo '</div>';
+                self::render_how_it_works();
+                echo '</div>';
             }
             ?>
         </div>
@@ -324,6 +329,43 @@ class TimeGrowHelpTopicsPage {
                     </ol>
                 <?php endif; ?>
             <?php endif; ?>
+        </div>
+        <?php
+    }
+
+    /** The "How It Works" card beside the topics. */
+    private static function render_how_it_works() {
+        $boxes = [
+            ['format-chat', __('Where answers come from', 'timegrow'), __('When someone asks the voice assistant "how do I…?", it answers from these topics only, in a few sentences, with a link to the page the topic is about. It is told not to make up features or settings.', 'timegrow')],
+            ['search', __('How a topic is found', 'timegrow'), __('The question\'s words are matched against each topic\'s title, keywords and text. Add keywords people would use, such as "receipt" or "punch in", and check with Try a question.', 'timegrow')],
+            ['groups', __('Who sees what', 'timegrow'), __('Topics for Administrators are only used for administrators. A team member who asks about one is told to ask an administrator.', 'timegrow')],
+            ['edit', __('Built-in and your own', 'timegrow'), __('Built-in topics come with TimeGrow. Edit, hide or reset them, or add your own. Your changes are kept when TimeGrow is updated.', 'timegrow')],
+            ['book-alt', __('Also the User Guide', 'timegrow'), __('The User Guide page shows the same topics, so what you write here is what people read there.', 'timegrow')],
+            ['migrate', __('Moving to production', 'timegrow'), __('Export the topics you changed here and import them on the other site. You see what changes before anything is saved, and you can undo the last import.', 'timegrow')],
+        ];
+        ?>
+        <div class="timegrow-card info-card timegrow-side-sticky">
+            <div class="timegrow-card-header">
+                <div class="timegrow-icon timegrow-icon-info"><span class="dashicons dashicons-info"></span></div>
+                <div class="timegrow-card-title"><h2><?php esc_html_e('How It Works', 'timegrow'); ?></h2></div>
+            </div>
+            <div class="timegrow-card-body">
+                <?php foreach ($boxes as [$icon, $title, $text]) : ?>
+                    <div class="timegrow-info-box">
+                        <span class="dashicons dashicons-<?php echo esc_attr($icon); ?>"></span>
+                        <div>
+                            <p><strong><?php echo esc_html($title); ?></strong></p>
+                            <p><?php echo esc_html($text); ?></p>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+                <p class="tg-kb-muted"><?php
+                    printf(
+                        /* translators: %s: link to Settings > AI Prompts */
+                        esc_html__('The wording of the answers follows the "Voice AI: help answers" prompt in %s.', 'timegrow'),
+                        '<a href="' . esc_url(admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-settings&tab=prompts')) . '">' . esc_html__('AI Prompts', 'timegrow') . '</a>'
+                    ); ?></p>
+            </div>
         </div>
         <?php
     }

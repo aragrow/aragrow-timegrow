@@ -54,6 +54,7 @@ class TimeGrowMobile {
 
         // Enqueue mobile assets
         add_action('admin_enqueue_scripts', [__CLASS__, 'enqueue_mobile_assets']);
+        add_action('admin_enqueue_scripts', [__CLASS__, 'enqueue_settings_assets']);
 
         // Once, on upgrade to 2.2.0: earlier PIN logins end, and administrators' PINs are switched off
         add_action('admin_init', [__CLASS__, 'upgrade_sessions'], 0);
@@ -306,6 +307,13 @@ class TimeGrowMobile {
         require_once TIMEGROW_MOBILE_INCLUDES_DIR . 'views/TimeGrowMobileSettingsView.php';
         $view = new TimeGrowMobileSettingsView();
         $view->display();
+    }
+
+    /** The Mobile Access page uses TimeGrow's page styles (header, How It Works card). */
+    public static function enqueue_settings_assets($hook) {
+        if (TimeFlies_Admin_Menu::is_page($hook, 'timegrow-mobile-settings')) {
+            wp_enqueue_style('timegrow-modern-style', TIMEGROW_CORE_BASE_URI . 'assets/css/timegrow-modern.css');
+        }
     }
 
     /**

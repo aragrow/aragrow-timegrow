@@ -200,9 +200,19 @@ class TimeGrowMobileSettingsView {
         $all_users = array_values(array_filter(get_users(['orderby' => 'display_name', 'role__in' => ['team_member']]), ['TimeGrowMobileAccess', 'pin_allowed']));
 
         ?>
-        <div class="wrap">
-            <h1>Mobile Access Management</h1>
+        <div class="wrap timegrow-page">
+            <div class="timegrow-modern-header">
+                <div class="timegrow-header-content">
+                    <h1><?php esc_html_e('Mobile Access', 'timegrow'); ?></h1>
+                    <p class="subtitle"><?php esc_html_e('The mobile website for team members: PINs, and what each person can use on their phone', 'timegrow'); ?></p>
+                </div>
+                <div class="timegrow-header-illustration"><span class="dashicons dashicons-smartphone"></span></div>
+            </div>
             <p><a href="<?php echo esc_url(admin_url('admin.php?page=' . TIMEGROW_PARENT_MENU . '-settings')); ?>">&larr; <?php esc_html_e('Back to Settings', 'timegrow'); ?></a></p>
+
+            <!-- People and PINs on the left; how the mobile website works on the right -->
+            <div class="timegrow-cards-container timegrow-cards-main-side">
+            <div>
 
             <?php if ($this->error_message): ?>
                 <div class="notice notice-error is-dismissible">
@@ -372,6 +382,43 @@ class TimeGrowMobileSettingsView {
                 <code style="font-size: 16px; padding: 10px; background: white; display: inline-block;">
                     <?php echo esc_url(home_url('/mobile-login')); ?>
                 </code>
+            </div>
+            </div>
+            <?php $this->render_how_it_works(); ?>
+            </div><!-- .timegrow-cards-main-side -->
+        </div>
+        <?php
+    }
+
+    /** The "How It Works" card beside the people and their PINs. */
+    private function render_how_it_works() {
+        $boxes = [
+            ['smartphone', __('The daily tasks, on a phone', 'timegrow'), __('Team members open the mobile login on their phone. They get Clock In / Out or Manual Time Entry (their Time Entry Method, on their profile), and Record Expenses with receipts. The rest of TimeGrow stays on the computer.', 'timegrow')],
+            ['admin-users', __('Team members only', 'timegrow'), __('Administrators log in with their password, on a phone too: the mobile login page has a link for it.', 'timegrow')],
+            ['admin-network', __('A PIN made by TimeGrow', 'timegrow'), __('Generate a 6-character PIN here, or on the person\'s profile. It is shown once, so give it to them right away. A new PIN replaces the old one.', 'timegrow')],
+            ['shield', __('Two-factor authentication', 'timegrow'), TimeGrowMobile2FA::active()
+                ? __('People who have two-factor authentication on for this site (Wordfence Login Security) enter their authenticator code after the PIN, the same code as on the normal login.', 'timegrow')
+                : __('Turn on Wordfence Login Security to add it: people who have two-factor authentication on then enter their authenticator code after the PIN, the same code as on the normal login.', 'timegrow')],
+            ['lock', __('Wrong PINs lock it', 'timegrow'), __('5 wrong PINs or codes lock the person\'s PIN for 15 minutes; Unlock here ends it sooner. Every failed login shows the same message.', 'timegrow')],
+            ['clock', __('8 hours, then log in again', 'timegrow'), __('A mobile login lasts 8 hours, or until Log out in the menu. It only opens the mobile pages.', 'timegrow')],
+            ['admin-settings', __('What each person can use', 'timegrow'), __('Time tracking, Expenses, AI Voice and the AI Receipt Reader are switched on per person. Without Time tracking or Expenses, there is nothing to open.', 'timegrow')],
+        ];
+        ?>
+        <div class="timegrow-card info-card timegrow-side-sticky">
+            <div class="timegrow-card-header">
+                <div class="timegrow-icon timegrow-icon-info"><span class="dashicons dashicons-info"></span></div>
+                <div class="timegrow-card-title"><h2><?php esc_html_e('How It Works', 'timegrow'); ?></h2></div>
+            </div>
+            <div class="timegrow-card-body">
+                <?php foreach ($boxes as [$icon, $title, $text]) : ?>
+                    <div class="timegrow-info-box">
+                        <span class="dashicons dashicons-<?php echo esc_attr($icon); ?>"></span>
+                        <div>
+                            <p><strong><?php echo esc_html($title); ?></strong></p>
+                            <p><?php echo esc_html($text); ?></p>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
             </div>
         </div>
         <?php

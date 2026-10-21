@@ -1054,6 +1054,10 @@ class TimeGrowSettings {
                 <?php endif; ?>
             <?php endif; ?>
 
+            <!-- The configurations on the left; how AI works in TimeGrow on the right -->
+            <div class="timegrow-cards-container timegrow-cards-main-side">
+            <div>
+
             <!-- Saved Configurations -->
             <div class="postbox" style="margin-bottom: 20px;">
                 <h2 class="hndle" style="padding: 15px; display: flex; justify-content: space-between; align-items: center;">
@@ -1206,6 +1210,10 @@ class TimeGrowSettings {
                 </div><!-- .inside -->
             </div><!-- .postbox -->
             </div><!-- #timegrow-config-form-container -->
+
+            </div>
+            <?php $this->render_ai_how_it_works(); ?>
+            </div><!-- .timegrow-cards-main-side -->
 
             <div class="timegrow-footer" style="margin-top: 20px;">
                 <a href="?page=<?php echo TIMEGROW_PARENT_MENU; ?>-settings" class="button button-secondary large">
@@ -1450,6 +1458,68 @@ class TimeGrowSettings {
      * The "AI to use" dropdown for a feature: Use the default, or any saved configuration, each with
      * its key status. A note shows when the feature's choice was deleted and the default is used.
      */
+    /** The "How It Works" card on Settings > AI. */
+    private function render_ai_how_it_works() {
+        $boxes = [
+            ['admin-network', __('Bring your own key', 'timegrow'), __('Each configuration is a provider (Google Gemini, OpenAI or Anthropic Claude), a model and your API key. The provider bills your account for what TimeGrow uses. Keys are stored encrypted and never shown again.', 'timegrow')],
+            ['star-filled', __('Default, or one per feature', 'timegrow'), __('The default configuration is used by every AI feature. AI Receipt Analysis and AI Voice Entry can each pick another one under "AI to use". If the one they picked is deleted, they use the default.', 'timegrow')],
+            ['yes-alt', __('Keys are tested', 'timegrow'), __('Test checks a key, and the feature pages check theirs when they open. A key that does not work turns AI off for the features using it; when the provider can\'t be reached, AI stays on.', 'timegrow')],
+            ['privacy', __('Names stay private', 'timegrow'), __('Before the voice assistant sends anything to the AI, names of clients, team members and your company are replaced with stand-ins, and put back in the answer.', 'timegrow')],
+            ['shield', __('The AI only reads', 'timegrow'), __('It reads receipts and what people say, and returns what it found. TimeGrow checks every value, and nothing is saved until a person approves it.', 'timegrow')],
+            ['clock', __('Hourly limits', 'timegrow'), __('Each person can use 30 receipt readings and 120 voice messages an hour, so a mistake or misuse can\'t run up your bill.', 'timegrow')],
+        ];
+        self::render_how_it_works($boxes);
+    }
+
+    /** The "How It Works" card on Settings > AI Voice Entry. */
+    private function render_voice_how_it_works() {
+        self::render_how_it_works([
+            ['microphone', __('Talk or type', 'timegrow'), __('A microphone icon on every admin page opens the chat, for people who can record time. It records time, punches people in and out, answers questions about TimeGrow data and explains how TimeGrow works. Administrators can also add clients and projects.', 'timegrow')],
+            ['yes-alt', __('Nothing is saved without approval', 'timegrow'), __('The assistant shows what it will save, punch in or out, or create, and waits. With "Saving needs a click" on, only a click on the button approves it.', 'timegrow')],
+            ['lock', __('Each person sees their own', 'timegrow'), __('The AI only works out what the person means. TimeGrow checks what they may do and finds the answers: team members get their own time, projects and clients; administrators get everything. Answers cover the last 3 months, and older questions point to the reports.', 'timegrow')],
+            ['businessman', __('Never another client or project', 'timegrow'), __('When a client or project the person names is not found, the assistant says so and picks nothing else. Administrators can add it from the chat.', 'timegrow')],
+            ['privacy', __('Names stay private', 'timegrow'), __('Names of clients, team members and your company are replaced with stand-ins before anything reaches the AI, and put back in the answer.', 'timegrow')],
+            ['shield', __('Manipulation is stopped', 'timegrow'), __('The AI checks every message for attempts to change its instructions. When it finds one, the chat stops, tells the person, and the attempt is logged as a Prompt Injection Attempt.', 'timegrow')],
+            ['format-chat', __('Without AI', 'timegrow'), __('When "Hold a conversation with AI" is off, or the AI is not working, the chat asks each question one at a time.', 'timegrow')],
+        ]);
+    }
+
+    /** The "How It Works" card on Settings > AI Receipt Analysis. */
+    private function render_receipt_how_it_works() {
+        self::render_how_it_works([
+            ['upload', __('Upload, then read', 'timegrow'), __('When a receipt photo or PDF is added to an expense, the AI reads it and fills in the amount, date, vendor, category and description, on the expense form and on Nexus Record Expenses.', 'timegrow')],
+            ['category', __('Your categories', 'timegrow'), __('The category is picked from your active expense categories (IRS Schedule C), never made up.', 'timegrow')],
+            ['yes-alt', __('You check, then save', 'timegrow'), __('The AI only fills in the form. Nothing is saved until the person checks the fields and saves the expense.', 'timegrow')],
+            ['warning', __('Confidence and warnings', 'timegrow'), __('When the AI is less sure than the confidence threshold, the fields are still filled in, with a warning to check every one. A refund or return leaves the amount blank. Text on a receipt that reads like instructions to the AI is ignored and flagged.', 'timegrow')],
+            ['groups', __('Who can use it', 'timegrow'), __('Administrators, and people given the AI Receipt Reader on Mobile Access.', 'timegrow')],
+            ['privacy', __('The receipt itself', 'timegrow'), __('The image is resized before it is sent. The copy used for reading is deleted; the receipt saved with the expense is kept private, for the person who added it and administrators.', 'timegrow')],
+            ['clock', __('Hourly limit', 'timegrow'), __('Each person can read up to 30 receipts an hour.', 'timegrow')],
+        ]);
+    }
+
+    /** A "How It Works" side card: [dashicon, title, text] per box. */
+    private static function render_how_it_works(array $boxes) {
+        ?>
+        <div class="timegrow-card info-card timegrow-side-sticky">
+            <div class="timegrow-card-header">
+                <div class="timegrow-icon timegrow-icon-info"><span class="dashicons dashicons-info"></span></div>
+                <div class="timegrow-card-title"><h2><?php esc_html_e('How It Works', 'timegrow'); ?></h2></div>
+            </div>
+            <div class="timegrow-card-body">
+                <?php foreach ($boxes as [$icon, $title, $text]) : ?>
+                    <div class="timegrow-info-box">
+                        <span class="dashicons dashicons-<?php echo esc_attr($icon); ?>"></span>
+                        <div>
+                            <p><strong><?php echo esc_html($title); ?></strong></p>
+                            <p><?php echo esc_html($text); ?></p>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+        <?php
+    }
+
     private function render_ai_choice($feature, $option_name, $selected) {
         $configs = TimeGrowAI::configurations();
         $choice  = TimeGrowAI::choice($feature);
@@ -1518,6 +1588,8 @@ class TimeGrowSettings {
             <form method="post" action="options.php">
                 <?php settings_fields('timegrow_receipt_settings_group'); ?>
 
+                <div class="timegrow-cards-container timegrow-cards-main-side">
+                <div>
                 <div class="timegrow-card">
                     <div class="timegrow-card-header">
                         <div class="timegrow-icon timegrow-icon-primary"><span class="dashicons dashicons-media-document"></span></div>
@@ -1563,6 +1635,9 @@ class TimeGrowSettings {
                 </div>
 
                 <?php $this->render_review_settings('receipts', self::RECEIPT_OPTION, $settings); ?>
+                </div>
+                <?php $this->render_receipt_how_it_works(); ?>
+                </div>
 
                 <div class="timegrow-footer">
                     <?php submit_button(__('Save Settings', 'timegrow'), 'primary large', 'submit', false); ?>
@@ -1829,6 +1904,8 @@ class TimeGrowSettings {
             <form method="post" action="options.php">
                 <?php settings_fields('timegrow_voice_settings_group'); ?>
 
+                <div class="timegrow-cards-container timegrow-cards-main-side">
+                <div>
                 <div class="timegrow-card">
                     <div class="timegrow-card-header">
                         <div class="timegrow-icon timegrow-icon-primary"><span class="dashicons dashicons-microphone"></span></div>
@@ -1925,6 +2002,9 @@ class TimeGrowSettings {
                 </div>
 
                 <?php $this->render_review_settings('voice', self::VOICE_OPTION, $settings); ?>
+                </div>
+                <?php $this->render_voice_how_it_works(); ?>
+                </div>
 
                 <div class="timegrow-footer">
                     <?php submit_button(__('Save Settings', 'timegrow'), 'primary large', 'submit', false); ?>
