@@ -29,14 +29,9 @@ class Aragrow_WOO_Integration_Plugins
     {
 
         timegrow_log(__CLASS__.'::'.__FUNCTION__);
-        //  add_filter('woocommerce_before_order_itemmeta', [$this, 'custom_admin_order_item_quantity_input'], 10, 2);
-        // add_action('woocommerce_before_order_item_quantity_save', [$this, 'allow_decimal_quantities_in_orders'], 10, 2);
-        //  add_filter('woocommerce_order_item_quantity_html', [$this, 'display_decimal_quantities_in_admin'], 10, 2);
-        //  add_action('admin_menu', [$this, 'add_manual_payments_submenu']);
         add_action('add_meta_boxes', [ $this, 'add_manual_payment_meta_box' ]);
         // Save meta box data
         add_action('woocommerce_process_shop_order_meta', [ $this,'save_manual_payment_data' ], 10, 2);
-        //  add_action('woocommerce_admin_order_data_after_order_details', [$this, 'display_manual_payment_details']);
 
         // Add Custom Field
         add_action('show_user_profile', [ $this, 'add_custom_field_ein_ssn' ]);  // Profile
@@ -86,7 +81,6 @@ class Aragrow_WOO_Integration_Plugins
         // For WooCommerce PDF Invoices & Packing Slips Plugin
         add_filter('wpo_wcpdf_document_is_allowed', [$this, 'enable_invoice_for_custom_invoice_sent_status'], 10, 2);
         // Add Email Notifications for Invoice Sent
-        add_action('woocommerce_order_status_invoice_sent', [$this, 'send_custom_invoice_sent_email_notification'], 10, 1);
        // Add custom color for Invoice Sent status in admin panel
         add_action('admin_head', [$this, 'custom_invoice_sent_admin_styles']);
 
@@ -106,85 +100,6 @@ class Aragrow_WOO_Integration_Plugins
         // Auto-record payment when status changes to partial_paid
         add_action('woocommerce_order_status_partial_paid', [$this, 'auto_record_partial_payment'], 10, 1);
 
-     /*   // Display in admin order details
-        add_action('woocommerce_after_order_itemmeta', [$this, 'display_precise_quantity_admin'], 10, 3);
-        add_filter('woocommerce_order_item_quantity_html', [$this, 'display_precise_quantity_customer'], 10, 2);
-   */
-    }
-
-    // Helper function to get all product IDs in the TIMEGROW category
-    function is_timegrow_product_id($id) {
-        timegrow_log(__CLASS__.'::'.__FUNCTION__);
-        $args = array(
-            'ID' => $id,
-            'category' => array('timegrow'),
-            'limit' => 1, // Retrieve all products
-        );
-        $product = wc_get_products($args);
-        if ($product) return true;
-        else return false;
-    }
-
-    function custom_admin_order_item_quantity_input($item_id, $item) {
-        timegrow_log(__CLASS__.'::'.__FUNCTION__);
-        // Only run this on the order edit page
-        if (!is_admin() || !isset($_GET['post']) || get_post_type($_GET['post']) !== 'shop_order') {
-            return;
-        }
-    
-        // Remove the default quantity field
-        remove_action('woocommerce_before_order_itemmeta', array('WC_Meta_Box_Order_Items', 'output_item_quantity_input'), 10);
-    
-        // Output our custom quantity field
-        ?>
-        <div class="edit" style="display: none;">
-            <input type="number"
-                step="any"
-                min="0"
-                name="order_item_qty[<?php echo esc_attr($item_id); ?>]"
-                placeholder="0"
-                value="<?php echo esc_attr($item->get_quantity()); ?>"
-                data-qty="<?php echo esc_attr($item->get_quantity()); ?>"
-                size="8"
-                class="quantity"
-                style="width: 80px; padding: 5px;"
-            />
-        </div>
-        <?php
-    }   
-
-    function allow_decimal_quantities_in_orders($item_id, $item) {
-        timegrow_log(__CLASS__.'::'.__FUNCTION__);
-        if (isset($_POST['order_item_qty'][$item_id])) {
-            $quantity = floatval($_POST['order_item_qty'][$item_id]);
-            $item->set_quantity($quantity); // Save as a decimal
-        }
-    }
-    
-    function display_decimal_quantities_in_admin($quantity_html, $item) {
-        timegrow_log(__CLASS__.'::'.__FUNCTION__);
-        $quantity = $item->get_quantity();
-        return number_format((float) $quantity, 2, '.', ''); // Display with 2 decimal places
-    }
-    
-    function add_manual_payments_submenu() {
-        timegrow_log(__CLASS__.'::'.__FUNCTION__);
-        add_submenu_page(
-            'woocommerce',
-            'Manual Payments',
-            'Manual Payments',
-            'manage_woocommerce',
-            'manual-payments',
-            [$this, 'manual_payments_page_callback']
-        );
-    }
-
-    function manual_payments_page_callback() {
-        timegrow_log(__CLASS__.'::'.__FUNCTION__);
-        echo '<div class="wrap">';
-        echo '<h1>Manual Payments</h1>';
-        echo '<p>This is the Manual Payments page content.</p>';
-        echo '</div>';
     }
 
     function add_manual_payment_meta_box() {
@@ -322,30 +237,12 @@ class Aragrow_WOO_Integration_Plugins
         $order->save();
     }
 
-    function display_manual_payment_details($order) {
-        timegrow_log(__CLASS__.'::'.__FUNCTION__);
-        $order_id = $order->get_id();
-        
-        $payment_date = get_post_meta($order_id, '_payment_date', true);
-        $payment_amount = get_post_meta($order_id, '_payment_amount', true);
-        $payment_type = get_post_meta($order_id, '_payment_type', true);
-        $payment_trans_id = get_post_meta($order_id, '_payment_trans_id', true);
-
-        echo '<div style="margin-top:10px;">';
-        echo '<h3>' . __('Manual Payment Details') . '</h3>';
-        echo '<p><strong>' . __('Payment Date:') . '</strong> ' . esc_html($payment_date) .'<br />';
-        echo ' <strong>' . __('Payment Amount:') . '</strong> $' . esc_html(number_format((float)$payment_amount, 2)) .'<br />';
-        echo ' <strong>' . __('Payment Type:') . '</strong> ' . esc_html($payment_type) . '</p>';
-        echo '<p><strong>' . __('Transaction ID:') . '</strong> ' . esc_html($payment_trans_id) . '</p>';
-        echo '</div>';
-    }
-
     function add_custom_field_ein_ssn($user) {
         timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
-        $timegrow_ein_ssn = get_user_meta($user->ID, 'timegrow_ein_ssn', true);
+        $timegrow_ein_ssn = get_user_meta($user->ID, '_timegrow_ein_ssn', true); // where the save puts it
         ?>
-        <h3><?php _e('INE/SSN'); ?></h3>
+        <h3><?php _e('EIN/SSN'); ?></h3>
         <table class="form-table">
             <tr>
                 <th><label for="billing_dni_nie_CIF"><?php _e('Number'); ?></label></th>
@@ -383,7 +280,7 @@ class Aragrow_WOO_Integration_Plugins
     function ein_ssn_show_user_column_value($value, $column_name, $user_id) {
         timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
-        if ($column_name == 'timegrow_ein_ssn') {
+        if ($column_name === '_timegrow_ein_ssn') { // the key ein_ssn_add_user_column() gives the column
             return get_user_meta($user_id, '_timegrow_ein_ssn', true);
         }
         return $value;
@@ -773,26 +670,6 @@ class Aragrow_WOO_Integration_Plugins
         );
     }
 
-    public function send_custom_invoice_sent_email_notification($order_id) {
-        timegrow_log(__CLASS__.'::'.__FUNCTION__);
-        return; // This function is already defined above, so we can skip this duplicate definition.
-        $order = wc_get_order($order_id);
-
-        // Send an email to the customer
-        $mailer = WC()->mailer();
-        $email_content = sprintf(
-            __('Your invoice #%s has been marked as sent to Client.', 'woocommerce'),
-            $order->get_order_number()
-        );
-        $email_heading = __('Invoice Sent to Client Notification', 'woocommerce');
-
-        $mailer->send(
-            $order->get_billing_email(),
-            $email_heading,
-            $email_content
-        );
-    }
-
     public function register_custom_partial_paid_status() {
         timegrow_log(__CLASS__.'::'.__FUNCTION__);
 
@@ -957,114 +834,9 @@ class Aragrow_WOO_Integration_Plugins
         }
     }
 
-    // Add a custom field to the order item meta for precise quantity
-
-    
-    // Display in admin order details
-    function display_precise_quantity_admin($item_id, $item, $product) {
-        if ($item->get_type() === 'line_item') {
-            $precise_qty = $item->get_meta('_precise_quantity');
-            if ($precise_qty) {
-                echo '<div><strong>Precise Quantity:</strong> ' . esc_html($precise_qty) . '</div>';
-            }
-        }
-    }
-
-    // Display in customer order details
-     function display_precise_quantity_customer($qty_display, $item) {
-        $precise_qty = $item->get_meta('_precise_quantity');
-        if ($precise_qty) {
-            return $precise_qty;
-        }
-        return $qty_display;
-    }
-
 }
 
-class Aragrow_MyWooUnpaidInvoiceDashboardWidget {
-    
-    public function __construct() {
-        
-        timegrow_log(__CLASS__.'::'.__FUNCTION__);
-        add_action('wp_dashboard_setup', [$this, 'woocommerce_unpaid_invoices_widget'],999);
-
-    }
-
-    public function woocommerce_unpaid_invoices_widget() {
-        timegrow_log(__CLASS__.'::'.__FUNCTION__);
-        $return = wp_add_dashboard_widget(
-            'aragrow_woocommerce_unpaid_invoices', 
-            'Unpaid Invoices', 
-            [$this, 'woocommerce_unpaid_invoices_callback']
-        );
-    }
-
-    public function woocommerce_unpaid_invoices_callback() {
-        timegrow_log(__CLASS__.'::'.__FUNCTION__);
-        // Get unpaid invoices
-        $unpaid_invoices = $this->get_unpaid_invoices();
-        if(empty($unpaid_invoices)) {
-            echo '<p>No unpaid invoices found</p>';
-            return;
-        }
-
-        // Sort invoices by client and invoice date
-        usort($unpaid_invoices, function($a, $b) {
-            if ($a['client'] == $b['client']) {
-                return $a['invoice_date']->getTimestamp() <=> $b['invoice_date']->getTimestamp();
-            } else {
-                return $a['client'] <=> $b['client'];
-            }
-        });
-
-        // Display invoices
-        echo '<table class="aragrow-invoices">';
-        echo '<tr><th>Client</th><th>Invoice Date</th><th>No.</th><th>Amount</th></tr>';
-        foreach ($unpaid_invoices as $invoice) {
-
-            echo '<tr>';
-            echo '<td>' . esc_html($invoice['client']) . '</td>';
-            echo '<td>' . esc_html($invoice['invoice_date']->date('m/d/Y')) . '</td>';
-            echo '<td><a href="' . esc_url('admin.php?page=wc-orders&action=edit&id=' . $invoice['invoice_number'])  .'">' . esc_html($invoice['invoice_number']) . '</a></td>';
-            echo '<td>' . wp_kses_post($invoice['amount']) . '</td>'; // a formatted price (markup from WooCommerce only)
-            echo '</tr>';
-        }   
-        echo '</table>';
-        echo '<style>.aragrow-invoices td{padding:8px 12px;}</style>';
-    }
-
-    public function get_unpaid_invoices() {
-        $unpaid_invoices = [];
-        global $wpdb;
-        timegrow_log(__CLASS__.'::'.__FUNCTION__);
-        if (!function_exists('wc_get_orders')) {
-            timegrow_log('Error: WooCommerce is not loaded, unpaid invoices skipped.');
-            return $unpaid_invoices;
-        }
-
-        $args = [
-            'type' => 'shop_order',
-            'status' => 'wc-pending'
-        ];
-        $orders = wc_get_orders($args);
-        if (!$orders) return $unpaid_invoices;
-        foreach ($orders as $order_data) {
-            $invoice_number = $order_data->get_order_number();
-            $client = $order_data->get_billing_first_name() . ' ' . $order_data->get_billing_last_name();
-            $invoice_date = $order_data->get_date_created();
-            $amount = $order_data->get_formatted_order_total();
-            $unpaid_invoices[] = array(
-                'client' => $client,
-                'invoice_date' => $invoice_date,
-                'invoice_number' => $invoice_number,
-                'amount' => $amount
-            );
-        }
-        return $unpaid_invoices;
-    }
-}
 // In your plugin main file:
 add_action('plugins_loaded', function() {
     new Aragrow_WOO_Integration_Plugins();
-    // new Aragrow_MyWooUnpaidInvoiceDashboardWidget();
 });

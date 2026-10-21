@@ -829,9 +829,6 @@ class TimeGrowNexus{
     }
 
     
-    public function get_open_order_for_client($client_id) {
-        timegrow_log(__CLASS__.'::'.__FUNCTION__);
-    }
 
 
 

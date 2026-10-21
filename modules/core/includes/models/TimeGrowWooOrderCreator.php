@@ -87,6 +87,7 @@ class TimeGrowWooOrderCreator {
             $order        = null;
             $is_new_order = false;
             $claimed      = []; // entries this run billed on this client's order
+            $default_rate_projects = [];
             try {
                 print('<br />---> ');print('Client Id: '.$client_id);
 
@@ -146,17 +147,17 @@ class TimeGrowWooOrderCreator {
                     // Rate order: project, client, company, then 75
                     $project_rate = $model_project->get_project_rate($project_id);
                     $client_rate  = $model_project->get_client_rate($client_id);
-                    $the_rate = self::resolve_rate(
-                        $project_rate[0]->default_flat_fee ?? null,
-                        $client_rate[0]->default_flat_fee ?? null,
-                        timegrow_company_default_rate()
-                    );
+                    $rates = [$project_rate[0]->default_flat_fee ?? null, $client_rate[0]->default_flat_fee ?? null, timegrow_company_default_rate()];
+                    $the_rate = self::resolve_rate(...$rates);
+                    if (!array_filter($rates, function ($r) { return is_numeric($r) && (float) $r > 0; })) {
+                        $default_rate_projects[] = (string) $project[0]->name; // no rate anywhere: the 75 default
+                    }
                     print("<br />---------> Project Rate: $the_rate\n");
 
                     // Each entry is billed (claimed) as it goes onto this order: an entry another run
                     // already billed is left out, so the same time is never on two orders
                     $product_hours = 0;
-                    $work_done     = '';
+                    $work_done     = []; // every entry's description, once each
                     foreach ($entries as $entry) {
                         if (!self::is_billable($entry)) continue;
                         $hours = self::entry_hours($entry);
@@ -169,7 +170,8 @@ class TimeGrowWooOrderCreator {
                         $claimed[] = (int) $entry->ID;
                         print("<br />------> Project Type: $entry->entry_type, Project ID: $project_id, WOO Product ID: $product_id\n");
                         $product_hours += $hours;
-                        $work_done = $entry->description;
+                        $description = trim(wp_strip_all_tags((string) $entry->description));
+                        if ($description !== '' && !in_array($description, $work_done, true)) $work_done[] = $description;
                     }
 
                     print('<br />---------> Product Hours: '.$product_hours);
@@ -215,7 +217,7 @@ class TimeGrowWooOrderCreator {
                     $item->add_meta_data('_timegrow_project_hours', number_format($product_hours, 2, '.', ''));
                     $item->add_meta_data('_timegrow_line_rate', wc_format_decimal($the_rate, 4));
                     $item->add_meta_data('_display_message', $product_hours . ' hrs. At a rate of '. $the_rate. ' per hour.');
-                    $item->add_meta_data('_work_done', $work_done);
+                    $item->add_meta_data('_work_done', implode('; ', $work_done));
                     $item->set_subtotal($product_total);
                     $item->set_total($product_total);
                     $order->add_item($item);
@@ -238,6 +240,11 @@ class TimeGrowWooOrderCreator {
                 if (!$saved || $saved->get_status() !== 'processing' || count($saved->get_items('line_item')) !== $lines
                     || abs((float) $saved->get_total() - (float) $order->get_total()) > 0.005) {
                     throw new Exception('WooCommerce did not save the order');
+                }
+
+                if ($default_rate_projects) {
+                    $order->add_order_note(sprintf('No hourly rate is set for %s, its client or the company, so %s an hour was used. Set a rate under Projects, Clients or Companies.',
+                        implode(', ', $default_rate_projects), self::resolve_rate()));
                 }
 
                 $order_ids[] = $order->get_id();

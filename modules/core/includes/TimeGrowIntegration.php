@@ -269,7 +269,7 @@ class TimeGrowIntegration{
                                     </label>
                                     <div class="timegrow-feature-info">
                                         <strong><?php esc_html_e('Product Synchronization', 'timegrow'); ?></strong>
-                                        <p><?php esc_html_e('Link TimeGrow projects to WooCommerce products', 'timegrow'); ?></p>
+                                        <p><?php esc_html_e('Create and update each project\'s product when the project is saved. Off: Process Time creates it the first time the project is billed.', 'timegrow'); ?></p>
                                     </div>
                                 </div>
 
@@ -323,7 +323,7 @@ class TimeGrowIntegration{
                                 <span class="dashicons dashicons-products"></span>
                                 <div>
                                     <p><strong><?php esc_html_e('Projects as products', 'timegrow'); ?></strong></p>
-                                    <p><?php esc_html_e('With Product Synchronization on, each project gets its own hidden, virtual product named "Client - Project", priced at its hourly rate: the project\'s, else the client\'s, else the company\'s.', 'timegrow'); ?></p>
+                                    <p><?php esc_html_e('Each project is billed as its own hidden, virtual product named "Client - Project", priced at its hourly rate: the project\'s, else the client\'s, else the company\'s. With Product Synchronization on, it is made when the project is saved; otherwise the first time the project is billed.', 'timegrow'); ?></p>
                                 </div>
                             </div>
 
